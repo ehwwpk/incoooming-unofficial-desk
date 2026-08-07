@@ -6,13 +6,15 @@ The first milestone is intentionally small: authenticate, read accounts and posi
 
 ## Explore the dashboard while Schwab access is pending
 
-The demo command serves a complete fictional portfolio through the same application contract used by live data. It never writes fake records to the real ledger.
+The demo command serves a deterministic 13-week covered-call simulation through the same application contract used by live data. It models 700 CVX, 800 KTOS, and 500 URNM shares, including per-name call income, rolls, closes, expirations, active coverage, and a full execution ledger. It never writes fake records to the real ledger.
 
 ```powershell
 .\scripts\run-demo.cmd
 ```
 
 Open `http://127.0.0.1:8182`. Press `Ctrl+C` in the terminal to stop it.
+
+All demo trades and historical price paths are fictional. Current-price anchors are only for realistic sizing and must not be treated as broker marks or trading guidance.
 
 ## Quick start on Windows
 

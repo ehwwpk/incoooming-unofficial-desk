@@ -1,38 +1,34 @@
-<section class="metric-grid" aria-label="Portfolio summary">
-  <article class="metric-card primary">
-    <div class="metric-label">
-      <span>Portfolio value</span>
-      <span class="mini-tag">NET</span>
-    </div>
+<section class="portfolio-console" aria-label="Combined portfolio covered call summary">
+  <article class="console-cell net-liq">
+    <span>NET LIQUIDATION</span>
     <strong>{{ snapshot.portfolio.total_value | money }}</strong>
-    <small>{{ snapshot.portfolio.cash_value | money }} available cash</small>
-  </article>
-  <article class="metric-card">
-    <div class="metric-label">
-      <span>Today</span>
-      <span class="pulse-dot"></span>
-    </div>
-    <strong class="{{ snapshot.portfolio.day_profit_loss | pnl_class }}">
-      {{ snapshot.portfolio.day_profit_loss | money }}
-    </strong>
     <small class="{{ snapshot.portfolio.day_profit_loss | pnl_class }}">
-      {{ snapshot.portfolio.day_profit_loss_percent | percent(2) }} today
+      {{ snapshot.portfolio.day_profit_loss | money }} / {{ snapshot.portfolio.day_profit_loss_percent | percent(2) }} today
     </small>
   </article>
-  <article class="metric-card">
-    <div class="metric-label">
-      <span>Options income</span>
-      <span class="mini-tag">MTD</span>
-    </div>
-    <strong>{{ snapshot.income.month | money }}</strong>
-    <small>{{ snapshot.income.target_progress_percent | percent }} of monthly target</small>
+  <article class="console-cell cash-primary">
+    <span>OPTION +$ / QUARTER</span>
+    <strong>{{ snapshot.covered_calls.net_option_cash | money }}</strong>
+    <small>{{ snapshot.covered_calls.gross_premium | money }} gross − {{ snapshot.covered_calls.buyback_cost | money }} BTC</small>
   </article>
-  <article class="metric-card">
-    <div class="metric-label">
-      <span>Total income</span>
-      <span class="mini-tag">YTD</span>
-    </div>
-    <strong>{{ snapshot.income.year_to_date | money }}</strong>
-    <small>{{ snapshot.income.annualized_yield | percent }} annualized yield</small>
+  <article class="console-cell">
+    <span>TOTAL CASH INCOME</span>
+    <strong>{{ snapshot.covered_calls.total_cash_income | money }}</strong>
+    <small>Includes {{ snapshot.covered_calls.dividends | money }} dividends</small>
+  </article>
+  <article class="console-cell">
+    <span>ACTIVE COVERAGE</span>
+    <strong>{{ snapshot.covered_calls.active_contracts }}/{{ snapshot.covered_calls.contract_capacity }}</strong>
+    <small>{{ snapshot.covered_calls.coverage_percent | percent }} of shares covered</small>
+  </article>
+  <article class="console-cell">
+    <span>CALLS / CONTRACTS SOLD</span>
+    <strong>{{ snapshot.covered_calls.call_tickets }} / {{ snapshot.covered_calls.contracts_sold }}</strong>
+    <small>{{ snapshot.covered_calls.win_rate | percent }} completed win rate</small>
+  </article>
+  <article class="console-cell">
+    <span>SHARES CALLED AWAY</span>
+    <strong>{{ snapshot.covered_calls.called_away_shares }}</strong>
+    <small>{{ snapshot.covered_calls.annualized_option_yield | percent }} annualized option yield</small>
   </article>
 </section>

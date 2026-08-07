@@ -1,0 +1,48 @@
+<section class="section-block" id="underlyings">
+  <div class="section-heading terminal-heading">
+    <div><p class="eyebrow">NAME-LEVEL ATTRIBUTION</p><h2>Underlying call engines</h2></div>
+    <span>SALE MARKERS = CALL OPENED OR ROLLED</span>
+  </div>
+  {% if snapshot.underlyings %}
+  <div class="underlying-grid">
+    {% for item in snapshot.underlyings %}
+    <article class="underlying-card {{ item.tone }}-edge">
+      <header>
+        <div><strong>{{ item.symbol }}</strong><span>{{ item.company_name }}</span></div>
+        <div class="price-block"><strong>{{ item.current_price | money }}</strong><span>{{ item.market_value | money }} MV</span></div>
+      </header>
+      <div class="underlying-primary">
+        <div><span>OPTION +$ / QTR</span><strong>{{ item.net_option_cash | money }}</strong></div>
+        <div><span>SHARES</span><strong>{{ item.shares }}</strong></div>
+        <div><span>ACTIVE</span><strong>{{ item.active_contracts }}/{{ item.contract_capacity }}</strong></div>
+      </div>
+      <div class="price-rhythm" aria-label="{{ item.symbol }} thirteen-week mocked price path">
+        {% for point in item.price_points %}
+        <div class="price-column" title="{{ point.label }} · {{ point.price | money }}">
+          {% if point.call_sale %}<i class="sale-marker"></i>{% endif %}
+          <span style="--point-height: {{ point.height_percent }}%"></span>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="underlying-lifecycle">
+        <div><span>Sold</span><b>{{ item.contracts_sold }}</b></div>
+        <div><span>Expired</span><b>{{ item.expired_contracts }}</b></div>
+        <div><span>Closed</span><b>{{ item.closed_contracts }}</b></div>
+        <div><span>Rolled</span><b>{{ item.rolled_contracts }}</b></div>
+        <div><span>Called</span><b>{{ item.called_away_shares }}</b></div>
+      </div>
+      <div class="execution-stats">
+        <span>AVG STRIKE GAP <b>{{ item.average_strike_upside_percent | percent }}</b></span>
+        <span>AVG DTE <b>{{ item.average_days_to_expiration | number(1) }}</b></span>
+        <span>WIN <b>{{ item.win_rate | percent }}</b></span>
+      </div>
+      <div class="open-call-list">
+        {% for call in item.current_calls %}<code>{{ call }}</code>{% endfor %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="panel empty-state">Per-symbol call attribution appears after transaction ingestion.</div>
+  {% endif %}
+</section>

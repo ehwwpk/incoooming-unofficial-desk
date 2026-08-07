@@ -25,9 +25,15 @@ def test_demo_dashboard_is_internally_reconciled() -> None:
 def test_demo_income_period_totals_are_derived_from_components() -> None:
     snapshot = DemoDashboardReader().execute()
 
-    assert len(snapshot.income_periods) == 8
+    assert len(snapshot.income_periods) == 13
     assert all(
         period.total == period.option_income + period.dividends
         for period in snapshot.income_periods
     )
     assert all(0 <= period.bar_percent <= 100 for period in snapshot.income_periods)
+    assert sum((period.option_income for period in snapshot.income_periods), Decimal("0")) == (
+        snapshot.covered_calls.net_option_cash
+    )
+    assert sum((period.dividends for period in snapshot.income_periods), Decimal("0")) == (
+        snapshot.covered_calls.dividends
+    )

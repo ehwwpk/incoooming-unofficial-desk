@@ -1,0 +1,37 @@
+<section class="panel ledger-panel" id="call-log">
+  <div class="section-heading terminal-heading">
+    <div><p class="eyebrow">EXECUTION AUDIT</p><h2>Quarter call-sale ledger</h2></div>
+    <span>{{ snapshot.call_history | length }} TICKETS / STRIKES TESTED 15–40% OTM</span>
+  </div>
+  {% if snapshot.call_history %}
+  <div class="table-wrap ledger-wrap">
+    <table class="call-ledger">
+      <thead><tr>
+        <th>Name</th><th>Sold</th><th>Expiry</th><th>DTE</th><th class="numeric">Qty</th>
+        <th class="numeric">Spot → Strike</th><th class="numeric">Gap</th><th class="numeric">Credit</th>
+        <th class="numeric">BTC</th><th class="numeric">Net +$</th><th>Outcome</th><th>Sale signal</th>
+      </tr></thead>
+      <tbody>
+        {% for record in snapshot.call_history | reverse %}
+        <tr>
+          <td><strong>{{ record.symbol }}</strong></td>
+          <td>{{ record.sold_on | short_date }}</td>
+          <td>{{ record.expires_on | short_date }}</td>
+          <td>{{ record.days_to_expiration }}</td>
+          <td class="numeric">{{ record.contracts }}</td>
+          <td class="numeric">{{ record.underlying_at_sale | money }} → {{ record.strike | money }}</td>
+          <td class="numeric positive">+{{ record.strike_upside_percent | percent }}</td>
+          <td class="numeric">{{ record.gross_premium | money }}</td>
+          <td class="numeric negative">{{ record.buyback_cost | money }}</td>
+          <td class="numeric {{ record.net_cash | pnl_class }}">{{ record.net_cash | money }}</td>
+          <td><span class="outcome {{ record.outcome | lower }}">{{ record.outcome }}</span></td>
+          <td><small>{{ record.sale_signal }}</small></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-state">No covered-call executions have been normalized yet.</p>
+  {% endif %}
+</section>

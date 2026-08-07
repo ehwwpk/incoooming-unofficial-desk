@@ -45,7 +45,7 @@ def test_initial_migration_supports_local_api(tmp_path: Path) -> None:
         assert payload["portfolio"]["total_value"] == "0"
         assert payload["income"]["month"] == "0"
         assert page.status_code == 200
-        assert "Portfolio Command Center" in page.text
+        assert "Quarter income desk" in page.text
         assert "Schwab approval is the only external blocker" in page.text
     finally:
         container.close()
@@ -64,14 +64,18 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert ready.status_code == 200
         assert payload["mode"] == "demo"
         assert payload["is_demo"] is True
-        assert payload["portfolio"]["total_value"] == "407733.00"
-        assert payload["income"]["quarter"] == "12774.10"
-        assert len(payload["income_periods"]) == 8
+        assert payload["portfolio"]["total_value"] == "230006.00"
+        assert payload["income"]["quarter"] == "6340.00"
+        assert payload["covered_calls"]["total_cash_income"] == "7586.00"
+        assert len(payload["income_periods"]) == 13
         assert len(payload["campaigns"]) == 3
-        assert len(payload["positions"]) == 11
-        assert "Fictional demo portfolio" in page.text
-        assert "Open option campaigns" in page.text
-        assert "NVDA" in page.text
+        assert len(payload["positions"]) == 8
+        assert len(payload["call_history"]) == 16
+        assert "fictional 13-week call ledger" in page.text
+        assert "Quarter call-sale ledger" in page.text
+        assert "CVX" in page.text
+        assert "KTOS" in page.text
+        assert "URNM" in page.text
     finally:
         container.close()
 

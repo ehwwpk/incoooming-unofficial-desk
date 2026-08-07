@@ -4,57 +4,51 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
-    <title>Portfolio Command Center</title>
+    <title>Covered Call Desk</title>
     <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}">
   </head>
   <body>
     <header class="topbar">
       <a class="brand" href="/" aria-label="Dashboard home">
-        <span class="brand-mark">OC</span>
-        <span>
-          <strong>Options Command</strong>
-          <small>Private portfolio ledger</small>
-        </span>
+        <span class="brand-mark">CC</span>
+        <span><strong>CALL//DESK</strong><small>LOCAL LEDGER 01</small></span>
       </a>
-      <nav aria-label="Dashboard sections">
-        <a href="#overview">Overview</a>
-        <a href="#income">Income</a>
-        <a href="#campaigns">Campaigns</a>
-        <a href="#positions">Positions</a>
-      </nav>
-      <div class="topbar-actions">
-        <span class="source-pill {{ 'demo' if snapshot.is_demo else 'live' }}">
-          <span class="source-dot"></span>
-          {{ 'Demo data' if snapshot.is_demo else 'Live ledger' }}
-        </span>
-        {% if snapshot.token_available and not snapshot.is_demo %}
-        <form method="post" action="/sync">
-          <button class="button compact" type="submit">Sync Schwab</button>
-        </form>
-        {% endif %}
+      {% if snapshot.underlyings %}
+      <div class="ticker-tape" aria-label="Current mocked prices">
+        {% for item in snapshot.underlyings %}
+        <span><b>{{ item.symbol }}</b> {{ item.current_price | number(2) }}</span>
+        {% endfor %}
       </div>
+      {% endif %}
+      <nav aria-label="Dashboard sections">
+        <a href="#portfolio">PORT</a>
+        <a href="#underlyings">NAMES</a>
+        <a href="#income">CASH</a>
+        <a href="#call-log">CALL LOG</a>
+      </nav>
+      <span class="source-pill {{ 'demo' if snapshot.is_demo else 'live' }}">
+        <span class="source-dot"></span>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}
+      </span>
     </header>
 
     {% if snapshot.is_demo %}
     <aside class="demo-banner" role="status">
-      <strong>Fictional demo portfolio</strong>
-      <span>Explore the complete dashboard while Schwab reviews API access. No demo record touches your real ledger.</span>
+      <strong>SIMULATION</strong>
+      <span>CVX 700 · KTOS 800 · URNM 500 · fictional 13-week call ledger · no Schwab writes</span>
     </aside>
     {% endif %}
 
     <main class="shell">
-      <section class="hero" id="overview">
+      <section class="desk-heading" id="portfolio">
         <div>
-          <p class="eyebrow">Portfolio command center</p>
-          <h1>See the income engine,<br>not just the positions.</h1>
-          <p class="lede">
-            Track portfolio value, option campaigns, realized income, and risk from one reconciled ledger.
-          </p>
+          <p class="eyebrow">CC-01 / COVERED CALL OPERATIONS</p>
+          <h1>Quarter income desk</h1>
+          <p>Sell strength. Track every roll. Separate collected cash from realized outcome.</p>
         </div>
-        <div class="as-of">
-          <span>Data as of</span>
-          <strong>{{ snapshot.as_of | short_date }}</strong>
-          <small>{{ snapshot.positions | length }} open position rows</small>
+        <div class="desk-meta">
+          <span>WINDOW <b>13W</b></span>
+          <span>AS OF <b>{{ snapshot.as_of | short_date }}</b></span>
+          <span>STATUS <b class="positive">RECONCILED</b></span>
         </div>
       </section>
 
@@ -62,6 +56,7 @@
       {% if not snapshot.is_demo and not snapshot.token_available %}
         {% include "partials/_setup.html" %}
       {% endif %}
+      {% include "partials/_underlyings.html" %}
 
       <div class="dashboard-grid">
         {% include "partials/_income.html" %}
@@ -69,11 +64,12 @@
       </div>
 
       {% include "partials/_campaigns.html" %}
+      {% include "partials/_call_ledger.html" %}
       {% include "partials/_positions.html" %}
 
       <footer>
-        <span>Local-only dashboard</span>
-        <span>Performance accounting—not tax or investment advice</span>
+        <span>LOCALHOST / PRIVATE / READ-ONLY BROKER ADAPTER</span>
+        <span>PERFORMANCE ACCOUNTING — NOT TAX OR INVESTMENT ADVICE</span>
       </footer>
     </main>
   </body>

@@ -1,47 +1,47 @@
 <section class="panel income-panel" id="income">
-  <div class="section-heading">
+  <div class="section-heading terminal-heading">
     <div>
-      <p class="eyebrow">Income velocity</p>
-      <h2>Eight-week cashflow</h2>
+      <p class="eyebrow">13W CASH TAPE</p>
+      <h2>Option and dividend cashflow</h2>
     </div>
     <div class="legend" aria-label="Chart legend">
-      <span><i class="option-key"></i>Options</span>
+      <span><i class="option-key"></i>Option net cash</span>
       <span><i class="dividend-key"></i>Dividends</span>
+      <span><i class="debit-key"></i>Net debit</span>
     </div>
   </div>
 
   {% if snapshot.income_periods %}
-  <div class="income-chart" aria-label="Weekly income chart">
-    {% for period in snapshot.income_periods %}
-    <div class="bar-column">
-      <div class="bar-value">{{ period.total | money(0) }}</div>
-      <div class="bar-track">
-        <div class="income-bar" style="--bar-height: {{ period.bar_percent }}%">
-          {% if period.dividends > 0 %}<span class="dividend-cap"></span>{% endif %}
+  <div class="income-scroll">
+    <div class="income-chart" aria-label="Thirteen-week income chart">
+      {% for period in snapshot.income_periods %}
+      <div class="bar-column {{ 'debit' if period.total < 0 else '' }}">
+        <div class="bar-value {{ period.total | pnl_class }}">{{ period.total | money(0) }}</div>
+        <div class="bar-track">
+          <div class="income-bar" style="--bar-height: {{ period.bar_percent }}%">
+            {% if period.dividends > 0 %}<span class="dividend-cap"></span>{% endif %}
+          </div>
         </div>
+        <span>{{ period.label }}</span>
       </div>
-      <span>{{ period.label }}</span>
+      {% endfor %}
     </div>
-    {% endfor %}
   </div>
   {% else %}
   <p class="empty-state">Income history will appear after transaction ingestion is connected.</p>
   {% endif %}
 
   <div class="income-stats">
-    <div><span>This week</span><strong>{{ snapshot.income.week | money }}</strong></div>
-    <div><span>This month</span><strong>{{ snapshot.income.month | money }}</strong></div>
-    <div><span>This quarter</span><strong>{{ snapshot.income.quarter | money }}</strong></div>
-    <div><span>Win rate</span><strong>{{ snapshot.income.win_rate | percent }}</strong></div>
+    <div><span>THIS WEEK</span><strong class="{{ snapshot.income.week | pnl_class }}">{{ snapshot.income.week | money }}</strong></div>
+    <div><span>ROLLING 4W</span><strong>{{ snapshot.income.month | money }}</strong></div>
+    <div><span>OPTION +$ / QTR</span><strong>{{ snapshot.income.quarter | money }}</strong></div>
+    <div><span>TOTAL CASH / QTR</span><strong>{{ snapshot.covered_calls.total_cash_income | money }}</strong></div>
   </div>
 
-  <div class="target-row">
-    <div>
-      <span>Monthly income target</span>
-      <strong>{{ snapshot.income.month | money }} / {{ snapshot.income.monthly_target | money }}</strong>
-    </div>
-    <div class="progress-track">
-      <span style="--progress: {{ snapshot.income.target_progress_percent }}%"></span>
-    </div>
+  <div class="cash-reconcile">
+    <span>GROSS PREMIUM <b>{{ snapshot.covered_calls.gross_premium | money }}</b></span>
+    <span>BUY-TO-CLOSE <b class="negative">-{{ snapshot.covered_calls.buyback_cost | money }}</b></span>
+    <span>NET OPTION CASH <b class="positive">{{ snapshot.covered_calls.net_option_cash | money }}</b></span>
+    <span>DIVIDENDS <b>{{ snapshot.covered_calls.dividends | money }}</b></span>
   </div>
 </section>

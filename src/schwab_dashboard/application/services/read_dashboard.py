@@ -9,6 +9,7 @@ from schwab_dashboard.application.dashboard.calculations import (
     summarize_portfolio,
     summarize_risk,
 )
+from schwab_dashboard.application.dashboard.covered_calls import CoveredCallPortfolioSummary
 from schwab_dashboard.application.dashboard.models import DashboardSnapshot, IncomeSummary
 from schwab_dashboard.application.ports.repositories import UnitOfWorkFactory
 
@@ -57,7 +58,34 @@ class ReadDashboard:
             ),
             income_periods=(),
             campaigns=(),
+            covered_calls=_empty_covered_calls(),
+            underlyings=(),
+            call_history=(),
             positions=positions,
             allocations=summarize_allocations(positions),
             risk=summarize_risk(positions),
         )
+
+
+def _empty_covered_calls() -> CoveredCallPortfolioSummary:
+    return CoveredCallPortfolioSummary(
+        total_shares=0,
+        contract_capacity=0,
+        active_contracts=0,
+        coverage_percent=ZERO,
+        call_tickets=0,
+        contracts_sold=0,
+        expired_contracts=0,
+        closed_contracts=0,
+        rolled_contracts=0,
+        called_away_shares=0,
+        gross_premium=ZERO,
+        buyback_cost=ZERO,
+        net_option_cash=ZERO,
+        realized_option_income=ZERO,
+        open_call_credit=ZERO,
+        dividends=ZERO,
+        total_cash_income=ZERO,
+        win_rate=ZERO,
+        annualized_option_yield=ZERO,
+    )

@@ -16,18 +16,30 @@ The browser and JSON API consume one typed dashboard snapshot regardless of data
 ### Demo
 
 - Returns deterministic, clearly labeled fictional values from an isolated adapter.
-- Exercises equities, multi-leg options, income periods, campaigns, allocation, and risk views.
+- Exercises a personalized but fictional 13-week book: 700 CVX, 800 KTOS, and 500 URNM shares.
+- Keeps every mock call 15–40% above the underlying at sale and 21–56 days to expiration.
+- Derives premium, buyback, net cash, coverage, and lifecycle totals from execution records.
 - Never calls Schwab, creates a sync run, or writes to SQLite.
 - Uses the same API serializer, Jinja templates, and display formatters as live mode.
 
 ## Stable view sections
 
-1. Portfolio summary: net value, cash, invested value, daily change.
-2. Income: weekly series plus week, month, quarter, and year-to-date totals.
-3. Campaigns: strategy, legs, dates, income, open profit/loss, collateral, and return on risk.
-4. Positions: account mask, instrument, strategy, quantity, prices, market value, and daily change.
-5. Allocation: labeled capital slices and percentages.
-6. Risk: buying-power use, delta, theta, short-contract count, concentration, and next expiration.
+1. Combined portfolio: net value, quarter option cash, total cash income, coverage, calls sold, and shares called away.
+2. Underlying attribution: shares, market value, per-name option cash, price/sale rhythm, lifecycle, strike gap, DTE, and open calls.
+3. Income: 13 weekly periods with option cash and dividends reconciled to quarter totals.
+4. Lifecycle: contracts expired, closed, rolled, and still open, plus assignments and completed-trade win rate.
+5. Campaigns: current legs, dates, quarter option cash, open profit/loss, collateral, and return on capital.
+6. Call ledger: sale date, expiry, DTE, quantity, sale-time spot, strike, gap, premium, buyback, net cash, outcome, and sale signal.
+7. Positions and risk: reconciled inventory, buying-power use, delta, theta, concentration, and next expiration.
+
+## Accounting definitions
+
+- Gross premium is `premium per share × contracts × 100`.
+- Net option cash is gross premium minus buy-to-close cash outflow.
+- Total cash income is net option cash plus dividends.
+- Realized option income includes only completed tickets; open-call credit remains visible separately.
+- Rolled tickets preserve the close debit on the old call and the new sale as separate execution records.
+- Active coverage is open contracts divided by share-backed contract capacity.
 
 ## Replacement path
 

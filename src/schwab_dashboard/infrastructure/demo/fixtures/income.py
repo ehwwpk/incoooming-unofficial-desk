@@ -7,22 +7,38 @@ D = Decimal
 
 def build_income_periods() -> tuple[IncomePeriod, ...]:
     rows = (
-        ("Jun 19", "810.00", "0", 54),
-        ("Jun 26", "1240.00", "184.00", 94),
-        ("Jul 03", "930.00", "0", 62),
-        ("Jul 10", "1510.00", "0", 100),
-        ("Jul 17", "875.00", "335.00", 80),
-        ("Jul 24", "1320.00", "0", 87),
-        ("Jul 31", "1175.00", "0", 78),
-        ("Aug 07", "1095.00", "153.50", 83),
+        ("May 15", "1155", "0"),
+        ("May 22", "660", "0"),
+        ("May 29", "580", "0"),
+        ("Jun 05", "260", "0"),
+        ("Jun 12", "0", "1246"),
+        ("Jun 19", "0", "0"),
+        ("Jun 26", "2110", "0"),
+        ("Jul 03", "-160", "0"),
+        ("Jul 10", "720", "0"),
+        ("Jul 17", "0", "0"),
+        ("Jul 24", "360", "0"),
+        ("Jul 31", "760", "0"),
+        ("Aug 07", "-105", "0"),
     )
+    maximum = max(abs(D(option_income) + D(dividends)) for _, option_income, dividends in rows)
     return tuple(
-        IncomePeriod(
-            label=label,
-            option_income=D(option_income),
-            dividends=D(dividends),
-            total=D(option_income) + D(dividends),
-            bar_percent=bar_percent,
-        )
-        for label, option_income, dividends, bar_percent in rows
+        _period(label, D(option_income), D(dividends), maximum)
+        for label, option_income, dividends in rows
+    )
+
+
+def _period(
+    label: str,
+    option_income: Decimal,
+    dividends: Decimal,
+    maximum: Decimal,
+) -> IncomePeriod:
+    total = option_income + dividends
+    return IncomePeriod(
+        label=label,
+        option_income=option_income,
+        dividends=dividends,
+        total=total,
+        bar_percent=(0 if not total else max(8, int(abs(total) / maximum * 100))),
     )

@@ -6,6 +6,11 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
+from schwab_dashboard.application.dashboard.covered_calls import (
+    CallSaleRecord,
+    CoveredCallPortfolioSummary,
+    UnderlyingCallStats,
+)
 from schwab_dashboard.application.ports.repositories import SyncRunSummary
 
 
@@ -50,7 +55,7 @@ class CampaignSummary:
     expires_on: date
     days_to_expiration: int
     legs: Sequence[str]
-    realized_income: Decimal
+    net_option_cash: Decimal
     unrealized_profit_loss: Decimal
     collateral: Decimal
     return_on_risk_percent: Decimal
@@ -103,6 +108,9 @@ class DashboardSnapshot:
     income: IncomeSummary
     income_periods: Sequence[IncomePeriod]
     campaigns: Sequence[CampaignSummary]
+    covered_calls: CoveredCallPortfolioSummary
+    underlyings: Sequence[UnderlyingCallStats]
+    call_history: Sequence[CallSaleRecord]
     positions: Sequence[PositionSummary]
     allocations: Sequence[AllocationSlice]
     risk: RiskSummary
