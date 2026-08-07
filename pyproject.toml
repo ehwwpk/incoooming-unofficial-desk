@@ -1,0 +1,61 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "schwab-options-dashboard"
+version = "0.1.0"
+description = "Local-first, read-only Schwab options and portfolio analytics ledger"
+readme = "README.md"
+requires-python = ">=3.12,<3.15"
+license = { text = "Private personal project" }
+authors = [{ name = "Personal project" }]
+dependencies = [
+  "alembic>=1.18.5,<2",
+  "fastapi>=0.139.2,<0.140",
+  "httpx>=0.28,<1",
+  "jinja2>=3.1,<4",
+  "keyring>=25,<27",
+  "pydantic>=2.13.4,<3",
+  "pydantic-settings>=2.14.2,<3",
+  "python-multipart>=0.0.20,<1",
+  "sqlalchemy>=2.0.51,<2.1",
+  "typer>=0.16,<1",
+  "uvicorn>=0.35,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "mypy>=1.16,<2",
+  "pytest>=8.4,<10",
+  "pytest-cov>=6,<8",
+  "respx>=0.22,<1",
+  "ruff>=0.12,<1",
+]
+
+[project.scripts]
+schwab-dashboard = "schwab_dashboard.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/schwab_dashboard"]
+
+[tool.pytest.ini_options]
+addopts = "-q --strict-markers --disable-warnings --basetemp=.pytest-tmp"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "RUF"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+packages = ["schwab_dashboard"]

@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Schwab Options Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="masthead">
+        <div>
+          <p class="eyebrow">Private local ledger</p>
+          <h1>Schwab Options Dashboard</h1>
+          <p class="lede">Phase 1 proves the connection and current position ledger before adding income analytics.</p>
+        </div>
+        {% if snapshot.token_available %}
+        <form method="post" action="/sync">
+          <button type="submit">Sync Schwab now</button>
+        </form>
+        {% endif %}
+      </header>
+
+      <section class="status-grid" aria-label="Setup status">
+        <article class="status-card">
+          <span>App credentials</span>
+          <strong class="{{ 'good' if snapshot.credentials_configured else 'attention' }}">
+            {{ 'Configured' if snapshot.credentials_configured else 'Needed' }}
+          </strong>
+        </article>
+        <article class="status-card">
+          <span>Schwab authorization</span>
+          <strong class="{{ 'good' if snapshot.token_available else 'attention' }}">
+            {{ 'Stored' if snapshot.token_available else 'Needed' }}
+          </strong>
+        </article>
+        <article class="status-card">
+          <span>Latest sync</span>
+          <strong>
+            {{ snapshot.latest_sync.status if snapshot.latest_sync else 'Not run' }}
+          </strong>
+        </article>
+      </section>
+
+      {% if not snapshot.token_available %}
+      <section class="panel setup">
+        <h2>Connect your account</h2>
+        <ol>
+          <li>Add the approved Schwab app key, secret, and exact callback URL to <code>.env</code>.</li>
+          <li>Run <code>schwab-dashboard auth-url</code> and open the printed URL.</li>
+          <li>Run <code>schwab-dashboard auth-complete</code> and paste the entire callback URL.</li>
+          <li>Run <code>schwab-dashboard sync</code>, then refresh this page.</li>
+        </ol>
+      </section>
+      {% endif %}
+
+      <section class="panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Current observation</p>
+            <h2>Positions</h2>
+          </div>
+          <span>{{ snapshot.positions | length }} rows</span>
+        </div>
+        {% if snapshot.positions %}
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Account</th>
+                <th>Symbol</th>
+                <th>Type</th>
+                <th class="numeric">Net qty</th>
+                <th class="numeric">Avg price</th>
+                <th class="numeric">Market value</th>
+                <th class="numeric">Day P/L</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for position in snapshot.positions %}
+              <tr>
+                <td>{{ position.account_mask }}</td>
+                <td><strong>{{ position.symbol }}</strong></td>
+                <td>{{ position.asset_type }}</td>
+                <td class="numeric">{{ position.net_quantity }}</td>
+                <td class="numeric">{{ position.average_price if position.average_price is not none else '—' }}</td>
+                <td class="numeric">{{ position.market_value if position.market_value is not none else '—' }}</td>
+                <td class="numeric">{{ position.day_profit_loss if position.day_profit_loss is not none else '—' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="empty">No reconciled position snapshot yet.</p>
+        {% endif %}
+      </section>
+    </main>
+  </body>
+</html>
