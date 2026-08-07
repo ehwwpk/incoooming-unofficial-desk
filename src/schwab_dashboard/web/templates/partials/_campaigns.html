@@ -1,0 +1,40 @@
+<section class="section-block" id="campaigns">
+  <div class="section-heading wide-heading">
+    <div>
+      <p class="eyebrow">Strategy ledger</p>
+      <h2>Open option campaigns</h2>
+    </div>
+    <span>{{ snapshot.campaigns | length }} active campaigns</span>
+  </div>
+
+  {% if snapshot.campaigns %}
+  <div class="campaign-grid">
+    {% for campaign in snapshot.campaigns %}
+    <article class="campaign-card">
+      <header>
+        <div class="symbol-badge">{{ campaign.symbol[:1] }}</div>
+        <div>
+          <strong>{{ campaign.symbol }}</strong>
+          <span>{{ campaign.strategy }}</span>
+        </div>
+        <span class="campaign-status {{ 'watch' if campaign.status == 'Watch' else '' }}">{{ campaign.status }}</span>
+      </header>
+      <div class="campaign-legs">
+        {% for leg in campaign.legs %}<span>{{ leg }}</span>{% endfor %}
+      </div>
+      <div class="campaign-metrics">
+        <div><span>Income</span><strong>{{ campaign.realized_income | money }}</strong></div>
+        <div><span>Open P/L</span><strong class="{{ campaign.unrealized_profit_loss | pnl_class }}">{{ campaign.unrealized_profit_loss | money }}</strong></div>
+        <div><span>Return/risk</span><strong>{{ campaign.return_on_risk_percent | percent }}</strong></div>
+      </div>
+      <div class="campaign-footer">
+        <div class="progress-track"><span style="--progress: {{ campaign.progress_percent }}%"></span></div>
+        <span>{{ campaign.days_to_expiration }} DTE · {{ campaign.expires_on | short_date }}</span>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="panel empty-state">Campaigns will be assembled from executions, assignments, expirations, and closing trades.</div>
+  {% endif %}
+</section>

@@ -1,0 +1,12 @@
+<section class="panel setup-panel">
+  <div>
+    <p class="eyebrow">Connection pending</p>
+    <h2>Schwab approval is the only external blocker.</h2>
+    <p>Your local ledger and UI are ready. When the developer app is approved, add its credentials and complete OAuth.</p>
+  </div>
+  <ol>
+    <li>Add the approved app key, secret, and exact callback URL to <code>.env</code>.</li>
+    <li>Run <code>schwab-dashboard auth-url</code> and authorize the account.</li>
+    <li>Run <code>schwab-dashboard auth-complete</code>, then <code>schwab-dashboard sync</code>.</li>
+  </ol>
+</section>

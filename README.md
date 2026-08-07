@@ -4,6 +4,16 @@ A private, local-first, read-only ledger and dashboard for Schwab portfolio and 
 
 The first milestone is intentionally small: authenticate, read accounts and positions, preserve the raw broker response, normalize a position snapshot, and prove that the result reconciles. No trading endpoints are implemented.
 
+## Explore the dashboard while Schwab access is pending
+
+The demo command serves a complete fictional portfolio through the same application contract used by live data. It never writes fake records to the real ledger.
+
+```powershell
+.\scripts\run-demo.cmd
+```
+
+Open `http://127.0.0.1:8182`. Press `Ctrl+C` in the terminal to stop it.
+
 ## Quick start on Windows
 
 1. Create an Individual Trader API application at the [Schwab Developer Portal](https://developer.schwab.com/). Record the exact callback URL configured for the app.
@@ -46,4 +56,5 @@ Open `http://127.0.0.1:8182`. The server binds to loopback by default.
 - [Architecture](docs/architecture.md)
 - [Phase 0 checklist](docs/phase-0-checklist.md)
 - [Data contracts](docs/data-contracts.md)
+- [Dashboard contract](docs/dashboard-contract.md)
 - [Local-first architecture decision](docs/decisions/0001-local-first-modular-monolith.md)

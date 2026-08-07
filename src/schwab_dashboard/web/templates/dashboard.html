@@ -3,98 +3,78 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Schwab Options Dashboard</title>
+    <meta name="color-scheme" content="dark">
+    <title>Portfolio Command Center</title>
     <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}">
   </head>
   <body>
-    <main class="shell">
-      <header class="masthead">
-        <div>
-          <p class="eyebrow">Private local ledger</p>
-          <h1>Schwab Options Dashboard</h1>
-          <p class="lede">Phase 1 proves the connection and current position ledger before adding income analytics.</p>
-        </div>
-        {% if snapshot.token_available %}
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Dashboard home">
+        <span class="brand-mark">OC</span>
+        <span>
+          <strong>Options Command</strong>
+          <small>Private portfolio ledger</small>
+        </span>
+      </a>
+      <nav aria-label="Dashboard sections">
+        <a href="#overview">Overview</a>
+        <a href="#income">Income</a>
+        <a href="#campaigns">Campaigns</a>
+        <a href="#positions">Positions</a>
+      </nav>
+      <div class="topbar-actions">
+        <span class="source-pill {{ 'demo' if snapshot.is_demo else 'live' }}">
+          <span class="source-dot"></span>
+          {{ 'Demo data' if snapshot.is_demo else 'Live ledger' }}
+        </span>
+        {% if snapshot.token_available and not snapshot.is_demo %}
         <form method="post" action="/sync">
-          <button type="submit">Sync Schwab now</button>
+          <button class="button compact" type="submit">Sync Schwab</button>
         </form>
         {% endif %}
-      </header>
+      </div>
+    </header>
 
-      <section class="status-grid" aria-label="Setup status">
-        <article class="status-card">
-          <span>App credentials</span>
-          <strong class="{{ 'good' if snapshot.credentials_configured else 'attention' }}">
-            {{ 'Configured' if snapshot.credentials_configured else 'Needed' }}
-          </strong>
-        </article>
-        <article class="status-card">
-          <span>Schwab authorization</span>
-          <strong class="{{ 'good' if snapshot.token_available else 'attention' }}">
-            {{ 'Stored' if snapshot.token_available else 'Needed' }}
-          </strong>
-        </article>
-        <article class="status-card">
-          <span>Latest sync</span>
-          <strong>
-            {{ snapshot.latest_sync.status if snapshot.latest_sync else 'Not run' }}
-          </strong>
-        </article>
+    {% if snapshot.is_demo %}
+    <aside class="demo-banner" role="status">
+      <strong>Fictional demo portfolio</strong>
+      <span>Explore the complete dashboard while Schwab reviews API access. No demo record touches your real ledger.</span>
+    </aside>
+    {% endif %}
+
+    <main class="shell">
+      <section class="hero" id="overview">
+        <div>
+          <p class="eyebrow">Portfolio command center</p>
+          <h1>See the income engine,<br>not just the positions.</h1>
+          <p class="lede">
+            Track portfolio value, option campaigns, realized income, and risk from one reconciled ledger.
+          </p>
+        </div>
+        <div class="as-of">
+          <span>Data as of</span>
+          <strong>{{ snapshot.as_of | short_date }}</strong>
+          <small>{{ snapshot.positions | length }} open position rows</small>
+        </div>
       </section>
 
-      {% if not snapshot.token_available %}
-      <section class="panel setup">
-        <h2>Connect your account</h2>
-        <ol>
-          <li>Add the approved Schwab app key, secret, and exact callback URL to <code>.env</code>.</li>
-          <li>Run <code>schwab-dashboard auth-url</code> and open the printed URL.</li>
-          <li>Run <code>schwab-dashboard auth-complete</code> and paste the entire callback URL.</li>
-          <li>Run <code>schwab-dashboard sync</code>, then refresh this page.</li>
-        </ol>
-      </section>
+      {% include "partials/_summary.html" %}
+      {% if not snapshot.is_demo and not snapshot.token_available %}
+        {% include "partials/_setup.html" %}
       {% endif %}
 
-      <section class="panel">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">Current observation</p>
-            <h2>Positions</h2>
-          </div>
-          <span>{{ snapshot.positions | length }} rows</span>
-        </div>
-        {% if snapshot.positions %}
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Account</th>
-                <th>Symbol</th>
-                <th>Type</th>
-                <th class="numeric">Net qty</th>
-                <th class="numeric">Avg price</th>
-                <th class="numeric">Market value</th>
-                <th class="numeric">Day P/L</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for position in snapshot.positions %}
-              <tr>
-                <td>{{ position.account_mask }}</td>
-                <td><strong>{{ position.symbol }}</strong></td>
-                <td>{{ position.asset_type }}</td>
-                <td class="numeric">{{ position.net_quantity }}</td>
-                <td class="numeric">{{ position.average_price if position.average_price is not none else '—' }}</td>
-                <td class="numeric">{{ position.market_value if position.market_value is not none else '—' }}</td>
-                <td class="numeric">{{ position.day_profit_loss if position.day_profit_loss is not none else '—' }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% else %}
-        <p class="empty">No reconciled position snapshot yet.</p>
-        {% endif %}
-      </section>
+      <div class="dashboard-grid">
+        {% include "partials/_income.html" %}
+        {% include "partials/_risk.html" %}
+      </div>
+
+      {% include "partials/_campaigns.html" %}
+      {% include "partials/_positions.html" %}
+
+      <footer>
+        <span>Local-only dashboard</span>
+        <span>Performance accounting—not tax or investment advice</span>
+      </footer>
     </main>
   </body>
 </html>

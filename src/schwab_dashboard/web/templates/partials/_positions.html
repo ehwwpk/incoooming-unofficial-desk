@@ -1,0 +1,47 @@
+<section class="panel positions-panel" id="positions">
+  <div class="section-heading wide-heading">
+    <div>
+      <p class="eyebrow">Reconciled inventory</p>
+      <h2>Current positions</h2>
+    </div>
+    <span>{{ snapshot.positions | length }} rows</span>
+  </div>
+  {% if snapshot.positions %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Position</th>
+          <th>Strategy</th>
+          <th class="numeric">Quantity</th>
+          <th class="numeric">Average</th>
+          <th class="numeric">Mark</th>
+          <th class="numeric">Market value</th>
+          <th class="numeric">Day P/L</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for position in snapshot.positions %}
+        <tr>
+          <td>
+            <strong>{{ position.symbol }}</strong>
+            <small>{{ position.description }}</small>
+          </td>
+          <td><span class="strategy-tag">{{ position.strategy or position.asset_type }}</span></td>
+          <td class="numeric">{{ position.quantity | number(0) }}</td>
+          <td class="numeric">{{ position.average_price | money }}</td>
+          <td class="numeric">{{ position.mark | money }}</td>
+          <td class="numeric">{{ position.market_value | money }}</td>
+          <td class="numeric {{ position.day_profit_loss | pnl_class }}">
+            {{ position.day_profit_loss | money }}
+            <small>{{ position.day_profit_loss_percent | percent }}</small>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-state">No reconciled position snapshot yet.</p>
+  {% endif %}
+</section>

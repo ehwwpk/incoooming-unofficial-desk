@@ -4,6 +4,7 @@ import httpx
 from sqlalchemy import inspect
 
 from schwab_dashboard.application.errors import AuthenticationRequiredError
+from schwab_dashboard.application.ports.dashboard import DashboardReader
 from schwab_dashboard.application.services.read_dashboard import ReadDashboard
 from schwab_dashboard.application.services.sync_accounts import SyncAccountsAndPositions
 from schwab_dashboard.config import Settings
@@ -12,6 +13,7 @@ from schwab_dashboard.infrastructure.database.engine import (
     create_session_factory,
 )
 from schwab_dashboard.infrastructure.database.uow import build_uow_factory
+from schwab_dashboard.infrastructure.demo.dashboard import DemoDashboardReader
 from schwab_dashboard.infrastructure.schwab.gateway import (
     SchwabBrokerGateway,
     SchwabReadOnlyTraderClient,
@@ -42,7 +44,9 @@ class Container:
         except Exception:
             return False
 
-    def read_dashboard(self) -> ReadDashboard:
+    def read_dashboard(self) -> DashboardReader:
+        if self.settings.demo_mode:
+            return DemoDashboardReader()
         return ReadDashboard(
             uow_factory=self.uow_factory,
             credentials_configured=self.settings.schwab_credentials_configured,

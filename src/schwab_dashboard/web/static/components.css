@@ -1,0 +1,77 @@
+.button, button {
+  border: 0;
+  border-radius: 10px;
+  padding: 12px 18px;
+  background: var(--blue);
+  color: #06101b;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+.button.compact { padding: 9px 13px; font-size: .76rem; }
+
+.source-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 700;
+}
+.source-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgb(70 211 154 / 9%); }
+.source-pill.demo .source-dot { background: var(--amber); box-shadow: 0 0 0 4px rgb(244 189 101 / 9%); }
+
+.metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 42px 0 18px; }
+.metric-card, .panel, .campaign-card {
+  border: 1px solid var(--line);
+  background: linear-gradient(145deg, rgb(17 26 36 / 96%), rgb(11 17 24 / 96%));
+  box-shadow: var(--shadow);
+}
+.metric-card { display: grid; min-height: 150px; gap: 10px; padding: 21px; border-radius: var(--radius); }
+.metric-card.primary { border-color: rgb(93 169 255 / 34%); background: linear-gradient(145deg, rgb(19 50 77 / 96%), rgb(12 24 36 / 96%)); }
+.metric-card strong { align-self: end; font-size: clamp(1.4rem, 2vw, 2rem); letter-spacing: -.035em; }
+.metric-card small { color: var(--muted); font-size: .72rem; }
+.metric-label { display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: .75rem; }
+.mini-tag { padding: 3px 6px; border: 1px solid var(--line-strong); border-radius: 5px; color: var(--subtle); font-size: .56rem; font-weight: 800; letter-spacing: .08em; }
+.pulse-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgb(70 211 154 / 10%); }
+
+.panel { padding: 26px; border-radius: var(--radius); }
+.section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
+.section-heading h2 { margin: 0; font-size: 1.22rem; font-weight: 650; letter-spacing: -.025em; }
+.section-heading > span, .wide-heading > span { color: var(--muted); font-size: .73rem; }
+.wide-heading { margin-bottom: 18px; }
+.section-block { margin-top: 28px; }
+.positive { color: var(--green) !important; }
+.negative { color: var(--red) !important; }
+.muted { color: var(--muted) !important; }
+.empty-state { margin: 24px 0 4px; color: var(--muted); font-size: .85rem; line-height: 1.6; }
+code { color: var(--blue-bright); }
+
+.setup-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, .8fr);
+  gap: 30px;
+  margin-bottom: 18px;
+  border-color: rgb(244 189 101 / 22%);
+}
+.setup-panel h2 { margin: 0; font-size: 1.35rem; }
+.setup-panel p { max-width: 650px; margin: 12px 0 0; color: var(--muted); line-height: 1.55; }
+.setup-panel ol { margin: 0; padding-left: 22px; color: var(--muted); font-size: .8rem; line-height: 1.9; }
+
+.progress-track { height: 5px; overflow: hidden; border-radius: 999px; background: var(--line); }
+.progress-track span { display: block; width: min(var(--progress), 100%); height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--blue), var(--green)); }
+
+.table-wrap { margin: 20px -8px -8px; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: .78rem; }
+th, td { padding: 15px 12px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+th { color: var(--subtle); font-size: .61rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+tbody tr { transition: background 140ms ease; }
+tbody tr:hover { background: rgb(93 169 255 / 4%); }
+tbody tr:last-child td { border-bottom: 0; }
+td strong { display: block; color: var(--text); font-size: .78rem; }
+td small { display: block; margin-top: 4px; color: var(--muted); font-size: .65rem; }
+.numeric { text-align: right; }
+.strategy-tag { display: inline-flex; padding: 5px 8px; border: 1px solid var(--line); border-radius: 7px; color: var(--muted); font-size: .65rem; }

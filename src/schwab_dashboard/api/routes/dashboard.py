@@ -1,7 +1,9 @@
 from dataclasses import asdict
+from decimal import Decimal
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from schwab_dashboard.api.dependencies import get_container
@@ -16,13 +18,12 @@ ContainerDependency = Annotated[Container, Depends(get_container)]
 @router.get("/api/v1/dashboard")
 def dashboard_data(container: ContainerDependency) -> dict[str, Any]:
     snapshot = container.read_dashboard().execute()
-    return {
-        "credentials_configured": snapshot.credentials_configured,
-        "token_available": snapshot.token_available,
-        "latest_sync": asdict(snapshot.latest_sync) if snapshot.latest_sync else None,
-        "accounts": snapshot.accounts,
-        "positions": snapshot.positions,
-    }
+    payload: dict[str, Any] = asdict(snapshot)
+    payload["is_demo"] = snapshot.is_demo
+    encoded = jsonable_encoder(payload, custom_encoder={Decimal: str})
+    if not isinstance(encoded, dict):
+        raise RuntimeError("Dashboard encoder returned an unexpected response shape.")
+    return encoded
 
 
 @router.post("/api/v1/sync/accounts")

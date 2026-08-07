@@ -1,0 +1,38 @@
+<section class="metric-grid" aria-label="Portfolio summary">
+  <article class="metric-card primary">
+    <div class="metric-label">
+      <span>Portfolio value</span>
+      <span class="mini-tag">NET</span>
+    </div>
+    <strong>{{ snapshot.portfolio.total_value | money }}</strong>
+    <small>{{ snapshot.portfolio.cash_value | money }} available cash</small>
+  </article>
+  <article class="metric-card">
+    <div class="metric-label">
+      <span>Today</span>
+      <span class="pulse-dot"></span>
+    </div>
+    <strong class="{{ snapshot.portfolio.day_profit_loss | pnl_class }}">
+      {{ snapshot.portfolio.day_profit_loss | money }}
+    </strong>
+    <small class="{{ snapshot.portfolio.day_profit_loss | pnl_class }}">
+      {{ snapshot.portfolio.day_profit_loss_percent | percent(2) }} today
+    </small>
+  </article>
+  <article class="metric-card">
+    <div class="metric-label">
+      <span>Options income</span>
+      <span class="mini-tag">MTD</span>
+    </div>
+    <strong>{{ snapshot.income.month | money }}</strong>
+    <small>{{ snapshot.income.target_progress_percent | percent }} of monthly target</small>
+  </article>
+  <article class="metric-card">
+    <div class="metric-label">
+      <span>Total income</span>
+      <span class="mini-tag">YTD</span>
+    </div>
+    <strong>{{ snapshot.income.year_to_date | money }}</strong>
+    <small>{{ snapshot.income.annualized_yield | percent }} annualized yield</small>
+  </article>
+</section>

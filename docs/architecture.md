@@ -20,6 +20,8 @@ Schwab OAuth/API      append-only raw events + derived snapshots
 
 This is a modular monolith: one local process and one database, with explicit internal boundaries. A service split would slow the personal-use milestone without improving correctness.
 
+Demo mode is a separate read adapter implementing the same dashboard contract. It does not call Schwab, create sync runs, or write SQLite records. Removing demo mode later will not change the API or templates.
+
 ## Module responsibilities
 
 | Module | Owns | Must not own |

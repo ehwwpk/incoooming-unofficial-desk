@@ -1,0 +1,47 @@
+<section class="panel income-panel" id="income">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Income velocity</p>
+      <h2>Eight-week cashflow</h2>
+    </div>
+    <div class="legend" aria-label="Chart legend">
+      <span><i class="option-key"></i>Options</span>
+      <span><i class="dividend-key"></i>Dividends</span>
+    </div>
+  </div>
+
+  {% if snapshot.income_periods %}
+  <div class="income-chart" aria-label="Weekly income chart">
+    {% for period in snapshot.income_periods %}
+    <div class="bar-column">
+      <div class="bar-value">{{ period.total | money(0) }}</div>
+      <div class="bar-track">
+        <div class="income-bar" style="--bar-height: {{ period.bar_percent }}%">
+          {% if period.dividends > 0 %}<span class="dividend-cap"></span>{% endif %}
+        </div>
+      </div>
+      <span>{{ period.label }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="empty-state">Income history will appear after transaction ingestion is connected.</p>
+  {% endif %}
+
+  <div class="income-stats">
+    <div><span>This week</span><strong>{{ snapshot.income.week | money }}</strong></div>
+    <div><span>This month</span><strong>{{ snapshot.income.month | money }}</strong></div>
+    <div><span>This quarter</span><strong>{{ snapshot.income.quarter | money }}</strong></div>
+    <div><span>Win rate</span><strong>{{ snapshot.income.win_rate | percent }}</strong></div>
+  </div>
+
+  <div class="target-row">
+    <div>
+      <span>Monthly income target</span>
+      <strong>{{ snapshot.income.month | money }} / {{ snapshot.income.monthly_target | money }}</strong>
+    </div>
+    <div class="progress-track">
+      <span style="--progress: {{ snapshot.income.target_progress_percent }}%"></span>
+    </div>
+  </div>
+</section>

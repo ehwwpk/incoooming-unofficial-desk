@@ -112,5 +112,21 @@ def serve() -> None:
     )
 
 
+@app.command()
+def demo() -> None:
+    """Run the dashboard with fictional data; the real ledger is never modified."""
+    settings = Settings(demo_mode=True)
+    container = Container(settings)
+    try:
+        uvicorn.run(
+            create_app(container),
+            host=settings.host,
+            port=settings.port,
+            log_level=settings.log_level.lower(),
+        )
+    finally:
+        container.close()
+
+
 if __name__ == "__main__":
     app()

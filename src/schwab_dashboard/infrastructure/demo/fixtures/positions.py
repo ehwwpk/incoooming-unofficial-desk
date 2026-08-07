@@ -1,0 +1,168 @@
+from decimal import Decimal
+
+from schwab_dashboard.application.dashboard.models import AllocationSlice, PositionSummary
+
+D = Decimal
+
+
+def build_positions() -> tuple[PositionSummary, ...]:
+    rows = (
+        (
+            "MSFT",
+            "Microsoft shares",
+            "EQUITY",
+            "150",
+            "389",
+            "421.60",
+            "63240",
+            "975",
+            "1.57",
+            "Core",
+        ),
+        (
+            "NVDA",
+            "NVIDIA shares",
+            "EQUITY",
+            "300",
+            "154",
+            "168.25",
+            "50475",
+            "-432",
+            "-0.85",
+            "Covered call",
+        ),
+        (
+            "AMZN",
+            "Amazon shares",
+            "EQUITY",
+            "200",
+            "202",
+            "219.40",
+            "43880",
+            "612",
+            "1.41",
+            "Core",
+        ),
+        (
+            "SCHB",
+            "US broad market ETF",
+            "EQUITY",
+            "1000",
+            "24.65",
+            "25.75",
+            "25750",
+            "155",
+            "0.61",
+            "Core",
+        ),
+        (
+            "SGOV",
+            "0-3 month Treasury ETF",
+            "EQUITY",
+            "1500",
+            "100.40",
+            "100.60",
+            "150900",
+            "45",
+            "0.03",
+            "Cash reserve",
+        ),
+        (
+            "NVDA 260814C00180000",
+            "Aug 14 180 call",
+            "OPTION",
+            "-3",
+            "2.92",
+            "1.44",
+            "-432",
+            "198",
+            "31.43",
+            "Covered call",
+        ),
+        (
+            "AMZN 260821P00200000",
+            "Aug 21 200 put",
+            "OPTION",
+            "-2",
+            "3.45",
+            "2.15",
+            "-430",
+            "76",
+            "15.02",
+            "Cash-secured put",
+        ),
+        (
+            "SPY 260918P00590000",
+            "Sep 18 590 put",
+            "OPTION",
+            "2",
+            "0.37",
+            "0.37",
+            "74",
+            "8",
+            "12.12",
+            "Iron condor",
+        ),
+        (
+            "SPY 260918P00595000",
+            "Sep 18 595 put",
+            "OPTION",
+            "-2",
+            "1.09",
+            "0.81",
+            "-162",
+            "29",
+            "15.18",
+            "Iron condor",
+        ),
+        (
+            "SPY 260918C00650000",
+            "Sep 18 650 call",
+            "OPTION",
+            "-2",
+            "1.22",
+            "0.92",
+            "-184",
+            "31",
+            "14.42",
+            "Iron condor",
+        ),
+        (
+            "SPY 260918C00655000",
+            "Sep 18 655 call",
+            "OPTION",
+            "2",
+            "0.42",
+            "0.31",
+            "62",
+            "25",
+            "20.27",
+            "Iron condor",
+        ),
+    )
+    return tuple(_position(row) for row in rows)
+
+
+def build_allocations() -> tuple[AllocationSlice, ...]:
+    return (
+        AllocationSlice("Equities", D("183345"), D("44.73"), "blue"),
+        AllocationSlice("Treasury reserve", D("150900"), D("36.82"), "violet"),
+        AllocationSlice("Cash", D("74560"), D("18.19"), "green"),
+        AllocationSlice("Options", D("1072"), D("0.26"), "amber"),
+    )
+
+
+def _position(row: tuple[str, ...]) -> PositionSummary:
+    return PositionSummary(
+        account_mask="...4831",
+        symbol=row[0],
+        description=row[1],
+        asset_type=row[2],
+        quantity=D(row[3]),
+        average_price=D(row[4]),
+        mark=D(row[5]),
+        market_value=D(row[6]),
+        day_profit_loss=D(row[7]),
+        day_profit_loss_percent=D(row[8]),
+        strategy=row[9],
+    )

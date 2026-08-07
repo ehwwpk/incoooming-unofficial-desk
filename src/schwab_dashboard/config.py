@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     host: str = Field(default="127.0.0.1", alias="SCHWAB_DASHBOARD_HOST")
     port: int = Field(default=8182, alias="SCHWAB_DASHBOARD_PORT", ge=1, le=65535)
     log_level: str = Field(default="INFO", alias="SCHWAB_DASHBOARD_LOG_LEVEL")
+    demo_mode: bool = Field(default=False, alias="SCHWAB_DASHBOARD_DEMO_MODE")
 
     token_service_name: str = "schwab-options-dashboard"
     token_account_name: str = "personal-schwab-oauth"

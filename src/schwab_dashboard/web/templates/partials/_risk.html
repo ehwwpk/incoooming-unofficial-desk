@@ -1,0 +1,45 @@
+<div class="side-stack">
+  <section class="panel allocation-panel">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Capital map</p>
+        <h2>Portfolio allocation</h2>
+      </div>
+    </div>
+    {% if snapshot.allocations %}
+    <div class="allocation-list">
+      {% for allocation in snapshot.allocations %}
+      <div class="allocation-row">
+        <div>
+          <span><i class="allocation-dot {{ allocation.tone }}"></i>{{ allocation.label }}</span>
+          <strong>{{ allocation.percent | percent }}</strong>
+        </div>
+        <div class="allocation-track">
+          <span class="{{ allocation.tone }}" style="--allocation: {{ allocation.percent }}%"></span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">Allocation appears after the first position sync.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel risk-panel">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Risk pulse</p>
+        <h2>Current exposure</h2>
+      </div>
+      <span class="risk-state">Measured</span>
+    </div>
+    <div class="risk-grid">
+      <div><span>Buying power used</span><strong>{{ snapshot.risk.buying_power_used_percent | percent }}</strong></div>
+      <div><span>Portfolio delta</span><strong>{{ snapshot.risk.portfolio_delta | number(1) }}</strong></div>
+      <div><span>Daily theta</span><strong>{{ snapshot.risk.daily_theta | money }}</strong></div>
+      <div><span>Short contracts</span><strong>{{ snapshot.risk.short_contracts }}</strong></div>
+      <div><span>Largest position</span><strong>{{ snapshot.risk.largest_position_percent | percent }}</strong></div>
+      <div><span>Next expiration</span><strong>{{ snapshot.risk.next_expiration | short_date }}</strong></div>
+    </div>
+  </section>
+</div>
