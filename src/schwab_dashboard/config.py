@@ -47,7 +47,12 @@ class Settings(BaseSettings):
 
     @property
     def schwab_credentials_configured(self) -> bool:
-        return self.schwab_app_key is not None and self.schwab_app_secret is not None
+        return bool(
+            self.schwab_app_key is not None
+            and self.schwab_app_key.get_secret_value().strip()
+            and self.schwab_app_secret is not None
+            and self.schwab_app_secret.get_secret_value().strip()
+        )
 
     def require_schwab_credentials(self) -> tuple[str, str]:
         if not self.schwab_credentials_configured:

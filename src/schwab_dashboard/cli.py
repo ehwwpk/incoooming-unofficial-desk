@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import NoReturn
 
 import typer
 import uvicorn
@@ -8,6 +9,7 @@ from alembic import command
 from alembic.config import Config
 
 from schwab_dashboard.app import create_app
+from schwab_dashboard.application.errors import AuthenticationRequiredError
 from schwab_dashboard.config import Settings
 from schwab_dashboard.container import Container
 
@@ -20,6 +22,11 @@ def _alembic_config(settings: Settings) -> Config:
     config.set_main_option("script_location", str(PROJECT_ROOT / "migrations"))
     config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
     return config
+
+
+def _not_ready(exc: AuthenticationRequiredError) -> NoReturn:
+    typer.echo(f"Not ready: {exc}", err=True)
+    raise typer.Exit(code=1)
 
 
 @app.command("db-upgrade")
@@ -36,7 +43,10 @@ def auth_url() -> None:
     """Print the Schwab authorization URL to open in a browser."""
     container = Container()
     try:
-        typer.echo(container.require_oauth().authorization_url())
+        try:
+            typer.echo(container.require_oauth().authorization_url())
+        except AuthenticationRequiredError as exc:
+            _not_ready(exc)
     finally:
         container.close()
 
@@ -52,8 +62,13 @@ def auth_complete(
     pasted_url = callback_url or typer.prompt("Paste the entire callback URL", hide_input=True)
     container = Container()
     try:
-        token = container.require_oauth().exchange_callback_url(pasted_url)
-        typer.echo(f"Authorization stored. Access token expires at {token.expires_at.isoformat()}.")
+        try:
+            token = container.require_oauth().exchange_callback_url(pasted_url)
+            typer.echo(
+                f"Authorization stored. Access token expires at {token.expires_at.isoformat()}."
+            )
+        except AuthenticationRequiredError as exc:
+            _not_ready(exc)
     finally:
         container.close()
 
@@ -63,8 +78,11 @@ def auth_clear() -> None:
     """Remove the stored Schwab token without changing app credentials."""
     container = Container()
     try:
-        container.require_oauth().clear_token()
-        typer.echo("Stored Schwab OAuth token removed.")
+        try:
+            container.require_oauth().clear_token()
+            typer.echo("Stored Schwab OAuth token removed.")
+        except AuthenticationRequiredError as exc:
+            _not_ready(exc)
     finally:
         container.close()
 
@@ -74,11 +92,14 @@ def sync() -> None:
     """Read current Schwab accounts and positions into the local ledger."""
     container = Container()
     try:
-        result = container.sync_accounts().execute()
-        typer.echo(
-            f"Sync {result.run_id} completed: {result.account_count} account(s), "
-            f"{result.position_count} position(s), {result.warning_count} warning(s)."
-        )
+        try:
+            result = container.sync_accounts().execute()
+            typer.echo(
+                f"Sync {result.run_id} completed: {result.account_count} account(s), "
+                f"{result.position_count} position(s), {result.warning_count} warning(s)."
+            )
+        except AuthenticationRequiredError as exc:
+            _not_ready(exc)
     finally:
         container.close()
 
