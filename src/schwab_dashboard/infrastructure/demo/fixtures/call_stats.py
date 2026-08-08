@@ -18,6 +18,7 @@ from schwab_dashboard.infrastructure.demo.fixtures.open_call_metrics import OPEN
 D = Decimal
 ZERO = D("0")
 TENTH = D("0.1")
+HUNDRED = D("100")
 YEAR_DAYS = D("365")
 QUARTER_DAYS = D("85")
 
@@ -53,6 +54,7 @@ def build_covered_call_summary(
         expired_contracts=_contracts(records, "Expired"),
         closed_contracts=_contracts(records, "Closed"),
         rolled_contracts=_contracts(records, "Rolled"),
+        assigned_contracts=_contracts(records, "Assigned"),
         called_away_shares=_contracts(records, "Assigned") * 100,
         gross_premium=gross_premium,
         buyback_cost=sum((record.buyback_cost for record in records), ZERO),
@@ -112,6 +114,7 @@ def _summarize_holding(
         expired_contracts=_contracts(symbol_records, "Expired"),
         closed_contracts=_contracts(symbol_records, "Closed"),
         rolled_contracts=_contracts(symbol_records, "Rolled"),
+        assigned_contracts=_contracts(symbol_records, "Assigned"),
         called_away_shares=_contracts(symbol_records, "Assigned") * 100,
         gross_premium=gross_premium,
         buyback_cost=sum((record.buyback_cost for record in symbol_records), ZERO),
@@ -146,7 +149,19 @@ def _summarize_holding(
             _open_call_clock(record, holding.current_price, as_of) for record in open_records
         ),
         thirteen_week_low=min(prices),
+        thirteen_week_mid=((min(prices) + max(prices)) / 2).quantize(D("0.01")),
         thirteen_week_high=max(prices),
+        thirteen_week_change_percent=((holding.current_price / prices[0] - 1) * HUNDRED).quantize(
+            TENTH
+        ),
+        range_position_percent=(
+            (holding.current_price - min(prices)) / (max(prices) - min(prices)) * HUNDRED
+        ).quantize(TENTH)
+        if max(prices) != min(prices)
+        else D("50.0"),
+        distance_from_high_percent=((holding.current_price / max(prices) - 1) * HUNDRED).quantize(
+            TENTH
+        ),
         price_points=_price_points(holding.weekly_prices),
         tone=holding.tone,
     )
@@ -174,14 +189,22 @@ def _price_points(rows: Sequence[tuple[str, str, bool]]) -> tuple[PricePoint, ..
     prices = [D(row[1]) for row in rows]
     low = min(prices)
     spread = max(prices) - low
+    last_index = len(rows) - 1
     return tuple(
         PricePoint(
             label=label,
             price=D(price),
-            height_percent=(50 if not spread else 15 + int((D(price) - low) / spread * 85)),
+            x_percent=(D(index) / D(last_index) * HUNDRED).quantize(TENTH)
+            if last_index
+            else D("50.0"),
+            y_percent=(
+                D("50.0")
+                if not spread
+                else (D("88") - (D(price) - low) / spread * D("76")).quantize(TENTH)
+            ),
             call_sale=call_sale,
         )
-        for label, price, call_sale in rows
+        for index, (label, price, call_sale) in enumerate(rows)
     )
 
 
@@ -199,6 +222,10 @@ def _open_call_clock(record: CallSaleRecord, current_price: Decimal, as_of: date
     intrinsic_per_share = max(ZERO, current_price - record.strike)
     extrinsic_per_share = max(ZERO, metric.mark_per_share - intrinsic_per_share)
     remaining_extrinsic = extrinsic_per_share * record.contracts * 100
+    intrinsic_value = intrinsic_per_share * record.contracts * 100
+    current_buyback_cost = metric.mark_per_share * record.contracts * 100
+    open_profit_loss = record.gross_premium - current_buyback_cost
+    comparison_max = max(record.gross_premium, current_buyback_cost)
     short_theta_per_day = -metric.theta_per_share * record.contracts * 100
     return OpenCallClock(
         expires_on=record.expires_on,
@@ -206,6 +233,17 @@ def _open_call_clock(record: CallSaleRecord, current_price: Decimal, as_of: date
         contracts=record.contracts,
         days_to_expiration=days_to_expiration,
         mark_per_share=metric.mark_per_share,
+        entry_credit_per_share=record.premium_per_share,
+        entry_credit=record.gross_premium,
+        current_buyback_cost=current_buyback_cost,
+        open_profit_loss=open_profit_loss,
+        credit_capture_percent=(open_profit_loss / record.gross_premium * HUNDRED).quantize(TENTH),
+        buyback_vs_credit_percent=(current_buyback_cost / record.gross_premium * HUNDRED).quantize(
+            TENTH
+        ),
+        entry_bar_percent=(record.gross_premium / comparison_max * HUNDRED).quantize(TENTH),
+        buyback_bar_percent=(current_buyback_cost / comparison_max * HUNDRED).quantize(TENTH),
+        intrinsic_value=intrinsic_value,
         remaining_extrinsic_value=remaining_extrinsic,
         theta_per_share=metric.theta_per_share,
         short_theta_per_day=short_theta_per_day,
@@ -213,6 +251,9 @@ def _open_call_clock(record: CallSaleRecord, current_price: Decimal, as_of: date
             TENTH
         )
         if remaining_extrinsic
+        else ZERO,
+        theta_days_of_time_value=(remaining_extrinsic / short_theta_per_day).quantize(TENTH)
+        if short_theta_per_day
         else ZERO,
         time_remaining_percent=min(D("100"), D(days_to_expiration) / D("56") * 100).quantize(TENTH),
         decay_stage=_decay_stage(days_to_expiration),

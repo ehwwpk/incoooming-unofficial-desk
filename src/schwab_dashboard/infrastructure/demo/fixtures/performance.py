@@ -30,8 +30,8 @@ def build_performance_windows(
     stock_value: Decimal,
 ) -> tuple[PerformanceWindowSummary, ...]:
     rows = (
-        ("week", "WEEK", "Aug 01 - Aug 07", 7, "-105", "0", "965", "1070", 2, 7, 1, 0),
-        ("month", "4 WEEKS", "Jul 11 - Aug 07", 28, "1015", "0", "3390", "2375", 5, 18, 4, 3),
+        ("week", "WEEK", "Aug 01 - Aug 07", 7, "80", "0", "965", "885", 2, 7, 2, 1),
+        ("month", "4 WEEKS", "Jul 11 - Aug 07", 28, "1950", "0", "3390", "1440", 5, 18, 4, 3),
         (
             "quarter",
             "13 WEEKS",

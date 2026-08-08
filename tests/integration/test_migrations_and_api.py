@@ -64,9 +64,12 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert ready.status_code == 200
         assert payload["mode"] == "demo"
         assert payload["is_demo"] is True
-        assert payload["portfolio"]["total_value"] == "230006.00"
+        assert payload["portfolio"]["total_value"] == "229581.00"
+        assert payload["income"]["month"] == "1950.00"
         assert payload["income"]["quarter"] == "6340.00"
         assert payload["covered_calls"]["total_cash_income"] == "7586.00"
+        assert payload["covered_calls"]["assigned_contracts"] == 2
+        assert payload["covered_calls"]["called_away_shares"] == 200
         assert len(payload["income_periods"]) == 13
         assert len(payload["campaigns"]) == 3
         assert len(payload["positions"]) == 8
@@ -92,12 +95,15 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "data-target-input" in page.text
         assert "DIV RISK // MONITOR" in page.text
         assert "SIM EX-DIV" in page.text
-        assert "app.css?v=8" in page.text
+        assert "app.css?v=10" in page.text
         assert "periods.js?v=9" in page.text
         assert "OPTION +$ / 4 WEEKS" in page.text
-        assert "OPEN CALL CLOCKS" in page.text
-        assert "SHORT THETA" in page.text
-        assert "13W PRICE TAPE" in page.text
+        assert "ENTRY CREDIT VS ESTIMATED BUYBACK" in page.text
+        assert "OPEN P/L IF CLOSED NOW" in page.text
+        assert "BUYBACK NOW" in page.text
+        assert "13W PRICE PATH" in page.text
+        assert "RANGE POSITION" in page.text
+        assert "2 ASSIGNED / 200 SH" in page.text
         assert "LIFETIME BASIS LENS" in page.text
         assert "ORIGINAL CAPITAL REMAINING" in page.text
         assert "Trades &amp; positions" in page.text

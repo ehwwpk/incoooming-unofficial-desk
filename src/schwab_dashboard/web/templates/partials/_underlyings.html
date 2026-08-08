@@ -46,41 +46,85 @@
       </div>
       {% endif %}
 
-      <div class="price-tape-heading">
-        <span>13W PRICE TAPE</span>
-        <small>LOW {{ item.thirteen_week_low | money }} // NOW {{ item.current_price | money }} // HIGH {{ item.thirteen_week_high | money }}</small>
-        <b><i>S</i> CALL SOLD</b>
-      </div>
-      <div class="price-rhythm" aria-label="{{ item.symbol }} thirteen-week weekly close and call-sale tape">
-        {% for point in item.price_points %}
-        <div class="price-column" style="--point-height: {{ point.height_percent }}%" title="{{ point.label }} // {{ point.price | money }}{% if point.call_sale %} // CALL SOLD{% endif %}">
-          {% if point.call_sale %}<i class="sale-marker">S</i>{% endif %}
-          <span></span>
-          {% if loop.first or loop.index == 7 or loop.last %}<small>{{ point.label }}</small>{% endif %}
-        </div>
-        {% endfor %}
-      </div>
+      <div class="underlying-decision-grid">
+        <section class="price-map" aria-label="{{ item.symbol }} thirteen-week price path and call-sale timing">
+          <div class="price-map-heading">
+            <div><span>13W PRICE PATH</span><small>WEEKLY CLOSE / SALE TIMING</small></div>
+            <b class="{{ item.thirteen_week_change_percent | pnl_class }}">{{ item.thirteen_week_change_percent | percent }} MOVE</b>
+          </div>
+          <div class="price-context-strip">
+            <div><span>NOW</span><b>{{ item.current_price | money }}</b></div>
+            <div><span>RANGE POSITION</span><b>{{ item.range_position_percent | percent }}</b></div>
+            <div><span>FROM 13W HIGH</span><b>{{ item.distance_from_high_percent | percent }}</b></div>
+          </div>
+          <div class="price-path-chart">
+            <span class="price-axis high">{{ item.thirteen_week_high | money }}</span>
+            <span class="price-axis mid">{{ item.thirteen_week_mid | money }}</span>
+            <span class="price-axis low">{{ item.thirteen_week_low | money }}</span>
+            <div class="price-path-canvas">
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                <defs>
+                  <linearGradient id="{{ item.symbol | lower }}-price-fill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="var(--card-accent)" stop-opacity=".24" />
+                    <stop offset="100%" stop-color="var(--card-accent)" stop-opacity="0" />
+                  </linearGradient>
+                </defs>
+                <polygon class="price-area" fill="url(#{{ item.symbol | lower }}-price-fill)" points="0,96 {% for point in item.price_points %}{{ point.x_percent }},{{ point.y_percent }} {% endfor %}100,96" />
+                <polyline class="price-line" points="{% for point in item.price_points %}{{ point.x_percent }},{{ point.y_percent }} {% endfor %}" />
+              </svg>
+              {% for point in item.price_points %}
+                {% if point.call_sale %}
+                <i class="price-sale-event" style="--event-x: {{ point.x_percent }}%; --event-y: {{ point.y_percent }}%" title="{{ point.label }} // sold call near {{ point.price | money }}" aria-label="Call sold {{ point.label }} near {{ point.price | money }}"><b>S</b></i>
+                {% endif %}
+                {% if loop.last %}<i class="price-now-event" style="--event-x: {{ point.x_percent }}%; --event-y: {{ point.y_percent }}%"><b>NOW</b></i>{% endif %}
+              {% endfor %}
+            </div>
+            <div class="price-date-axis"><span>{{ item.price_points[0].label }}</span><span>{{ item.price_points[6].label }}</span><span>{{ item.price_points[-1].label }}</span></div>
+          </div>
+          <div class="price-map-legend"><span><i></i> WEEKLY CLOSE</span><span><b>S</b> CALL SOLD</span><small>Markers sit on the actual sale-week close.</small></div>
+        </section>
 
-      <div class="call-clock-board">
-        <div class="call-clock-heading">
-          <span>OPEN CALL CLOCKS</span>
-          <small>THETA <i>SIM</i> // THEORETICAL DAILY DECAY, ALL ELSE EQUAL</small>
-        </div>
-        {% for call in item.open_call_clocks %}
-        <div class="call-clock">
-          <div class="call-clock-contract">
-            <strong>-{{ call.contracts }} {{ call.expires_on.strftime('%b %d') | upper }} ${{ '%g' | format(call.strike) }}C</strong>
-            <span>{{ call.decay_stage }}</span>
+        <section class="call-clock-board">
+          <div class="call-clock-heading">
+            <div><span>OPEN CALLS</span><small>ENTRY CREDIT VS ESTIMATED BUYBACK</small></div>
+            <small>MARK / THETA <i>SIM</i></small>
           </div>
-          <div><span>DTE</span><b>{{ call.days_to_expiration }}</b></div>
-          <div><span>SHORT THETA <i>SIM</i></span><b class="positive">+{{ call.short_theta_per_day | money }}/DAY</b></div>
-          <div><span>EXTRINSIC LEFT</span><b>{{ call.remaining_extrinsic_value | money(0) }}</b></div>
-          <div class="time-left-meter">
-            <span><b>TIME LEFT</b><em>{{ call.theta_decay_percent_of_extrinsic | percent }}/DAY OF EXTRINSIC</em></span>
-            <i><em style="--time-left: {{ call.time_remaining_percent }}%"></em></i>
-          </div>
-        </div>
-        {% endfor %}
+          {% for call in item.open_call_clocks %}
+          <article class="call-position {{ call.open_profit_loss | pnl_class }}">
+            <header>
+              <div><strong>-{{ call.contracts }} {{ call.expires_on.strftime('%b %d') | upper }} ${{ '%g' | format(call.strike) }}C</strong><span>{{ call.decay_stage }}</span></div>
+              <div><b>{{ call.days_to_expiration }}</b><span>DTE</span></div>
+            </header>
+            <div class="call-economics">
+              <div class="call-open-result">
+                <span>OPEN P/L IF CLOSED NOW</span>
+                <strong class="{{ call.open_profit_loss | pnl_class }}">{{ call.open_profit_loss | money }}</strong>
+                {% if call.open_profit_loss >= 0 %}
+                <small>{{ call.credit_capture_percent | percent }} of entry credit retained</small>
+                {% else %}
+                <small>Buyback is {{ call.buyback_vs_credit_percent | percent }} of entry credit</small>
+                {% endif %}
+              </div>
+              <div class="premium-comparison">
+                <div class="premium-row entry">
+                  <span>SOLD FOR <b>{{ call.entry_credit_per_share | money }}/SH</b></span><strong>{{ call.entry_credit | money(0) }}</strong>
+                  <i><em style="--premium-width: {{ call.entry_bar_percent }}%"></em></i>
+                </div>
+                <div class="premium-row current {{ call.open_profit_loss | pnl_class }}">
+                  <span>BUYBACK NOW <b>{{ call.mark_per_share | money }}/SH</b></span><strong>{{ call.current_buyback_cost | money(0) }}</strong>
+                  <i><em style="--premium-width: {{ call.buyback_bar_percent }}%"></em></i>
+                </div>
+              </div>
+            </div>
+            <div class="call-context-strip">
+              <span>TIME VALUE NOW <b>{{ call.remaining_extrinsic_value | money(0) }}</b></span>
+              {% if call.intrinsic_value > 0 %}<span class="negative">INTRINSIC <b>{{ call.intrinsic_value | money(0) }}</b></span>{% else %}<span>INTRINSIC <b>$0 / OTM</b></span>{% endif %}
+              <span>THETA <i>SIM</i> <b class="positive">+{{ call.short_theta_per_day | money }}/DAY</b></span>
+              <span>TIME-VALUE PACE <b>~{{ call.theta_days_of_time_value | number(1) }} DAYS</b><small>at today's theta; not a forecast</small></span>
+            </div>
+          </article>
+          {% endfor %}
+        </section>
       </div>
 
       <div class="history-caption">13W EXECUTION OUTCOMES</div>
@@ -89,7 +133,8 @@
         <div><span>Expired</span><b>{{ item.expired_contracts }}</b></div>
         <div><span>Closed</span><b>{{ item.closed_contracts }}</b></div>
         <div><span>Rolled</span><b>{{ item.rolled_contracts }}</b></div>
-        <div><span>Called</span><b>{{ item.called_away_shares }}</b></div>
+        <div class="called"><span>Assigned</span><b>{{ item.assigned_contracts }}</b><small>{{ item.called_away_shares }} SH</small></div>
+        <div><span>Open</span><b>{{ item.active_contracts }}</b></div>
       </div>
       <div class="execution-stats">
         <span>AVG STRIKE GAP <b>{{ item.average_strike_upside_percent | percent }}</b></span>

@@ -10,7 +10,8 @@ from decimal import Decimal
 class PricePoint:
     label: str
     price: Decimal
-    height_percent: int
+    x_percent: Decimal
+    y_percent: Decimal
     call_sale: bool
 
 
@@ -34,10 +35,20 @@ class OpenCallClock:
     contracts: int
     days_to_expiration: int
     mark_per_share: Decimal
+    entry_credit_per_share: Decimal
+    entry_credit: Decimal
+    current_buyback_cost: Decimal
+    open_profit_loss: Decimal
+    credit_capture_percent: Decimal
+    buyback_vs_credit_percent: Decimal
+    entry_bar_percent: Decimal
+    buyback_bar_percent: Decimal
+    intrinsic_value: Decimal
     remaining_extrinsic_value: Decimal
     theta_per_share: Decimal
     short_theta_per_day: Decimal
     theta_decay_percent_of_extrinsic: Decimal
+    theta_days_of_time_value: Decimal
     time_remaining_percent: Decimal
     decay_stage: str
 
@@ -77,6 +88,7 @@ class UnderlyingCallStats:
     expired_contracts: int
     closed_contracts: int
     rolled_contracts: int
+    assigned_contracts: int
     called_away_shares: int
     gross_premium: Decimal
     buyback_cost: Decimal
@@ -105,7 +117,11 @@ class UnderlyingCallStats:
     performance_windows: Sequence[UnderlyingPerformanceWindow]
     open_call_clocks: Sequence[OpenCallClock]
     thirteen_week_low: Decimal
+    thirteen_week_mid: Decimal
     thirteen_week_high: Decimal
+    thirteen_week_change_percent: Decimal
+    range_position_percent: Decimal
+    distance_from_high_percent: Decimal
     price_points: Sequence[PricePoint]
     tone: str
 
@@ -121,6 +137,7 @@ class CoveredCallPortfolioSummary:
     expired_contracts: int
     closed_contracts: int
     rolled_contracts: int
+    assigned_contracts: int
     called_away_shares: int
     gross_premium: Decimal
     buyback_cost: Decimal

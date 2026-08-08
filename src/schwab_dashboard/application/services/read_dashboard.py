@@ -83,6 +83,7 @@ def _empty_covered_calls() -> CoveredCallPortfolioSummary:
         expired_contracts=0,
         closed_contracts=0,
         rolled_contracts=0,
+        assigned_contracts=0,
         called_away_shares=0,
         gross_premium=ZERO,
         buyback_cost=ZERO,

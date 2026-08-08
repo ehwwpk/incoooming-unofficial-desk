@@ -31,7 +31,7 @@ def build_campaigns() -> tuple[CampaignSummary, ...]:
             days_to_expiration=42,
             legs=("-5 Sep 18 $75C", "-3 Sep 18 $82.5C"),
             net_option_cash=D("2370.00"),
-            unrealized_profit_loss=D("135.00"),
+            unrealized_profit_loss=D("-290.00"),
             collateral=D("52152.00"),
             return_on_risk_percent=D("4.80"),
             progress_percent=29,

@@ -52,9 +52,20 @@ def test_call_cash_and_lifecycle_reconcile_at_symbol_and_portfolio_level() -> No
         calls.expired_contracts
         + calls.closed_contracts
         + calls.rolled_contracts
+        + calls.assigned_contracts
         + calls.active_contracts
     )
-    assert calls.called_away_shares == 0
+    assert calls.assigned_contracts == 2
+    assert calls.called_away_shares == 200
+    assigned = [record for record in snapshot.call_history if record.outcome == "Assigned"]
+    assert len(assigned) == 1
+    assert assigned[0].symbol == "KTOS"
+    assert assigned[0].contracts == 2
+    assert assigned[0].underlying_at_sale == D("38.60")
+    assert assigned[0].strike == D("45")
+    ktos = next(item for item in snapshot.underlyings if item.symbol == "KTOS")
+    expiry_week = next(point for point in ktos.price_points if point.label == "06/26")
+    assert expiry_week.price > assigned[0].strike
 
 
 def test_portfolio_value_reconciles_with_personalized_inventory() -> None:
@@ -215,4 +226,35 @@ def test_open_call_clocks_expose_per_contract_dte_and_reconcile_theta() -> None:
         assert clock.theta_per_share < D("0")
         assert clock.short_theta_per_day > D("0")
         assert clock.remaining_extrinsic_value > D("0")
+        assert clock.entry_credit == clock.entry_credit_per_share * clock.contracts * 100
+        assert clock.current_buyback_cost == clock.mark_per_share * clock.contracts * 100
+        assert clock.open_profit_loss == clock.entry_credit - clock.current_buyback_cost
+        assert clock.entry_bar_percent <= D("100")
+        assert clock.buyback_bar_percent <= D("100")
+        assert clock.theta_days_of_time_value > D("0")
         assert D("0") <= clock.time_remaining_percent <= D("100")
+
+    ktos_loss = next(
+        clock
+        for item in snapshot.underlyings
+        if item.symbol == "KTOS"
+        for clock in item.open_call_clocks
+        if clock.strike == D("75")
+    )
+    assert ktos_loss.entry_credit == D("1225")
+    assert ktos_loss.current_buyback_cost == D("1650")
+    assert ktos_loss.open_profit_loss == D("-425")
+    assert ktos_loss.buyback_vs_credit_percent == D("134.7")
+
+
+def test_price_paths_use_actual_weekly_sequence_and_readable_range_context() -> None:
+    snapshot = DemoDashboardReader().execute()
+
+    for item in snapshot.underlyings:
+        assert len(item.price_points) == 13
+        assert item.price_points[0].x_percent == D("0.0")
+        assert item.price_points[-1].x_percent == D("100.0")
+        assert all(D("0") <= point.y_percent <= D("100") for point in item.price_points)
+        assert item.thirteen_week_low <= item.current_price <= item.thirteen_week_high
+        assert D("0") <= item.range_position_percent <= D("100")
+        assert item.distance_from_high_percent <= D("0")

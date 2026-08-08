@@ -2,14 +2,14 @@
   <section class="panel lifecycle-panel">
     <div class="section-heading terminal-heading">
       <div><p class="eyebrow">CALL LIFECYCLE</p><h2>Contract disposition</h2></div>
-      <span class="risk-state">0 CALLED</span>
+      <span class="risk-state">{{ snapshot.covered_calls.assigned_contracts }} ASSIGNED / {{ snapshot.covered_calls.called_away_shares }} SH</span>
     </div>
     <div class="lifecycle-grid">
       <div><span>EXPIRED</span><strong>{{ snapshot.covered_calls.expired_contracts }}</strong></div>
       <div><span>CLOSED</span><strong>{{ snapshot.covered_calls.closed_contracts }}</strong></div>
       <div><span>ROLLED</span><strong>{{ snapshot.covered_calls.rolled_contracts }}</strong></div>
       <div><span>OPEN</span><strong>{{ snapshot.covered_calls.active_contracts }}</strong></div>
-      <div class="called"><span>SHARES CALLED</span><strong>{{ snapshot.covered_calls.called_away_shares }}</strong></div>
+      <div class="called"><span>ASSIGNED</span><strong>{{ snapshot.covered_calls.assigned_contracts }} / {{ snapshot.covered_calls.called_away_shares }} SH</strong></div>
       <div><span>WIN RATE</span><strong>{{ snapshot.covered_calls.win_rate | percent }}</strong></div>
     </div>
   </section>

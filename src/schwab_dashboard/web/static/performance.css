@@ -1,5 +1,5 @@
-.period-panel { margin-bottom: 10px; padding: 0; overflow: hidden; }
-.period-toolbar { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.period-panel { margin-bottom: 10px; padding: 0; overflow: hidden; border-top-color: #80531f; box-shadow: 0 12px 32px rgb(0 0 0 / 20%), inset 0 2px var(--amber-soft); }
+.period-toolbar { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--line); background: linear-gradient(90deg, #110c06, #080b0e 38%); }
 .period-toolbar h2 { margin: 0; font-size: .92rem; }
 .period-controls, .annual-controls { display: flex; border: 1px solid var(--line-strong); }
 .period-controls button, .annual-controls button { border: 0; border-right: 1px solid var(--line); padding: 7px 10px; background: #080b0e; color: var(--subtle); font: 700 .5rem var(--mono); }
@@ -37,6 +37,8 @@
 
 .manager-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(360px, .75fr); gap: 10px; }
 .objective-panel, .basis-panel { min-width: 0; }
+.objective-panel { border-top-color: #80531f; background: linear-gradient(135deg, #0e0c09, #080b0e 58%); box-shadow: inset 0 2px var(--amber-soft), 0 12px 30px rgb(0 0 0 / 18%); }
+.basis-panel { border-top-color: #285b3e; background: linear-gradient(145deg, #080e0b, #080a0c 62%); box-shadow: inset 0 2px #285b3e, 0 12px 30px rgb(0 0 0 / 18%); }
 .objective-hero { display: grid; grid-template-columns: 1fr 1fr; margin-top: 13px; border: 1px solid var(--line); }
 .objective-hero > div { display: grid; gap: 6px; padding: 12px; border-right: 1px solid var(--line); }
 .objective-hero > div:last-child { border-right: 0; }

@@ -4,8 +4,8 @@
   --surface: #090c0f;
   --surface-raised: #0d1115;
   --surface-soft: #11171c;
-  --line: #20272d;
-  --line-strong: #35404a;
+  --line: #1d252b;
+  --line-strong: #3a454e;
   --text: #e8edf2;
   --muted: #86919b;
   --subtle: #56616b;
@@ -24,7 +24,7 @@
 html { scroll-behavior: smooth; }
 body {
   margin: 0;
-  background: var(--bg);
+  background: radial-gradient(circle at 12% -10%, rgb(255 173 51 / 4%), transparent 28%), radial-gradient(circle at 92% 18%, rgb(69 201 230 / 2.5%), transparent 25%), var(--bg);
   color: var(--text);
   font-family: var(--sans);
   font-variant-numeric: tabular-nums;
@@ -85,10 +85,13 @@ kbd { border: 1px solid var(--line-strong); padding: 2px 3px; background: #07090
 .desk-meta b { margin-left: 4px; color: var(--text); font-size: .53rem; }
 .eyebrow { margin: 0 0 5px; color: var(--amber); font: 700 .55rem var(--mono); letter-spacing: .12em; }
 
-.panel, .campaign-card, .underlying-card { border: 1px solid var(--line); background: rgb(9 12 15 / 96%); }
+.panel, .campaign-card, .underlying-card { border: 1px solid var(--line); background: rgb(9 12 15 / 97%); }
 .panel { padding: 14px; }
+.panel, .campaign-card { box-shadow: 0 9px 24px rgb(0 0 0 / 14%), inset 0 1px rgb(255 255 255 / 1.8%); }
 .section-block, .positions-panel, .ledger-panel { margin-top: 10px; }
 .section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.section-heading.terminal-heading { position: relative; min-height: 31px; padding-left: 10px; }
+.section-heading.terminal-heading::before { position: absolute; inset: 0 auto 0 0; width: 2px; content: ""; background: linear-gradient(var(--amber), var(--amber-soft)); box-shadow: 0 0 10px rgb(255 173 51 / 18%); }
 .section-heading h2 { margin: 0; font-size: .92rem; font-weight: 600; letter-spacing: -.015em; }
 .terminal-heading > span { color: var(--subtle); font: .55rem var(--mono); letter-spacing: .05em; }
 .wide-heading { margin-bottom: 11px; }
