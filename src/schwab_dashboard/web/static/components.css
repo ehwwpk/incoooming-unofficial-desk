@@ -28,8 +28,16 @@
 .underlying-primary strong { font: 650 .88rem var(--mono); }
 .underlying-primary div:first-child strong { color: var(--green); font-size: 1.02rem; }
 
-.underlying-decision-grid { display: grid; grid-template-columns: minmax(350px, .9fr) minmax(560px, 1.5fr); border-top: 1px solid var(--line-strong); border-bottom: 1px solid var(--line-strong); }
-.price-map { min-width: 0; border-right: 1px solid var(--line-strong); background: var(--bg); }
+.underlying-decision-grid { --workspace-chart-percent: 44%; display: grid; grid-template-columns: var(--workspace-chart-percent) 9px minmax(0, 1fr); align-items: start; border-top: 1px solid var(--line-strong); border-bottom: 1px solid var(--line-strong); background: var(--bg); }
+.price-map { min-width: 0; background: var(--bg); }
+.underlying-call-lane { display: grid; min-width: 0; align-content: start; background: var(--surface); }
+.workspace-splitter { position: relative; align-self: stretch; min-height: 42px; background: var(--bg); cursor: col-resize; touch-action: none; outline: 0; }
+.workspace-splitter::before { position: absolute; inset: 0 auto 0 50%; width: 1px; content: ""; background: var(--line-strong); transform: translateX(-50%); transition: background-color 120ms ease, box-shadow 120ms ease; }
+.workspace-splitter i { position: absolute; top: 50%; left: 50%; width: 3px; height: 19px; background: radial-gradient(circle, var(--subtle) 1px, transparent 1.5px) center / 3px 6px repeat-y; transform: translate(-50%, -50%); opacity: .65; }
+.workspace-splitter:hover::before, .workspace-splitter:focus-visible::before { background: var(--gold); box-shadow: 0 0 0 1px rgb(221 176 70 / 18%); }
+.workspace-splitter:hover i, .workspace-splitter:focus-visible i { background-image: radial-gradient(circle, var(--gold) 1px, transparent 1.5px); opacity: 1; }
+.workspace-splitter:focus-visible { box-shadow: inset 0 0 0 1px var(--gold); }
+.workspace-resizing, .workspace-resizing * { cursor: col-resize !important; user-select: none !important; }
 .price-map-heading, .call-clock-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 42px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--surface-raised); font-family: var(--mono); }
 .price-map-heading > div, .call-clock-heading > div { display: grid; gap: 2px; }
 .price-map-heading span, .call-clock-heading span { color: var(--text); font-size: .5rem; letter-spacing: .08em; }

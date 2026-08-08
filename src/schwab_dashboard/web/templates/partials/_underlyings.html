@@ -46,8 +46,8 @@
       </div>
       {% endif %}
 
-      <div class="underlying-decision-grid">
-        <section class="price-map" aria-label="{{ item.symbol }} verified daily close history and simulated option events">
+      <div class="underlying-decision-grid" data-workspace-grid>
+        <section id="{{ item.symbol | lower }}-price-pane" class="price-map" aria-label="{{ item.symbol }} verified daily close history and simulated option events">
           <div class="price-map-heading">
             <div><span>13W DAILY CLOSES</span><small>OBSERVED MARKET CLOSE / OPTION EVENTS <i>SIM</i></small></div>
             <b class="{{ item.thirteen_week_change_percent | pnl_class }}">{{ item.thirteen_week_change_percent | percent }} MOVE</b>
@@ -87,6 +87,22 @@
           </div>
         </section>
 
+        <div
+          class="workspace-splitter"
+          role="separator"
+          tabindex="0"
+          aria-label="Resize {{ item.symbol }} price chart pane"
+          aria-controls="{{ item.symbol | lower }}-price-pane"
+          aria-orientation="vertical"
+          aria-valuemin="36"
+          aria-valuemax="64"
+          aria-valuenow="44"
+          aria-valuetext="Price chart 44%, call status 56%"
+          data-workspace-splitter
+          title="Drag to resize · Arrow keys adjust · Double-click resets"
+        ><i aria-hidden="true"></i></div>
+
+        <div id="{{ item.symbol | lower }}-call-pane" class="underlying-call-lane">
         <section class="call-clock-board">
           <div class="call-clock-heading">
             <div><span>OPEN OPTION STATUS</span><small>PREMIUM RECEIVED / CURRENT MARK / OPEN P&amp;L</small></div>
@@ -123,26 +139,29 @@
           </article>
           {% endfor %}
         </section>
-      </div>
 
-      <div class="history-caption">13W EXECUTION OUTCOMES</div>
-      <div class="underlying-lifecycle">
-        <div><span>Sold</span><b>{{ item.contracts_sold }}</b></div>
-        <div><span>Expired</span><b>{{ item.expired_contracts }}</b></div>
-        <div><span>Closed</span><b>{{ item.closed_contracts }}</b></div>
-        <div><span>Rolled</span><b>{{ item.rolled_contracts }}</b></div>
-        <div class="called"><span>Assigned</span><b>{{ item.assigned_contracts }}</b><small>{{ item.called_away_shares }} SH</small></div>
-        <div><span>Open</span><b>{{ item.active_contracts }}</b></div>
-      </div>
-      <div class="execution-stats">
-        <span>AVG STRIKE GAP <b>{{ item.average_strike_upside_percent | percent }}</b></span>
-        <span>POS CASH <b>{{ item.win_rate | percent }}</b></span>
-        <span>TICKETS <b>{{ item.call_tickets }}</b></span>
-      </div>
-      <div class="basis-chip">
-        <span>LIFE INC {{ (item.lifetime_option_income + item.lifetime_dividends) | money(0) }}</span>
-        <span>INCOME-ADJ BASIS <b>{{ item.income_adjusted_basis_per_share | money }}/SH</b></span>
-        <span>{{ item.basis_offset_percent | percent }} BASIS OFFSET</span>
+        <section class="underlying-history" aria-label="{{ item.symbol }} execution outcomes and basis">
+          <div class="history-caption">13W EXECUTION OUTCOMES</div>
+          <div class="underlying-lifecycle">
+            <div><span>Sold</span><b>{{ item.contracts_sold }}</b></div>
+            <div><span>Expired</span><b>{{ item.expired_contracts }}</b></div>
+            <div><span>Closed</span><b>{{ item.closed_contracts }}</b></div>
+            <div><span>Rolled</span><b>{{ item.rolled_contracts }}</b></div>
+            <div class="called"><span>Assigned</span><b>{{ item.assigned_contracts }}</b><small>{{ item.called_away_shares }} SH</small></div>
+            <div><span>Open</span><b>{{ item.active_contracts }}</b></div>
+          </div>
+          <div class="execution-stats">
+            <span>AVG STRIKE GAP <b>{{ item.average_strike_upside_percent | percent }}</b></span>
+            <span>POS CASH <b>{{ item.win_rate | percent }}</b></span>
+            <span>TICKETS <b>{{ item.call_tickets }}</b></span>
+          </div>
+          <div class="basis-chip">
+            <span>LIFE INC {{ (item.lifetime_option_income + item.lifetime_dividends) | money(0) }}</span>
+            <span>INCOME-ADJ BASIS <b>{{ item.income_adjusted_basis_per_share | money }}/SH</b></span>
+            <span>{{ item.basis_offset_percent | percent }} BASIS OFFSET</span>
+          </div>
+        </section>
+        </div>
       </div>
     </article>
     {% endfor %}

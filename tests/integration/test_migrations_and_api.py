@@ -106,8 +106,12 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "data-target-input" in page.text
         assert "DIV RISK // MONITOR" in page.text
         assert "SIM EX-DIV" in page.text
-        assert "app.css?v=16" in page.text
+        assert "app.css?v=17" in page.text
         assert "periods.js?v=14" in page.text
+        assert "workspace-splitter.js?v=1" in page.text
+        assert page.text.count('data-workspace-splitter') == 3
+        assert 'role="separator"' in page.text
+        assert 'class="underlying-history"' in page.text
         assert 'data-rail-link="portfolio" aria-current="page"' in page.text
         assert "NET PREMIUM CASH / 4 WEEKS" in page.text
         assert "EXECUTED CLOSE / ROLL DEBITS" in page.text
