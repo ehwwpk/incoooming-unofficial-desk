@@ -55,12 +55,13 @@ def build_price_events(
     if not points:
         return ()
     start, end = points[0].date, points[-1].date
-    actions: list[tuple[date, str, str, str]] = []
-    for record in records:
+    actions: list[tuple[date, int, str, str, str]] = []
+    for lifecycle_id, record in enumerate(records, start=1):
         if start <= record.sold_on <= end:
             actions.append(
                 (
                     record.sold_on,
+                    lifecycle_id,
                     "sale",
                     "S",
                     (
@@ -83,16 +84,25 @@ def build_price_events(
             actions.append(
                 (
                     record.closed_on,
+                    lifecycle_id,
                     event_type,
                     glyph,
                     f"{verb} {record.contracts}x ${record.strike:g}C",
                 )
             )
 
+    ordered_actions = sorted(actions, key=lambda row: row[0])
+    sale_sequences = {
+        lifecycle_id: sequence
+        for sequence, (_, lifecycle_id, event_type, _, _) in enumerate(
+            ordered_actions, start=1
+        )
+        if event_type == "sale"
+    }
     lanes: dict[date, int] = {}
     events: list[PriceEvent] = []
-    for sequence, (event_date, event_type, glyph, detail) in enumerate(
-        sorted(actions, key=lambda row: row[0]), start=1
+    for sequence, (event_date, lifecycle_id, event_type, glyph, detail) in enumerate(
+        ordered_actions, start=1
     ):
         point = min(points, key=lambda item: abs((item.date - event_date).days))
         lane = lanes.get(event_date, 0)
@@ -100,6 +110,7 @@ def build_price_events(
         events.append(
             PriceEvent(
                 sequence=sequence,
+                lifecycle_id=lifecycle_id,
                 date=event_date,
                 label=event_date.strftime("%m/%d"),
                 event_type=event_type,
@@ -108,6 +119,9 @@ def build_price_events(
                 x_percent=point.x_percent,
                 y_percent=point.y_percent,
                 vertical_offset=lane * 14,
+                linked_sale_sequence=(
+                    None if event_type == "sale" else sale_sequences.get(lifecycle_id)
+                ),
             )
         )
     return tuple(events)

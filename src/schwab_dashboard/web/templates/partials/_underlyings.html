@@ -64,7 +64,7 @@
             <span class="price-axis low">{{ item.thirteen_week_low | money }}</span>
             <div class="price-path-canvas">
               {% for point in item.price_points %}{% if point.is_friday %}<i class="friday-guide" style="--event-x: {{ point.x_percent }}%" aria-hidden="true"></i>{% endif %}{% endfor %}
-              <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <svg class="price-series" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                 <defs>
                   <linearGradient id="{{ item.symbol | lower }}-price-fill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stop-color="var(--card-accent)" stop-opacity=".24" />
@@ -74,8 +74,9 @@
                 <polygon class="price-area" fill="url(#{{ item.symbol | lower }}-price-fill)" points="0,96 {% for point in item.price_points %}{{ point.x_percent }},{{ point.y_percent }} {% endfor %}100,96" />
                 <polyline class="price-line" points="{% for point in item.price_points %}{{ point.x_percent }},{{ point.y_percent }} {% endfor %}" />
               </svg>
+              <svg class="lifecycle-links" data-lifecycle-links aria-hidden="true"></svg>
               {% for point in item.price_points %}<i class="daily-point" style="--event-x: {{ point.x_percent }}%; --event-y: {{ point.y_percent }}%" aria-hidden="true"></i>{% endfor %}
-              {% for event in item.price_events %}<i class="price-event {{ event.event_type }}" style="--event-x: {{ event.x_percent }}%; --event-y: {{ event.y_percent }}%; --event-offset: {{ event.vertical_offset }}px" title="{{ event.label }} // {{ event.detail }}" aria-label="Event {{ event.sequence }}: {{ event.label }} {{ event.detail }}"><b>{{ event.sequence }}</b></i>{% endfor %}
+              {% for event in item.price_events %}<i class="price-event {{ event.event_type }}" data-lifecycle-id="{{ event.lifecycle_id }}" data-event-type="{{ event.event_type }}"{% if event.linked_sale_sequence %} data-linked-sale-sequence="{{ event.linked_sale_sequence }}"{% endif %} style="--event-x: {{ event.x_percent }}%; --event-y: {{ event.y_percent }}%; --event-offset: {{ event.vertical_offset }}px" title="{{ event.label }} // {{ event.detail }}{% if event.linked_sale_sequence %} // resolves sale event {{ event.linked_sale_sequence }}{% endif %}" aria-label="Event {{ event.sequence }}: {{ event.label }} {{ event.detail }}{% if event.linked_sale_sequence %}; resolves sale event {{ event.linked_sale_sequence }}{% endif %}"><b>{{ event.sequence }}{% if event.linked_sale_sequence %}<small aria-hidden="true">←{{ event.linked_sale_sequence }}</small>{% endif %}</b></i>{% endfor %}
               {% set last_point = item.price_points[-1] %}<i class="price-now-event" style="--event-x: {{ last_point.x_percent }}%; --event-y: {{ last_point.y_percent }}%"><b>NOW</b></i>
             </div>
             <div class="price-date-axis"><span>{{ item.price_points[0].label }}</span><span>{{ item.price_points[30].label }}</span><span>{{ item.price_points[-1].label }}</span></div>

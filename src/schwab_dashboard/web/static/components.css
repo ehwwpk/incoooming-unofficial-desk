@@ -59,8 +59,17 @@
 .price-path-chart { position: relative; height: 190px; margin: 0 9px; overflow: hidden; background: repeating-linear-gradient(0deg, transparent 0 46px, rgb(255 255 255 / 5%) 47px), var(--bg); }
 .price-path-canvas { position: absolute; inset: 9px 42px 22px 4px; }
 .price-path-chart svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.price-series { z-index: 1; }
 .price-line { fill: none; stroke: var(--text); stroke-width: 1.3; vector-effect: non-scaling-stroke; }
 .price-area { display: none; }
+.lifecycle-links { z-index: 2; pointer-events: none; }
+.lifecycle-link-halo, .lifecycle-link { fill: none; vector-effect: non-scaling-stroke; }
+.lifecycle-link-halo { stroke: var(--bg); stroke-width: 4; opacity: .9; }
+.lifecycle-link { stroke-width: 1.25; stroke-dasharray: 4 3; opacity: .82; }
+.lifecycle-link.expired { stroke: var(--green); }
+.lifecycle-link.closed { stroke: #84908a; }
+.lifecycle-link.rolled { stroke: var(--gold); }
+.lifecycle-link.assigned { stroke: var(--red); }
 .friday-guide { position: absolute; z-index: 1; top: 0; bottom: 0; left: var(--event-x); width: 1px; background: rgb(255 255 255 / 10%); transform: translateX(-50%); }
 .daily-point { position: absolute; z-index: 3; left: var(--event-x); top: var(--event-y); width: 3px; height: 3px; border: 1px solid var(--text); border-radius: 50%; background: var(--bg); transform: translate(-50%, -50%); font-style: normal; }
 .price-axis { position: absolute; z-index: 2; right: 0; width: 39px; color: var(--subtle); font: .39rem var(--mono); text-align: right; }
@@ -68,7 +77,8 @@
 .price-axis.mid { top: 50%; transform: translateY(-50%); }
 .price-axis.low { bottom: 21px; }
 .price-event, .price-now-event { position: absolute; z-index: 4; left: var(--event-x); top: var(--event-y); display: grid; place-items: center; transform: translate(-50%, calc(-50% - var(--event-offset, 0px))); font-style: normal; }
-.price-event b { display: grid; min-width: 17px; height: 17px; padding: 0 3px; place-items: center; border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); font: 850 .4rem var(--mono); box-shadow: 0 0 0 2px var(--bg); }
+.price-event b { position: relative; display: grid; min-width: 17px; height: 17px; padding: 0 3px; place-items: center; border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); font: 850 .4rem var(--mono); box-shadow: 0 0 0 2px var(--bg); }
+.price-event b small { position: absolute; top: 50%; right: calc(100% + 3px); padding: 2px 3px; border: 1px solid var(--gold-soft); background: var(--bg); color: var(--gold); font: 800 .32rem/1 var(--mono); white-space: nowrap; transform: translateY(-50%); }
 .price-event.sale b { border-color: var(--gold); background: var(--gold); color: var(--bg); }
 .price-event.expired b { border-color: var(--green-muted); border-radius: 50%; color: var(--green); }
 .price-event.closed b { border-color: #687268; color: var(--muted); }

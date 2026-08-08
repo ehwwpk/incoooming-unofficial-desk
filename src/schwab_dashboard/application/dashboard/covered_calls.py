@@ -19,6 +19,7 @@ class PricePoint:
 @dataclass(frozen=True, slots=True)
 class PriceEvent:
     sequence: int
+    lifecycle_id: int
     date: date
     label: str
     event_type: str
@@ -27,6 +28,7 @@ class PriceEvent:
     x_percent: Decimal
     y_percent: Decimal
     vertical_offset: int
+    linked_sale_sequence: int | None
 
 
 @dataclass(frozen=True, slots=True)

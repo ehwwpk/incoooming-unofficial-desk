@@ -317,6 +317,14 @@ def test_price_paths_use_daily_closes_and_reconciled_option_events() -> None:
         assert tuple(event.sequence for event in item.price_events) == tuple(
             range(1, len(item.price_events) + 1)
         )
+        lifecycle_groups: dict[int, list[object]] = {}
+        for event in item.price_events:
+            lifecycle_groups.setdefault(event.lifecycle_id, []).append(event)
+            if event.event_type == "sale":
+                assert event.linked_sale_sequence is None
+            else:
+                assert event.linked_sale_sequence is not None
+        assert all(len(group) <= 2 for group in lifecycle_groups.values())
 
         prices_by_date = {point.date: point.price for point in item.price_points}
         for record in snapshot.call_history:
@@ -341,3 +349,16 @@ def test_price_paths_use_daily_closes_and_reconciled_option_events() -> None:
     )
     assert all(D("0") <= event.x_percent <= D("100") for event in events)
     assert all(D("0") <= event.y_percent <= D("100") for event in events)
+    lifecycle_pairs = {
+        item.symbol: {
+            (event.linked_sale_sequence, event.sequence)
+            for event in item.price_events
+            if event.linked_sale_sequence is not None
+        }
+        for item in snapshot.underlyings
+    }
+    assert lifecycle_pairs == {
+        "CVX": {(1, 3), (2, 4), (5, 8)},
+        "KTOS": {(1, 2), (3, 5), (4, 10), (6, 8)},
+        "URNM": {(1, 4), (2, 6), (3, 8), (5, 7)},
+    }
