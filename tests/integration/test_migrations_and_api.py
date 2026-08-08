@@ -106,14 +106,18 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "data-target-input" in page.text
         assert "DIV RISK // MONITOR" in page.text
         assert "SIM EX-DIV" in page.text
-        assert "app.css?v=20" in page.text
+        assert "app.css?v=22" in page.text
         assert "periods.js?v=14" in page.text
         assert "workspace-splitter.js?v=1" in page.text
+        assert "event-layout.js?v=1" in page.text
         assert "lifecycle-links.js?v=1" in page.text
+        assert "nibwick.js?v=1" in page.text
         assert page.text.count('data-workspace-splitter') == 3
+        assert page.text.count('data-event-leaders') == 3
         assert page.text.count('data-lifecycle-id=') == 27
         assert page.text.count('data-linked-sale-sequence=') == 11
         assert "resolves sale event 1" in page.text
+        assert "Pause Nibwick's desk patrol" in page.text
         assert 'role="separator"' in page.text
         assert 'class="underlying-history"' in page.text
         assert 'data-rail-link="portfolio" aria-current="page"' in page.text

@@ -1,7 +1,7 @@
-@import url("./base.css?v=20");
-@import url("./components.css?v=20");
-@import url("./performance.css?v=20");
-@import url("./dashboard.css?v=20");
+@import url("./base.css?v=22");
+@import url("./components.css?v=22");
+@import url("./performance.css?v=22");
+@import url("./dashboard.css?v=22");
 
 @media (max-width: 1240px) {
   .portfolio-console { grid-template-columns: repeat(3, 1fr); }
@@ -15,6 +15,13 @@
   .underlying-decision-grid { grid-template-columns: 1fr; }
   .workspace-splitter { display: none; }
   .price-map { border-bottom: 1px solid var(--line-strong); }
+  .function-rail { height: auto; }
+  .nibwick-stage { display: none; }
+}
+
+@media (max-height: 560px) and (min-width: 1101px) {
+  .function-rail { height: auto; }
+  .nibwick-stage { display: none; }
 }
 
 @media (max-width: 960px) {
@@ -38,7 +45,7 @@
   .market-tape { overflow-x: auto; }
   .market-tape > span:nth-last-child(-n + 2) { display: none; }
   .terminal-shell { grid-template-columns: 1fr; }
-  .function-rail { position: static; display: flex; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line-strong); }
+  .function-rail { position: static; display: flex; height: auto; overflow-x: auto; flex-direction: row; border-right: 0; border-bottom: 1px solid var(--line-strong); }
   .function-rail a { min-width: 62px; border-right: 1px solid var(--line); border-bottom: 0; }
   .shell { width: min(100% - 18px, 1540px); padding-top: 15px; }
   .demo-banner { flex-direction: column; padding-block: 4px; }
