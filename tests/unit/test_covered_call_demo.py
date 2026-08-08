@@ -1,7 +1,10 @@
+from dataclasses import replace
+from datetime import timedelta
 from decimal import Decimal
 
 import pytest
 
+from schwab_dashboard.application.alerts.rules.dividend import evaluate_dividend_overlap
 from schwab_dashboard.application.dashboard.performance import calculate_capital_recovery
 from schwab_dashboard.infrastructure.demo.dashboard import DemoDashboardReader
 
@@ -234,9 +237,7 @@ def test_name_windows_reconcile_to_every_portfolio_window() -> None:
 def test_open_call_clocks_expose_per_contract_dte_and_reconcile_theta() -> None:
     snapshot = DemoDashboardReader().execute()
     clocks = [clock for item in snapshot.underlyings for clock in item.open_call_clocks]
-    theta_by_symbol = {
-        item.symbol: item.open_call_theta_per_day for item in snapshot.underlyings
-    }
+    theta_by_symbol = {item.symbol: item.open_call_theta_per_day for item in snapshot.underlyings}
 
     assert len(clocks) == 5
     assert theta_by_symbol == {
@@ -349,6 +350,9 @@ def test_price_paths_use_daily_closes_and_reconciled_option_events() -> None:
     )
     assert all(D("0") <= event.x_percent <= D("100") for event in events)
     assert all(D("0") <= event.y_percent <= D("100") for event in events)
+    for item in snapshot.underlyings:
+        prices_by_date = {point.date: point.price for point in item.price_points}
+        assert all(event.price == prices_by_date[event.date] for event in item.price_events)
     share_events = [event for item in snapshot.underlyings for event in item.share_trade_events]
     assert len(share_events) == 4
     assert sum(event.action == "buy" for event in share_events) == 3
@@ -380,3 +384,53 @@ def test_price_paths_use_daily_closes_and_reconciled_option_events() -> None:
         "KTOS": {(1, 2), (3, 5), (4, 10), (6, 8)},
         "URNM": {(1, 4), (2, 6), (3, 8), (5, 7)},
     }
+
+
+def test_nibwick_alerts_are_specific_ranked_and_plain_english() -> None:
+    snapshot = DemoDashboardReader().execute()
+
+    assert [(alert.reason_code, alert.level, alert.symbol) for alert in snapshot.alerts] == [
+        ("fast_move_near_call", "check", "KTOS"),
+        ("dividend_overlap", "watch", "CVX"),
+    ]
+    assert snapshot.alerts[0].level_label == "WORTH CHECKING"
+    assert snapshot.alerts[0].headline == "KTOS has moved up quickly."
+    assert "last five trading sessions" in snapshot.alerts[0].message
+    assert "does not require an action" in snapshot.alerts[0].message
+    assert snapshot.alerts[1].level_label == "KEEP AN EYE ON THIS"
+    assert snapshot.alerts[1].headline == "CVX has a dividend coming up."
+    assert "check again closer to the date" in snapshot.alerts[1].message
+    assert all(alert.target_id.endswith("-workspace") for alert in snapshot.alerts)
+
+
+def test_dividend_warning_escalates_only_when_the_math_supports_it() -> None:
+    snapshot = DemoDashboardReader().execute()
+    cvx = next(item for item in snapshot.underlyings if item.symbol == "CVX")
+    as_of = snapshot.as_of.date()
+    at_risk_call = replace(
+        cvx.open_call_clocks[0],
+        contracts=3,
+        strike=D("235"),
+        remaining_extrinsic_value=D("300"),
+    )
+    at_risk = replace(
+        cvx,
+        current_price=D("240"),
+        next_ex_dividend_date=as_of + timedelta(days=2),
+        dividend_overlap_contracts=3,
+        open_call_clocks=(at_risk_call,),
+    )
+
+    alert = evaluate_dividend_overlap(at_risk, as_of=as_of)
+
+    assert alert is not None
+    assert alert.level == "attention"
+    assert alert.level_label == "NEEDS ATTENTION"
+    assert "in the money" in alert.message
+    assert "increase the chance of early assignment" in alert.message
+    assert (
+        evaluate_dividend_overlap(
+            replace(at_risk, next_ex_dividend_date=as_of + timedelta(days=15)), as_of=as_of
+        )
+        is None
+    )

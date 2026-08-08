@@ -26,7 +26,7 @@ The browser and JSON API consume one typed dashboard snapshot regardless of data
 ## Stable view sections
 
 1. Combined portfolio: net value, selected-window net premium cash, total strategy income, coverage, calls sold, and shares called away.
-2. Underlying attribution: selected-window option income/APR/dividends/capture, a 13-week observed daily-close path with faint Friday guides and numbered simulated lifecycle event markers that map directly to a written event tape, and per-contract premium-received/current-option-value/open-P&L economics.
+2. Underlying attribution: selected-window option income/APR/dividends/capture, an observed daily-close path with `FULL`, `8W`, and `4W` date ranges, numbered simulated lifecycle markers that map directly to a written event tape, and per-contract premium-received/current-option-value/open-P&L economics.
 3. Income: 13 weekly periods with option cash and dividends reconciled to quarter totals.
 4. Lifecycle: contracts expired, closed, rolled, and still open, plus assignments and the completed-ticket positive-cash rate.
 5. Campaigns: current legs, dates, quarter option cash, open profit/loss, collateral, and return on capital.
@@ -36,6 +36,8 @@ The browser and JSON API consume one typed dashboard snapshot regardless of data
 The default workspace keeps decision surfaces visible and moves verbose records into one collapsed detail area. “Active books,” “Call history,” and “Positions” are tabs inside that area; only one record view renders visibly at a time.
 
 The primary workspace does not reserve a generic news or telemetry rail. A derived exception earns visible space only when it is actionable and can be placed next to the affected security or contract.
+
+Nibwick's note wire is conditional: it renders only when deterministic alert rules produce a result. Alert severity, facts, and thresholds come from typed application rules; the mascot adds plain-English presentation but never invents advice. Routine notes use a polite persistent status region rather than an interrupting modal.
 
 ## Performance windows
 
@@ -75,9 +77,11 @@ The primary workspace does not reserve a generic news or telemetry rail. A deriv
 - Demo IV and delta values are explicitly marked simulated. Live values will be quantity-weighted from current open-call contracts after Schwab market-data access is approved.
 - Each open call compares premium received with current option value and derives open P/L, credit capture, intrinsic value, and remaining time value. Open P/L can be negative when the option mark rises above its sale price; the dashboard does not frame that mark as a buyback recommendation.
 - Demo charts use an explicit frozen close for each observed market session; they never interpolate between weekly anchors. Each simulated call ticket uses the observed close on its sale date, and its strike remains 15–40% above that close. Numbered sale markers reconcile one-for-one to call-history records and a visible event tape, while expired, closed, rolled, and assigned markers reconcile to completed records. Live charts will replace the frozen fixture with Schwab market-data observations.
+- Chart range changes remap the close line, daily points, Friday guides, option events, share events, axes, lifecycle links, and visible-event ledger from the same raw dates and prices. The date range and market-session count are explicit. Focus mode is an inline enlargement with an Escape-key exit; it does not scale a raster or claim more history than the selected range contains.
 - Per-contract DTE and short-position theta remain supporting context. Demo theta is explicitly simulated and reconciles to portfolio daily theta. Calendar time elapsed is `days since sale / original days from sale to expiry`; it is intentionally separate from theta and option-value decay. The time-value pace is a simple current-time-value/current-theta ratio, not forecast income or a decay schedule.
 - Assignment is tracked separately as assigned contracts and shares called away; current share inventory can include shares reacquired after a historical assignment. Assignment is a disposition, not automatically a failed trade: a planned exit also reports its effective sale price (strike plus premium per share), underlying gain to strike, and foregone upside separately when execution data is available.
-- A dividend-overlap monitor appears when an open call expires on or after the next ex-dividend date. The overlap is a calendar screen, not an assignment prediction; live evaluation must also consider moneyness and remaining extrinsic value.
+- A dividend-overlap note appears when an open call expires on or after a nearby ex-dividend date. Severity can increase only when the call is in the money and the dividend exceeds remaining time value per share. This is still a screening heuristic, not an assignment prediction.
+- A fast-move note compares the latest close with five trading sessions earlier and the nearest open strike. It describes the observed move and strike distance; it does not tell the user to roll or close.
 
 ## Return and hurdle framing
 

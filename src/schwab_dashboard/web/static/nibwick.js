@@ -24,6 +24,7 @@
     audit: { art: makeFrame("o   o", "!", " [T] "), label: "AUDIT" },
     recount: { art: makeFrame("o   o", "v", " [#] "), label: "RECOUNT" },
     shares: { art: makeFrame("o   o", "v", " [+] "), label: "SHARES" },
+    notice: { art: makeFrame("o   o", "!", " [!] "), label: "NOTE" },
   };
   const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
   let startedAt = performance.now();

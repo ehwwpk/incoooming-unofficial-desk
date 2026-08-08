@@ -33,6 +33,7 @@
     const sales = new Map();
     const outcomes = [];
     for (const marker of canvas.querySelectorAll("[data-lifecycle-id]")) {
+      if (marker.hidden) continue;
       if (marker.dataset.eventType === "sale") {
         sales.set(marker.dataset.lifecycleId, marker);
       } else if (marker.dataset.linkedSaleSequence) {

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <title>Incoooming Unofficial Desk · Options Income</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=23">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=24">
   </head>
   <body>
     <header class="topbar">
@@ -47,6 +47,11 @@
         <a href="#underlyings" data-rail-link="underlyings"><kbd>F2</kbd><span>NAMES</span></a>
         <a href="#income" data-rail-link="income"><kbd>F3</kbd><span>CASH</span></a>
         <a href="#records" data-rail-link="records"><kbd>F4</kbd><span>LOG</span></a>
+        {% if snapshot.alerts %}
+        <button type="button" class="nibwick-alert-badge" data-nibwick-alert-badge data-nibwick-react="notice" aria-label="Nibwick has {{ snapshot.alerts | length }} notes">
+          <b>!</b><span>{{ snapshot.alerts | length }}</span>
+        </button>
+        {% endif %}
         <div class="nibwick-stage" data-nibwick-stage>
           <i class="nibwick-obstacle" data-nibwick-obstacle aria-hidden="true">[?]</i>
           <button type="button" class="nibwick" data-nibwick data-paused="false" aria-label="Pause Nibwick's desk patrol" aria-pressed="false" title="Nibwick // unofficial night clerk // click to pause">
@@ -111,8 +116,11 @@
     </div>
     <script src="{{ url_for('static', path='/periods.js') }}?v=14" defer></script>
     <script src="{{ url_for('static', path='/workspace-splitter.js') }}?v=1" defer></script>
-    <script src="{{ url_for('static', path='/event-layout.js') }}?v=2" defer></script>
+    <script src="{{ url_for('static', path='/chart-viewport.js') }}?v=1" defer></script>
+    <script src="{{ url_for('static', path='/chart-focus.js') }}?v=1" defer></script>
+    <script src="{{ url_for('static', path='/event-layout.js') }}?v=3" defer></script>
     <script src="{{ url_for('static', path='/lifecycle-links.js') }}?v=1" defer></script>
-    <script src="{{ url_for('static', path='/nibwick.js') }}?v=2" defer></script>
+    <script src="{{ url_for('static', path='/nibwick-alerts.js') }}?v=1" defer></script>
+    <script src="{{ url_for('static', path='/nibwick.js') }}?v=3" defer></script>
   </body>
 </html>

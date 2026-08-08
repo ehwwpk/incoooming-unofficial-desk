@@ -6,6 +6,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
+from schwab_dashboard.application.alerts.models import DeskAlert
 from schwab_dashboard.application.dashboard.covered_calls import (
     CallSaleRecord,
     CoveredCallPortfolioSummary,
@@ -116,6 +117,7 @@ class DashboardSnapshot:
     campaigns: Sequence[CampaignSummary]
     covered_calls: CoveredCallPortfolioSummary
     underlyings: Sequence[UnderlyingCallStats]
+    alerts: Sequence[DeskAlert]
     call_history: Sequence[CallSaleRecord]
     performance_windows: Sequence[PerformanceWindowSummary]
     quarter_history: Sequence[QuarterPerformanceSummary]

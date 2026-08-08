@@ -96,9 +96,7 @@ def build_price_events(
     ordered_actions = sorted(actions, key=lambda row: row[0])
     sale_sequences = {
         lifecycle_id: sequence
-        for sequence, (_, lifecycle_id, event_type, _, _) in enumerate(
-            ordered_actions, start=1
-        )
+        for sequence, (_, lifecycle_id, event_type, _, _) in enumerate(ordered_actions, start=1)
         if event_type == "sale"
     }
     lanes: dict[date, int] = {}
@@ -118,6 +116,7 @@ def build_price_events(
                 event_type=event_type,
                 glyph=glyph,
                 detail=detail,
+                price=point.price,
                 x_percent=point.x_percent,
                 y_percent=point.y_percent,
                 vertical_offset=lane * 14,

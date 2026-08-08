@@ -60,11 +60,12 @@
     const overlay = canvas.querySelector("[data-event-leaders]");
     if (!overlay) return;
 
-    const markers = [...canvas.querySelectorAll(".price-event, .share-event")];
-    for (const marker of markers) {
+    const allMarkers = [...canvas.querySelectorAll(".price-event, .share-event")];
+    for (const marker of allMarkers) {
       marker.style.setProperty("--collision-x", "0px");
       marker.style.setProperty("--collision-y", "0px");
     }
+    const markers = allMarkers.filter((marker) => !marker.hidden);
 
     const canvasRect = canvas.getBoundingClientRect();
     if (!canvasRect.width || !canvasRect.height) return;
@@ -151,6 +152,7 @@
   const observer = new ResizeObserver(scheduleLayout);
   for (const canvas of canvases) observer.observe(canvas);
   window.addEventListener("resize", scheduleLayout, { passive: true });
+  document.addEventListener("chart-viewport-change", scheduleLayout);
   document.fonts?.ready.then(scheduleLayout);
   scheduleLayout();
 })();

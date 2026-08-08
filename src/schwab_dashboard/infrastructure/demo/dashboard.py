@@ -1,6 +1,7 @@
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
+from schwab_dashboard.application.alerts import build_desk_alerts
 from schwab_dashboard.application.dashboard.models import (
     DashboardSnapshot,
     IncomeSummary,
@@ -99,6 +100,7 @@ class DemoDashboardReader:
             campaigns=build_campaigns(),
             covered_calls=covered_calls,
             underlyings=underlyings,
+            alerts=build_desk_alerts(underlyings, as_of=as_of),
             call_history=call_history,
             performance_windows=performance_windows,
             quarter_history=build_quarter_history(),

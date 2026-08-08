@@ -27,11 +27,11 @@ Demo mode is a separate read adapter implementing the same dashboard contract. I
 | Module | Owns | Must not own |
 |---|---|---|
 | `domain` | Broker-neutral account/position values and reconciliation concepts | HTTP, SQLAlchemy, FastAPI |
-| `application` | Use cases and ports: sync, status, repository and broker contracts | Schwab JSON details, table mappings |
+| `application` | Use cases, ports, and deterministic dashboard alert rules | Schwab JSON details, table mappings |
 | `infrastructure/schwab` | OAuth, token refresh, read-only HTTP calls, Schwab payload mapping | Ledger calculations or UI |
 | `infrastructure/database` | SQLAlchemy tables, unit of work, repositories, migrations | Schwab HTTP or presentation logic |
 | `api` | Local JSON/HTML routes and dependency access | Direct database queries or broker parsing |
-| `web` | Templates and static assets | Domain rules |
+| `web` | Templates, chart coordinate projection, interaction, and static assets | Alert thresholds, accounting, broker rules |
 
 ## Initial data flow
 

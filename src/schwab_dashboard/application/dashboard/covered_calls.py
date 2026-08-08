@@ -25,6 +25,7 @@ class PriceEvent:
     event_type: str
     glyph: str
     detail: str
+    price: Decimal
     x_percent: Decimal
     y_percent: Decimal
     vertical_offset: int

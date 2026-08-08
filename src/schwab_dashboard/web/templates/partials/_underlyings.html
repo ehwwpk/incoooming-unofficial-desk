@@ -3,11 +3,42 @@
     <div><p class="eyebrow">SECURITY WORKSPACES</p><h2>Stocks and active calls</h2></div>
     <span class="portfolio-theta-total" title="Theoretical one-day option value decay across all open short calls, holding other pricing inputs constant. Not realized income."><small>PORTFOLIO OPEN-CALL DECAY EST. / DAY</small><b>+{{ snapshot.risk.daily_theta | money }}</b><i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i></span>
   </div>
+  {% if snapshot.alerts %}
+  <section class="nibwick-wire" data-nibwick-wire aria-live="polite" aria-label="Nibwick's portfolio notes">
+    <div class="nibwick-wire-mark" aria-hidden="true"><b>NW</b><span>NIBWICK</span></div>
+    <div class="nibwick-wire-notes">
+      {% for alert in snapshot.alerts %}
+      <article class="nibwick-note {{ alert.level }}" data-nibwick-note data-alert-index="{{ loop.index0 }}"{% if not loop.first %} hidden{% endif %}>
+        <header>
+          <span>NIBWICK HAS A NOTE</span>
+          <b>{{ alert.level_label }}</b>
+          <small>{{ loop.index }} OF {{ loop.length }}</small>
+        </header>
+        <div>
+          <h3>{{ alert.headline }}</h3>
+          <p>{{ alert.message }}</p>
+        </div>
+        <dl>
+          {% for fact in alert.facts %}<div><dt>{{ fact.label }}</dt><dd>{{ fact.value }}</dd></div>{% endfor %}
+        </dl>
+        <a href="#{{ alert.target_id }}" data-nibwick-show-name>SHOW {{ alert.symbol }}</a>
+      </article>
+      {% endfor %}
+    </div>
+    {% if snapshot.alerts | length > 1 %}
+    <div class="nibwick-wire-nav" aria-label="Browse Nibwick's notes">
+      <button type="button" data-nibwick-note-prev>PREVIOUS</button>
+      <span data-nibwick-note-position>1 / {{ snapshot.alerts | length }}</span>
+      <button type="button" data-nibwick-note-next>NEXT NOTE</button>
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
   {% if snapshot.underlyings %}
   <div class="underlying-grid">
     {% for item in snapshot.underlyings %}
     {% set active_window = item.performance_windows[1] %}
-    <article class="underlying-card {{ item.tone }}-edge" data-underlying-card="{{ item.symbol }}">
+    <article id="{{ item.symbol | lower }}-workspace" class="underlying-card {{ item.tone }}-edge" data-underlying-card="{{ item.symbol }}">
       <header>
         <div><strong>{{ item.symbol }}</strong><span>{{ item.company_name }}</span></div>
         <div class="price-block"><strong>{{ item.current_price | money }}</strong><span>{{ item.market_value | money }} MV</span></div>
@@ -39,31 +70,31 @@
         {% endfor %}
       </div>
 
-      {% if item.dividend_overlap_contracts %}
-      <div class="dividend-alert" role="note">
-        <b>DIV RISK // MONITOR</b>
-        <span>{{ item.dividend_overlap_contracts }} OPEN CONTRACTS CROSS <strong>{{ item.next_ex_dividend_date | short_date }}</strong> <i>SIM EX-DIV</i> / {{ item.dividend_per_share | money }} PER SHARE</span>
-        <small>Calendar overlap only. Confirm moneyness and remaining extrinsic value with live data before the ex-date.</small>
-      </div>
-      {% endif %}
-
       <div class="underlying-decision-grid" data-workspace-grid>
-        <section id="{{ item.symbol | lower }}-price-pane" class="price-map" aria-label="{{ item.symbol }} verified daily close history and simulated option events">
+        <section id="{{ item.symbol | lower }}-price-pane" class="price-map" data-chart-workspace aria-label="{{ item.symbol }} verified daily close history and simulated option events">
           <div class="price-map-heading">
-            <div><span>13W DAILY CLOSES</span><small>OBSERVED MARKET CLOSE / OPTION EVENTS <i>SIM</i></small></div>
-            <b class="{{ item.thirteen_week_change_percent | pnl_class }}">{{ item.thirteen_week_change_percent | percent }} MOVE</b>
+            <div class="price-map-title"><span data-chart-heading>FULL DAILY CLOSES</span><small data-chart-metadata>{{ item.price_points[0].label }}–{{ item.price_points[-1].label }} · {{ item.price_points | length }} MARKET SESSIONS <i>SIM</i></small></div>
+            <div class="price-map-tools">
+              <div class="chart-range-controls" role="group" aria-label="{{ item.symbol }} chart range">
+                <button type="button" data-chart-range="full" aria-pressed="true">FULL</button>
+                <button type="button" data-chart-range="8w" aria-pressed="false">8W</button>
+                <button type="button" data-chart-range="4w" aria-pressed="false">4W</button>
+              </div>
+              <button type="button" class="chart-focus-button" data-chart-focus aria-pressed="false">FOCUS</button>
+              <b class="{{ item.thirteen_week_change_percent | pnl_class }}" data-chart-move>{{ item.thirteen_week_change_percent | percent }} MOVE</b>
+            </div>
           </div>
           <div class="price-context-strip">
-            <div><span>NOW</span><b>{{ item.current_price | money }}</b></div>
-            <div><span>RANGE POSITION</span><b>{{ item.range_position_percent | percent }}</b></div>
-            <div><span>FROM 13W HIGH</span><b>{{ item.distance_from_high_percent | percent }}</b></div>
+            <div><span>NOW</span><b data-chart-now-price>{{ item.current_price | money }}</b></div>
+            <div><span>RANGE POSITION</span><b data-chart-range-position>{{ item.range_position_percent | percent }}</b></div>
+            <div><span data-chart-high-label>FROM FULL HIGH</span><b data-chart-from-high>{{ item.distance_from_high_percent | percent }}</b></div>
           </div>
           <div class="price-path-chart">
-            <span class="price-axis high">{{ item.thirteen_week_high | money }}</span>
-            <span class="price-axis mid">{{ item.thirteen_week_mid | money }}</span>
-            <span class="price-axis low">{{ item.thirteen_week_low | money }}</span>
+            <span class="price-axis high" data-chart-axis="high">{{ item.thirteen_week_high | money }}</span>
+            <span class="price-axis mid" data-chart-axis="mid">{{ item.thirteen_week_mid | money }}</span>
+            <span class="price-axis low" data-chart-axis="low">{{ item.thirteen_week_low | money }}</span>
             <div class="price-path-canvas">
-              {% for point in item.price_points %}{% if point.is_friday %}<i class="friday-guide" style="--event-x: {{ point.x_percent }}%" aria-hidden="true"></i>{% endif %}{% endfor %}
+              {% for point in item.price_points %}{% if point.is_friday %}<i class="friday-guide" data-chart-guide data-date="{{ point.date.isoformat() }}" style="--event-x: {{ point.x_percent }}%" aria-hidden="true"></i>{% endif %}{% endfor %}
               <svg class="price-series" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                 <defs>
                   <linearGradient id="{{ item.symbol | lower }}-price-fill" x1="0" y1="0" x2="0" y2="1">
@@ -71,22 +102,22 @@
                     <stop offset="100%" stop-color="var(--card-accent)" stop-opacity="0" />
                   </linearGradient>
                 </defs>
-                <polygon class="price-area" fill="url(#{{ item.symbol | lower }}-price-fill)" points="0,96 {% for point in item.price_points %}{{ point.x_percent }},{{ point.y_percent }} {% endfor %}100,96" />
-                <polyline class="price-line" points="{% for point in item.price_points %}{{ point.x_percent }},{{ point.y_percent }} {% endfor %}" />
+                <polygon class="price-area" data-chart-area fill="url(#{{ item.symbol | lower }}-price-fill)" points="0,96 {% for point in item.price_points %}{{ point.x_percent }},{{ point.y_percent }} {% endfor %}100,96" />
+                <polyline class="price-line" data-chart-line points="{% for point in item.price_points %}{{ point.x_percent }},{{ point.y_percent }} {% endfor %}" />
               </svg>
               <svg class="event-leaders" data-event-leaders aria-hidden="true"></svg>
               <svg class="lifecycle-links" data-lifecycle-links aria-hidden="true"></svg>
-              {% for point in item.price_points %}<i class="daily-point" style="--event-x: {{ point.x_percent }}%; --event-y: {{ point.y_percent }}%" aria-hidden="true"></i>{% endfor %}
-              {% for event in item.price_events %}<i class="price-event {{ event.event_type }}" role="img" data-nibwick-react="audit" data-lifecycle-id="{{ event.lifecycle_id }}" data-event-type="{{ event.event_type }}"{% if event.linked_sale_sequence %} data-linked-sale-sequence="{{ event.linked_sale_sequence }}"{% endif %} style="--event-x: {{ event.x_percent }}%; --event-y: {{ event.y_percent }}%; --event-offset: {{ event.vertical_offset }}px" title="{{ event.label }} // {{ event.detail }}{% if event.linked_sale_sequence %} // resolves sale event {{ event.linked_sale_sequence }}{% endif %}" aria-label="Event {{ event.sequence }}: {{ event.label }} {{ event.detail }}{% if event.linked_sale_sequence %}; resolves sale event {{ event.linked_sale_sequence }}{% endif %}"><b>{{ event.sequence }}{% if event.linked_sale_sequence %}<small aria-hidden="true">←{{ event.linked_sale_sequence }}</small>{% endif %}</b></i>{% endfor %}
-              {% for event in item.share_trade_events %}<i class="share-event {{ event.action }}" role="img" data-nibwick-react="shares" data-share-trade="{{ event.action }}" data-event-type="share-{{ event.action }}" style="--event-x: {{ event.x_percent }}%; --event-y: {{ event.y_percent }}%" title="{{ event.label }} // {{ event.action | upper }} {{ event.shares }} SH @ {{ event.price | money }}" aria-label="{{ event.label }}: {{ event.action }} {{ event.shares }} shares at {{ event.price | money }}"><b aria-hidden="true">{{ event.glyph }}</b></i>{% endfor %}
-              {% set last_point = item.price_points[-1] %}<i class="price-now-event" style="--event-x: {{ last_point.x_percent }}%; --event-y: {{ last_point.y_percent }}%"><b>NOW</b></i>
+              {% for point in item.price_points %}<i class="daily-point" data-chart-point data-date="{{ point.date.isoformat() }}" data-price="{{ point.price }}" style="--event-x: {{ point.x_percent }}%; --event-y: {{ point.y_percent }}%" aria-hidden="true"></i>{% endfor %}
+              {% for event in item.price_events %}<i class="price-event {{ event.event_type }}" role="img" data-nibwick-react="audit" data-chart-event data-date="{{ event.date.isoformat() }}" data-price="{{ event.price }}" data-lifecycle-id="{{ event.lifecycle_id }}" data-event-type="{{ event.event_type }}"{% if event.linked_sale_sequence %} data-linked-sale-sequence="{{ event.linked_sale_sequence }}"{% endif %} style="--event-x: {{ event.x_percent }}%; --event-y: {{ event.y_percent }}%; --event-offset: {{ event.vertical_offset }}px" title="{{ event.label }} // {{ event.detail }}{% if event.linked_sale_sequence %} // resolves sale event {{ event.linked_sale_sequence }}{% endif %}" aria-label="Event {{ event.sequence }}: {{ event.label }} {{ event.detail }}{% if event.linked_sale_sequence %}; resolves sale event {{ event.linked_sale_sequence }}{% endif %}"><b>{{ event.sequence }}{% if event.linked_sale_sequence %}<small aria-hidden="true">←{{ event.linked_sale_sequence }}</small>{% endif %}</b></i>{% endfor %}
+              {% for event in item.share_trade_events %}<i class="share-event {{ event.action }}" role="img" data-nibwick-react="shares" data-chart-event data-date="{{ event.date.isoformat() }}" data-price="{{ event.price }}" data-share-trade="{{ event.action }}" data-event-type="share-{{ event.action }}" style="--event-x: {{ event.x_percent }}%; --event-y: {{ event.y_percent }}%" title="{{ event.label }} // {{ event.action | upper }} {{ event.shares }} SH @ {{ event.price | money }}" aria-label="{{ event.label }}: {{ event.action }} {{ event.shares }} shares at {{ event.price | money }}"><b aria-hidden="true">{{ event.glyph }}</b></i>{% endfor %}
+              {% set last_point = item.price_points[-1] %}<i class="price-now-event" data-chart-now data-date="{{ last_point.date.isoformat() }}" data-price="{{ last_point.price }}" style="--event-x: {{ last_point.x_percent }}%; --event-y: {{ last_point.y_percent }}%"><b>NOW</b></i>
             </div>
-            <div class="price-date-axis"><span>{{ item.price_points[0].label }}</span><span>{{ item.price_points[30].label }}</span><span>{{ item.price_points[-1].label }}</span></div>
+            <div class="price-date-axis"><span data-chart-date="start">{{ item.price_points[0].label }}</span><span data-chart-date="mid">{{ item.price_points[30].label }}</span><span data-chart-date="end">{{ item.price_points[-1].label }}</span></div>
           </div>
-          <div class="price-map-legend"><span><i></i> {{ item.price_points | length }} MARKET SESSIONS</span><span><b class="sale">S</b> SOLD</span><span><b class="expired">X</b> EXPIRED</span><span><b class="managed">C/R</b> MANAGED</span><span><b class="assigned">A</b> ASSIGNED</span><span><b class="share-trade">±</b> SHARES</span><small>YAHOO FINANCE CLOSE · FROZEN 08/07/26 · SIMULATED CALLS</small></div>
+          <div class="price-map-legend"><span><i></i> <b data-chart-session-count>{{ item.price_points | length }}</b> MARKET SESSIONS</span><span><b class="sale">S</b> SOLD</span><span><b class="expired">X</b> EXPIRED</span><span><b class="managed">C/R</b> MANAGED</span><span><b class="assigned">A</b> ASSIGNED</span><span><b class="share-trade">±</b> SHARES</span><small><b data-chart-event-count>{{ item.price_events | length + item.share_trade_events | length }}</b> VISIBLE EVENTS · YAHOO FINANCE CLOSE · FROZEN 08/07/26 · SIMULATED CALLS</small></div>
           <div class="price-event-ledger" aria-label="{{ item.symbol }} numbered option event tape">
             {% for event in item.price_events %}
-            <div class="{{ event.event_type }}"><b>{{ event.sequence }}</b><span><i>{{ event.label }} · {{ event.glyph }}</i><strong>{{ event.detail }}</strong></span></div>
+            <div class="{{ event.event_type }}" data-chart-ledger-event data-date="{{ event.date.isoformat() }}"><b>{{ event.sequence }}</b><span><i>{{ event.label }} · {{ event.glyph }}</i><strong>{{ event.detail }}</strong></span></div>
             {% endfor %}
           </div>
         </section>
