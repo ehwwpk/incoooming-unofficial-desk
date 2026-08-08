@@ -24,6 +24,13 @@
         <div><span>STRIKE BUFFER</span><b>{{ item.current_strike_buffer_percent | percent }}</b></div>
         <div><span>PREMIUM CAPTURE</span><b>{{ item.premium_capture_percent | percent }}</b></div>
       </div>
+      {% if item.dividend_overlap_contracts %}
+      <div class="dividend-alert" role="note">
+        <b>DIV RISK // MONITOR</b>
+        <span>{{ item.dividend_overlap_contracts }} OPEN CONTRACTS CROSS <strong>{{ item.next_ex_dividend_date | short_date }}</strong> <i>SIM EX-DIV</i> / {{ item.dividend_per_share | money }} PER SHARE</span>
+        <small>Calendar overlap only. Confirm moneyness and remaining extrinsic value with live data before the ex-date.</small>
+      </div>
+      {% endif %}
       <div class="price-rhythm" aria-label="{{ item.symbol }} thirteen-week mocked price path">
         {% for point in item.price_points %}
         <div class="price-column" title="{{ point.label }} · {{ point.price | money }}">

@@ -1,7 +1,7 @@
-@import url("./base.css?v=3");
-@import url("./components.css?v=3");
-@import url("./performance.css?v=3");
-@import url("./dashboard.css?v=3");
+@import url("./base.css?v=4");
+@import url("./components.css?v=4");
+@import url("./performance.css?v=4");
+@import url("./dashboard.css?v=4");
 
 @media (max-width: 1240px) {
   .portfolio-console { grid-template-columns: repeat(3, 1fr); }
@@ -9,7 +9,7 @@
   .console-cell:nth-child(-n + 3) { border-bottom: 1px solid var(--line); }
   .underlying-grid { grid-template-columns: 1fr; }
   .underlying-card { display: grid; grid-template-columns: 1.1fr 1fr; }
-  .underlying-card header, .underlying-card .underlying-primary, .underlying-card .name-analytics, .underlying-card .execution-stats, .underlying-card .basis-chip, .underlying-card .open-call-list { grid-column: 1 / -1; }
+  .underlying-card header, .underlying-card .underlying-primary, .underlying-card .name-analytics, .underlying-card .dividend-alert, .underlying-card .execution-stats, .underlying-card .basis-chip, .underlying-card .open-call-list { grid-column: 1 / -1; }
   .underlying-card .price-rhythm { border-right: 1px solid var(--line); }
   .campaign-grid { grid-template-columns: 1fr; }
   .manager-grid { grid-template-columns: 1fr; }
@@ -29,7 +29,8 @@
   .topbar { grid-template-columns: auto 1fr; }
   .ticker-tape, .source-pill { display: none; }
   .shell { width: min(100% - 18px, 1540px); padding-top: 15px; }
-  .demo-banner { flex-direction: column; gap: 3px; }
+  .demo-banner { flex-direction: column; padding-block: 4px; }
+  .demo-banner > * { padding: 3px 0; border-right: 0; }
   .desk-heading { align-items: flex-start; flex-direction: column; }
   .desk-meta { width: 100%; justify-content: space-between; }
   .portfolio-console { grid-template-columns: repeat(2, 1fr); }
@@ -64,6 +65,7 @@
   .name-analytics div:nth-child(3n) { border-right: 0; }
   .name-analytics div:nth-child(-n + 3) { border-bottom: 1px solid var(--line); }
   .section-heading { align-items: flex-start; flex-direction: column; }
+  .target-editor { width: 100%; }
   .legend { margin-top: 3px; }
   footer { flex-direction: column; }
 }
@@ -88,6 +90,8 @@
   .basis-list > div { grid-template-columns: .5fr 1fr; }
   .basis-list em { text-align: left; }
   .basis-chip { align-items: flex-start; flex-direction: column; }
+  .dividend-alert { grid-template-columns: 1fr; }
+  .dividend-alert > b { grid-row: auto; justify-self: start; }
   .lifecycle-grid, .risk-grid { grid-template-columns: repeat(2, 1fr); }
   .lifecycle-grid div:nth-child(3n), .risk-grid div:nth-child(3n) { border-right: 1px solid var(--line); }
   .lifecycle-grid div:nth-child(2n), .risk-grid div:nth-child(2n) { border-right: 0; }

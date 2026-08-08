@@ -118,6 +118,23 @@ def build_objective_summary(
         D(sum(record.days_to_expiration * record.contracts for record in records)) / total_contracts
     )
     rolling_average = by_key["r365"].monthly_option_run_rate
+    monthly_results = tuple(
+        D(value)
+        for value in (
+            "1095",
+            "2300",
+            "2600",
+            "2100",
+            "1700",
+            "3300",
+            "2900",
+            "3600",
+            "3100",
+            "5035",
+            "2370",
+            "1680",
+        )
+    )
     return ManagementObjectiveSummary(
         monthly_option_target=MONTHLY_TARGET,
         rolling_four_week_option_cash=by_key["month"].option_cash,
@@ -128,8 +145,8 @@ def build_objective_summary(
         rolling_year_target_progress_percent=(rolling_average / MONTHLY_TARGET * 100).quantize(
             TENTH
         ),
-        target_months_hit=4,
-        observed_months=12,
+        target_months_hit=sum(1 for result in monthly_results if result >= MONTHLY_TARGET),
+        observed_months=len(monthly_results),
         compliant_call_tickets=compliant,
         total_call_tickets=len(records),
         safe_ticket_pace_monthly=(D(len(records)) * MONTH_DAYS / D("85")).quantize(TENTH),
@@ -145,6 +162,7 @@ def build_objective_summary(
         uncovered_contract_capacity=(
             covered_calls.contract_capacity - covered_calls.active_contracts
         ),
+        monthly_option_results=monthly_results,
     )
 
 
@@ -202,6 +220,9 @@ def _window(row: tuple[object, ...], stock_value: Decimal) -> PerformanceWindowS
         monthly_option_run_rate=monthly_run_rate,
         target_cash_for_window=target_for_window,
         target_progress_percent=max(ZERO, monthly_run_rate / MONTHLY_TARGET * 100).quantize(TENTH),
+        premium_capture_percent=(option_cash / gross_premium * 100).quantize(TENTH)
+        if gross_premium
+        else ZERO,
     )
 
 

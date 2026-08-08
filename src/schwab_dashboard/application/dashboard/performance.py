@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 
@@ -24,6 +25,7 @@ class PerformanceWindowSummary:
     monthly_option_run_rate: Decimal
     target_cash_for_window: Decimal
     target_progress_percent: Decimal
+    premium_capture_percent: Decimal
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,6 +57,7 @@ class ManagementObjectiveSummary:
     average_strike_gap_percent: Decimal
     average_days_to_expiration: Decimal
     uncovered_contract_capacity: int
+    monthly_option_results: Sequence[Decimal]
 
 
 @dataclass(frozen=True, slots=True)

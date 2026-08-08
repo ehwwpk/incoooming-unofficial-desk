@@ -5,21 +5,38 @@
       <h2>Income lens</h2>
     </div>
     <div class="period-controls" role="tablist" aria-label="Performance window">
-      <button type="button" role="tab" data-period="week" aria-selected="false">WEEK</button>
-      <button type="button" role="tab" data-period="month" aria-selected="false">MONTH</button>
-      <button type="button" role="tab" data-period="quarter" aria-selected="true">QUARTER</button>
-      <button type="button" role="tab" data-period="annual" aria-selected="false">1 YEAR</button>
+      <button type="button" role="tab" data-period="week" aria-selected="false"><kbd>1</kbd> WEEK</button>
+      <button type="button" role="tab" data-period="month" aria-selected="true"><kbd>2</kbd> MONTH</button>
+      <button type="button" role="tab" data-period="quarter" aria-selected="false"><kbd>3</kbd> QUARTER</button>
+      <button type="button" role="tab" data-period="annual" aria-selected="false"><kbd>4</kbd> 1 YEAR</button>
     </div>
     <div class="annual-controls" data-annual-controls hidden aria-label="Annual calculation mode">
-      <button type="button" data-annual="ytd" aria-pressed="true">CAL YTD</button>
-      <button type="button" data-annual="r365" aria-pressed="false">ROLL 365</button>
+      <button type="button" data-annual="ytd" aria-pressed="true"><kbd>Y</kbd> CAL YTD</button>
+      <button type="button" data-annual="r365" aria-pressed="false"><kbd>R</kbd> ROLL 365</button>
     </div>
   </div>
 
   {% if snapshot.performance_windows %}
   <div class="period-sheets">
     {% for window in snapshot.performance_windows %}
-    <article class="period-sheet" data-period-sheet="{{ window.key }}" {{ '' if window.key == 'quarter' else 'hidden' }}>
+    <article
+      class="period-sheet"
+      data-period-sheet="{{ window.key }}"
+      data-window-label="{{ window.label }}"
+      data-range-label="{{ window.range_label }}"
+      data-option-cash="{{ window.option_cash | money }}"
+      data-total-cash="{{ window.total_cash | money }}"
+      data-dividends="{{ window.dividends | money }}"
+      data-gross="{{ window.gross_premium | money }}"
+      data-option-apr="{{ window.annualized_option_yield | percent }}"
+      data-total-apr="{{ window.annualized_total_yield | percent }}"
+      data-calls="{{ window.call_tickets }}"
+      data-contracts="{{ window.contracts }}"
+      data-win-rate="{{ window.win_rate | percent }}"
+      data-capture="{{ window.premium_capture_percent | percent }}"
+      data-monthly-run-rate="{{ window.monthly_option_run_rate }}"
+      {{ '' if window.key == 'month' else 'hidden' }}
+    >
       <header>
         <div><span>{{ window.label }}</span><strong>{{ window.range_label }}</strong></div>
         <small>{{ window.days }} CALENDAR DAYS / NET CASH BASIS</small>
@@ -37,8 +54,8 @@
         <div><span>CALLS / CONTRACTS</span><b>{{ window.call_tickets }} / {{ window.contracts }}</b></div>
         <div><span>COMPLETED WIN RATE</span><b>{{ window.win_rate | percent }}</b></div>
         <div class="target-cell">
-          <span>$3K/MO PACE</span><b>{{ window.target_progress_percent | percent }}</b>
-          <i><em style="--period-progress: {{ window.target_progress_percent }}%"></em></i>
+          <span><span data-target-pace-label>{{ snapshot.objective.monthly_option_target | money(0) }}</span>/MO PACE</span><b data-target-progress>{{ window.target_progress_percent | percent }}</b>
+          <i><em data-target-progress-bar style="--period-progress: {{ window.target_progress_percent }}%"></em></i>
         </div>
       </div>
     </article>

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <title>Covered Call Desk</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=4">
   </head>
   <body>
     <header class="topbar">
@@ -21,10 +21,10 @@
       </div>
       {% endif %}
       <nav aria-label="Dashboard sections">
-        <a href="#portfolio">PORT</a>
-        <a href="#underlyings">NAMES</a>
-        <a href="#income">CASH</a>
-        <a href="#call-log">CALL LOG</a>
+        <a href="#portfolio"><kbd>F1</kbd> PORT</a>
+        <a href="#underlyings"><kbd>F2</kbd> NAMES</a>
+        <a href="#income"><kbd>F3</kbd> CASH</a>
+        <a href="#call-log"><kbd>F4</kbd> CALL LOG</a>
       </nav>
       <span class="source-pill {{ 'demo' if snapshot.is_demo else 'live' }}">
         <span class="source-dot"></span>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}
@@ -34,7 +34,10 @@
     {% if snapshot.is_demo %}
     <aside class="demo-banner" role="status">
       <strong>SIMULATION</strong>
-      <span>CVX 700 · KTOS 800 · URNM 500 · fictional 13-week call ledger · no Schwab writes</span>
+      <span>ACCT ...4831</span>
+      <span>BOOK 3 NAMES / 20 LOTS</span>
+      <span>TARGET <b data-header-target>{{ snapshot.objective.monthly_option_target | money(0) }}/MO</b></span>
+      <span>MOCK LEDGER / NO SCHWAB WRITES</span>
     </aside>
     {% endif %}
 
@@ -46,7 +49,8 @@
           <p>Sell strength. Track every roll. Separate collected cash from realized outcome.</p>
         </div>
         <div class="desk-meta">
-          <span>WINDOW <b>13W</b></span>
+          <span>WINDOW <b data-active-window>4W</b></span>
+          <span>RANGE <b data-active-range>{{ snapshot.performance_windows[1].range_label if snapshot.performance_windows else '—' }}</b></span>
           <span>AS OF <b>{{ snapshot.as_of | short_date }}</b></span>
           <span>STATUS <b class="positive">RECONCILED</b></span>
         </div>
@@ -65,7 +69,6 @@
       </div>
 
       {% include "partials/_manager_console.html" %}
-
       {% include "partials/_campaigns.html" %}
       {% include "partials/_call_ledger.html" %}
       {% include "partials/_positions.html" %}
@@ -75,6 +78,6 @@
         <span>PERFORMANCE ACCOUNTING — NOT TAX OR INVESTMENT ADVICE</span>
       </footer>
     </main>
-    <script src="{{ url_for('static', path='/periods.js') }}?v=3" defer></script>
+    <script src="{{ url_for('static', path='/periods.js') }}?v=5" defer></script>
   </body>
 </html>

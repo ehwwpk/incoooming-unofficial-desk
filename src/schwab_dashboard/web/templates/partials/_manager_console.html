@@ -1,18 +1,31 @@
 <section class="manager-grid section-block" id="objective">
-  <article class="panel objective-panel">
+  <article
+    class="panel objective-panel"
+    data-objective-console
+    data-default-target="{{ snapshot.objective.monthly_option_target }}"
+    data-rolling-average="{{ snapshot.objective.rolling_year_monthly_average }}"
+    data-monthly-results="{{ snapshot.objective.monthly_option_results | join(',') }}"
+  >
     <div class="section-heading terminal-heading">
-      <div><p class="eyebrow">MANAGER OBJECTIVE</p><h2>$3,000 monthly net option cash</h2></div>
-      <span>GOAL BASIS: OPTIONS ONLY / DIVIDENDS EXCLUDED</span>
+      <div>
+        <p class="eyebrow">MANAGER OBJECTIVE</p>
+        <h2><span data-target-display>{{ snapshot.objective.monthly_option_target | money(0) }}</span> monthly net option cash</h2>
+      </div>
+      <div class="target-editor">
+        <label for="monthly-target">EDIT TARGET <span>$</span><input id="monthly-target" data-target-input type="number" inputmode="numeric" min="100" max="1000000" step="100" value="{{ snapshot.objective.monthly_option_target }}"></label>
+        <button type="button" data-target-reset>RESET</button>
+        <small>OPTIONS ONLY / DIVIDENDS EXCLUDED</small>
+      </div>
     </div>
     <div class="objective-hero">
       <div>
         <span>ROLLING 365 MONTHLY AVG</span>
         <strong>{{ snapshot.objective.rolling_year_monthly_average | money }}</strong>
-        <small>{{ snapshot.objective.rolling_year_target_gap | money }} / month below target</small>
+        <small data-target-gap>{{ snapshot.objective.rolling_year_target_gap | money }} / month below target</small>
       </div>
       <div class="objective-progress">
-        <span><b>{{ snapshot.objective.rolling_year_target_progress_percent | percent }}</b> OF PACE</span>
-        <i><em style="--objective-progress: {{ snapshot.objective.rolling_year_target_progress_percent }}%"></em></i>
+        <span><b data-objective-progress>{{ snapshot.objective.rolling_year_target_progress_percent | percent }}</b> OF PACE</span>
+        <i><em data-objective-progress-bar style="--objective-progress: {{ snapshot.objective.rolling_year_target_progress_percent }}%"></em></i>
       </div>
     </div>
     <div class="run-rate-grid">
@@ -22,7 +35,7 @@
       <div><span>R365 / MONTH</span><b>{{ snapshot.objective.rolling_year_monthly_average | money }}</b></div>
     </div>
     <div class="discipline-grid">
-      <div><span>MONTHS AT $3K</span><b>{{ snapshot.objective.target_months_hit }}/{{ snapshot.objective.observed_months }}</b></div>
+      <div><span>MONTHS AT <span data-months-target-label>{{ snapshot.objective.monthly_option_target | money(0) }}</span></span><b data-months-hit>{{ snapshot.objective.target_months_hit }}/{{ snapshot.objective.observed_months }}</b></div>
       <div><span>RULE-COMPLIANT CALLS</span><b>{{ snapshot.objective.compliant_call_tickets }}/{{ snapshot.objective.total_call_tickets }}</b></div>
       <div><span>SAFE SETUP PACE</span><b>{{ snapshot.objective.safe_ticket_pace_monthly | number(1) }}/MO</b></div>
       <div><span>CONTRACT PACE</span><b>{{ snapshot.objective.contract_pace_monthly | number(1) }}/MO</b></div>

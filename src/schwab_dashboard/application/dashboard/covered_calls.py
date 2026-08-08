@@ -62,6 +62,9 @@ class UnderlyingCallStats:
     average_open_call_iv_percent: Decimal
     average_open_call_delta: Decimal
     current_strike_buffer_percent: Decimal
+    next_ex_dividend_date: date | None
+    dividend_per_share: Decimal
+    dividend_overlap_contracts: int
     premium_capture_percent: Decimal
     lifetime_option_income: Decimal
     lifetime_dividends: Decimal

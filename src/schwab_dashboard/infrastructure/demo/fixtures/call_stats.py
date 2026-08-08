@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import date
 from decimal import Decimal
 
 from schwab_dashboard.application.dashboard.covered_calls import (
@@ -120,6 +121,11 @@ def _summarize_holding(
         average_open_call_iv_percent=holding.average_open_call_iv_percent,
         average_open_call_delta=holding.average_open_call_delta,
         current_strike_buffer_percent=_current_strike_buffer(open_records, holding.current_price),
+        next_ex_dividend_date=holding.next_ex_dividend_date,
+        dividend_per_share=holding.dividend_per_share,
+        dividend_overlap_contracts=_dividend_overlap_contracts(
+            open_records, holding.next_ex_dividend_date
+        ),
         premium_capture_percent=(net_option_cash / gross_premium * 100).quantize(TENTH),
         lifetime_option_income=holding.lifetime_option_income,
         lifetime_dividends=holding.lifetime_dividends,
@@ -143,6 +149,14 @@ def _current_strike_buffer(records: Sequence[CallSaleRecord], current_price: Dec
         sum((record.strike * record.contracts for record in records), ZERO) / contracts
     )
     return ((weighted_strike / current_price - 1) * 100).quantize(TENTH)
+
+
+def _dividend_overlap_contracts(
+    records: Sequence[CallSaleRecord], ex_dividend_date: date | None
+) -> int:
+    if ex_dividend_date is None:
+        return 0
+    return sum(record.contracts for record in records if record.expires_on >= ex_dividend_date)
 
 
 def _price_points(rows: Sequence[tuple[str, str, bool]]) -> tuple[PricePoint, ...]:

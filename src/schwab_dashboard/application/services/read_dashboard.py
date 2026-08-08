@@ -118,4 +118,5 @@ def _empty_objective() -> ManagementObjectiveSummary:
         average_strike_gap_percent=ZERO,
         average_days_to_expiration=ZERO,
         uncovered_contract_capacity=0,
+        monthly_option_results=(),
     )

@@ -1,3 +1,4 @@
+{% set active = snapshot.performance_windows[1] if snapshot.performance_windows else none %}
 <section class="portfolio-console" aria-label="Combined portfolio covered call summary">
   <article class="console-cell net-liq">
     <span>NET LIQUIDATION</span>
@@ -7,14 +8,14 @@
     </small>
   </article>
   <article class="console-cell cash-primary">
-    <span>OPTION +$ / QUARTER</span>
-    <strong>{{ snapshot.covered_calls.net_option_cash | money }}</strong>
-    <small>{{ snapshot.covered_calls.annualized_option_yield | percent }} APR / {{ snapshot.covered_calls.gross_premium | money }} gross</small>
+    <span data-active-option-label>OPTION +$ / {{ active.label if active else 'WINDOW' }}</span>
+    <strong data-active-option-cash>{{ active.option_cash | money if active else snapshot.covered_calls.net_option_cash | money }}</strong>
+    <small data-active-option-meta>{% if active %}{{ active.annualized_option_yield | percent }} APR / {{ active.gross_premium | money }} gross{% else %}AWAITING NORMALIZED CASH DATA{% endif %}</small>
   </article>
   <article class="console-cell">
-    <span>TOTAL CASH INCOME</span>
-    <strong>{{ snapshot.covered_calls.total_cash_income | money }}</strong>
-    <small>{{ snapshot.covered_calls.annualized_total_cash_yield | percent }} APR / includes {{ snapshot.covered_calls.dividends | money }} dividends</small>
+    <span data-active-total-label>TOTAL CASH / {{ active.label if active else 'WINDOW' }}</span>
+    <strong data-active-total-cash>{{ active.total_cash | money if active else snapshot.covered_calls.total_cash_income | money }}</strong>
+    <small data-active-total-meta>{% if active %}{{ active.annualized_total_yield | percent }} APR / includes {{ active.dividends | money }} dividends{% else %}AWAITING NORMALIZED CASH DATA{% endif %}</small>
   </article>
   <article class="console-cell">
     <span>ACTIVE COVERAGE</span>
@@ -23,12 +24,12 @@
   </article>
   <article class="console-cell">
     <span>CALLS / CONTRACTS SOLD</span>
-    <strong>{{ snapshot.covered_calls.call_tickets }} / {{ snapshot.covered_calls.contracts_sold }}</strong>
-    <small>{{ snapshot.covered_calls.win_rate | percent }} completed win rate</small>
+    <strong data-active-calls-contracts>{% if active %}{{ active.call_tickets }} / {{ active.contracts }}{% else %}0 / 0{% endif %}</strong>
+    <small data-active-win-rate>{% if active %}{{ active.win_rate | percent }}{% else %}0.0%{% endif %} completed win rate</small>
   </article>
   <article class="console-cell">
     <span>SHARES CALLED AWAY</span>
     <strong>{{ snapshot.covered_calls.called_away_shares }}</strong>
-    <small>{{ snapshot.covered_calls.premium_capture_percent | percent }} of gross premium retained</small>
+    <small data-active-capture>{% if active %}{{ active.premium_capture_percent | percent }}{% else %}0.0%{% endif %} of gross premium retained</small>
   </article>
 </section>

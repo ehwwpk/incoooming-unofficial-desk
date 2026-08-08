@@ -77,6 +77,12 @@ def test_every_performance_window_reconciles_cash_and_goal_math() -> None:
         assert window.option_cash + window.dividends == window.total_cash
         assert window.target_cash_for_window >= D("0")
         assert window.target_progress_percent >= D("0")
+        expected_capture = (
+            (window.option_cash / window.gross_premium * 100).quantize(D("0.1"))
+            if window.gross_premium
+            else D("0")
+        )
+        assert window.premium_capture_percent == expected_capture
 
     assert windows["quarter"].option_cash == snapshot.covered_calls.net_option_cash
     assert windows["quarter"].dividends == snapshot.covered_calls.dividends
@@ -96,6 +102,12 @@ def test_management_objective_exposes_inputs_instead_of_a_single_risk_score() ->
     assert objective.premium_capture_percent + objective.buyback_drag_percent == D("100.0")
     assert objective.compliant_call_tickets == objective.total_call_tickets == 16
     assert objective.target_months_hit <= objective.observed_months
+    assert sum(objective.monthly_option_results, D("0")) == D("31780")
+    assert objective.target_months_hit == sum(
+        1
+        for result in objective.monthly_option_results
+        if result >= objective.monthly_option_target
+    )
     assert objective.uncovered_contract_capacity == (
         snapshot.covered_calls.contract_capacity - snapshot.covered_calls.active_contracts
     )
@@ -133,3 +145,10 @@ def test_per_name_apr_iv_and_assignment_buffer_metrics_are_populated() -> None:
         assert item.current_strike_buffer_percent >= D("15")
         assert item.premium_capture_percent <= D("100")
         assert item.income_adjusted_basis_per_share < item.average_cost
+
+    by_symbol = {item.symbol: item for item in snapshot.underlyings}
+    assert by_symbol["CVX"].dividend_overlap_contracts == 6
+    assert by_symbol["CVX"].next_ex_dividend_date is not None
+    assert by_symbol["CVX"].dividend_per_share == D("1.78")
+    assert by_symbol["KTOS"].dividend_overlap_contracts == 0
+    assert by_symbol["URNM"].dividend_overlap_contracts == 0

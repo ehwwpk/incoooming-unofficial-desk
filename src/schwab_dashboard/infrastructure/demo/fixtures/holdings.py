@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 
 D = Decimal
@@ -17,6 +18,8 @@ class HoldingFixture:
     quarter_dividends: Decimal
     average_open_call_iv_percent: Decimal
     average_open_call_delta: Decimal
+    next_ex_dividend_date: date | None
+    dividend_per_share: Decimal
     lifetime_option_income: Decimal
     lifetime_dividends: Decimal
     tone: str
@@ -33,6 +36,8 @@ HOLDINGS = (
         quarter_dividends=D("1246.00"),
         average_open_call_iv_percent=D("23.8"),
         average_open_call_delta=D("0.18"),
+        next_ex_dividend_date=date(2026, 8, 19),
+        dividend_per_share=D("1.78"),
         lifetime_option_income=D("9850.00"),
         lifetime_dividends=D("7420.00"),
         tone="amber",
@@ -61,6 +66,8 @@ HOLDINGS = (
         quarter_dividends=D("0"),
         average_open_call_iv_percent=D("58.6"),
         average_open_call_delta=D("0.22"),
+        next_ex_dividend_date=None,
+        dividend_per_share=D("0"),
         lifetime_option_income=D("11720.00"),
         lifetime_dividends=D("0"),
         tone="cyan",
@@ -89,6 +96,8 @@ HOLDINGS = (
         quarter_dividends=D("0"),
         average_open_call_iv_percent=D("41.2"),
         average_open_call_delta=D("0.20"),
+        next_ex_dividend_date=None,
+        dividend_per_share=D("0"),
         lifetime_option_income=D("6850.00"),
         lifetime_dividends=D("2130.00"),
         tone="violet",

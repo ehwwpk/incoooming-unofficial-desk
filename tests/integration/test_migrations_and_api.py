@@ -80,10 +80,16 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         ]
         assert payload["objective"]["monthly_option_target"] == "3000"
         assert len(payload["basis_lens"]) == 4
-        assert "fictional 13-week call ledger" in page.text
+        assert "MOCK LEDGER / NO SCHWAB WRITES" in page.text
         assert "PERFORMANCE WINDOWS" in page.text
         assert "ROLL 365" in page.text
-        assert "$3,000 monthly net option cash" in page.text
+        assert "$3,000</span> monthly net option cash" in page.text
+        assert 'data-period="month" aria-selected="true"' in page.text
+        assert 'data-period-sheet="month"' in page.text
+        assert "data-target-input" in page.text
+        assert "DIV RISK // MONITOR" in page.text
+        assert "SIM EX-DIV" in page.text
+        assert "periods.js?v=5" in page.text
         assert "LIFETIME BASIS LENS" in page.text
         assert "Quarter call-sale ledger" in page.text
         assert "CVX" in page.text
