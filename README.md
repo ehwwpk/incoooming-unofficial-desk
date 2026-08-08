@@ -59,4 +59,5 @@ Open `http://127.0.0.1:8182`. The server binds to loopback by default.
 - [Phase 0 checklist](docs/phase-0-checklist.md)
 - [Data contracts](docs/data-contracts.md)
 - [Dashboard contract](docs/dashboard-contract.md)
+- [Multi-broker product path](docs/multi-broker-product-path.md)
 - [Local-first architecture decision](docs/decisions/0001-local-first-modular-monolith.md)
