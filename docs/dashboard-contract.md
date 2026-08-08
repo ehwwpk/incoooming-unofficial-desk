@@ -25,7 +25,7 @@ The browser and JSON API consume one typed dashboard snapshot regardless of data
 ## Stable view sections
 
 1. Combined portfolio: net value, selected-window option cash, total cash income, coverage, calls sold, and shares called away.
-2. Underlying attribution: shares, market value, per-name option cash, price/sale rhythm, lifecycle, strike gap, DTE, and open calls.
+2. Underlying attribution: selected-window option cash/APR/dividends/capture, market context, per-contract DTE/theta clocks, and explicitly labeled 13-week execution history.
 3. Income: 13 weekly periods with option cash and dividends reconciled to quarter totals.
 4. Lifecycle: contracts expired, closed, rolled, and still open, plus assignments and completed-trade win rate.
 5. Campaigns: current legs, dates, quarter option cash, open profit/loss, collateral, and return on capital.
@@ -37,6 +37,7 @@ The browser and JSON API consume one typed dashboard snapshot regardless of data
 - Week uses the latest seven calendar days.
 - Month uses a rolling 28-day view so partial calendar months do not distort the first comparison.
 - Month is the default screen window; changing the performance control updates the combined portfolio summary and window metadata from the same state.
+- Per-name windows reconcile option cash, dividends, gross premium, and buy-to-close cost back to the selected portfolio window. Static inventory, live-risk fields, and the 13-week price/execution tape do not pretend to change with that selection.
 - Quarter uses the current detailed 13-week ledger window.
 - Calendar YTD runs from January 1 through the snapshot date.
 - Rolling 365 uses the trailing 365 calendar days and is intentionally separate from YTD.
@@ -63,6 +64,7 @@ The browser and JSON API consume one typed dashboard snapshot regardless of data
 - Premium capture is net option cash divided by gross premium; buyback drag is buy-to-close cash divided by gross premium.
 - The lifetime basis lens subtracts tracked option and dividend cash from original purchase cost for a private “capital earned back” view. It never changes brokerage or tax-lot cost basis.
 - Demo IV and delta values are explicitly marked simulated. Live values will be quantity-weighted from current open-call contracts after Schwab market-data access is approved.
+- Each open-call clock shows its own DTE, remaining extrinsic value, and short-position theta benefit. Demo theta is explicitly simulated and reconciles to portfolio daily theta. It is a theoretical one-day sensitivity with other pricing inputs held equal, not forecast income.
 - A dividend-overlap monitor appears when an open call expires on or after the next ex-dividend date. The overlap is a calendar screen, not an assignment prediction; live evaluation must also consider moneyness and remaining extrinsic value.
 
 ## Replacement path

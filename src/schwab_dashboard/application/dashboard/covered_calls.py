@@ -15,6 +15,34 @@ class PricePoint:
 
 
 @dataclass(frozen=True, slots=True)
+class UnderlyingPerformanceWindow:
+    key: str
+    option_cash: Decimal
+    dividends: Decimal
+    total_cash: Decimal
+    gross_premium: Decimal
+    buyback_cost: Decimal
+    option_apr: Decimal
+    total_cash_apr: Decimal
+    premium_capture_percent: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class OpenCallClock:
+    expires_on: date
+    strike: Decimal
+    contracts: int
+    days_to_expiration: int
+    mark_per_share: Decimal
+    remaining_extrinsic_value: Decimal
+    theta_per_share: Decimal
+    short_theta_per_day: Decimal
+    theta_decay_percent_of_extrinsic: Decimal
+    time_remaining_percent: Decimal
+    decay_stage: str
+
+
+@dataclass(frozen=True, slots=True)
 class CallSaleRecord:
     symbol: str
     sold_on: date
@@ -74,7 +102,10 @@ class UnderlyingCallStats:
     average_strike_upside_percent: Decimal
     average_days_to_expiration: Decimal
     win_rate: Decimal
-    current_calls: Sequence[str]
+    performance_windows: Sequence[UnderlyingPerformanceWindow]
+    open_call_clocks: Sequence[OpenCallClock]
+    thirteen_week_low: Decimal
+    thirteen_week_high: Decimal
     price_points: Sequence[PricePoint]
     tone: str
 

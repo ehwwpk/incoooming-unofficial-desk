@@ -17,7 +17,7 @@
         {% for leg in campaign.legs %}<span>{{ leg }}</span>{% endfor %}
       </div>
       <div class="campaign-metrics">
-        <div><span>OPTION +$ / QTR</span><strong>{{ campaign.net_option_cash | money }}</strong></div>
+        <div><span>OPTION +$ / 13W</span><strong>{{ campaign.net_option_cash | money }}</strong></div>
         <div><span>OPEN P/L</span><strong class="{{ campaign.unrealized_profit_loss | pnl_class }}">{{ campaign.unrealized_profit_loss | money }}</strong></div>
         <div><span>RETURN / CAPITAL</span><strong>{{ campaign.return_on_risk_percent | percent }}</strong></div>
       </div>

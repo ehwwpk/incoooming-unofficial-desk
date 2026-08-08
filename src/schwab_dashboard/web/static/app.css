@@ -1,7 +1,7 @@
-@import url("./base.css?v=4");
-@import url("./components.css?v=4");
-@import url("./performance.css?v=4");
-@import url("./dashboard.css?v=4");
+@import url("./base.css?v=5");
+@import url("./components.css?v=5");
+@import url("./performance.css?v=5");
+@import url("./dashboard.css?v=5");
 
 @media (max-width: 1240px) {
   .portfolio-console { grid-template-columns: repeat(3, 1fr); }
@@ -9,7 +9,7 @@
   .console-cell:nth-child(-n + 3) { border-bottom: 1px solid var(--line); }
   .underlying-grid { grid-template-columns: 1fr; }
   .underlying-card { display: grid; grid-template-columns: 1.1fr 1fr; }
-  .underlying-card header, .underlying-card .underlying-primary, .underlying-card .name-analytics, .underlying-card .dividend-alert, .underlying-card .execution-stats, .underlying-card .basis-chip, .underlying-card .open-call-list { grid-column: 1 / -1; }
+  .underlying-card header, .underlying-card .underlying-primary, .underlying-card .name-analytics, .underlying-card .dividend-alert, .underlying-card .price-tape-heading, .underlying-card .price-rhythm, .underlying-card .call-clock-board, .underlying-card .history-caption, .underlying-card .underlying-lifecycle, .underlying-card .execution-stats, .underlying-card .basis-chip { grid-column: 1 / -1; }
   .underlying-card .price-rhythm { border-right: 1px solid var(--line); }
   .campaign-grid { grid-template-columns: 1fr; }
   .manager-grid { grid-template-columns: 1fr; }
@@ -92,6 +92,12 @@
   .basis-chip { align-items: flex-start; flex-direction: column; }
   .dividend-alert { grid-template-columns: 1fr; }
   .dividend-alert > b { grid-row: auto; justify-self: start; }
+  .price-tape-heading { grid-template-columns: 1fr auto; }
+  .price-tape-heading small { grid-column: 1 / -1; grid-row: 2; text-align: left; }
+  .call-clock { grid-template-columns: 1.2fr .55fr; }
+  .call-clock > div:not(.time-left-meter) { border-bottom: 1px solid var(--line); }
+  .call-clock > div:nth-child(2n) { border-right: 0; }
+  .time-left-meter { grid-template-columns: 1fr; }
   .lifecycle-grid, .risk-grid { grid-template-columns: repeat(2, 1fr); }
   .lifecycle-grid div:nth-child(3n), .risk-grid div:nth-child(3n) { border-right: 1px solid var(--line); }
   .lifecycle-grid div:nth-child(2n), .risk-grid div:nth-child(2n) { border-right: 0; }

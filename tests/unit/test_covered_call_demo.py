@@ -152,3 +152,48 @@ def test_per_name_apr_iv_and_assignment_buffer_metrics_are_populated() -> None:
     assert by_symbol["CVX"].dividend_per_share == D("1.78")
     assert by_symbol["KTOS"].dividend_overlap_contracts == 0
     assert by_symbol["URNM"].dividend_overlap_contracts == 0
+
+
+def test_name_windows_reconcile_to_every_portfolio_window() -> None:
+    snapshot = DemoDashboardReader().execute()
+    portfolio_windows = {window.key: window for window in snapshot.performance_windows}
+
+    for key, portfolio in portfolio_windows.items():
+        name_windows = [
+            next(window for window in item.performance_windows if window.key == key)
+            for item in snapshot.underlyings
+        ]
+        assert sum((window.option_cash for window in name_windows), D("0")) == (
+            portfolio.option_cash
+        )
+        assert sum((window.dividends for window in name_windows), D("0")) == (portfolio.dividends)
+        assert sum((window.gross_premium for window in name_windows), D("0")) == (
+            portfolio.gross_premium
+        )
+        assert sum((window.buyback_cost for window in name_windows), D("0")) == (
+            portfolio.buyback_cost
+        )
+
+    for item in snapshot.underlyings:
+        quarter = next(window for window in item.performance_windows if window.key == "quarter")
+        assert quarter.option_cash == item.net_option_cash
+        assert quarter.dividends == item.quarter_dividends
+        assert quarter.option_apr == item.quarter_option_apr
+        assert quarter.total_cash_apr == item.quarter_total_cash_apr
+
+
+def test_open_call_clocks_expose_per_contract_dte_and_reconcile_theta() -> None:
+    snapshot = DemoDashboardReader().execute()
+    clocks = [clock for item in snapshot.underlyings for clock in item.open_call_clocks]
+
+    assert len(clocks) == 5
+    assert sum(clock.contracts for clock in clocks) == snapshot.covered_calls.active_contracts
+    assert sum((clock.short_theta_per_day for clock in clocks), D("0")) == (
+        snapshot.risk.daily_theta
+    )
+    for clock in clocks:
+        assert clock.days_to_expiration == (clock.expires_on - snapshot.as_of.date()).days
+        assert clock.theta_per_share < D("0")
+        assert clock.short_theta_per_day > D("0")
+        assert clock.remaining_extrinsic_value > D("0")
+        assert D("0") <= clock.time_remaining_percent <= D("100")

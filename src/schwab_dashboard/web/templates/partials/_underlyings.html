@@ -1,29 +1,43 @@
 <section class="section-block" id="underlyings">
   <div class="section-heading terminal-heading">
     <div><p class="eyebrow">NAME-LEVEL ATTRIBUTION</p><h2>Underlying call engines</h2></div>
-    <span>SALE MARKERS = CALL OPENED OR ROLLED</span>
+    <span>SELECTED WINDOW CASH // 13W PRICE + EXECUTION CONTEXT</span>
   </div>
   {% if snapshot.underlyings %}
   <div class="underlying-grid">
     {% for item in snapshot.underlyings %}
-    <article class="underlying-card {{ item.tone }}-edge">
+    {% set active_window = item.performance_windows[1] %}
+    <article class="underlying-card {{ item.tone }}-edge" data-underlying-card="{{ item.symbol }}">
       <header>
         <div><strong>{{ item.symbol }}</strong><span>{{ item.company_name }}</span></div>
         <div class="price-block"><strong>{{ item.current_price | money }}</strong><span>{{ item.market_value | money }} MV</span></div>
       </header>
       <div class="underlying-primary">
-        <div><span>OPTION +$ / QTR</span><strong>{{ item.net_option_cash | money }}</strong></div>
+        <div><span data-name-option-label>OPTION +$ / 4 WEEKS</span><strong data-name-option-cash>{{ active_window.option_cash | money }}</strong></div>
         <div><span>SHARES</span><strong>{{ item.shares }}</strong></div>
-        <div><span>ACTIVE</span><strong>{{ item.active_contracts }}/{{ item.contract_capacity }}</strong></div>
+        <div><span>ACTIVE CALLS</span><strong>{{ item.active_contracts }}/{{ item.contract_capacity }}</strong></div>
       </div>
       <div class="name-analytics">
-        <div><span>OPTION APR</span><b>{{ item.quarter_option_apr | percent }}</b></div>
-        <div><span>TOTAL CASH APR</span><b>{{ item.quarter_total_cash_apr | percent }}</b></div>
+        <div><span data-name-option-apr-label>OPTION APR / 4W</span><b data-name-option-apr>{{ active_window.option_apr | percent }}</b></div>
+        <div><span data-name-dividend-label>DIVIDENDS / 4W</span><b data-name-dividends>{{ active_window.dividends | money }}</b></div>
         <div><span>AVG OPEN IV <i>SIM</i></span><b>{{ item.average_open_call_iv_percent | percent }}</b></div>
         <div><span>AVG CALL DELTA</span><b>{{ item.average_open_call_delta | number(2) }}</b></div>
         <div><span>STRIKE BUFFER</span><b>{{ item.current_strike_buffer_percent | percent }}</b></div>
-        <div><span>PREMIUM CAPTURE</span><b>{{ item.premium_capture_percent | percent }}</b></div>
+        <div><span data-name-capture-label>CAPTURE / 4W</span><b data-name-capture>{{ active_window.premium_capture_percent | percent }}</b></div>
       </div>
+
+      <div hidden aria-hidden="true">
+        {% for window in item.performance_windows %}
+        <span
+          data-name-window="{{ window.key }}"
+          data-option-cash="{{ window.option_cash | money }}"
+          data-option-apr="{{ window.option_apr | percent }}"
+          data-dividends="{{ window.dividends | money }}"
+          data-capture="{{ window.premium_capture_percent | percent }}"
+        ></span>
+        {% endfor %}
+      </div>
+
       {% if item.dividend_overlap_contracts %}
       <div class="dividend-alert" role="note">
         <b>DIV RISK // MONITOR</b>
@@ -31,14 +45,45 @@
         <small>Calendar overlap only. Confirm moneyness and remaining extrinsic value with live data before the ex-date.</small>
       </div>
       {% endif %}
-      <div class="price-rhythm" aria-label="{{ item.symbol }} thirteen-week mocked price path">
+
+      <div class="price-tape-heading">
+        <span>13W PRICE TAPE</span>
+        <small>LOW {{ item.thirteen_week_low | money }} // NOW {{ item.current_price | money }} // HIGH {{ item.thirteen_week_high | money }}</small>
+        <b><i>S</i> CALL SOLD</b>
+      </div>
+      <div class="price-rhythm" aria-label="{{ item.symbol }} thirteen-week weekly close and call-sale tape">
         {% for point in item.price_points %}
-        <div class="price-column" title="{{ point.label }} · {{ point.price | money }}">
-          {% if point.call_sale %}<i class="sale-marker"></i>{% endif %}
-          <span style="--point-height: {{ point.height_percent }}%"></span>
+        <div class="price-column" style="--point-height: {{ point.height_percent }}%" title="{{ point.label }} // {{ point.price | money }}{% if point.call_sale %} // CALL SOLD{% endif %}">
+          {% if point.call_sale %}<i class="sale-marker">S</i>{% endif %}
+          <span></span>
+          {% if loop.first or loop.index == 7 or loop.last %}<small>{{ point.label }}</small>{% endif %}
         </div>
         {% endfor %}
       </div>
+
+      <div class="call-clock-board">
+        <div class="call-clock-heading">
+          <span>OPEN CALL CLOCKS</span>
+          <small>THETA <i>SIM</i> // THEORETICAL DAILY DECAY, ALL ELSE EQUAL</small>
+        </div>
+        {% for call in item.open_call_clocks %}
+        <div class="call-clock">
+          <div class="call-clock-contract">
+            <strong>-{{ call.contracts }} {{ call.expires_on.strftime('%b %d') | upper }} ${{ '%g' | format(call.strike) }}C</strong>
+            <span>{{ call.decay_stage }}</span>
+          </div>
+          <div><span>DTE</span><b>{{ call.days_to_expiration }}</b></div>
+          <div><span>SHORT THETA <i>SIM</i></span><b class="positive">+{{ call.short_theta_per_day | money }}/DAY</b></div>
+          <div><span>EXTRINSIC LEFT</span><b>{{ call.remaining_extrinsic_value | money(0) }}</b></div>
+          <div class="time-left-meter">
+            <span><b>TIME LEFT</b><em>{{ call.theta_decay_percent_of_extrinsic | percent }}/DAY OF EXTRINSIC</em></span>
+            <i><em style="--time-left: {{ call.time_remaining_percent }}%"></em></i>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="history-caption">13W EXECUTION OUTCOMES</div>
       <div class="underlying-lifecycle">
         <div><span>Sold</span><b>{{ item.contracts_sold }}</b></div>
         <div><span>Expired</span><b>{{ item.expired_contracts }}</b></div>
@@ -48,16 +93,13 @@
       </div>
       <div class="execution-stats">
         <span>AVG STRIKE GAP <b>{{ item.average_strike_upside_percent | percent }}</b></span>
-        <span>AVG DTE <b>{{ item.average_days_to_expiration | number(1) }}</b></span>
         <span>WIN <b>{{ item.win_rate | percent }}</b></span>
+        <span>TICKETS <b>{{ item.call_tickets }}</b></span>
       </div>
       <div class="basis-chip">
         <span>LIFE INC {{ (item.lifetime_option_income + item.lifetime_dividends) | money(0) }}</span>
         <span>INCOME-ADJ BASIS <b>{{ item.income_adjusted_basis_per_share | money }}/SH</b></span>
         <span>{{ item.basis_offset_percent | percent }} BASIS OFFSET</span>
-      </div>
-      <div class="open-call-list">
-        {% for call in item.current_calls %}<code>{{ call }}</code>{% endfor %}
       </div>
     </article>
     {% endfor %}

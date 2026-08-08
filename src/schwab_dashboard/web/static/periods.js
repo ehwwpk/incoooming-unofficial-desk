@@ -132,6 +132,22 @@ const setupPeriodConsole = () => {
     setText("[data-active-capture]", `${sheet.dataset.capture} of gross premium retained`);
   };
 
+  const updateUnderlyingCards = (activeSheetKey, windowLabel) => {
+    document.querySelectorAll("[data-underlying-card]").forEach((card) => {
+      const windowData = card.querySelector(`[data-name-window="${activeSheetKey}"]`);
+      if (!windowData) return;
+      const windowCode = windowCodes[activeSheetKey] || windowLabel;
+      card.querySelector("[data-name-option-label]").textContent = `OPTION +$ / ${windowLabel}`;
+      card.querySelector("[data-name-option-cash]").textContent = windowData.dataset.optionCash;
+      card.querySelector("[data-name-option-apr-label]").textContent = `OPTION APR / ${windowCode}`;
+      card.querySelector("[data-name-option-apr]").textContent = windowData.dataset.optionApr;
+      card.querySelector("[data-name-dividend-label]").textContent = `DIVIDENDS / ${windowCode}`;
+      card.querySelector("[data-name-dividends]").textContent = windowData.dataset.dividends;
+      card.querySelector("[data-name-capture-label]").textContent = `CAPTURE / ${windowCode}`;
+      card.querySelector("[data-name-capture]").textContent = windowData.dataset.capture;
+    });
+  };
+
   const activate = () => {
     const activeSheetKey = selectedPeriod === "annual" ? annualMode : selectedPeriod;
     const activeSheet = sheets.find((sheet) => sheet.dataset.periodSheet === activeSheetKey);
@@ -147,6 +163,9 @@ const setupPeriodConsole = () => {
     if (annualControls) annualControls.hidden = selectedPeriod !== "annual";
     if (quarterHistory) quarterHistory.hidden = selectedPeriod !== "annual";
     updateActiveDesk(activeSheet);
+    if (activeSheet) {
+      updateUnderlyingCards(activeSheetKey, activeSheet.dataset.windowLabel);
+    }
   };
 
   periodButtons.forEach((button) => {

@@ -89,7 +89,11 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "data-target-input" in page.text
         assert "DIV RISK // MONITOR" in page.text
         assert "SIM EX-DIV" in page.text
-        assert "periods.js?v=5" in page.text
+        assert "periods.js?v=7" in page.text
+        assert "OPTION +$ / 4 WEEKS" in page.text
+        assert "OPEN CALL CLOCKS" in page.text
+        assert "SHORT THETA" in page.text
+        assert "13W PRICE TAPE" in page.text
         assert "LIFETIME BASIS LENS" in page.text
         assert "Quarter call-sale ledger" in page.text
         assert "CVX" in page.text

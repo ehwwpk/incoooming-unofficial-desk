@@ -7,10 +7,13 @@ from decimal import Decimal
 from schwab_dashboard.application.dashboard.covered_calls import (
     CallSaleRecord,
     CoveredCallPortfolioSummary,
+    OpenCallClock,
     PricePoint,
     UnderlyingCallStats,
 )
 from schwab_dashboard.infrastructure.demo.fixtures.holdings import HOLDINGS, HoldingFixture
+from schwab_dashboard.infrastructure.demo.fixtures.name_windows import build_name_windows
+from schwab_dashboard.infrastructure.demo.fixtures.open_call_metrics import OPEN_CALL_METRICS
 
 D = Decimal
 ZERO = D("0")
@@ -21,8 +24,9 @@ QUARTER_DAYS = D("85")
 
 def build_underlying_stats(
     records: Sequence[CallSaleRecord],
+    as_of: date,
 ) -> tuple[UnderlyingCallStats, ...]:
-    return tuple(_summarize_holding(holding, records) for holding in HOLDINGS)
+    return tuple(_summarize_holding(holding, records, as_of) for holding in HOLDINGS)
 
 
 def build_covered_call_summary(
@@ -73,6 +77,7 @@ def build_covered_call_summary(
 def _summarize_holding(
     holding: HoldingFixture,
     records: Sequence[CallSaleRecord],
+    as_of: date,
 ) -> UnderlyingCallStats:
     symbol_records = [record for record in records if record.symbol == holding.symbol]
     completed = [record for record in symbol_records if record.outcome != "Open"]
@@ -90,6 +95,7 @@ def _summarize_holding(
     lifetime_income = holding.lifetime_option_income + holding.lifetime_dividends
     income_adjusted_basis = original_cost_basis - lifetime_income
     annual_factor = YEAR_DAYS / QUARTER_DAYS
+    prices = [D(row[1]) for row in holding.weekly_prices]
     return UnderlyingCallStats(
         symbol=holding.symbol,
         company_name=holding.company_name,
@@ -135,7 +141,12 @@ def _summarize_holding(
         average_strike_upside_percent=(weighted_upside / contract_count).quantize(TENTH),
         average_days_to_expiration=(D(weighted_dte) / contract_count).quantize(TENTH),
         win_rate=_ratio(sum(1 for record in completed if record.net_cash > ZERO), len(completed)),
-        current_calls=tuple(_call_label(record) for record in open_records),
+        performance_windows=build_name_windows(holding.symbol, market_value),
+        open_call_clocks=tuple(
+            _open_call_clock(record, holding.current_price, as_of) for record in open_records
+        ),
+        thirteen_week_low=min(prices),
+        thirteen_week_high=max(prices),
         price_points=_price_points(holding.weekly_prices),
         tone=holding.tone,
     )
@@ -182,6 +193,35 @@ def _ratio(numerator: int, denominator: int) -> Decimal:
     return (D(numerator) / D(denominator) * 100).quantize(TENTH) if denominator else ZERO
 
 
-def _call_label(record: CallSaleRecord) -> str:
-    strike = f"{record.strike:f}".rstrip("0").rstrip(".")
-    return f"-{record.contracts} {record.expires_on:%b %d} ${strike}C"
+def _open_call_clock(record: CallSaleRecord, current_price: Decimal, as_of: date) -> OpenCallClock:
+    metric = OPEN_CALL_METRICS[(record.symbol, record.expires_on, record.strike)]
+    days_to_expiration = max(0, (record.expires_on - as_of).days)
+    intrinsic_per_share = max(ZERO, current_price - record.strike)
+    extrinsic_per_share = max(ZERO, metric.mark_per_share - intrinsic_per_share)
+    remaining_extrinsic = extrinsic_per_share * record.contracts * 100
+    short_theta_per_day = -metric.theta_per_share * record.contracts * 100
+    return OpenCallClock(
+        expires_on=record.expires_on,
+        strike=record.strike,
+        contracts=record.contracts,
+        days_to_expiration=days_to_expiration,
+        mark_per_share=metric.mark_per_share,
+        remaining_extrinsic_value=remaining_extrinsic,
+        theta_per_share=metric.theta_per_share,
+        short_theta_per_day=short_theta_per_day,
+        theta_decay_percent_of_extrinsic=(short_theta_per_day / remaining_extrinsic * 100).quantize(
+            TENTH
+        )
+        if remaining_extrinsic
+        else ZERO,
+        time_remaining_percent=min(D("100"), D(days_to_expiration) / D("56") * 100).quantize(TENTH),
+        decay_stage=_decay_stage(days_to_expiration),
+    )
+
+
+def _decay_stage(days_to_expiration: int) -> str:
+    if days_to_expiration <= 20:
+        return "EXPIRY ZONE"
+    if days_to_expiration <= 35:
+        return "DECAY BUILDING"
+    return "EARLY CYCLE"

@@ -33,13 +33,14 @@ class DemoDashboardReader:
 
     def execute(self) -> DashboardSnapshot:
         call_history = build_call_history()
-        underlyings = build_underlying_stats(call_history)
+        as_of = date(2026, 8, 7)
+        underlyings = build_underlying_stats(call_history, as_of)
         covered_calls = build_covered_call_summary(call_history, underlyings)
         performance_windows = build_performance_windows(covered_calls, D("214019.00"))
         windows_by_key = {window.key: window for window in performance_windows}
         return DashboardSnapshot(
             mode="demo",
-            as_of=datetime(2026, 8, 7, 21, 15, tzinfo=UTC),
+            as_of=datetime(as_of.year, as_of.month, as_of.day, 21, 15, tzinfo=UTC),
             credentials_configured=False,
             token_available=False,
             latest_sync=None,
