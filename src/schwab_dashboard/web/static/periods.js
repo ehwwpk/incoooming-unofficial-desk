@@ -105,12 +105,13 @@ const setupTargetEditor = () => {
 
 const setupPeriodConsole = () => {
   const consoleRoot = document.querySelector("[data-period-console]");
-  if (!consoleRoot || consoleRoot.dataset.periodReady === "true") return;
+  const controlsRoot = document.querySelector("[data-period-controls]");
+  if (!consoleRoot || !controlsRoot || consoleRoot.dataset.periodReady === "true") return;
 
-  const periodButtons = [...consoleRoot.querySelectorAll("[data-period]")];
-  const annualButtons = [...consoleRoot.querySelectorAll("[data-annual]")];
+  const periodButtons = [...controlsRoot.querySelectorAll("[data-period]")];
+  const annualButtons = [...controlsRoot.querySelectorAll("[data-annual]")];
   const sheets = [...consoleRoot.querySelectorAll("[data-period-sheet]")];
-  const annualControls = consoleRoot.querySelector("[data-annual-controls]");
+  const annualControls = controlsRoot.querySelector("[data-annual-controls]");
   const quarterHistory = consoleRoot.querySelector("[data-quarter-history]");
   const windowCodes = { week: "1W", month: "4W", quarter: "13W", ytd: "YTD", r365: "R365" };
   let annualMode = "ytd";
@@ -206,6 +207,55 @@ const setupPeriodConsole = () => {
   consoleRoot.dataset.periodReady = "true";
 };
 
+const setupCommandJump = () => {
+  const input = document.querySelector("[data-command-input]");
+  if (!input || input.dataset.commandReady === "true") return;
+
+  const sectionTargets = {
+    desk: "portfolio",
+    portfolio: "portfolio",
+    names: "underlyings",
+    stocks: "underlyings",
+    income: "income",
+    cash: "income",
+    risk: "risk",
+    records: "records",
+    log: "records",
+  };
+
+  const jump = () => {
+    const query = input.value.trim();
+    if (!query) return;
+    const normalized = query.toLowerCase();
+    const normalizedSymbol = query.toUpperCase();
+    const symbolTarget = Array.from(
+      document.querySelectorAll("[data-underlying-card]"),
+    ).find((node) => node.dataset.underlyingCard === normalizedSymbol);
+    const target = symbolTarget || document.getElementById(sectionTargets[normalized]);
+    if (!target) {
+      input.setAttribute("aria-invalid", "true");
+      return;
+    }
+    input.removeAttribute("aria-invalid");
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+    input.select();
+  };
+
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") jump();
+    if (event.key === "Escape") input.blur();
+  });
+  input.addEventListener("input", () => input.removeAttribute("aria-invalid"));
+  document.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      input.focus();
+      input.select();
+    }
+  });
+  input.dataset.commandReady = "true";
+};
+
 const setupRecordWorkspace = () => {
   const workspace = document.querySelector("[data-records-workspace]");
   if (!workspace || workspace.dataset.recordReady === "true") return;
@@ -244,6 +294,7 @@ const setupRecordWorkspace = () => {
 };
 
 const setupDashboardInteractions = () => {
+  setupCommandJump();
   setupPeriodConsole();
   setupRecordWorkspace();
 };

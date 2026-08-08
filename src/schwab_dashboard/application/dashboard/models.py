@@ -9,6 +9,7 @@ from typing import Any
 from schwab_dashboard.application.dashboard.covered_calls import (
     CallSaleRecord,
     CoveredCallPortfolioSummary,
+    StrategyInsight,
     UnderlyingCallStats,
 )
 from schwab_dashboard.application.dashboard.performance import (
@@ -116,6 +117,7 @@ class DashboardSnapshot:
     campaigns: Sequence[CampaignSummary]
     covered_calls: CoveredCallPortfolioSummary
     underlyings: Sequence[UnderlyingCallStats]
+    strategy_insights: Sequence[StrategyInsight]
     call_history: Sequence[CallSaleRecord]
     performance_windows: Sequence[PerformanceWindowSummary]
     quarter_history: Sequence[QuarterPerformanceSummary]

@@ -1,7 +1,7 @@
-@import url("./base.css?v=11");
-@import url("./components.css?v=11");
-@import url("./performance.css?v=11");
-@import url("./dashboard.css?v=11");
+@import url("./base.css?v=12");
+@import url("./components.css?v=12");
+@import url("./performance.css?v=12");
+@import url("./dashboard.css?v=12");
 
 @media (max-width: 1240px) {
   .portfolio-console { grid-template-columns: repeat(3, 1fr); }
@@ -9,27 +9,34 @@
   .console-cell:nth-child(-n + 3) { border-bottom: 1px solid var(--line); }
   .campaign-grid { grid-template-columns: 1fr; }
   .manager-grid { grid-template-columns: 1fr; }
+  .operations-grid { grid-template-columns: minmax(0, 1.5fr) minmax(280px, .8fr); }
 }
 
 @media (max-width: 960px) {
-  .topbar { grid-template-columns: auto 1fr auto; }
-  .topbar nav { display: none; }
+  .topbar { grid-template-columns: auto 1fr; }
+  .session-state { display: none; }
   .dashboard-grid { grid-template-columns: 1fr; }
   .side-stack { grid-template-columns: 1fr 1fr; }
   .setup-panel { grid-template-columns: 1fr; }
-  .period-toolbar { grid-template-columns: 1fr auto; }
-  .annual-controls { grid-column: 2; }
+  .operations-grid { grid-template-columns: 1fr; }
   .underlying-decision-grid { grid-template-columns: 1fr; }
   .price-map { border-right: 0; border-bottom: 1px solid var(--line-strong); }
 }
 
 @media (max-width: 700px) {
   .topbar { grid-template-columns: auto 1fr; }
-  .ticker-tape, .source-pill { display: none; }
+  .market-tape { overflow-x: auto; }
+  .market-tape > span:nth-last-child(-n + 2) { display: none; }
+  .terminal-shell { grid-template-columns: 1fr; }
+  .function-rail { position: static; display: flex; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line-strong); }
+  .function-rail a { min-width: 62px; border-right: 1px solid var(--line); border-bottom: 0; }
   .shell { width: min(100% - 18px, 1540px); padding-top: 15px; }
   .demo-banner { flex-direction: column; padding-block: 4px; }
   .demo-banner > * { padding: 3px 0; border-right: 0; }
-  .desk-heading { align-items: flex-start; flex-direction: column; }
+  .desk-heading { grid-template-columns: 1fr; align-items: flex-start; }
+  .desk-period-selector { justify-self: stretch; }
+  .desk-period-selector .period-controls, .desk-period-selector .annual-controls { flex: 1; }
+  .desk-period-selector button { flex: 1; }
   .desk-meta { width: 100%; justify-content: space-between; }
   .portfolio-console { grid-template-columns: repeat(2, 1fr); }
   .console-cell { min-height: 92px; border-bottom: 1px solid var(--line); }
@@ -38,7 +45,6 @@
   .side-stack { grid-template-columns: 1fr; }
   .income-chart { min-width: 670px; }
   .cash-reconcile { display: grid; grid-template-columns: 1fr 1fr; }
-  .period-toolbar { grid-template-columns: 1fr; }
   .period-controls, .annual-controls { justify-self: stretch; }
   .period-controls button, .annual-controls button { flex: 1; }
   .annual-controls { grid-column: auto; }
@@ -62,6 +68,7 @@
   .legend { margin-top: 3px; }
   .price-map-legend { flex-wrap: wrap; }
   .price-map-legend small { width: 100%; margin-left: 0; }
+  .price-event-ledger { grid-template-columns: 1fr; }
   .records-workspace > summary { grid-template-columns: 1fr auto; gap: 8px; }
   .records-workspace > summary > span { grid-column: 1 / -1; grid-row: 2; }
   .records-tabs button { flex: 1; padding-inline: 6px; }
@@ -91,8 +98,9 @@
   .call-economics { grid-template-columns: 1fr; }
   .call-open-result { border-right: 0; border-bottom: 1px solid var(--line); }
   .call-context-strip { grid-template-columns: repeat(2, 1fr); }
-  .call-context-strip > span:nth-child(2) { border-right: 0; }
-  .call-context-strip > span:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
+  .call-context-strip > span { border-bottom: 1px solid var(--line); }
+  .call-context-strip > span:nth-child(2n) { border-right: 0; }
+  .call-context-strip > span:last-child { grid-column: 1 / -1; border-right: 0; border-bottom: 0; }
   .option-mark-metrics { grid-template-columns: 1fr; }
   .price-context-strip { grid-template-columns: 1fr 1fr; }
   .price-context-strip > div:first-child { grid-column: 1 / -1; border-right: 0; border-bottom: 1px solid var(--line); }

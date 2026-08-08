@@ -201,6 +201,12 @@ def _ratio(numerator: int, denominator: int) -> Decimal:
 def _open_call_clock(record: CallSaleRecord, current_price: Decimal, as_of: date) -> OpenCallClock:
     metric = OPEN_CALL_METRICS[(record.symbol, record.expires_on, record.strike)]
     days_to_expiration = max(0, (record.expires_on - as_of).days)
+    elapsed_days = min(record.days_to_expiration, max(0, (as_of - record.sold_on).days))
+    elapsed_time_percent = (
+        D(elapsed_days) / D(record.days_to_expiration) * HUNDRED
+        if record.days_to_expiration
+        else HUNDRED
+    ).quantize(TENTH)
     intrinsic_per_share = max(ZERO, current_price - record.strike)
     extrinsic_per_share = max(ZERO, metric.mark_per_share - intrinsic_per_share)
     remaining_extrinsic = extrinsic_per_share * record.contracts * 100
@@ -209,9 +215,13 @@ def _open_call_clock(record: CallSaleRecord, current_price: Decimal, as_of: date
     open_profit_loss = record.gross_premium - current_option_value
     short_theta_per_day = -metric.theta_per_share * record.contracts * 100
     return OpenCallClock(
+        sold_on=record.sold_on,
         expires_on=record.expires_on,
         strike=record.strike,
         contracts=record.contracts,
+        original_days_to_expiration=record.days_to_expiration,
+        elapsed_days=elapsed_days,
+        elapsed_time_percent=elapsed_time_percent,
         days_to_expiration=days_to_expiration,
         mark_per_share=metric.mark_per_share,
         entry_credit_per_share=record.premium_per_share,
@@ -234,7 +244,7 @@ def _open_call_clock(record: CallSaleRecord, current_price: Decimal, as_of: date
         theta_days_of_time_value=(remaining_extrinsic / short_theta_per_day).quantize(TENTH)
         if short_theta_per_day
         else ZERO,
-        time_remaining_percent=min(D("100"), D(days_to_expiration) / D("56") * 100).quantize(TENTH),
+        time_remaining_percent=(HUNDRED - elapsed_time_percent).quantize(TENTH),
         decay_stage=_decay_stage(days_to_expiration),
     )
 

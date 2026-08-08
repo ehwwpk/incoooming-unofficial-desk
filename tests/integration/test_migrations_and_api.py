@@ -42,10 +42,11 @@ def test_initial_migration_supports_local_api(tmp_path: Path) -> None:
         assert payload["latest_sync"] is None
         assert payload["accounts"] == []
         assert payload["positions"] == []
+        assert payload["strategy_insights"] == []
         assert payload["portfolio"]["total_value"] == "0"
         assert payload["income"]["month"] == "0"
         assert page.status_code == 200
-        assert "ACTIVE INCOME DESK" in page.text
+        assert "Options income desk" in page.text
         assert "Schwab approval is the only external blocker" in page.text
     finally:
         container.close()
@@ -74,6 +75,8 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert len(payload["campaigns"]) == 3
         assert len(payload["positions"]) == 8
         assert len(payload["call_history"]) == 16
+        assert len(payload["strategy_insights"]) == 4
+        assert payload["strategy_insights"][0]["category"] == "MARK ANOMALY"
         assert [window["key"] for window in payload["performance_windows"]] == [
             "week",
             "month",
@@ -87,22 +90,27 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert payload["basis_lens"][0]["recovery_surplus"] == "0"
         assert payload["basis_lens"][0]["fully_recovered"] is False
         assert "MOCK LEDGER / NO SCHWAB WRITES" in page.text
-        assert "PERFORMANCE WINDOWS" in page.text
-        assert "ROLL 365" in page.text
+        assert "WINDOW ACCOUNTING" in page.text
+        assert "INTERNAL DESK FEED" in page.text
+        assert "NO MARKET HEADLINES" in page.text
+        assert "R365" in page.text
         assert "$3,000</span> monthly net option cash" in page.text
-        assert 'data-period="month" aria-selected="true"' in page.text
+        assert 'data-period="month"' in page.text
+        assert 'aria-label="Four weeks" aria-selected="true"' in page.text
         assert 'data-period-sheet="month"' in page.text
         assert "data-target-input" in page.text
         assert "DIV RISK // MONITOR" in page.text
         assert "SIM EX-DIV" in page.text
-        assert "app.css?v=11" in page.text
-        assert "periods.js?v=10" in page.text
+        assert "app.css?v=12" in page.text
+        assert "periods.js?v=11" in page.text
         assert "NET OPTION INCOME / 4 WEEKS" in page.text
         assert "PREMIUM RECEIVED / CURRENT MARK / OPEN P&amp;L" in page.text
         assert "OPEN P/L AT CURRENT MARK" in page.text
         assert "OPTION VALUE NOW" in page.text
         assert "13W DAILY PRICE" in page.text
-        assert "Faint verticals mark Fridays" in page.text
+        assert "61 DAILY CLOSES" in page.text
+        assert "Numbers map directly to the event tape" in page.text
+        assert "TIME ELAPSED" in page.text
         assert "RANGE POSITION" in page.text
         assert "2 ASSIGNED / 200 SH" in page.text
         assert "LIFETIME BASIS LENS" in page.text

@@ -228,6 +228,10 @@ def test_open_call_clocks_expose_per_contract_dte_and_reconcile_theta() -> None:
     )
     for clock in clocks:
         assert clock.days_to_expiration == (clock.expires_on - snapshot.as_of.date()).days
+        assert clock.original_days_to_expiration == (clock.expires_on - clock.sold_on).days
+        assert clock.elapsed_days == (snapshot.as_of.date() - clock.sold_on).days
+        assert clock.elapsed_days + clock.days_to_expiration == (clock.original_days_to_expiration)
+        assert clock.elapsed_time_percent + clock.time_remaining_percent == D("100.0")
         assert clock.theta_per_share < D("0")
         assert clock.short_theta_per_day > D("0")
         assert clock.remaining_extrinsic_value > D("0")
@@ -235,7 +239,19 @@ def test_open_call_clocks_expose_per_contract_dte_and_reconcile_theta() -> None:
         assert clock.current_option_value == clock.mark_per_share * clock.contracts * 100
         assert clock.open_profit_loss == clock.entry_credit - clock.current_option_value
         assert clock.theta_days_of_time_value > D("0")
+        assert D("0") <= clock.elapsed_time_percent <= D("100")
         assert D("0") <= clock.time_remaining_percent <= D("100")
+
+    cvx_clock = next(
+        clock
+        for item in snapshot.underlyings
+        if item.symbol == "CVX"
+        for clock in item.open_call_clocks
+        if clock.strike == D("235")
+    )
+    assert cvx_clock.elapsed_days == 14
+    assert cvx_clock.original_days_to_expiration == 42
+    assert cvx_clock.elapsed_time_percent == D("33.3")
 
     ktos_loss = next(
         clock
@@ -274,6 +290,9 @@ def test_price_paths_use_daily_closes_and_reconciled_option_events() -> None:
             "assigned",
         }
         assert any(event.event_type == "sale" for event in item.price_events)
+        assert tuple(event.sequence for event in item.price_events) == tuple(
+            range(1, len(item.price_events) + 1)
+        )
 
     events = [event for item in snapshot.underlyings for event in item.price_events]
     assert sum(event.event_type == "sale" for event in events) == len(snapshot.call_history)
@@ -282,3 +301,27 @@ def test_price_paths_use_daily_closes_and_reconciled_option_events() -> None:
     )
     assert all(D("0") <= event.x_percent <= D("100") for event in events)
     assert all(D("0") <= event.y_percent <= D("100") for event in events)
+
+
+def test_strategy_intelligence_is_internal_book_telemetry() -> None:
+    snapshot = DemoDashboardReader().execute()
+    insights = snapshot.strategy_insights
+
+    assert tuple(insight.sequence for insight in insights) == (1, 2, 3, 4)
+    assert {insight.category for insight in insights} == {
+        "MARK ANOMALY",
+        "CALENDAR OVERLAP",
+        "IV DISPERSION",
+        "COVERAGE CAPACITY",
+    }
+    assert {insight.severity for insight in insights} == {
+        "critical",
+        "warning",
+        "watch",
+        "info",
+    }
+    assert insights[0].symbol == "KTOS"
+    assert insights[0].metric == "134.7%"
+    assert "-$425" in insights[0].detail
+    assert insights[-1].symbol == "URNM"
+    assert all("headline" not in insight.detail.lower() for insight in insights)

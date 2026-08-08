@@ -1,20 +1,5 @@
 <section class="panel period-panel" id="periods" data-period-console>
-  <div class="period-toolbar">
-    <div>
-      <p class="eyebrow">PERFORMANCE WINDOWS</p>
-      <h2>Income lens</h2>
-    </div>
-    <div class="period-controls" role="tablist" aria-label="Performance window">
-      <button type="button" role="tab" data-period="week" aria-selected="false"><kbd>1</kbd> WEEK</button>
-      <button type="button" role="tab" data-period="month" aria-selected="true"><kbd>2</kbd> MONTH</button>
-      <button type="button" role="tab" data-period="quarter" aria-selected="false"><kbd>3</kbd> QUARTER</button>
-      <button type="button" role="tab" data-period="annual" aria-selected="false"><kbd>4</kbd> 1 YEAR</button>
-    </div>
-    <div class="annual-controls" data-annual-controls hidden aria-label="Annual calculation mode">
-      <button type="button" data-annual="ytd" aria-pressed="true"><kbd>Y</kbd> CAL YTD</button>
-      <button type="button" data-annual="r365" aria-pressed="false"><kbd>R</kbd> ROLL 365</button>
-    </div>
-  </div>
+  <div class="period-panel-label"><span>WINDOW ACCOUNTING</span><small>ACTUAL CASH / NORMALIZED PACE / SOURCE RECONCILIATION</small></div>
 
   {% if snapshot.performance_windows %}
   <div class="period-sheets">

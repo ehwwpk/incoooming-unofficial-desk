@@ -24,6 +24,9 @@ from schwab_dashboard.infrastructure.demo.fixtures.positions import (
     build_allocations,
     build_positions,
 )
+from schwab_dashboard.infrastructure.demo.fixtures.strategy_intelligence import (
+    build_strategy_insights,
+)
 
 D = Decimal
 
@@ -74,6 +77,7 @@ class DemoDashboardReader:
             campaigns=build_campaigns(),
             covered_calls=covered_calls,
             underlyings=underlyings,
+            strategy_insights=build_strategy_insights(underlyings),
             call_history=call_history,
             performance_windows=performance_windows,
             quarter_history=build_quarter_history(),

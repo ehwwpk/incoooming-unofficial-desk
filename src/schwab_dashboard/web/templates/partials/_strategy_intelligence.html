@@ -1,0 +1,24 @@
+<aside class="panel intelligence-panel" aria-label="Internal strategy intelligence">
+  <header class="intelligence-heading">
+    <div><p class="eyebrow">INTERNAL DESK FEED</p><h2>Strategy intelligence</h2></div>
+    <span>POSITIONS / MARKS / IV / GREEKS ONLY</span>
+  </header>
+  {% if snapshot.strategy_insights %}
+  <div class="intelligence-list">
+    {% for insight in snapshot.strategy_insights %}
+    <article class="intelligence-item" data-severity="{{ insight.severity }}">
+      <b>{{ '%02d' | format(insight.sequence) }}</b>
+      <div class="intelligence-copy">
+        <span>{{ insight.symbol }} · {{ insight.category }}</span>
+        <strong>{{ insight.headline }}</strong>
+        <p>{{ insight.detail }}</p>
+      </div>
+      <em class="intelligence-metric">{{ insight.metric }}</em>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="empty-state">Internal position, mark, IV, and Greek exceptions will appear after live option observations are available.</p>
+  {% endif %}
+  <footer>NO MARKET HEADLINES · NO SOCIAL FEED · BOOK TELEMETRY ONLY</footer>
+</aside>

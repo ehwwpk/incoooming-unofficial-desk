@@ -1,7 +1,7 @@
 <section class="section-block" id="underlyings">
   <div class="section-heading terminal-heading">
-    <div><p class="eyebrow">NAME-LEVEL ATTRIBUTION</p><h2>Underlying call engines</h2></div>
-    <span>SELECTED WINDOW CASH // 13W PRICE + EXECUTION CONTEXT</span>
+    <div><p class="eyebrow">SECURITY WORKSPACES</p><h2>Stocks and active calls</h2></div>
+    <span>SELECTED-WINDOW CASH // DAILY PRICE // NUMBERED OPTION EVENTS</span>
   </div>
   {% if snapshot.underlyings %}
   <div class="underlying-grid">
@@ -73,12 +73,18 @@
                 <polygon class="price-area" fill="url(#{{ item.symbol | lower }}-price-fill)" points="0,96 {% for point in item.price_points %}{{ point.x_percent }},{{ point.y_percent }} {% endfor %}100,96" />
                 <polyline class="price-line" points="{% for point in item.price_points %}{{ point.x_percent }},{{ point.y_percent }} {% endfor %}" />
               </svg>
-              {% for event in item.price_events %}<i class="price-event {{ event.event_type }}" style="--event-x: {{ event.x_percent }}%; --event-y: {{ event.y_percent }}%; --event-offset: {{ event.vertical_offset }}px" title="{{ event.label }} // {{ event.detail }}" aria-label="{{ event.label }} {{ event.detail }}"><b>{{ event.glyph }}</b></i>{% endfor %}
+              {% for point in item.price_points %}<i class="daily-point" style="--event-x: {{ point.x_percent }}%; --event-y: {{ point.y_percent }}%" aria-hidden="true"></i>{% endfor %}
+              {% for event in item.price_events %}<i class="price-event {{ event.event_type }}" style="--event-x: {{ event.x_percent }}%; --event-y: {{ event.y_percent }}%; --event-offset: {{ event.vertical_offset }}px" title="{{ event.label }} // {{ event.detail }}" aria-label="Event {{ event.sequence }}: {{ event.label }} {{ event.detail }}"><b>{{ event.sequence }}</b></i>{% endfor %}
               {% set last_point = item.price_points[-1] %}<i class="price-now-event" style="--event-x: {{ last_point.x_percent }}%; --event-y: {{ last_point.y_percent }}%"><b>NOW</b></i>
             </div>
             <div class="price-date-axis"><span>{{ item.price_points[0].label }}</span><span>{{ item.price_points[30].label }}</span><span>{{ item.price_points[-1].label }}</span></div>
           </div>
-          <div class="price-map-legend"><span><i></i> DAILY CLOSE</span><span><b class="sale">S</b> SOLD</span><span><b class="expired">X</b> EXPIRED</span><span><b class="managed">C/R</b> MANAGED</span><span><b class="assigned">A</b> ASSIGNED</span><small>Faint verticals mark Fridays.</small></div>
+          <div class="price-map-legend"><span><i></i> 61 DAILY CLOSES</span><span><b class="sale">S</b> SOLD</span><span><b class="expired">X</b> EXPIRED</span><span><b class="managed">C/R</b> MANAGED</span><span><b class="assigned">A</b> ASSIGNED</span><small>Numbers map directly to the event tape.</small></div>
+          <div class="price-event-ledger" aria-label="{{ item.symbol }} numbered option event tape">
+            {% for event in item.price_events %}
+            <div class="{{ event.event_type }}"><b>{{ event.sequence }}</b><span><i>{{ event.label }} · {{ event.glyph }}</i><strong>{{ event.detail }}</strong></span></div>
+            {% endfor %}
+          </div>
         </section>
 
         <section class="call-clock-board">
@@ -108,6 +114,7 @@
               </div>
             </div>
             <div class="call-context-strip">
+              <span>TIME ELAPSED <b>{{ call.elapsed_time_percent | percent }}</b><small>{{ call.elapsed_days }} / {{ call.original_days_to_expiration }} calendar days since sale</small></span>
               <span>TIME VALUE NOW <b>{{ call.remaining_extrinsic_value | money(0) }}</b></span>
               {% if call.intrinsic_value > 0 %}<span class="negative">INTRINSIC <b>{{ call.intrinsic_value | money(0) }}</b></span>{% else %}<span>INTRINSIC <b>$0 / OTM</b></span>{% endif %}
               <span>THETA <i>SIM</i> <b class="positive">+{{ call.short_theta_per_day | money }}/DAY</b></span>

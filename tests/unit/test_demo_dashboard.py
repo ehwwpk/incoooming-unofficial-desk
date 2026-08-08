@@ -44,3 +44,10 @@ def test_demo_income_period_totals_are_derived_from_components() -> None:
         == windows["month"].option_cash
     )
     assert windows["month"].option_cash == snapshot.income.month == Decimal("1950.00")
+
+
+def test_demo_snapshot_exposes_strategy_intelligence() -> None:
+    snapshot = DemoDashboardReader().execute()
+
+    assert len(snapshot.strategy_insights) == 4
+    assert snapshot.strategy_insights[0].category == "MARK ANOMALY"

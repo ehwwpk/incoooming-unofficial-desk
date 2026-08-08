@@ -18,6 +18,7 @@ class PricePoint:
 
 @dataclass(frozen=True, slots=True)
 class PriceEvent:
+    sequence: int
     date: date
     label: str
     event_type: str
@@ -43,9 +44,13 @@ class UnderlyingPerformanceWindow:
 
 @dataclass(frozen=True, slots=True)
 class OpenCallClock:
+    sold_on: date
     expires_on: date
     strike: Decimal
     contracts: int
+    original_days_to_expiration: int
+    elapsed_days: int
+    elapsed_time_percent: Decimal
     days_to_expiration: int
     mark_per_share: Decimal
     entry_credit_per_share: Decimal
@@ -62,6 +67,17 @@ class OpenCallClock:
     theta_days_of_time_value: Decimal
     time_remaining_percent: Decimal
     decay_stage: str
+
+
+@dataclass(frozen=True, slots=True)
+class StrategyInsight:
+    sequence: int
+    symbol: str
+    category: str
+    headline: str
+    detail: str
+    metric: str
+    severity: str
 
 
 @dataclass(frozen=True, slots=True)

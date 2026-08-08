@@ -25,12 +25,13 @@ The browser and JSON API consume one typed dashboard snapshot regardless of data
 ## Stable view sections
 
 1. Combined portfolio: net value, selected-window net option income, total strategy income, coverage, calls sold, and shares called away.
-2. Underlying attribution: selected-window option income/APR/dividends/capture, a 13-week daily price path with faint Friday guides and lifecycle event markers, and per-contract premium-received/current-option-value/open-P&L economics.
-3. Income: 13 weekly periods with option cash and dividends reconciled to quarter totals.
-4. Lifecycle: contracts expired, closed, rolled, and still open, plus assignments and completed-trade win rate.
-5. Campaigns: current legs, dates, quarter option cash, open profit/loss, collateral, and return on capital.
-6. Call ledger: sale date, expiry, DTE, quantity, sale-time spot, strike, gap, premium, buyback, net cash, outcome, and sale signal.
-7. Positions and risk: reconciled inventory, buying-power use, delta, theta, concentration, and next expiration.
+2. Underlying attribution: selected-window option income/APR/dividends/capture, a 13-week daily price path with faint Friday guides and numbered lifecycle event markers that map directly to a written event tape, and per-contract premium-received/current-option-value/open-P&L economics.
+3. Strategy intelligence: deterministic internal exceptions derived from the tracked book (marks versus credit, dividend-calendar overlap, IV/Greek dispersion, and covered-lot capacity). It never embeds financial-news or social-headline content.
+4. Income: 13 weekly periods with option cash and dividends reconciled to quarter totals.
+5. Lifecycle: contracts expired, closed, rolled, and still open, plus assignments and completed-trade win rate.
+6. Campaigns: current legs, dates, quarter option cash, open profit/loss, collateral, and return on capital.
+7. Call ledger: sale date, expiry, DTE, quantity, sale-time spot, strike, gap, premium, buyback, net cash, outcome, and sale signal.
+8. Positions and risk: reconciled inventory, buying-power use, delta, theta, concentration, and next expiration.
 
 The default workspace keeps decision surfaces visible and moves verbose records into one collapsed detail area. “Active books,” “Call history,” and “Positions” are tabs inside that area; only one record view renders visibly at a time.
 
@@ -39,6 +40,7 @@ The default workspace keeps decision surfaces visible and moves verbose records 
 - Week uses the latest seven calendar days.
 - Month uses a rolling 28-day view so partial calendar months do not distort the first comparison.
 - Month is the default screen window; changing the performance control updates the combined portfolio summary and window metadata from the same state.
+- The week/month/quarter/year control lives in the top operating header because it governs the full desk context. The accounting sheet below explains the selected window instead of owning the control.
 - Per-name windows reconcile option cash, dividends, gross premium, and buy-to-close cost back to the selected portfolio window. Static inventory, live-risk fields, and the 13-week price/execution tape do not pretend to change with that selection.
 - Quarter uses the current detailed 13-week ledger window.
 - Calendar YTD runs from January 1 through the snapshot date.
@@ -68,8 +70,8 @@ The default workspace keeps decision surfaces visible and moves verbose records 
 - The lifetime basis lens subtracts tracked option and dividend cash from original purchase cost for a private “capital earned back” view. Below 100% it shows original capital remaining. At or above 100% it shows a positive surplus beyond original cost instead of asking the user to interpret a negative adjusted basis. It never changes brokerage or tax-lot cost basis.
 - Demo IV and delta values are explicitly marked simulated. Live values will be quantity-weighted from current open-call contracts after Schwab market-data access is approved.
 - Each open call compares premium received with current option value and derives open P/L, credit capture, intrinsic value, and remaining time value. Open P/L can be negative when the option mark rises above its sale price; the dashboard does not frame that mark as a buyback recommendation.
-- Demo charts interpolate deterministic weekday closes from weekly anchors and are labeled simulations. Sale markers reconcile one-for-one to call-history records, while expired, closed, rolled, and assigned markers reconcile to completed records. Live charts will use exchange-session observations from market data.
-- Per-contract DTE and short-position theta remain supporting context. Demo theta is explicitly simulated and reconciles to portfolio daily theta. The time-value pace is a simple current-time-value/current-theta ratio, not forecast income or a decay schedule.
+- Demo charts interpolate deterministic weekday closes from weekly anchors and are labeled simulations. Numbered sale markers reconcile one-for-one to call-history records and a visible event tape, while expired, closed, rolled, and assigned markers reconcile to completed records. Live charts will use exchange-session observations from market data.
+- Per-contract DTE and short-position theta remain supporting context. Demo theta is explicitly simulated and reconciles to portfolio daily theta. Calendar time elapsed is `days since sale / original days from sale to expiry`; it is intentionally separate from theta and option-value decay. The time-value pace is a simple current-time-value/current-theta ratio, not forecast income or a decay schedule.
 - Assignment is tracked separately as assigned contracts and shares called away; current share inventory can include shares reacquired after a historical assignment.
 - A dividend-overlap monitor appears when an open call expires on or after the next ex-dividend date. The overlap is a calendar screen, not an assignment prediction; live evaluation must also consider moneyness and remaining extrinsic value.
 

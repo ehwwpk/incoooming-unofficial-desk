@@ -92,12 +92,15 @@ def build_price_events(
 
     lanes: dict[date, int] = {}
     events: list[PriceEvent] = []
-    for event_date, event_type, glyph, detail in sorted(actions, key=lambda row: row[0]):
+    for sequence, (event_date, event_type, glyph, detail) in enumerate(
+        sorted(actions, key=lambda row: row[0]), start=1
+    ):
         point = min(points, key=lambda item: abs((item.date - event_date).days))
         lane = lanes.get(event_date, 0)
         lanes[event_date] = lane + 1
         events.append(
             PriceEvent(
+                sequence=sequence,
                 date=event_date,
                 label=event_date.strftime("%m/%d"),
                 event_type=event_type,
