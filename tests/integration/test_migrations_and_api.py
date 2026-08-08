@@ -116,21 +116,25 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "KTOS has moved up quickly." in page.text
         assert "CVX has a dividend coming up." in page.text
         assert "CHECK SOON" not in page.text
-        assert "app.css?v=24" in page.text
+        assert "app.css?v=25" in page.text
         assert "periods.js?v=14" in page.text
         assert "workspace-splitter.js?v=1" in page.text
         assert "chart-viewport.js?v=1" in page.text
         assert "chart-focus.js?v=1" in page.text
         assert "event-layout.js?v=3" in page.text
         assert "lifecycle-links.js?v=1" in page.text
-        assert "nibwick-alerts.js?v=1" in page.text
-        assert "nibwick.js?v=3" in page.text
+        assert "nibwick-alerts.js?v=2" in page.text
+        assert "nibwick.js?v=4" in page.text
         assert page.text.count("data-chart-range=") == 9
         assert page.text.count("data-chart-focus") == 3
         assert page.text.count("data-chart-point") == 174
         assert page.text.count("data-chart-event data-date") == 31
         assert page.text.count("data-nibwick-note ") == 2
         assert "data-nibwick-alert-badge" in page.text
+        assert 'data-nibwick-popover role="dialog"' in page.text
+        assert 'aria-labelledby="nibwick-panel-title" hidden' in page.text
+        assert "data-nibwick-announcement" in page.text
+        assert "data-nibwick-wire" not in page.text
         assert page.text.count("data-workspace-splitter") == 3
         assert page.text.count("data-event-leaders") == 3
         assert page.text.count("data-lifecycle-id=") == 27
@@ -138,7 +142,7 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert page.text.count("data-share-trade=") == 4
         assert 'class="nibwick-obstacle"' in page.text
         assert "resolves sale event 1" in page.text
-        assert "Pause Nibwick's desk patrol" in page.text
+        assert "Open Nibwick's notes" in page.text
         assert 'role="separator"' in page.text
         assert 'class="underlying-history"' in page.text
         assert 'data-rail-link="portfolio" aria-current="page"' in page.text

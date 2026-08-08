@@ -3,12 +3,14 @@
   const nibwick = document.querySelector("[data-nibwick]");
   const art = document.querySelector("[data-nibwick-art]");
   const status = document.querySelector("[data-nibwick-status]");
+  const alertPanel = document.querySelector("[data-nibwick-popover]");
 
   if (!stage || !nibwick || !art || !status) return;
 
   const STORAGE_KEY = "incoooming:nibwick-paused";
   const CYCLE_DURATION = 42000;
   const REACTION_DURATION = 1650;
+  const hasAlertNotes = Boolean(alertPanel);
   const makeFrame = (eyes, mouth, prop, feet = "   / \\") =>
     [" .-___-.", `( ${eyes} )`, `|   ${mouth}   |`, `( ${prop} )`, " `-._.-'", feet].join(
       "\n",
@@ -20,11 +22,15 @@
     makeFrame("o   o", "v", " [O] ", "  _  \\"),
   ];
   const KICK_FRAME = makeFrame("o   o", "!", " /_> ", "   /__>");
+  const WAVE_FRAMES = [
+    [" .-___-.", "( o   o )", " |  !  |/", "(  [!]  )", " `-._.-'", "   / \\"].join("\n"),
+    [" .-___-.", "( o   o )", "\\|  !  | ", "(  [!]  )", " `-._.-'", "   / \\"].join("\n"),
+  ];
   const REACTIONS = {
     audit: { art: makeFrame("o   o", "!", " [T] "), label: "AUDIT" },
     recount: { art: makeFrame("o   o", "v", " [#] "), label: "RECOUNT" },
     shares: { art: makeFrame("o   o", "v", " [+] "), label: "SHARES" },
-    notice: { art: makeFrame("o   o", "!", " [!] "), label: "NOTE" },
+    notice: { frames: WAVE_FRAMES, label: "NOTE", duration: 2600 },
   };
   const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
   let startedAt = performance.now();
@@ -35,6 +41,14 @@
 
   const isPaused = () => nibwick.dataset.paused === "true";
 
+  const setControlLabel = () => {
+    if (hasAlertNotes) {
+      const open = alertPanel && !alertPanel.hidden;
+      nibwick.setAttribute("aria-label", `${open ? "Close" : "Open"} Nibwick's notes`);
+      nibwick.setAttribute("aria-expanded", String(open));
+    }
+  };
+
   const measureStage = () => {
     const distance = Math.max(3, stage.clientHeight - nibwick.offsetHeight - 6);
     stage.style.setProperty("--nibwick-distance", `${distance}px`);
@@ -43,10 +57,11 @@
   const renderFrame = () => {
     if (motionPreference.matches) {
       stage.dataset.reducedMotion = "true";
-      art.textContent = STUDY_FRAME;
-      status.textContent = "STUDY";
+      art.textContent = stage.dataset.attention === "true" ? WAVE_FRAMES[0] : STUDY_FRAME;
+      status.textContent = stage.dataset.attention === "true" ? "NOTE" : "STUDY";
       nibwick.dataset.phase = "study";
-      nibwick.setAttribute("aria-label", "Nibwick is studying; reduced motion is enabled");
+      if (hasAlertNotes) setControlLabel();
+      else nibwick.setAttribute("aria-label", "Nibwick is studying; reduced motion is enabled");
       return;
     }
 
@@ -59,10 +74,14 @@
       return;
     }
 
-    nibwick.setAttribute("aria-label", "Pause Nibwick's desk patrol");
+    if (hasAlertNotes) setControlLabel();
+    else nibwick.setAttribute("aria-label", "Pause Nibwick's desk patrol");
     if (activeReaction) {
       const reaction = REACTIONS[activeReaction];
-      art.textContent = reaction.art;
+      const reactionElapsed = performance.now() - reactionStartedAt;
+      art.textContent = reaction.frames
+        ? reaction.frames[Math.floor(reactionElapsed / 260) % reaction.frames.length]
+        : reaction.art;
       status.textContent = reaction.label;
       nibwick.dataset.phase = "reaction";
       return;
@@ -93,12 +112,15 @@
   };
 
   const triggerReaction = (kind) => {
-    if (motionPreference.matches || isPaused() || !REACTIONS[kind]) return;
+    if (isPaused() || !REACTIONS[kind]) return;
     if (reactionStartedAt === null) reactionStartedAt = performance.now();
     activeReaction = kind;
     stage.dataset.reaction = kind;
     if (reactionTimer) window.clearTimeout(reactionTimer);
-    reactionTimer = window.setTimeout(finishReaction, REACTION_DURATION);
+    reactionTimer = window.setTimeout(
+      finishReaction,
+      REACTIONS[kind].duration || REACTION_DURATION,
+    );
     renderFrame();
   };
 
@@ -112,14 +134,30 @@
     }
     nibwick.dataset.paused = String(paused);
     stage.dataset.paused = String(paused);
-    nibwick.setAttribute("aria-pressed", String(paused));
-    localStorage.setItem(STORAGE_KEY, String(paused));
+    if (hasAlertNotes) {
+      nibwick.removeAttribute("aria-pressed");
+      setControlLabel();
+    } else {
+      nibwick.setAttribute("aria-pressed", String(paused));
+      localStorage.setItem(STORAGE_KEY, String(paused));
+    }
     renderFrame();
   };
 
   nibwick.addEventListener("click", () => {
+    if (hasAlertNotes) {
+      document.dispatchEvent(
+        new CustomEvent("nibwick:toggle-notes", { detail: { trigger: nibwick } }),
+      );
+      triggerReaction("notice");
+      return;
+    }
     if (!motionPreference.matches) setPaused(!isPaused());
   });
+  document.addEventListener("nibwick:react", (event) => {
+    triggerReaction(event.detail?.kind);
+  });
+  document.addEventListener("nibwick:panel-state", renderFrame);
   document.addEventListener("click", (event) => {
     if (!(event.target instanceof Element) || event.target.closest("[data-nibwick]")) return;
     const reactiveTarget = event.target.closest("[data-nibwick-react], [data-period]");
@@ -135,7 +173,7 @@
   new ResizeObserver(measureStage).observe(stage);
 
   const storedPreference = localStorage.getItem(STORAGE_KEY);
-  setPaused(storedPreference === "true");
+  setPaused(hasAlertNotes ? false : storedPreference === "true");
   measureStage();
   renderFrame();
   window.setInterval(() => {

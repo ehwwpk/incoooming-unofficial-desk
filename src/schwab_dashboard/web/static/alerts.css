@@ -1,134 +1,149 @@
-.nibwick-alert-badge {
+.nibwick-stage .nibwick-alert-badge {
+  position: absolute;
+  z-index: 3;
+  top: 4px;
+  right: 3px;
   display: grid;
-  min-height: 34px;
+  min-width: 22px;
+  min-height: 20px;
   grid-template-columns: auto auto;
   place-content: center;
-  gap: 4px;
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  padding: 5px 3px;
+  gap: 2px;
+  border: 1px solid var(--gold-soft);
+  padding: 2px 3px;
   background: #11100c;
   color: var(--gold);
   cursor: pointer;
-  font: 750 .4rem/1 var(--mono);
+  font: 750 .34rem/1 var(--mono);
 }
-.nibwick-alert-badge b {
-  display: grid;
-  width: 13px;
-  height: 13px;
-  place-items: center;
-  border: 1px solid var(--gold);
-  font-size: .42rem;
-}
+.nibwick-alert-badge b { font-size: .42rem; }
 .nibwick-alert-badge:hover, .nibwick-alert-badge:focus-visible {
+  border-color: var(--gold);
   background: var(--surface-raised);
   color: var(--text);
   outline: 1px solid var(--gold);
-  outline-offset: -1px;
+  outline-offset: 1px;
 }
-.nibwick-wire {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: 74px minmax(0, 1fr) auto;
-  margin: 9px 0 10px;
+.nibwick-stage[data-attention="true"] .nibwick-alert-badge {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgb(222 184 79 / 15%);
+  animation: nibwick-alert-ping 900ms ease-out 2;
+}
+.nibwick-stage[data-attention="true"] .nibwick { color: var(--gold); }
+.nibwick-announcement { position: fixed; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@keyframes nibwick-alert-ping {
+  0% { box-shadow: 0 0 0 0 rgb(222 184 79 / 42%); transform: scale(1); }
+  65% { box-shadow: 0 0 0 7px rgb(222 184 79 / 0%); transform: scale(1.08); }
+  100% { box-shadow: 0 0 0 0 rgb(222 184 79 / 0%); transform: scale(1); }
+}
+
+.nibwick-popover {
+  position: fixed;
+  z-index: 40;
+  top: 116px;
+  left: max(82px, calc((100vw - 2200px) / 2 + 78px));
+  width: min(820px, calc(100vw - 102px));
+  max-height: calc(100vh - 138px);
+  overflow: auto;
   border: 1px solid var(--line-strong);
-  background: #0a0b0b;
-  box-shadow: inset 3px 0 var(--gold-soft);
+  background: #090a0a;
+  color: var(--text);
+  box-shadow: 0 16px 45px rgb(0 0 0 / 68%), inset 3px 0 var(--gold);
 }
-.nibwick-wire-mark {
-  display: grid;
-  place-content: center;
-  gap: 6px;
-  border-right: 1px solid var(--line);
-  color: var(--gold);
-  text-align: center;
-  font: 750 .38rem/1 var(--mono);
+.nibwick-popover[hidden] { display: none; }
+.nibwick-popover::before {
+  position: fixed;
+  top: 148px;
+  left: max(72px, calc((100vw - 2200px) / 2 + 68px));
+  width: 10px;
+  border-top: 1px solid var(--gold);
+  content: "";
 }
-.nibwick-wire-mark b {
+.nibwick-popover-heading {
   display: grid;
-  width: 28px;
-  height: 28px;
-  margin: auto;
-  place-items: center;
-  border: 1px solid var(--gold);
-  border-radius: 50%;
-  font-size: .5rem;
-}
-.nibwick-wire-notes { min-width: 0; }
-.nibwick-note {
-  display: grid;
-  min-height: 94px;
-  grid-template-columns: minmax(130px, .52fr) minmax(260px, 1.5fr) minmax(310px, 1fr) auto;
+  grid-template-columns: 64px minmax(0, 1fr) 38px;
   align-items: stretch;
+  border-bottom: 1px solid var(--line-strong);
+  background: var(--surface-raised);
 }
-.nibwick-note[hidden] { display: none; }
-.nibwick-note > header, .nibwick-note > div, .nibwick-note > dl, .nibwick-note > a {
-  padding: 12px 14px;
-  border-right: 1px solid var(--line);
-}
-.nibwick-note > header { display: grid; align-content: center; gap: 5px; }
-.nibwick-note > header span, .nibwick-note > header small, .nibwick-note dt {
-  color: var(--subtle);
-  font: .39rem/1.2 var(--mono);
-  letter-spacing: .06em;
-}
-.nibwick-note > header b { color: var(--gold); font: 750 .48rem/1.2 var(--mono); }
-.nibwick-note.attention > header b { color: var(--red); }
-.nibwick-note.watch > header b { color: var(--green); }
-.nibwick-note > div { display: grid; align-content: center; gap: 5px; }
-.nibwick-note h3 { color: var(--text); font: 650 .72rem/1.2 var(--sans); }
-.nibwick-note p { max-width: 78ch; color: var(--muted); font: .52rem/1.5 var(--sans); }
-.nibwick-note dl {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(76px, 1fr));
-  align-items: stretch;
-  margin: 0;
-  padding: 0;
-}
-.nibwick-note dl > div { display: grid; align-content: center; gap: 5px; padding: 10px; border-right: 1px solid var(--line); }
-.nibwick-note dl > div:last-child { border-right: 0; }
-.nibwick-note dd { margin: 0; color: var(--text); font: 700 .55rem/1.15 var(--mono); }
-.nibwick-note > a {
-  display: grid;
-  min-width: 72px;
-  place-items: center;
-  border-right: 0;
-  color: var(--gold);
-  font: 750 .43rem/1.2 var(--mono);
-  text-decoration: none;
-}
-.nibwick-note > a:hover, .nibwick-note > a:focus-visible { background: var(--surface-raised); color: var(--text); outline: 1px solid var(--gold); outline-offset: -1px; }
-.nibwick-wire-nav {
-  display: grid;
-  width: 78px;
-  grid-template-rows: 1fr auto 1fr;
-  border-left: 1px solid var(--line);
-}
-.nibwick-wire-nav button {
+.nibwick-popover-heading > div { display: grid; align-content: center; gap: 3px; padding: 10px 12px; }
+.nibwick-popover-heading > div:first-child { place-items: center; border-right: 1px solid var(--line); color: var(--gold); }
+.nibwick-popover-heading > div:first-child span { display: grid; width: 26px; height: 26px; place-items: center; border: 1px solid var(--gold); border-radius: 50%; font: 750 .46rem var(--mono); }
+.nibwick-popover-heading p, .nibwick-popover-heading small { color: var(--subtle); font: .36rem/1 var(--mono); letter-spacing: .07em; }
+.nibwick-popover-heading h2 { font: 650 .72rem/1.2 var(--sans); }
+.nibwick-popover-heading > button {
   border: 0;
-  padding: 7px 5px;
+  border-left: 1px solid var(--line);
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  font: 700 .35rem/1.2 var(--mono);
+  font: 700 .8rem var(--mono);
 }
-.nibwick-wire-nav button:hover, .nibwick-wire-nav button:focus-visible { background: var(--surface-raised); color: var(--gold); outline: 1px solid var(--gold); outline-offset: -1px; }
-.nibwick-wire-nav span { padding: 5px; border-block: 1px solid var(--line); color: var(--subtle); font: .36rem/1 var(--mono); text-align: center; }
+.nibwick-popover-heading > button:hover, .nibwick-popover-heading > button:focus-visible { background: #221d10; color: var(--gold); outline: 1px solid var(--gold); outline-offset: -1px; }
+.nibwick-popover-notes { min-width: 0; }
+.nibwick-note {
+  display: grid;
+  grid-template-columns: 124px minmax(270px, 1fr);
+}
+.nibwick-note[hidden] { display: none; }
+.nibwick-note > header, .nibwick-note > div, .nibwick-note > dl, .nibwick-note > a { padding: 13px 14px; }
+.nibwick-note > header { display: grid; align-content: center; gap: 7px; border-right: 1px solid var(--line); }
+.nibwick-note > header b { color: var(--gold); font: 750 .46rem/1.25 var(--mono); }
+.nibwick-note.attention > header b { color: var(--red); }
+.nibwick-note.watch > header b { color: var(--green); }
+.nibwick-note > header small, .nibwick-note dt { color: var(--subtle); font: .37rem/1.2 var(--mono); letter-spacing: .06em; }
+.nibwick-note > div { display: grid; align-content: center; gap: 6px; }
+.nibwick-note h3 { font: 650 .78rem/1.2 var(--sans); }
+.nibwick-note p { max-width: 76ch; color: var(--muted); font: .55rem/1.55 var(--sans); }
+.nibwick-note dl {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+.nibwick-note dl > div { display: grid; gap: 5px; padding: 10px 14px; border-right: 1px solid var(--line); }
+.nibwick-note dl > div:last-child { border-right: 0; }
+.nibwick-note dd { margin: 0; font: 700 .56rem/1.15 var(--mono); }
+.nibwick-note > a {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--line);
+  color: var(--gold);
+  font: 750 .42rem/1 var(--mono);
+  text-align: right;
+  text-decoration: none;
+}
+.nibwick-note > a:hover, .nibwick-note > a:focus-visible { background: #17150e; color: var(--text); outline: 1px solid var(--gold); outline-offset: -1px; }
+.nibwick-popover-nav {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  border-top: 1px solid var(--line-strong);
+  background: var(--surface-raised);
+}
+.nibwick-popover-nav button {
+  min-height: 30px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: 700 .38rem/1 var(--mono);
+}
+.nibwick-popover-nav button:last-child { border-left: 1px solid var(--line); }
+.nibwick-popover-nav button:hover, .nibwick-popover-nav button:focus-visible { background: #17150e; color: var(--gold); outline: 1px solid var(--gold); outline-offset: -1px; }
+.nibwick-popover-nav span { display: grid; min-width: 64px; place-items: center; border-left: 1px solid var(--line); color: var(--subtle); font: .36rem/1 var(--mono); }
 
-@media (max-width: 1200px) {
-  .nibwick-wire { grid-template-columns: 60px minmax(0, 1fr) auto; }
-  .nibwick-note { grid-template-columns: minmax(125px, .5fr) minmax(250px, 1.5fr); }
-  .nibwick-note > dl { border-top: 1px solid var(--line); }
-  .nibwick-note > a { border-top: 1px solid var(--line); }
+@media (prefers-reduced-motion: reduce) {
+  .nibwick-stage[data-attention="true"] .nibwick-alert-badge { animation: none; }
 }
 
 @media (max-width: 700px) {
-  .nibwick-alert-badge { min-width: 50px; border-right: 1px solid var(--line); border-bottom: 0; }
-  .nibwick-wire { grid-template-columns: 48px minmax(0, 1fr); }
-  .nibwick-wire-nav { grid-column: 1 / -1; width: auto; grid-template-columns: 1fr auto 1fr; grid-template-rows: auto; border-top: 1px solid var(--line); border-left: 0; }
-  .nibwick-wire-nav span { border-block: 0; border-inline: 1px solid var(--line); }
+  .nibwick-popover { inset: 106px 10px auto; width: auto; max-height: calc(100vh - 118px); }
+  .nibwick-popover::before { display: none; }
   .nibwick-note { grid-template-columns: 1fr; }
-  .nibwick-note > header, .nibwick-note > div, .nibwick-note > dl { border-right: 0; border-bottom: 1px solid var(--line); }
-  .nibwick-note > dl { grid-template-columns: repeat(3, 1fr); }
-  .nibwick-note > a { min-height: 36px; border-top: 0; }
+  .nibwick-note > header { border-right: 0; border-bottom: 1px solid var(--line); }
+  .nibwick-note dl { grid-column: auto; grid-template-columns: 1fr; }
+  .nibwick-note dl > div { border-right: 0; border-bottom: 1px solid var(--line); }
+  .nibwick-note dl > div:last-child { border-bottom: 0; }
+  .nibwick-note > a { grid-column: auto; }
 }

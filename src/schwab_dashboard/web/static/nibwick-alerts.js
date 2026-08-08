@@ -1,26 +1,126 @@
 (() => {
-  const wire = document.querySelector("[data-nibwick-wire]");
+  const panel = document.querySelector("[data-nibwick-popover]");
   const notes = [...document.querySelectorAll("[data-nibwick-note]")];
+  const stage = document.querySelector("[data-nibwick-stage]");
+  const nibwick = document.querySelector("[data-nibwick]");
   const badge = document.querySelector("[data-nibwick-alert-badge]");
-  if (!wire || !notes.length) return;
+  const closeButton = panel?.querySelector("[data-nibwick-close]");
+  if (!panel || !notes.length || !stage || !nibwick || !badge || !closeButton) return;
 
-  const position = wire.querySelector("[data-nibwick-note-position]");
+  const position = panel.querySelector("[data-nibwick-note-position]");
+  const announcement = document.querySelector("[data-nibwick-announcement]");
+  const seenSymbols = new Set();
   let activeIndex = 0;
+  let returnFocus = null;
+
+  const setExpanded = (expanded) => {
+    nibwick.setAttribute("aria-expanded", String(expanded));
+    badge.setAttribute("aria-expanded", String(expanded));
+  };
+
   const showNote = (index) => {
     activeIndex = (index + notes.length) % notes.length;
     notes.forEach((note, noteIndex) => {
       note.hidden = noteIndex !== activeIndex;
     });
     if (position) position.textContent = `${activeIndex + 1} / ${notes.length}`;
+    panel.dataset.activeSymbol = notes[activeIndex].dataset.alertSymbol;
   };
 
-  wire.querySelector("[data-nibwick-note-prev]")?.addEventListener("click", () => {
+  const showSymbol = (symbol) => {
+    const index = notes.findIndex((note) => note.dataset.alertSymbol === symbol);
+    if (index >= 0) showNote(index);
+    return index >= 0;
+  };
+
+  const openPanel = (trigger) => {
+    returnFocus = trigger instanceof HTMLElement ? trigger : nibwick;
+    panel.hidden = false;
+    document.body.dataset.nibwickPopoverOpen = "true";
+    delete stage.dataset.attention;
+    setExpanded(true);
+    closeButton.focus({ preventScroll: true });
+    document.dispatchEvent(
+      new CustomEvent("nibwick:panel-state", { detail: { open: true } }),
+    );
+  };
+
+  const closePanel = (restoreFocus = true) => {
+    if (panel.hidden) return;
+    panel.hidden = true;
+    delete document.body.dataset.nibwickPopoverOpen;
+    setExpanded(false);
+    document.dispatchEvent(
+      new CustomEvent("nibwick:panel-state", { detail: { open: false } }),
+    );
+    if (restoreFocus && returnFocus instanceof HTMLElement) {
+      returnFocus.focus({ preventScroll: true });
+    }
+  };
+
+  const togglePanel = (trigger) => {
+    if (panel.hidden) openPanel(trigger);
+    else closePanel();
+  };
+
+  const signalSymbol = (symbol) => {
+    if (seenSymbols.has(symbol) || !showSymbol(symbol) || !panel.hidden) return;
+    seenSymbols.add(symbol);
+    stage.dataset.attention = "true";
+    badge.setAttribute("aria-label", `Open Nibwick's ${symbol} note`);
+    if (announcement) announcement.textContent = `Nibwick has a note about ${symbol}.`;
+    document.dispatchEvent(
+      new CustomEvent("nibwick:react", { detail: { kind: "notice", symbol } }),
+    );
+  };
+
+  panel.querySelector("[data-nibwick-note-prev]")?.addEventListener("click", () => {
     showNote(activeIndex - 1);
   });
-  wire.querySelector("[data-nibwick-note-next]")?.addEventListener("click", () => {
+  panel.querySelector("[data-nibwick-note-next]")?.addEventListener("click", () => {
     showNote(activeIndex + 1);
   });
-  badge?.addEventListener("click", () => {
-    wire.scrollIntoView({ behavior: "smooth", block: "center" });
+  panel.querySelectorAll("[data-nibwick-show-name]").forEach((link) => {
+    link.addEventListener("click", () => {
+      seenSymbols.add(notes[activeIndex].dataset.alertSymbol);
+      closePanel(false);
+    });
   });
+  closeButton.addEventListener("click", () => closePanel());
+  badge.addEventListener("click", () => togglePanel(badge));
+  document.addEventListener("nibwick:toggle-notes", (event) => {
+    togglePanel(event.detail?.trigger || nibwick);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !panel.hidden) closePanel();
+  });
+  document.addEventListener("click", (event) => {
+    if (
+      panel.hidden ||
+      !(event.target instanceof Element) ||
+      event.target.closest("[data-nibwick-popover], [data-nibwick], [data-nibwick-alert-badge]")
+    ) {
+      return;
+    }
+    closePanel(false);
+  });
+
+  if ("IntersectionObserver" in window) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) signalSymbol(entry.target.dataset.underlyingCard);
+        }
+      },
+      { rootMargin: "-20% 0px -65% 0px", threshold: 0 },
+    );
+    for (const card of document.querySelectorAll("[data-underlying-card]")) {
+      if (notes.some((note) => note.dataset.alertSymbol === card.dataset.underlyingCard)) {
+        observer.observe(card);
+      }
+    }
+  }
+
+  showNote(0);
+  setExpanded(false);
 })();

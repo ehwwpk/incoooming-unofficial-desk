@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <title>Incoooming Unofficial Desk · Options Income</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=24">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=25">
   </head>
   <body>
     <header class="topbar">
@@ -47,14 +47,14 @@
         <a href="#underlyings" data-rail-link="underlyings"><kbd>F2</kbd><span>NAMES</span></a>
         <a href="#income" data-rail-link="income"><kbd>F3</kbd><span>CASH</span></a>
         <a href="#records" data-rail-link="records"><kbd>F4</kbd><span>LOG</span></a>
-        {% if snapshot.alerts %}
-        <button type="button" class="nibwick-alert-badge" data-nibwick-alert-badge data-nibwick-react="notice" aria-label="Nibwick has {{ snapshot.alerts | length }} notes">
-          <b>!</b><span>{{ snapshot.alerts | length }}</span>
-        </button>
-        {% endif %}
         <div class="nibwick-stage" data-nibwick-stage>
+          {% if snapshot.alerts %}
+          <button type="button" class="nibwick-alert-badge" data-nibwick-alert-badge aria-label="Open Nibwick's {{ snapshot.alerts | length }} notes" aria-expanded="false" aria-controls="nibwick-note-popover">
+            <b>!</b><span>{{ snapshot.alerts | length }}</span>
+          </button>
+          {% endif %}
           <i class="nibwick-obstacle" data-nibwick-obstacle aria-hidden="true">[?]</i>
-          <button type="button" class="nibwick" data-nibwick data-paused="false" aria-label="Pause Nibwick's desk patrol" aria-pressed="false" title="Nibwick // unofficial night clerk // click to pause">
+          <button type="button" class="nibwick" data-nibwick data-paused="false" {% if snapshot.alerts %}aria-label="Open Nibwick's notes" aria-expanded="false" aria-controls="nibwick-note-popover" title="Nibwick has a desk note // click to open"{% else %}aria-label="Pause Nibwick's desk patrol" aria-pressed="false" title="Nibwick // unofficial night clerk // click to pause"{% endif %}>
             <pre data-nibwick-art aria-hidden="true"> .-___-.
 ( o   o )
 |   v   |
@@ -65,6 +65,8 @@
           </button>
         </div>
       </nav>
+
+      {% include "partials/_nibwick_alerts.html" %}
 
       <main class="shell">
       <section class="desk-heading" id="portfolio">
@@ -120,7 +122,7 @@
     <script src="{{ url_for('static', path='/chart-focus.js') }}?v=1" defer></script>
     <script src="{{ url_for('static', path='/event-layout.js') }}?v=3" defer></script>
     <script src="{{ url_for('static', path='/lifecycle-links.js') }}?v=1" defer></script>
-    <script src="{{ url_for('static', path='/nibwick-alerts.js') }}?v=1" defer></script>
-    <script src="{{ url_for('static', path='/nibwick.js') }}?v=3" defer></script>
+    <script src="{{ url_for('static', path='/nibwick-alerts.js') }}?v=2" defer></script>
+    <script src="{{ url_for('static', path='/nibwick.js') }}?v=4" defer></script>
   </body>
 </html>

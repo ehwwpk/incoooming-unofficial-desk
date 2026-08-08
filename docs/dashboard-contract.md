@@ -37,7 +37,7 @@ The default workspace keeps decision surfaces visible and moves verbose records 
 
 The primary workspace does not reserve a generic news or telemetry rail. A derived exception earns visible space only when it is actionable and can be placed next to the affected security or contract.
 
-Nibwick's note wire is conditional: it renders only when deterministic alert rules produce a result. Alert severity, facts, and thresholds come from typed application rules; the mascot adds plain-English presentation but never invents advice. Routine notes use a polite persistent status region rather than an interrupting modal.
+Nibwick's note panel is conditional and initially hidden, so alerts reserve no permanent dashboard space. Entering a flagged security workspace makes the mascot wave and marks the note badge; it never opens the panel automatically. Clicking Nibwick or the badge opens the relevant note as a dismissible non-modal overlay, with close, outside-click, and Escape paths. Alert severity, facts, and thresholds come from typed application rules; the mascot adds plain-English presentation but never invents advice.
 
 ## Performance windows
 

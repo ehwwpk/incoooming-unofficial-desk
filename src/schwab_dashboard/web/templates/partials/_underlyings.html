@@ -3,37 +3,6 @@
     <div><p class="eyebrow">SECURITY WORKSPACES</p><h2>Stocks and active calls</h2></div>
     <span class="portfolio-theta-total" title="Theoretical one-day option value decay across all open short calls, holding other pricing inputs constant. Not realized income."><small>PORTFOLIO OPEN-CALL DECAY EST. / DAY</small><b>+{{ snapshot.risk.daily_theta | money }}</b><i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i></span>
   </div>
-  {% if snapshot.alerts %}
-  <section class="nibwick-wire" data-nibwick-wire aria-live="polite" aria-label="Nibwick's portfolio notes">
-    <div class="nibwick-wire-mark" aria-hidden="true"><b>NW</b><span>NIBWICK</span></div>
-    <div class="nibwick-wire-notes">
-      {% for alert in snapshot.alerts %}
-      <article class="nibwick-note {{ alert.level }}" data-nibwick-note data-alert-index="{{ loop.index0 }}"{% if not loop.first %} hidden{% endif %}>
-        <header>
-          <span>NIBWICK HAS A NOTE</span>
-          <b>{{ alert.level_label }}</b>
-          <small>{{ loop.index }} OF {{ loop.length }}</small>
-        </header>
-        <div>
-          <h3>{{ alert.headline }}</h3>
-          <p>{{ alert.message }}</p>
-        </div>
-        <dl>
-          {% for fact in alert.facts %}<div><dt>{{ fact.label }}</dt><dd>{{ fact.value }}</dd></div>{% endfor %}
-        </dl>
-        <a href="#{{ alert.target_id }}" data-nibwick-show-name>SHOW {{ alert.symbol }}</a>
-      </article>
-      {% endfor %}
-    </div>
-    {% if snapshot.alerts | length > 1 %}
-    <div class="nibwick-wire-nav" aria-label="Browse Nibwick's notes">
-      <button type="button" data-nibwick-note-prev>PREVIOUS</button>
-      <span data-nibwick-note-position>1 / {{ snapshot.alerts | length }}</span>
-      <button type="button" data-nibwick-note-next>NEXT NOTE</button>
-    </div>
-    {% endif %}
-  </section>
-  {% endif %}
   {% if snapshot.underlyings %}
   <div class="underlying-grid">
     {% for item in snapshot.underlyings %}
