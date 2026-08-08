@@ -8,7 +8,9 @@ from schwab_dashboard.application.dashboard.covered_calls import (
     CallSaleRecord,
     PriceEvent,
     PricePoint,
+    ShareTradeEvent,
 )
+from schwab_dashboard.infrastructure.demo.fixtures.share_trades import ShareTradeFixture
 
 D = Decimal
 TENTH = D("0.1")
@@ -122,6 +124,36 @@ def build_price_events(
                 linked_sale_sequence=(
                     None if event_type == "sale" else sale_sequences.get(lifecycle_id)
                 ),
+            )
+        )
+    return tuple(events)
+
+
+def build_share_trade_events(
+    trades: Sequence[ShareTradeFixture],
+    points: Sequence[PricePoint],
+) -> tuple[ShareTradeEvent, ...]:
+    """Project sparse share trades onto the same truthful daily-close anchors."""
+    if not points:
+        return ()
+    start, end = points[0].date, points[-1].date
+    events: list[ShareTradeEvent] = []
+    for trade in sorted(trades, key=lambda item: item.traded_on):
+        if not start <= trade.traded_on <= end:
+            continue
+        if trade.action not in {"buy", "sell"}:
+            raise ValueError(f"Unsupported share trade action: {trade.action}")
+        point = min(points, key=lambda item: abs((item.date - trade.traded_on).days))
+        events.append(
+            ShareTradeEvent(
+                date=trade.traded_on,
+                label=trade.traded_on.strftime("%m/%d"),
+                action=trade.action,
+                glyph="+" if trade.action == "buy" else "-",
+                shares=trade.shares,
+                price=trade.price,
+                x_percent=point.x_percent,
+                y_percent=point.y_percent,
             )
         )
     return tuple(events)

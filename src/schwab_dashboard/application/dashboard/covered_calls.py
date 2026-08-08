@@ -32,6 +32,18 @@ class PriceEvent:
 
 
 @dataclass(frozen=True, slots=True)
+class ShareTradeEvent:
+    date: date
+    label: str
+    action: str
+    glyph: str
+    shares: int
+    price: Decimal
+    x_percent: Decimal
+    y_percent: Decimal
+
+
+@dataclass(frozen=True, slots=True)
 class UnderlyingPerformanceWindow:
     key: str
     option_cash: Decimal
@@ -143,6 +155,7 @@ class UnderlyingCallStats:
     distance_from_high_percent: Decimal
     price_points: Sequence[PricePoint]
     price_events: Sequence[PriceEvent]
+    share_trade_events: Sequence[ShareTradeEvent]
     tone: str
 
     @property

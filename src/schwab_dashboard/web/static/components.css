@@ -67,6 +67,8 @@
 .event-leader.sale, .event-leader.rolled { stroke: var(--gold); }
 .event-leader.expired { stroke: var(--green); }
 .event-leader.assigned { stroke: var(--red); }
+.event-leader.share-buy { stroke: var(--green); }
+.event-leader.share-sell { stroke: var(--red); }
 .lifecycle-link-halo, .lifecycle-link { fill: none; vector-effect: non-scaling-stroke; }
 .lifecycle-link-halo { stroke: var(--bg); stroke-width: 4; opacity: .9; }
 .lifecycle-link { stroke-width: 1.25; stroke-dasharray: 4 3; opacity: .82; }
@@ -80,8 +82,8 @@
 .price-axis.high { top: 8px; }
 .price-axis.mid { top: 50%; transform: translateY(-50%); }
 .price-axis.low { bottom: 21px; }
-.price-event, .price-now-event { position: absolute; z-index: 4; left: var(--event-x); top: var(--event-y); display: grid; place-items: center; transform: translate(-50%, calc(-50% - var(--event-offset, 0px))); font-style: normal; }
-.price-event { transform: translate(calc(-50% + var(--collision-x, 0px)), calc(-50% - var(--event-offset, 0px) + var(--collision-y, 0px))); }
+.price-event, .share-event, .price-now-event { position: absolute; z-index: 4; left: var(--event-x); top: var(--event-y); display: grid; place-items: center; transform: translate(-50%, calc(-50% - var(--event-offset, 0px))); font-style: normal; }
+.price-event, .share-event { cursor: pointer; transform: translate(calc(-50% + var(--collision-x, 0px)), calc(-50% - var(--event-offset, 0px) + var(--collision-y, 0px))); }
 .price-event b { position: relative; display: grid; min-width: 17px; height: 17px; padding: 0 3px; place-items: center; border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); font: 850 .4rem var(--mono); box-shadow: 0 0 0 2px var(--bg); }
 .price-event b small { position: absolute; top: 50%; right: calc(100% + 3px); padding: 2px 3px; border: 1px solid var(--gold-soft); background: var(--bg); color: var(--gold); font: 800 .32rem/1 var(--mono); white-space: nowrap; transform: translateY(-50%); }
 .price-event.sale b { border-color: var(--gold); background: var(--gold); color: var(--bg); }
@@ -89,6 +91,10 @@
 .price-event.closed b { border-color: #687268; color: var(--muted); }
 .price-event.rolled b { border-color: var(--gold); color: var(--gold); }
 .price-event.assigned b { border-color: #7a3537; background: #211011; color: var(--red); }
+.share-event { z-index: 3; --event-offset: 0px; }
+.share-event b { display: grid; width: 10px; height: 10px; place-items: center; border: 1px solid currentcolor; border-radius: 50%; background: var(--bg); font: 900 .34rem/1 var(--mono); box-shadow: 0 0 0 2px var(--bg); }
+.share-event.buy { color: var(--green); }
+.share-event.sell { color: var(--red); }
 .price-now-event { width: 7px; height: 7px; border: 2px solid var(--bg); border-radius: 50%; background: var(--text); box-shadow: 0 0 0 2px var(--text); }
 .price-now-event b { position: absolute; right: 8px; padding: 2px 3px; background: var(--bg); color: var(--text); font: 800 .38rem var(--mono); }
 .price-date-axis { position: absolute; right: 42px; bottom: 3px; left: 4px; display: flex; justify-content: space-between; color: var(--subtle); font: .38rem var(--mono); }
@@ -100,6 +106,7 @@
 .price-map-legend span > b.expired { border-color: var(--green-muted); border-radius: 50%; color: var(--green); }
 .price-map-legend span > b.managed { border-color: var(--olive-muted); color: var(--olive); }
 .price-map-legend span > b.assigned { border-color: #7a3537; color: var(--red); }
+.price-map-legend span > b.share-trade { border: 0; border-radius: 50%; background: transparent; color: var(--green); box-shadow: 0 0 0 1px var(--green-muted); }
 .price-map-legend small { margin-left: auto; color: #46515a; font: .39rem var(--mono); }
 .price-event-ledger { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--line); }
 .price-event-ledger > div { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 7px; min-width: 0; padding: 6px 8px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }

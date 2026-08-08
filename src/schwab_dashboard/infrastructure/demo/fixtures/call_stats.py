@@ -17,7 +17,9 @@ from schwab_dashboard.infrastructure.demo.fixtures.open_call_metrics import OPEN
 from schwab_dashboard.infrastructure.demo.fixtures.price_paths import (
     build_daily_price_points,
     build_price_events,
+    build_share_trade_events,
 )
+from schwab_dashboard.infrastructure.demo.fixtures.share_trades import SHARE_TRADES
 
 D = Decimal
 ZERO = D("0")
@@ -180,6 +182,9 @@ def _summarize_holding(
         ),
         price_points=price_points,
         price_events=build_price_events(symbol_records, price_points, as_of),
+        share_trade_events=build_share_trade_events(
+            SHARE_TRADES.get(holding.symbol, ()), price_points
+        ),
         tone=holding.tone,
     )
 

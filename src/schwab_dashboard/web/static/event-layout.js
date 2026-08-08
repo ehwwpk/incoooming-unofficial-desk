@@ -60,7 +60,7 @@
     const overlay = canvas.querySelector("[data-event-leaders]");
     if (!overlay) return;
 
-    const markers = [...canvas.querySelectorAll(".price-event")];
+    const markers = [...canvas.querySelectorAll(".price-event, .share-event")];
     for (const marker of markers) {
       marker.style.setProperty("--collision-x", "0px");
       marker.style.setProperty("--collision-y", "0px");
@@ -79,6 +79,7 @@
         const originWidth = marker.dataset.linkedSaleSequence ? 19 : 0;
         return {
           marker,
+          priority: marker.classList.contains("share-event") ? 1 : 0,
           anchorX:
             (Number.parseFloat(marker.style.getPropertyValue("--event-x")) / 100) *
             canvasRect.width,
@@ -95,7 +96,10 @@
           },
         };
       })
-      .sort((a, b) => a.centerX - b.centerX || a.centerY - b.centerY);
+      .sort(
+        (a, b) =>
+          a.priority - b.priority || a.centerX - b.centerX || a.centerY - b.centerY,
+      );
 
     const placed = [];
     for (const node of nodes) {

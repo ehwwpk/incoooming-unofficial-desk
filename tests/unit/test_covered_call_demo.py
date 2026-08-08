@@ -349,6 +349,24 @@ def test_price_paths_use_daily_closes_and_reconciled_option_events() -> None:
     )
     assert all(D("0") <= event.x_percent <= D("100") for event in events)
     assert all(D("0") <= event.y_percent <= D("100") for event in events)
+    share_events = [event for item in snapshot.underlyings for event in item.share_trade_events]
+    assert len(share_events) == 4
+    assert sum(event.action == "buy" for event in share_events) == 3
+    assert sum(event.action == "sell" for event in share_events) == 1
+    assert all(event.glyph in {"+", "-"} for event in share_events)
+    assert all(D("0") <= event.x_percent <= D("100") for event in share_events)
+    assert all(D("0") <= event.y_percent <= D("100") for event in share_events)
+    for item in snapshot.underlyings:
+        prices_by_date = {point.date: point for point in item.price_points}
+        for event in item.share_trade_events:
+            anchor = prices_by_date[event.date]
+            assert event.price == anchor.price
+            assert event.x_percent == anchor.x_percent
+            assert event.y_percent == anchor.y_percent
+    assert {
+        item.symbol: tuple(event.action for event in item.share_trade_events)
+        for item in snapshot.underlyings
+    } == {"CVX": ("buy", "sell"), "KTOS": ("buy",), "URNM": ("buy",)}
     lifecycle_pairs = {
         item.symbol: {
             (event.linked_sale_sequence, event.sequence)

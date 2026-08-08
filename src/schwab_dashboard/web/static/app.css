@@ -1,7 +1,7 @@
-@import url("./base.css?v=22");
-@import url("./components.css?v=22");
-@import url("./performance.css?v=22");
-@import url("./dashboard.css?v=22");
+@import url("./base.css?v=23");
+@import url("./components.css?v=23");
+@import url("./performance.css?v=23");
+@import url("./dashboard.css?v=23");
 
 @media (max-width: 1240px) {
   .portfolio-console { grid-template-columns: repeat(3, 1fr); }
