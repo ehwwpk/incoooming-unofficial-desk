@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <title>Incoooming Unofficial Desk · Options Income</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=17">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=19">
   </head>
   <body>
     <header class="topbar">
@@ -28,7 +28,6 @@
       {% for item in snapshot.underlyings %}<span><b>{{ item.symbol }}</b> {{ item.current_price | number(2) }}</span>{% endfor %}
       {% if snapshot.performance_windows %}<span>PREMIUM CASH / 28D <b>{{ snapshot.performance_windows[1].option_cash | money(0) }}</b></span>{% endif %}
       <span>TARGET <b data-header-target>{{ snapshot.objective.monthly_option_target | money(0) }}/MO</b></span>
-      <span>OPEN THETA <b>{{ snapshot.risk.daily_theta | money }}/D</b></span>
       <span class="source-pill {{ 'demo' if snapshot.is_demo else 'live' }}"><i class="source-dot"></i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</span>
     </div>
 

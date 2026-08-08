@@ -21,12 +21,19 @@
 .underlying-card header span { color: var(--muted); font-size: .58rem; }
 .price-block { text-align: right; }
 .price-block strong { color: var(--text) !important; letter-spacing: -.03em !important; }
-.underlying-primary { display: grid; grid-template-columns: 1.35fr 1fr 1fr; background: var(--surface-raised); }
+.underlying-primary { display: grid; grid-template-columns: 1.35fr .8fr .9fr 1.15fr; background: var(--surface-raised); }
 .underlying-primary div { display: grid; gap: 5px; padding: 11px 13px; border-right: 1px solid var(--line); }
 .underlying-primary div:last-child { border-right: 0; }
 .underlying-primary span, .underlying-lifecycle span { color: var(--subtle); font: .5rem var(--mono); }
 .underlying-primary strong { font: 650 .88rem var(--mono); }
 .underlying-primary div:first-child strong { color: var(--green); font-size: 1.02rem; }
+.underlying-primary .theta-total { gap: 3px; border-left: 2px solid var(--gold); background: #0d0f0f; }
+.underlying-primary .theta-total strong { color: var(--gold); font-size: .96rem; }
+.underlying-primary .theta-total small { color: var(--muted); font: .4rem var(--mono); }
+.terminal-heading > .portfolio-theta-total { display: flex; align-items: baseline; gap: 8px; padding: 5px 7px; border: 1px solid var(--gold-soft); background: #0d0b08; letter-spacing: 0; }
+.portfolio-theta-total small { color: var(--subtle); font: .45rem var(--mono); }
+.portfolio-theta-total b { color: var(--gold); font: 750 .72rem var(--mono); }
+.portfolio-theta-total i { color: var(--gold); font: 700 .4rem var(--mono); font-style: normal; }
 
 .underlying-decision-grid { --workspace-chart-percent: 44%; display: grid; grid-template-columns: var(--workspace-chart-percent) 9px minmax(0, 1fr); align-items: start; border-top: 1px solid var(--line-strong); border-bottom: 1px solid var(--line-strong); background: var(--bg); }
 .price-map { min-width: 0; background: var(--bg); }

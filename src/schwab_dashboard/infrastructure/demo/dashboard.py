@@ -109,7 +109,10 @@ class DemoDashboardReader:
             risk=RiskSummary(
                 buying_power_used_percent=D("7.8"),
                 portfolio_delta=D("1624.0"),
-                daily_theta=D("83.40"),
+                daily_theta=sum(
+                    (item.open_call_theta_per_day for item in underlyings),
+                    D("0"),
+                ),
                 short_contracts=covered_calls.active_contracts,
                 next_expiration=date(2026, 9, 4),
                 largest_position_percent=D("58.8"),

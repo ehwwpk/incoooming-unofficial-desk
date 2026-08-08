@@ -106,7 +106,7 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "data-target-input" in page.text
         assert "DIV RISK // MONITOR" in page.text
         assert "SIM EX-DIV" in page.text
-        assert "app.css?v=17" in page.text
+        assert "app.css?v=19" in page.text
         assert "periods.js?v=14" in page.text
         assert "workspace-splitter.js?v=1" in page.text
         assert page.text.count('data-workspace-splitter') == 3
@@ -122,6 +122,10 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert 'data-monthly-total-average="$3,084.67"' in page.text
         assert "data-active-option-average hidden" in page.text
         assert "PREMIUM RECEIVED / CURRENT MARK / OPEN P&amp;L" in page.text
+        assert "OPEN-CALL DECAY EST. / DAY" in page.text
+        assert page.text.count("PORTFOLIO OPEN-CALL DECAY EST. / DAY") == 1
+        assert page.text.count("EST. TIME DECAY / DAY") == 3
+        assert "+$46.00" in page.text
         assert "OPEN P/L AT CURRENT MARK" in page.text
         assert "OPTION VALUE NOW" in page.text
         assert "13W DAILY CLOSES" in page.text

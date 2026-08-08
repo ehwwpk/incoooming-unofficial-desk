@@ -1,7 +1,7 @@
-@import url("./base.css?v=17");
-@import url("./components.css?v=17");
-@import url("./performance.css?v=17");
-@import url("./dashboard.css?v=17");
+@import url("./base.css?v=19");
+@import url("./components.css?v=19");
+@import url("./performance.css?v=19");
+@import url("./dashboard.css?v=19");
 
 @media (max-width: 1240px) {
   .portfolio-console { grid-template-columns: repeat(3, 1fr); }
@@ -72,6 +72,10 @@
   .discipline-grid div:nth-child(5n) { border-right: 1px solid var(--line); }
   .discipline-grid div:nth-child(3n) { border-right: 0; }
   .discipline-grid div:nth-child(-n + 6) { border-bottom: 1px solid var(--line); }
+  .underlying-primary { grid-template-columns: repeat(2, 1fr); }
+  .underlying-primary div { border-bottom: 1px solid var(--line); }
+  .underlying-primary div:nth-child(2n) { border-right: 0; }
+  .underlying-primary div:nth-last-child(-n + 2) { border-bottom: 0; }
   .name-analytics { grid-template-columns: repeat(3, 1fr); }
   .name-analytics div:nth-child(3n) { border-right: 0; }
   .name-analytics div:nth-child(-n + 3) { border-bottom: 1px solid var(--line); }

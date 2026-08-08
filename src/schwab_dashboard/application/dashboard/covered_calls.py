@@ -143,6 +143,14 @@ class UnderlyingCallStats:
     price_events: Sequence[PriceEvent]
     tone: str
 
+    @property
+    def open_call_theta_per_day(self) -> Decimal:
+        """Current theoretical daily decay across this name's open short calls."""
+        return sum(
+            (call.short_theta_per_day for call in self.open_call_clocks),
+            Decimal("0"),
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class CoveredCallPortfolioSummary:

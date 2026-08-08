@@ -234,8 +234,17 @@ def test_name_windows_reconcile_to_every_portfolio_window() -> None:
 def test_open_call_clocks_expose_per_contract_dte_and_reconcile_theta() -> None:
     snapshot = DemoDashboardReader().execute()
     clocks = [clock for item in snapshot.underlyings for clock in item.open_call_clocks]
+    theta_by_symbol = {
+        item.symbol: item.open_call_theta_per_day for item in snapshot.underlyings
+    }
 
     assert len(clocks) == 5
+    assert theta_by_symbol == {
+        "CVX": D("23.00"),
+        "KTOS": D("46.00"),
+        "URNM": D("14.40"),
+    }
+    assert sum(theta_by_symbol.values(), D("0")) == snapshot.risk.daily_theta
     assert sum(clock.contracts for clock in clocks) == snapshot.covered_calls.active_contracts
     assert sum((clock.short_theta_per_day for clock in clocks), D("0")) == (
         snapshot.risk.daily_theta

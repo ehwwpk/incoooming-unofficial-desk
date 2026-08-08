@@ -1,7 +1,7 @@
 <section class="section-block" id="underlyings">
   <div class="section-heading terminal-heading">
     <div><p class="eyebrow">SECURITY WORKSPACES</p><h2>Stocks and active calls</h2></div>
-    <span>SELECTED-WINDOW CASH // MARKET-SESSION CLOSES // NUMBERED OPTION EVENTS</span>
+    <span class="portfolio-theta-total" title="Theoretical one-day option value decay across all open short calls, holding other pricing inputs constant. Not realized income."><small>PORTFOLIO OPEN-CALL DECAY EST. / DAY</small><b>+{{ snapshot.risk.daily_theta | money }}</b><i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i></span>
   </div>
   {% if snapshot.underlyings %}
   <div class="underlying-grid">
@@ -16,6 +16,7 @@
         <div><span data-name-option-label>NET PREMIUM CASH / 4 WEEKS</span><strong data-name-option-cash>{{ active_window.option_cash | money }}</strong></div>
         <div><span>SHARES</span><strong>{{ item.shares }}</strong></div>
         <div><span>ACTIVE CALLS</span><strong>{{ item.active_contracts }}/{{ item.contract_capacity }}</strong></div>
+        <div class="theta-total" title="Theoretical one-day option value decay across this stock's open short calls, holding other pricing inputs constant. Not realized income."><span>EST. TIME DECAY / DAY</span><strong>+{{ item.open_call_theta_per_day | money }}</strong><small>ALL OPEN CALLS // {{ 'SIM' if snapshot.is_demo else 'LIVE' }}</small></div>
       </div>
       <div class="name-analytics">
         <div><span data-name-option-apr-label>PREMIUM CASH APR / 4W</span><b data-name-option-apr>{{ active_window.option_apr | percent }}</b></div>
