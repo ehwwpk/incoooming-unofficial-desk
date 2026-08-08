@@ -45,7 +45,7 @@ def test_initial_migration_supports_local_api(tmp_path: Path) -> None:
         assert payload["portfolio"]["total_value"] == "0"
         assert payload["income"]["month"] == "0"
         assert page.status_code == 200
-        assert "Quarter income desk" in page.text
+        assert "Active income desk" in page.text
         assert "Schwab approval is the only external blocker" in page.text
     finally:
         container.close()
@@ -71,7 +71,20 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert len(payload["campaigns"]) == 3
         assert len(payload["positions"]) == 8
         assert len(payload["call_history"]) == 16
+        assert [window["key"] for window in payload["performance_windows"]] == [
+            "week",
+            "month",
+            "quarter",
+            "ytd",
+            "r365",
+        ]
+        assert payload["objective"]["monthly_option_target"] == "3000"
+        assert len(payload["basis_lens"]) == 4
         assert "fictional 13-week call ledger" in page.text
+        assert "PERFORMANCE WINDOWS" in page.text
+        assert "ROLL 365" in page.text
+        assert "$3,000 monthly net option cash" in page.text
+        assert "LIFETIME BASIS LENS" in page.text
         assert "Quarter call-sale ledger" in page.text
         assert "CVX" in page.text
         assert "KTOS" in page.text

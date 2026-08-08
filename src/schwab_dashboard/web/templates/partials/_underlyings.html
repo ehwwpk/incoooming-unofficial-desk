@@ -16,6 +16,14 @@
         <div><span>SHARES</span><strong>{{ item.shares }}</strong></div>
         <div><span>ACTIVE</span><strong>{{ item.active_contracts }}/{{ item.contract_capacity }}</strong></div>
       </div>
+      <div class="name-analytics">
+        <div><span>OPTION APR</span><b>{{ item.quarter_option_apr | percent }}</b></div>
+        <div><span>TOTAL CASH APR</span><b>{{ item.quarter_total_cash_apr | percent }}</b></div>
+        <div><span>AVG OPEN IV <i>SIM</i></span><b>{{ item.average_open_call_iv_percent | percent }}</b></div>
+        <div><span>AVG CALL DELTA</span><b>{{ item.average_open_call_delta | number(2) }}</b></div>
+        <div><span>STRIKE BUFFER</span><b>{{ item.current_strike_buffer_percent | percent }}</b></div>
+        <div><span>PREMIUM CAPTURE</span><b>{{ item.premium_capture_percent | percent }}</b></div>
+      </div>
       <div class="price-rhythm" aria-label="{{ item.symbol }} thirteen-week mocked price path">
         {% for point in item.price_points %}
         <div class="price-column" title="{{ point.label }} · {{ point.price | money }}">
@@ -35,6 +43,11 @@
         <span>AVG STRIKE GAP <b>{{ item.average_strike_upside_percent | percent }}</b></span>
         <span>AVG DTE <b>{{ item.average_days_to_expiration | number(1) }}</b></span>
         <span>WIN <b>{{ item.win_rate | percent }}</b></span>
+      </div>
+      <div class="basis-chip">
+        <span>LIFE INC {{ (item.lifetime_option_income + item.lifetime_dividends) | money(0) }}</span>
+        <span>INCOME-ADJ BASIS <b>{{ item.income_adjusted_basis_per_share | money }}/SH</b></span>
+        <span>{{ item.basis_offset_percent | percent }} BASIS OFFSET</span>
       </div>
       <div class="open-call-list">
         {% for call in item.current_calls %}<code>{{ call }}</code>{% endfor %}

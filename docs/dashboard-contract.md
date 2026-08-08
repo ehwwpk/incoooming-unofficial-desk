@@ -32,6 +32,24 @@ The browser and JSON API consume one typed dashboard snapshot regardless of data
 6. Call ledger: sale date, expiry, DTE, quantity, sale-time spot, strike, gap, premium, buyback, net cash, outcome, and sale signal.
 7. Positions and risk: reconciled inventory, buying-power use, delta, theta, concentration, and next expiration.
 
+## Performance windows
+
+- Week uses the latest seven calendar days.
+- Month uses a rolling 28-day view so partial calendar months do not distort the first comparison.
+- Quarter uses the current detailed 13-week ledger window.
+- Calendar YTD runs from January 1 through the snapshot date.
+- Rolling 365 uses the trailing 365 calendar days and is intentionally separate from YTD.
+- The year control exposes both YTD and rolling-365 totals; completed-quarter bars provide trend context but do not claim to reconcile a partial current quarter to 365 days.
+- Monthly run-rate equals net option cash divided by elapsed days and scaled to `365 / 12` days.
+- APR equals window cash divided by current stock market value and annualized by actual window days. It is not total return and can be distorted by short windows.
+
+## Manager objective
+
+- The default target is $3,000 per month of net option cash; dividends are shown separately and do not count toward target attainment.
+- The objective view reports rolling 4-week cash, 13-week monthly run-rate, YTD monthly run-rate, and rolling-365 monthly average together.
+- “Safe-rule compliance” means only that a mock ticket fits the current personal rules: 15–40% above sale-time spot and 21–56 DTE. It is a discipline measure, not a risk score, safety claim, or probability of profit.
+- Coverage, concentration, strike buffer, average DTE, premium capture, and buyback drag remain separate inputs so the UI does not hide risk inside one opaque rating.
+
 ## Accounting definitions
 
 - Gross premium is `premium per share × contracts × 100`.
@@ -40,6 +58,9 @@ The browser and JSON API consume one typed dashboard snapshot regardless of data
 - Realized option income includes only completed tickets; open-call credit remains visible separately.
 - Rolled tickets preserve the close debit on the old call and the new sale as separate execution records.
 - Active coverage is open contracts divided by share-backed contract capacity.
+- Premium capture is net option cash divided by gross premium; buyback drag is buy-to-close cash divided by gross premium.
+- The lifetime basis lens subtracts tracked option and dividend cash from original purchase cost for a private “capital earned back” view. It never changes brokerage or tax-lot cost basis.
+- Demo IV and delta values are explicitly marked simulated. Live values will be quantity-weighted from current open-call contracts after Schwab market-data access is approved.
 
 ## Replacement path
 

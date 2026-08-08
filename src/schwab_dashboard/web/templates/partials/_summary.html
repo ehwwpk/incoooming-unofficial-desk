@@ -9,12 +9,12 @@
   <article class="console-cell cash-primary">
     <span>OPTION +$ / QUARTER</span>
     <strong>{{ snapshot.covered_calls.net_option_cash | money }}</strong>
-    <small>{{ snapshot.covered_calls.gross_premium | money }} gross − {{ snapshot.covered_calls.buyback_cost | money }} BTC</small>
+    <small>{{ snapshot.covered_calls.annualized_option_yield | percent }} APR / {{ snapshot.covered_calls.gross_premium | money }} gross</small>
   </article>
   <article class="console-cell">
     <span>TOTAL CASH INCOME</span>
     <strong>{{ snapshot.covered_calls.total_cash_income | money }}</strong>
-    <small>Includes {{ snapshot.covered_calls.dividends | money }} dividends</small>
+    <small>{{ snapshot.covered_calls.annualized_total_cash_yield | percent }} APR / includes {{ snapshot.covered_calls.dividends | money }} dividends</small>
   </article>
   <article class="console-cell">
     <span>ACTIVE COVERAGE</span>
@@ -29,6 +29,6 @@
   <article class="console-cell">
     <span>SHARES CALLED AWAY</span>
     <strong>{{ snapshot.covered_calls.called_away_shares }}</strong>
-    <small>{{ snapshot.covered_calls.annualized_option_yield | percent }} annualized option yield</small>
+    <small>{{ snapshot.covered_calls.premium_capture_percent | percent }} of gross premium retained</small>
   </article>
 </section>

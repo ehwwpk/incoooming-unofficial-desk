@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <title>Covered Call Desk</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=3">
   </head>
   <body>
     <header class="topbar">
@@ -42,7 +42,7 @@
       <section class="desk-heading" id="portfolio">
         <div>
           <p class="eyebrow">CC-01 / COVERED CALL OPERATIONS</p>
-          <h1>Quarter income desk</h1>
+          <h1>Active income desk</h1>
           <p>Sell strength. Track every roll. Separate collected cash from realized outcome.</p>
         </div>
         <div class="desk-meta">
@@ -53,6 +53,7 @@
       </section>
 
       {% include "partials/_summary.html" %}
+      {% include "partials/_periods.html" %}
       {% if not snapshot.is_demo and not snapshot.token_available %}
         {% include "partials/_setup.html" %}
       {% endif %}
@@ -63,6 +64,8 @@
         {% include "partials/_risk.html" %}
       </div>
 
+      {% include "partials/_manager_console.html" %}
+
       {% include "partials/_campaigns.html" %}
       {% include "partials/_call_ledger.html" %}
       {% include "partials/_positions.html" %}
@@ -72,5 +75,6 @@
         <span>PERFORMANCE ACCOUNTING — NOT TAX OR INVESTMENT ADVICE</span>
       </footer>
     </main>
+    <script src="{{ url_for('static', path='/periods.js') }}?v=3" defer></script>
   </body>
 </html>

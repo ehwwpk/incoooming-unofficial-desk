@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
 from decimal import Decimal
 
 from schwab_dashboard.application.dashboard.covered_calls import (
@@ -10,94 +9,13 @@ from schwab_dashboard.application.dashboard.covered_calls import (
     PricePoint,
     UnderlyingCallStats,
 )
+from schwab_dashboard.infrastructure.demo.fixtures.holdings import HOLDINGS, HoldingFixture
 
 D = Decimal
 ZERO = D("0")
 TENTH = D("0.1")
-
-
-@dataclass(frozen=True, slots=True)
-class HoldingFixture:
-    symbol: str
-    company_name: str
-    shares: int
-    average_cost: Decimal
-    current_price: Decimal
-    tone: str
-    weekly_prices: Sequence[tuple[str, str, bool]]
-
-
-HOLDINGS = (
-    HoldingFixture(
-        symbol="CVX",
-        company_name="Chevron",
-        shares=700,
-        average_cost=D("155.40"),
-        current_price=D("192.26"),
-        tone="amber",
-        weekly_prices=(
-            ("05/15", "181.00", True),
-            ("05/22", "191.43", True),
-            ("05/29", "182.46", False),
-            ("06/05", "187.55", False),
-            ("06/12", "180.20", False),
-            ("06/19", "173.63", False),
-            ("06/26", "171.06", False),
-            ("07/03", "169.20", False),
-            ("07/10", "176.40", True),
-            ("07/17", "187.38", False),
-            ("07/24", "194.79", True),
-            ("07/31", "190.00", True),
-            ("08/07", "192.26", False),
-        ),
-    ),
-    HoldingFixture(
-        symbol="KTOS",
-        company_name="Kratos Defense",
-        shares=800,
-        average_cost=D("31.75"),
-        current_price=D("65.19"),
-        tone="cyan",
-        weekly_prices=(
-            ("05/15", "38.60", True),
-            ("05/22", "40.20", False),
-            ("05/29", "42.10", True),
-            ("06/05", "44.70", False),
-            ("06/12", "45.30", False),
-            ("06/19", "44.90", False),
-            ("06/26", "46.80", True),
-            ("07/03", "48.60", False),
-            ("07/10", "50.36", True),
-            ("07/17", "48.90", False),
-            ("07/24", "52.40", False),
-            ("07/31", "56.50", True),
-            ("08/07", "65.19", True),
-        ),
-    ),
-    HoldingFixture(
-        symbol="URNM",
-        company_name="Sprott Uranium Miners ETF",
-        shares=500,
-        average_cost=D("44.20"),
-        current_price=D("54.57"),
-        tone="violet",
-        weekly_prices=(
-            ("05/15", "47.20", False),
-            ("05/22", "47.80", True),
-            ("05/29", "49.10", False),
-            ("06/05", "50.60", True),
-            ("06/12", "50.10", False),
-            ("06/19", "51.40", False),
-            ("06/26", "52.40", True),
-            ("07/03", "53.20", False),
-            ("07/10", "56.20", True),
-            ("07/17", "55.10", False),
-            ("07/24", "53.30", False),
-            ("07/31", "53.80", False),
-            ("08/07", "54.57", True),
-        ),
-    ),
-)
+YEAR_DAYS = D("365")
+QUARTER_DAYS = D("85")
 
 
 def build_underlying_stats(
@@ -114,7 +32,9 @@ def build_covered_call_summary(
     wins = sum(1 for record in completed if record.net_cash > ZERO)
     stock_value = sum((underlying.market_value for underlying in underlyings), ZERO)
     net_option_cash = sum((record.net_cash for record in records), ZERO)
-    dividends = D("1246.00")
+    gross_premium = sum((record.gross_premium for record in records), ZERO)
+    dividends = sum((underlying.quarter_dividends for underlying in underlyings), ZERO)
+    annual_factor = YEAR_DAYS / QUARTER_DAYS
     return CoveredCallPortfolioSummary(
         total_shares=sum(item.shares for item in underlyings),
         contract_capacity=sum(item.contract_capacity for item in underlyings),
@@ -129,7 +49,7 @@ def build_covered_call_summary(
         closed_contracts=_contracts(records, "Closed"),
         rolled_contracts=_contracts(records, "Rolled"),
         called_away_shares=_contracts(records, "Assigned") * 100,
-        gross_premium=sum((record.gross_premium for record in records), ZERO),
+        gross_premium=gross_premium,
         buyback_cost=sum((record.buyback_cost for record in records), ZERO),
         net_option_cash=net_option_cash,
         realized_option_income=sum((record.net_cash for record in completed), ZERO),
@@ -139,7 +59,13 @@ def build_covered_call_summary(
         dividends=dividends,
         total_cash_income=net_option_cash + dividends,
         win_rate=_ratio(wins, len(completed)),
-        annualized_option_yield=(net_option_cash / stock_value * 400).quantize(TENTH),
+        annualized_option_yield=(net_option_cash / stock_value * annual_factor * 100).quantize(
+            TENTH
+        ),
+        annualized_total_cash_yield=(
+            (net_option_cash + dividends) / stock_value * annual_factor * 100
+        ).quantize(TENTH),
+        premium_capture_percent=(net_option_cash / gross_premium * 100).quantize(TENTH),
     )
 
 
@@ -153,11 +79,16 @@ def _summarize_holding(
     contract_count = sum(record.contracts for record in symbol_records)
     active_contracts = sum(record.contracts for record in open_records)
     market_value = holding.current_price * holding.shares
-    realized = sum((record.net_cash for record in completed), ZERO)
+    net_option_cash = sum((record.net_cash for record in symbol_records), ZERO)
+    gross_premium = sum((record.gross_premium for record in symbol_records), ZERO)
     weighted_upside = sum(
         (record.strike_upside_percent * record.contracts for record in symbol_records), ZERO
     )
     weighted_dte = sum(record.days_to_expiration * record.contracts for record in symbol_records)
+    original_cost_basis = holding.average_cost * holding.shares
+    lifetime_income = holding.lifetime_option_income + holding.lifetime_dividends
+    income_adjusted_basis = original_cost_basis - lifetime_income
+    annual_factor = YEAR_DAYS / QUARTER_DAYS
     return UnderlyingCallStats(
         symbol=holding.symbol,
         company_name=holding.company_name,
@@ -175,11 +106,26 @@ def _summarize_holding(
         closed_contracts=_contracts(symbol_records, "Closed"),
         rolled_contracts=_contracts(symbol_records, "Rolled"),
         called_away_shares=_contracts(symbol_records, "Assigned") * 100,
-        gross_premium=sum((record.gross_premium for record in symbol_records), ZERO),
+        gross_premium=gross_premium,
         buyback_cost=sum((record.buyback_cost for record in symbol_records), ZERO),
-        net_option_cash=sum((record.net_cash for record in symbol_records), ZERO),
-        realized_option_income=realized,
+        net_option_cash=net_option_cash,
+        realized_option_income=sum((record.net_cash for record in completed), ZERO),
         open_call_credit=sum((record.gross_premium for record in open_records), ZERO),
+        quarter_dividends=holding.quarter_dividends,
+        quarter_total_cash=net_option_cash + holding.quarter_dividends,
+        quarter_option_apr=(net_option_cash / market_value * annual_factor * 100).quantize(TENTH),
+        quarter_total_cash_apr=(
+            (net_option_cash + holding.quarter_dividends) / market_value * annual_factor * 100
+        ).quantize(TENTH),
+        average_open_call_iv_percent=holding.average_open_call_iv_percent,
+        average_open_call_delta=holding.average_open_call_delta,
+        current_strike_buffer_percent=_current_strike_buffer(open_records, holding.current_price),
+        premium_capture_percent=(net_option_cash / gross_premium * 100).quantize(TENTH),
+        lifetime_option_income=holding.lifetime_option_income,
+        lifetime_dividends=holding.lifetime_dividends,
+        income_adjusted_basis=income_adjusted_basis,
+        income_adjusted_basis_per_share=(income_adjusted_basis / holding.shares).quantize(TENTH),
+        basis_offset_percent=(lifetime_income / original_cost_basis * 100).quantize(TENTH),
         average_strike_upside_percent=(weighted_upside / contract_count).quantize(TENTH),
         average_days_to_expiration=(D(weighted_dte) / contract_count).quantize(TENTH),
         win_rate=_ratio(sum(1 for record in completed if record.net_cash > ZERO), len(completed)),
@@ -187,6 +133,16 @@ def _summarize_holding(
         price_points=_price_points(holding.weekly_prices),
         tone=holding.tone,
     )
+
+
+def _current_strike_buffer(records: Sequence[CallSaleRecord], current_price: Decimal) -> Decimal:
+    contracts = sum(record.contracts for record in records)
+    if not contracts:
+        return ZERO
+    weighted_strike = (
+        sum((record.strike * record.contracts for record in records), ZERO) / contracts
+    )
+    return ((weighted_strike / current_price - 1) * 100).quantize(TENTH)
 
 
 def _price_points(rows: Sequence[tuple[str, str, bool]]) -> tuple[PricePoint, ...]:

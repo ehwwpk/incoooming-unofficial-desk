@@ -14,6 +14,12 @@ from schwab_dashboard.infrastructure.demo.fixtures.call_stats import (
 )
 from schwab_dashboard.infrastructure.demo.fixtures.campaigns import build_campaigns
 from schwab_dashboard.infrastructure.demo.fixtures.income import build_income_periods
+from schwab_dashboard.infrastructure.demo.fixtures.performance import (
+    build_basis_lens,
+    build_objective_summary,
+    build_performance_windows,
+    build_quarter_history,
+)
 from schwab_dashboard.infrastructure.demo.fixtures.positions import (
     build_allocations,
     build_positions,
@@ -29,6 +35,8 @@ class DemoDashboardReader:
         call_history = build_call_history()
         underlyings = build_underlying_stats(call_history)
         covered_calls = build_covered_call_summary(call_history, underlyings)
+        performance_windows = build_performance_windows(covered_calls, D("214019.00"))
+        windows_by_key = {window.key: window for window in performance_windows}
         return DashboardSnapshot(
             mode="demo",
             as_of=datetime(2026, 8, 7, 21, 15, tzinfo=UTC),
@@ -55,17 +63,21 @@ class DemoDashboardReader:
                 week=D("-105.00"),
                 month=D("1015.00"),
                 quarter=covered_calls.net_option_cash,
-                year_to_date=covered_calls.total_cash_income,
+                year_to_date=windows_by_key["ytd"].total_cash,
                 win_rate=covered_calls.win_rate,
                 annualized_yield=covered_calls.annualized_option_yield,
                 monthly_target=D("3000.00"),
-                target_progress_percent=D("33.8"),
+                target_progress_percent=windows_by_key["month"].target_progress_percent,
             ),
             income_periods=build_income_periods(),
             campaigns=build_campaigns(),
             covered_calls=covered_calls,
             underlyings=underlyings,
             call_history=call_history,
+            performance_windows=performance_windows,
+            quarter_history=build_quarter_history(),
+            objective=build_objective_summary(call_history, covered_calls, performance_windows),
+            basis_lens=build_basis_lens(underlyings),
             positions=build_positions(),
             allocations=build_allocations(),
             risk=RiskSummary(

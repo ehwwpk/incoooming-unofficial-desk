@@ -11,6 +11,7 @@ from schwab_dashboard.application.dashboard.calculations import (
 )
 from schwab_dashboard.application.dashboard.covered_calls import CoveredCallPortfolioSummary
 from schwab_dashboard.application.dashboard.models import DashboardSnapshot, IncomeSummary
+from schwab_dashboard.application.dashboard.performance import ManagementObjectiveSummary
 from schwab_dashboard.application.ports.repositories import UnitOfWorkFactory
 
 ZERO = Decimal("0")
@@ -61,6 +62,10 @@ class ReadDashboard:
             covered_calls=_empty_covered_calls(),
             underlyings=(),
             call_history=(),
+            performance_windows=(),
+            quarter_history=(),
+            objective=_empty_objective(),
+            basis_lens=(),
             positions=positions,
             allocations=summarize_allocations(positions),
             risk=summarize_risk(positions),
@@ -88,4 +93,29 @@ def _empty_covered_calls() -> CoveredCallPortfolioSummary:
         total_cash_income=ZERO,
         win_rate=ZERO,
         annualized_option_yield=ZERO,
+        annualized_total_cash_yield=ZERO,
+        premium_capture_percent=ZERO,
+    )
+
+
+def _empty_objective() -> ManagementObjectiveSummary:
+    return ManagementObjectiveSummary(
+        monthly_option_target=ZERO,
+        rolling_four_week_option_cash=ZERO,
+        quarter_monthly_run_rate=ZERO,
+        year_to_date_monthly_run_rate=ZERO,
+        rolling_year_monthly_average=ZERO,
+        rolling_year_target_gap=ZERO,
+        rolling_year_target_progress_percent=ZERO,
+        target_months_hit=0,
+        observed_months=0,
+        compliant_call_tickets=0,
+        total_call_tickets=0,
+        safe_ticket_pace_monthly=ZERO,
+        contract_pace_monthly=ZERO,
+        premium_capture_percent=ZERO,
+        buyback_drag_percent=ZERO,
+        average_strike_gap_percent=ZERO,
+        average_days_to_expiration=ZERO,
+        uncovered_contract_capacity=0,
     )

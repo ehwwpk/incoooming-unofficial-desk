@@ -1,6 +1,7 @@
-@import url("./base.css");
-@import url("./components.css");
-@import url("./dashboard.css");
+@import url("./base.css?v=3");
+@import url("./components.css?v=3");
+@import url("./performance.css?v=3");
+@import url("./dashboard.css?v=3");
 
 @media (max-width: 1240px) {
   .portfolio-console { grid-template-columns: repeat(3, 1fr); }
@@ -8,9 +9,10 @@
   .console-cell:nth-child(-n + 3) { border-bottom: 1px solid var(--line); }
   .underlying-grid { grid-template-columns: 1fr; }
   .underlying-card { display: grid; grid-template-columns: 1.1fr 1fr; }
-  .underlying-card header, .underlying-card .underlying-primary, .underlying-card .execution-stats, .underlying-card .open-call-list { grid-column: 1 / -1; }
+  .underlying-card header, .underlying-card .underlying-primary, .underlying-card .name-analytics, .underlying-card .execution-stats, .underlying-card .basis-chip, .underlying-card .open-call-list { grid-column: 1 / -1; }
   .underlying-card .price-rhythm { border-right: 1px solid var(--line); }
   .campaign-grid { grid-template-columns: 1fr; }
+  .manager-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 960px) {
@@ -19,6 +21,8 @@
   .dashboard-grid { grid-template-columns: 1fr; }
   .side-stack { grid-template-columns: 1fr 1fr; }
   .setup-panel { grid-template-columns: 1fr; }
+  .period-toolbar { grid-template-columns: 1fr auto; }
+  .annual-controls { grid-column: 2; }
 }
 
 @media (max-width: 700px) {
@@ -40,6 +44,25 @@
   .income-stats div:nth-child(2) { border-right: 0; }
   .income-stats div:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
   .cash-reconcile { display: grid; grid-template-columns: 1fr 1fr; }
+  .period-toolbar { grid-template-columns: 1fr; }
+  .period-controls, .annual-controls { justify-self: stretch; }
+  .period-controls button, .annual-controls button { flex: 1; }
+  .annual-controls { grid-column: auto; }
+  .period-primary { grid-template-columns: repeat(2, 1fr); }
+  .period-primary > div:nth-child(2) { border-right: 0; }
+  .period-primary > div:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
+  .period-detail-grid { grid-template-columns: repeat(3, 1fr); }
+  .period-detail-grid > div:nth-child(3) { border-right: 0; }
+  .period-detail-grid > div:nth-child(-n + 3) { border-bottom: 1px solid var(--line); }
+  .quarter-history { grid-template-columns: repeat(4, 1fr); }
+  .quarter-history-label { grid-column: 1 / -1; }
+  .discipline-grid { grid-template-columns: repeat(3, 1fr); }
+  .discipline-grid div:nth-child(5n) { border-right: 1px solid var(--line); }
+  .discipline-grid div:nth-child(3n) { border-right: 0; }
+  .discipline-grid div:nth-child(-n + 6) { border-bottom: 1px solid var(--line); }
+  .name-analytics { grid-template-columns: repeat(3, 1fr); }
+  .name-analytics div:nth-child(3n) { border-right: 0; }
+  .name-analytics div:nth-child(-n + 3) { border-bottom: 1px solid var(--line); }
   .section-heading { align-items: flex-start; flex-direction: column; }
   .legend { margin-top: 3px; }
   footer { flex-direction: column; }
@@ -51,6 +74,20 @@
   .console-cell strong { font-size: .96rem; }
   .underlying-primary strong { font-size: .76rem; }
   .execution-stats { align-items: flex-start; flex-direction: column; }
+  .period-detail-grid { grid-template-columns: repeat(2, 1fr); }
+  .period-detail-grid > div:nth-child(3) { border-right: 1px solid var(--line); }
+  .period-detail-grid > div:nth-child(2n) { border-right: 0; }
+  .period-detail-grid > div:nth-child(-n + 4) { border-bottom: 1px solid var(--line); }
+  .objective-hero, .run-rate-grid { grid-template-columns: repeat(2, 1fr); }
+  .objective-hero > div:first-child { border-right: 0; border-bottom: 1px solid var(--line); }
+  .run-rate-grid div:nth-child(2) { border-right: 0; }
+  .run-rate-grid div:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
+  .discipline-grid { grid-template-columns: repeat(2, 1fr); }
+  .discipline-grid div:nth-child(3n) { border-right: 1px solid var(--line); }
+  .discipline-grid div:nth-child(2n) { border-right: 0; }
+  .basis-list > div { grid-template-columns: .5fr 1fr; }
+  .basis-list em { text-align: left; }
+  .basis-chip { align-items: flex-start; flex-direction: column; }
   .lifecycle-grid, .risk-grid { grid-template-columns: repeat(2, 1fr); }
   .lifecycle-grid div:nth-child(3n), .risk-grid div:nth-child(3n) { border-right: 1px solid var(--line); }
   .lifecycle-grid div:nth-child(2n), .risk-grid div:nth-child(2n) { border-right: 0; }

@@ -11,6 +11,12 @@ from schwab_dashboard.application.dashboard.covered_calls import (
     CoveredCallPortfolioSummary,
     UnderlyingCallStats,
 )
+from schwab_dashboard.application.dashboard.performance import (
+    BasisLensSummary,
+    ManagementObjectiveSummary,
+    PerformanceWindowSummary,
+    QuarterPerformanceSummary,
+)
 from schwab_dashboard.application.ports.repositories import SyncRunSummary
 
 
@@ -111,6 +117,10 @@ class DashboardSnapshot:
     covered_calls: CoveredCallPortfolioSummary
     underlyings: Sequence[UnderlyingCallStats]
     call_history: Sequence[CallSaleRecord]
+    performance_windows: Sequence[PerformanceWindowSummary]
+    quarter_history: Sequence[QuarterPerformanceSummary]
+    objective: ManagementObjectiveSummary
+    basis_lens: Sequence[BasisLensSummary]
     positions: Sequence[PositionSummary]
     allocations: Sequence[AllocationSlice]
     risk: RiskSummary

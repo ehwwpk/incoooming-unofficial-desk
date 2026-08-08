@@ -1,0 +1,61 @@
+<section class="panel period-panel" id="periods" data-period-console>
+  <div class="period-toolbar">
+    <div>
+      <p class="eyebrow">PERFORMANCE WINDOWS</p>
+      <h2>Income lens</h2>
+    </div>
+    <div class="period-controls" role="tablist" aria-label="Performance window">
+      <button type="button" role="tab" data-period="week" aria-selected="false">WEEK</button>
+      <button type="button" role="tab" data-period="month" aria-selected="false">MONTH</button>
+      <button type="button" role="tab" data-period="quarter" aria-selected="true">QUARTER</button>
+      <button type="button" role="tab" data-period="annual" aria-selected="false">1 YEAR</button>
+    </div>
+    <div class="annual-controls" data-annual-controls hidden aria-label="Annual calculation mode">
+      <button type="button" data-annual="ytd" aria-pressed="true">CAL YTD</button>
+      <button type="button" data-annual="r365" aria-pressed="false">ROLL 365</button>
+    </div>
+  </div>
+
+  {% if snapshot.performance_windows %}
+  <div class="period-sheets">
+    {% for window in snapshot.performance_windows %}
+    <article class="period-sheet" data-period-sheet="{{ window.key }}" {{ '' if window.key == 'quarter' else 'hidden' }}>
+      <header>
+        <div><span>{{ window.label }}</span><strong>{{ window.range_label }}</strong></div>
+        <small>{{ window.days }} CALENDAR DAYS / NET CASH BASIS</small>
+      </header>
+      <div class="period-primary">
+        <div class="option-cash"><span>NET OPTION +$</span><strong class="{{ window.option_cash | pnl_class }}">{{ window.option_cash | money }}</strong></div>
+        <div><span>DIVIDENDS</span><strong>{{ window.dividends | money }}</strong></div>
+        <div><span>TOTAL CASH</span><strong class="{{ window.total_cash | pnl_class }}">{{ window.total_cash | money }}</strong></div>
+        <div><span>MONTHLY OPTION RUN-RATE</span><strong class="{{ window.monthly_option_run_rate | pnl_class }}">{{ window.monthly_option_run_rate | money }}</strong></div>
+      </div>
+      <div class="period-detail-grid">
+        <div><span>OPTION APR</span><b>{{ window.annualized_option_yield | percent }}</b></div>
+        <div><span>TOTAL CASH APR</span><b>{{ window.annualized_total_yield | percent }}</b></div>
+        <div><span>GROSS / BTC</span><b>{{ window.gross_premium | money(0) }} / {{ window.buyback_cost | money(0) }}</b></div>
+        <div><span>CALLS / CONTRACTS</span><b>{{ window.call_tickets }} / {{ window.contracts }}</b></div>
+        <div><span>COMPLETED WIN RATE</span><b>{{ window.win_rate | percent }}</b></div>
+        <div class="target-cell">
+          <span>$3K/MO PACE</span><b>{{ window.target_progress_percent | percent }}</b>
+          <i><em style="--period-progress: {{ window.target_progress_percent }}%"></em></i>
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+
+  <div class="quarter-history" data-quarter-history hidden>
+    <div class="quarter-history-label"><span>COMPLETED QUARTER TRAIL</span><small>OPTION + DIVIDEND CASH</small></div>
+    {% for quarter in snapshot.quarter_history %}
+    <div class="quarter-history-item">
+      <b>{{ quarter.total_cash | money(0) }}</b>
+      <i><em style="--quarter-height: {{ quarter.bar_percent }}%"></em></i>
+      <span>{{ quarter.label }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="empty-state">Performance windows will populate after cash movements and executions are normalized.</p>
+  {% endif %}
+</section>

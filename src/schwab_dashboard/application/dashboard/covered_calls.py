@@ -55,6 +55,19 @@ class UnderlyingCallStats:
     net_option_cash: Decimal
     realized_option_income: Decimal
     open_call_credit: Decimal
+    quarter_dividends: Decimal
+    quarter_total_cash: Decimal
+    quarter_option_apr: Decimal
+    quarter_total_cash_apr: Decimal
+    average_open_call_iv_percent: Decimal
+    average_open_call_delta: Decimal
+    current_strike_buffer_percent: Decimal
+    premium_capture_percent: Decimal
+    lifetime_option_income: Decimal
+    lifetime_dividends: Decimal
+    income_adjusted_basis: Decimal
+    income_adjusted_basis_per_share: Decimal
+    basis_offset_percent: Decimal
     average_strike_upside_percent: Decimal
     average_days_to_expiration: Decimal
     win_rate: Decimal
@@ -84,3 +97,5 @@ class CoveredCallPortfolioSummary:
     total_cash_income: Decimal
     win_rate: Decimal
     annualized_option_yield: Decimal
+    annualized_total_cash_yield: Decimal
+    premium_capture_percent: Decimal

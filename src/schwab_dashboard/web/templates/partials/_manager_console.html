@@ -1,0 +1,66 @@
+<section class="manager-grid section-block" id="objective">
+  <article class="panel objective-panel">
+    <div class="section-heading terminal-heading">
+      <div><p class="eyebrow">MANAGER OBJECTIVE</p><h2>$3,000 monthly net option cash</h2></div>
+      <span>GOAL BASIS: OPTIONS ONLY / DIVIDENDS EXCLUDED</span>
+    </div>
+    <div class="objective-hero">
+      <div>
+        <span>ROLLING 365 MONTHLY AVG</span>
+        <strong>{{ snapshot.objective.rolling_year_monthly_average | money }}</strong>
+        <small>{{ snapshot.objective.rolling_year_target_gap | money }} / month below target</small>
+      </div>
+      <div class="objective-progress">
+        <span><b>{{ snapshot.objective.rolling_year_target_progress_percent | percent }}</b> OF PACE</span>
+        <i><em style="--objective-progress: {{ snapshot.objective.rolling_year_target_progress_percent }}%"></em></i>
+      </div>
+    </div>
+    <div class="run-rate-grid">
+      <div><span>ROLLING 4W</span><b>{{ snapshot.objective.rolling_four_week_option_cash | money }}</b></div>
+      <div><span>13W / MONTH</span><b>{{ snapshot.objective.quarter_monthly_run_rate | money }}</b></div>
+      <div><span>YTD / MONTH</span><b class="positive">{{ snapshot.objective.year_to_date_monthly_run_rate | money }}</b></div>
+      <div><span>R365 / MONTH</span><b>{{ snapshot.objective.rolling_year_monthly_average | money }}</b></div>
+    </div>
+    <div class="discipline-grid">
+      <div><span>MONTHS AT $3K</span><b>{{ snapshot.objective.target_months_hit }}/{{ snapshot.objective.observed_months }}</b></div>
+      <div><span>RULE-COMPLIANT CALLS</span><b>{{ snapshot.objective.compliant_call_tickets }}/{{ snapshot.objective.total_call_tickets }}</b></div>
+      <div><span>SAFE SETUP PACE</span><b>{{ snapshot.objective.safe_ticket_pace_monthly | number(1) }}/MO</b></div>
+      <div><span>CONTRACT PACE</span><b>{{ snapshot.objective.contract_pace_monthly | number(1) }}/MO</b></div>
+      <div><span>PREMIUM CAPTURE</span><b>{{ snapshot.objective.premium_capture_percent | percent }}</b></div>
+      <div><span>BTC / ROLL DRAG</span><b>{{ snapshot.objective.buyback_drag_percent | percent }}</b></div>
+      <div><span>AVG STRIKE GAP</span><b>{{ snapshot.objective.average_strike_gap_percent | percent }}</b></div>
+      <div><span>AVG DTE</span><b>{{ snapshot.objective.average_days_to_expiration | number(1) }}</b></div>
+      <div><span>UNCOVERED CAPACITY</span><b>{{ snapshot.objective.uncovered_contract_capacity }} CONTRACTS</b></div>
+    </div>
+    <p class="rule-note"><b>YOUR CURRENT “SAFE” RULE:</b> 15–40% above sale-time spot, 21–56 DTE, and a strength/rollover signal. Compliance measures discipline—not safety or probability of profit.</p>
+  </article>
+
+  <aside class="panel basis-panel">
+    <div class="section-heading terminal-heading">
+      <div><p class="eyebrow">LIFETIME BASIS LENS</p><h2>Income applied to original cost</h2></div>
+      <span>ANALYTICAL ONLY</span>
+    </div>
+    {% if snapshot.basis_lens %}
+    {% set portfolio_basis = snapshot.basis_lens[0] %}
+    <div class="basis-hero">
+      <span>OPTION + DIVIDEND INCOME</span>
+      <strong>{{ portfolio_basis.lifetime_management_income | money }}</strong>
+      <small>{{ portfolio_basis.basis_offset_percent | percent }} of {{ portfolio_basis.original_cost_basis | money }} original basis</small>
+    </div>
+    <div class="basis-adjusted">
+      <span>INCOME-ADJUSTED PORT BASIS</span><b>{{ portfolio_basis.income_adjusted_basis | money }}</b>
+    </div>
+    <div class="basis-list">
+      {% for item in snapshot.basis_lens[1:] %}
+      <div>
+        <strong>{{ item.symbol }}</strong>
+        <span>{{ item.lifetime_management_income | money(0) }} LIFE INC</span>
+        <b>{{ item.income_adjusted_basis_per_share | money }} / SH</b>
+        <em>{{ item.basis_offset_percent | percent }} OFFSET</em>
+      </div>
+      {% endfor %}
+    </div>
+    <p>This does not change brokerage or tax-lot cost basis. It is a private “capital earned back” perspective.</p>
+    {% endif %}
+  </aside>
+</section>
