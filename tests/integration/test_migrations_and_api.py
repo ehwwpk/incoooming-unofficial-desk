@@ -46,7 +46,7 @@ def test_initial_migration_supports_local_api(tmp_path: Path) -> None:
         assert payload["portfolio"]["total_value"] == "0"
         assert payload["income"]["month"] == "0"
         assert page.status_code == 200
-        assert "Premium Pavilion" in page.text
+        assert "Incomming Unofficial Desk" in page.text
         assert "Schwab approval is the only external blocker" in page.text
     finally:
         container.close()
@@ -87,13 +87,16 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
             "ytd",
             "r365",
         ]
+        r365 = payload["performance_windows"][-1]
+        assert r365["monthly_option_run_rate"] == "2648.33"
+        assert r365["monthly_total_run_rate"] == "3084.67"
         assert payload["objective"]["monthly_option_target"] == "3000"
         assert len(payload["basis_lens"]) == 4
         assert payload["basis_lens"][0]["capital_remaining"] == "118310.00"
         assert payload["basis_lens"][0]["recovery_surplus"] == "0"
         assert payload["basis_lens"][0]["fully_recovered"] is False
         assert "MOCK LEDGER / NO SCHWAB WRITES" in page.text
-        assert '<span class="brand-mark">PP</span>' in page.text
+        assert '<span class="brand-mark">IU</span>' in page.text
         assert "WINDOW ACCOUNTING" in page.text
         assert "TRANSACTION CASH · NORMALIZED PACE · OPEN MARK SEPARATED" in page.text
         assert "INTERNAL DESK FEED" in page.text
@@ -106,14 +109,17 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "data-target-input" in page.text
         assert "DIV RISK // MONITOR" in page.text
         assert "SIM EX-DIV" in page.text
-        assert "app.css?v=14" in page.text
-        assert "periods.js?v=13" in page.text
+        assert "app.css?v=15" in page.text
+        assert "periods.js?v=14" in page.text
         assert 'data-rail-link="portfolio" aria-current="page"' in page.text
         assert "NET PREMIUM CASH / 4 WEEKS" in page.text
         assert "EXECUTED CLOSE / ROLL DEBITS" in page.text
         assert "OPEN-CALL CREDIT RECEIVED" in page.text
         assert "CURRENT OPEN-CALL VALUE" in page.text
         assert "OPEN BOOK · NOT WINDOW CASH" in page.text
+        assert 'data-monthly-option-average="$2,648.33"' in page.text
+        assert 'data-monthly-total-average="$3,084.67"' in page.text
+        assert "data-active-option-average hidden" in page.text
         assert "PREMIUM RECEIVED / CURRENT MARK / OPEN P&amp;L" in page.text
         assert "OPEN P/L AT CURRENT MARK" in page.text
         assert "OPTION VALUE NOW" in page.text

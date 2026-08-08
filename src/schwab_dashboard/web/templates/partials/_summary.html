@@ -11,11 +11,13 @@
     <span data-active-option-label>NET PREMIUM CASH / {{ active.label if active else 'WINDOW' }}</span>
     <strong data-active-option-cash>{{ active.option_cash | money if active else snapshot.covered_calls.net_option_cash | money }}</strong>
     <small data-active-option-meta>{% if active %}{{ active.annualized_option_yield | percent }} APR / {{ active.gross_premium | money }} premium received{% else %}AWAITING NORMALIZED CASH DATA{% endif %}</small>
+    <small class="console-monthly-average" data-active-option-average hidden></small>
   </article>
   <article class="console-cell">
     <span data-active-total-label>TOTAL STRATEGY INCOME / {{ active.label if active else 'WINDOW' }}</span>
     <strong data-active-total-cash>{{ active.total_cash | money if active else snapshot.covered_calls.total_cash_income | money }}</strong>
     <small data-active-total-meta>{% if active %}{{ active.annualized_total_yield | percent }} APR / includes {{ active.dividends | money }} dividend income{% else %}AWAITING NORMALIZED CASH DATA{% endif %}</small>
+    <small class="console-monthly-average" data-active-total-average hidden></small>
   </article>
   <article class="console-cell">
     <span>ACTIVE COVERAGE</span>

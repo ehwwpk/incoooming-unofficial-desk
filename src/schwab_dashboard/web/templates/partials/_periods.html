@@ -21,6 +21,8 @@
       data-capture="{{ window.premium_capture_percent | percent }}"
       data-buyback-drag="{{ window.buyback_drag_percent | percent }}"
       data-monthly-run-rate="{{ window.monthly_option_run_rate }}"
+      data-monthly-option-average="{{ window.monthly_option_run_rate | money }}"
+      data-monthly-total-average="{{ window.monthly_total_run_rate | money }}"
       {{ '' if window.key == 'month' else 'hidden' }}
     >
       <header>

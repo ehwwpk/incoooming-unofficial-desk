@@ -46,6 +46,7 @@ The default workspace keeps decision surfaces visible and moves verbose records 
 - Quarter uses the current detailed 13-week ledger window.
 - Calendar YTD runs from January 1 through the snapshot date.
 - Rolling 365 uses the trailing 365 calendar days and is intentionally separate from YTD.
+- When rolling 365 is active, the two F1 income cells show explicit one-month averages for net premium cash and total strategy income. Each is the 365-day total divided by 12; the values are context, not additional cash.
 - The year control exposes both YTD and rolling-365 totals; completed-quarter bars provide trend context but do not claim to reconcile a partial current quarter to 365 days.
 - The selected window reports transaction cash: premium received minus executed close/roll debits equals net premium cash flow; net premium cash flow plus dividends equals total strategy income.
 - Calendar-month pace is a comparison metric, not additional cash. It equals net premium cash flow divided by elapsed days and scaled to `365 / 12` days. For example, a 28-day total can differ from its normalized 30.4-day pace.

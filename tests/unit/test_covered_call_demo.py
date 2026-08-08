@@ -118,6 +118,8 @@ def test_every_performance_window_reconciles_cash_and_goal_math() -> None:
     assert windows["quarter"].option_cash == snapshot.covered_calls.net_option_cash
     assert windows["quarter"].dividends == snapshot.covered_calls.dividends
     assert windows["r365"].target_cash_for_window == D("36000.00")
+    assert windows["r365"].monthly_option_run_rate == D("2648.33")
+    assert windows["r365"].monthly_total_run_rate == D("3084.67")
     assert windows["ytd"].monthly_option_run_rate > D("3000")
     assert windows["r365"].monthly_option_run_rate < D("3000")
 

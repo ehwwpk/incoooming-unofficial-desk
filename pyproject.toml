@@ -3,9 +3,9 @@ requires = ["hatchling>=1.27,<2"]
 build-backend = "hatchling.build"
 
 [project]
-name = "premium-pavilion"
+name = "incomming-unofficial-desk"
 version = "0.1.0"
-description = "Premium Pavilion: a local-first options-income and portfolio analytics ledger"
+description = "Incomming Unofficial Desk: a local-first options-income and portfolio analytics ledger"
 readme = "README.md"
 requires-python = ">=3.12,<3.15"
 license = { text = "Private personal project" }

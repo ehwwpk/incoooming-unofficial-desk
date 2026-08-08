@@ -12,6 +12,13 @@ const setText = (selector, value) => {
   });
 };
 
+const setOptionalText = (selector, value, visible) => {
+  document.querySelectorAll(selector).forEach((node) => {
+    node.textContent = visible ? value : "";
+    node.hidden = !visible;
+  });
+};
+
 const percent = (value) => `${value.toFixed(1)}%`;
 
 const setupTargetEditor = () => {
@@ -128,6 +135,17 @@ const setupPeriodConsole = () => {
     setText("[data-active-total-label]", `TOTAL STRATEGY INCOME / ${sheet.dataset.windowLabel}`);
     setText("[data-active-total-cash]", sheet.dataset.totalCash);
     setText("[data-active-total-meta]", `${sheet.dataset.totalApr} APR / includes ${sheet.dataset.dividends} dividend income`);
+    const showMonthlyAverage = key === "r365";
+    setOptionalText(
+      "[data-active-option-average]",
+      `1-MONTH AVG ${sheet.dataset.monthlyOptionAverage}`,
+      showMonthlyAverage,
+    );
+    setOptionalText(
+      "[data-active-total-average]",
+      `1-MONTH AVG ${sheet.dataset.monthlyTotalAverage}`,
+      showMonthlyAverage,
+    );
     setText("[data-active-calls-contracts]", `${sheet.dataset.calls} / ${sheet.dataset.contracts}`);
     setText("[data-active-win-rate]", `${sheet.dataset.winRate} positive-cash completion rate`);
     setText("[data-active-capture-label]", `PREMIUM CAPTURE / ${sheet.dataset.windowLabel}`);

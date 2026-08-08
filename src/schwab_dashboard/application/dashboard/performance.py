@@ -26,6 +26,7 @@ class PerformanceWindowSummary:
     annualized_option_yield: Decimal
     annualized_total_yield: Decimal
     monthly_option_run_rate: Decimal
+    monthly_total_run_rate: Decimal
     target_cash_for_window: Decimal
     target_progress_percent: Decimal
     premium_capture_percent: Decimal

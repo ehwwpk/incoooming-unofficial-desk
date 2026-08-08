@@ -203,6 +203,7 @@ def _window(row: tuple[object, ...], stock_value: Decimal) -> PerformanceWindowS
     gross_premium, buyback_cost = D(str(row[6])), D(str(row[7]))
     annual_factor = YEAR_DAYS / D(days)
     monthly_run_rate = (option_cash * MONTH_DAYS / D(days)).quantize(MONEY)
+    monthly_total_run_rate = ((option_cash + dividends) * MONTH_DAYS / D(days)).quantize(MONEY)
     target_for_window = (MONTHLY_TARGET * D(days) / MONTH_DAYS).quantize(MONEY)
     return PerformanceWindowSummary(
         key=key,
@@ -223,6 +224,7 @@ def _window(row: tuple[object, ...], stock_value: Decimal) -> PerformanceWindowS
             (option_cash + dividends) / stock_value * annual_factor * 100
         ).quantize(TENTH),
         monthly_option_run_rate=monthly_run_rate,
+        monthly_total_run_rate=monthly_total_run_rate,
         target_cash_for_window=target_for_window,
         target_progress_percent=max(ZERO, monthly_run_rate / MONTHLY_TARGET * 100).quantize(TENTH),
         premium_capture_percent=(option_cash / gross_premium * 100).quantize(TENTH)
