@@ -46,7 +46,7 @@ def test_initial_migration_supports_local_api(tmp_path: Path) -> None:
         assert payload["portfolio"]["total_value"] == "0"
         assert payload["income"]["month"] == "0"
         assert page.status_code == 200
-        assert "Premium Pit" in page.text
+        assert "Premium Pavilion" in page.text
         assert "Schwab approval is the only external blocker" in page.text
     finally:
         container.close()
@@ -69,6 +69,9 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert payload["income"]["month"] == "1950.00"
         assert payload["income"]["quarter"] == "6340.00"
         assert payload["covered_calls"]["total_cash_income"] == "7586.00"
+        assert payload["covered_calls"]["open_call_credit"] == "3390.00"
+        assert payload["covered_calls"]["open_call_mark_value"] == "3188.00"
+        assert payload["covered_calls"]["open_mark_profit_loss"] == "202.00"
         assert payload["covered_calls"]["assigned_contracts"] == 2
         assert payload["covered_calls"]["called_away_shares"] == 200
         assert len(payload["income_periods"]) == 13
@@ -90,22 +93,27 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert payload["basis_lens"][0]["recovery_surplus"] == "0"
         assert payload["basis_lens"][0]["fully_recovered"] is False
         assert "MOCK LEDGER / NO SCHWAB WRITES" in page.text
+        assert '<span class="brand-mark">PP</span>' in page.text
         assert "WINDOW ACCOUNTING" in page.text
-        assert "REALIZED CASH · NORMALIZED PACE · RECONCILED SOURCES" in page.text
+        assert "TRANSACTION CASH · NORMALIZED PACE · OPEN MARK SEPARATED" in page.text
         assert "INTERNAL DESK FEED" in page.text
         assert "NO MARKET HEADLINES" in page.text
         assert "R365" in page.text
-        assert "$3,000</span> monthly net option cash" in page.text
+        assert "$3,000</span> monthly net premium cash" in page.text
         assert 'data-period="month"' in page.text
         assert 'aria-label="Four weeks" aria-selected="true"' in page.text
         assert 'data-period-sheet="month"' in page.text
         assert "data-target-input" in page.text
         assert "DIV RISK // MONITOR" in page.text
         assert "SIM EX-DIV" in page.text
-        assert "app.css?v=13" in page.text
-        assert "periods.js?v=12" in page.text
+        assert "app.css?v=14" in page.text
+        assert "periods.js?v=13" in page.text
         assert 'data-rail-link="portfolio" aria-current="page"' in page.text
-        assert "NET OPTION INCOME / 4 WEEKS" in page.text
+        assert "NET PREMIUM CASH / 4 WEEKS" in page.text
+        assert "EXECUTED CLOSE / ROLL DEBITS" in page.text
+        assert "OPEN-CALL CREDIT RECEIVED" in page.text
+        assert "CURRENT OPEN-CALL VALUE" in page.text
+        assert "OPEN BOOK · NOT WINDOW CASH" in page.text
         assert "PREMIUM RECEIVED / CURRENT MARK / OPEN P&amp;L" in page.text
         assert "OPEN P/L AT CURRENT MARK" in page.text
         assert "OPTION VALUE NOW" in page.text
@@ -113,7 +121,7 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "58 MARKET SESSIONS" in page.text
         assert "YAHOO FINANCE CLOSE" in page.text
         assert 'data-buyback-drag="34.1%"' in page.text
-        assert "42.5% close / roll drag" in page.text
+        assert "42.5% executed-debit drag" in page.text
         assert "TIME ELAPSED" in page.text
         assert "RANGE POSITION" in page.text
         assert "2 ASSIGNED / 200 SH" in page.text

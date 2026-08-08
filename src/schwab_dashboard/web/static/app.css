@@ -1,7 +1,7 @@
-@import url("./base.css?v=13");
-@import url("./components.css?v=13");
-@import url("./performance.css?v=13");
-@import url("./dashboard.css?v=13");
+@import url("./base.css?v=14");
+@import url("./components.css?v=14");
+@import url("./performance.css?v=14");
+@import url("./dashboard.css?v=14");
 
 @media (max-width: 1240px) {
   .portfolio-console { grid-template-columns: repeat(3, 1fr); }
@@ -54,6 +54,8 @@
   .period-detail-grid { grid-template-columns: repeat(3, 1fr); }
   .period-detail-grid > div:nth-child(3) { border-right: 0; }
   .period-detail-grid > div:nth-child(-n + 3) { border-bottom: 1px solid var(--line); }
+  .open-book-reconcile { grid-template-columns: repeat(3, 1fr); }
+  .open-book-reconcile p { grid-column: 1 / -1; border-top: 1px solid var(--line); }
   .quarter-history { grid-template-columns: repeat(4, 1fr); }
   .quarter-history-label { grid-column: 1 / -1; }
   .discipline-grid { grid-template-columns: repeat(3, 1fr); }
@@ -85,6 +87,9 @@
   .period-detail-grid > div:nth-child(3) { border-right: 1px solid var(--line); }
   .period-detail-grid > div:nth-child(2n) { border-right: 0; }
   .period-detail-grid > div:nth-child(-n + 4) { border-bottom: 1px solid var(--line); }
+  .open-book-reconcile { grid-template-columns: 1fr; }
+  .open-book-reconcile > div { border-right: 0; border-bottom: 1px solid var(--line); }
+  .open-book-reconcile p { grid-column: auto; border-top: 0; }
   .objective-hero { grid-template-columns: repeat(2, 1fr); }
   .objective-hero > div:first-child { border-right: 0; border-bottom: 1px solid var(--line); }
   .discipline-grid { grid-template-columns: repeat(2, 1fr); }

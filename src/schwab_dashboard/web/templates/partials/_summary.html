@@ -8,7 +8,7 @@
     </small>
   </article>
   <article class="console-cell cash-primary">
-    <span data-active-option-label>NET OPTION INCOME / {{ active.label if active else 'WINDOW' }}</span>
+    <span data-active-option-label>NET PREMIUM CASH / {{ active.label if active else 'WINDOW' }}</span>
     <strong data-active-option-cash>{{ active.option_cash | money if active else snapshot.covered_calls.net_option_cash | money }}</strong>
     <small data-active-option-meta>{% if active %}{{ active.annualized_option_yield | percent }} APR / {{ active.gross_premium | money }} premium received{% else %}AWAITING NORMALIZED CASH DATA{% endif %}</small>
   </article>
@@ -25,11 +25,11 @@
   <article class="console-cell">
     <span>CALLS / CONTRACTS SOLD</span>
     <strong data-active-calls-contracts>{% if active %}{{ active.call_tickets }} / {{ active.contracts }}{% else %}0 / 0{% endif %}</strong>
-    <small data-active-win-rate>{% if active %}{{ active.win_rate | percent }}{% else %}0.0%{% endif %} completed win rate</small>
+    <small data-active-win-rate>{% if active %}{{ active.win_rate | percent }}{% else %}0.0%{% endif %} positive-cash completion rate</small>
   </article>
   <article class="console-cell">
     <span data-active-capture-label>PREMIUM CAPTURE / {{ active.label if active else 'WINDOW' }}</span>
     <strong data-active-capture-value>{% if active %}{{ active.premium_capture_percent | percent }}{% else %}0.0%{% endif %}</strong>
-    <small data-active-capture-meta>{% if active %}{{ active.buyback_drag_percent | percent }} close / roll drag{% else %}AWAITING NORMALIZED CASH DATA{% endif %}</small>
+    <small data-active-capture-meta>{% if active %}{{ active.buyback_drag_percent | percent }} executed-debit drag{% else %}AWAITING NORMALIZED CASH DATA{% endif %}</small>
   </article>
 </section>

@@ -44,6 +44,17 @@ def build_covered_call_summary(
     net_option_cash = sum((record.net_cash for record in records), ZERO)
     gross_premium = sum((record.gross_premium for record in records), ZERO)
     dividends = sum((underlying.quarter_dividends for underlying in underlyings), ZERO)
+    open_call_credit = sum(
+        (record.gross_premium for record in records if record.outcome == "Open"), ZERO
+    )
+    open_call_mark_value = sum(
+        (
+            clock.current_option_value
+            for underlying in underlyings
+            for clock in underlying.open_call_clocks
+        ),
+        ZERO,
+    )
     annual_factor = YEAR_DAYS / QUARTER_DAYS
     return CoveredCallPortfolioSummary(
         total_shares=sum(item.shares for item in underlyings),
@@ -64,9 +75,9 @@ def build_covered_call_summary(
         buyback_cost=sum((record.buyback_cost for record in records), ZERO),
         net_option_cash=net_option_cash,
         realized_option_income=sum((record.net_cash for record in completed), ZERO),
-        open_call_credit=sum(
-            (record.gross_premium for record in records if record.outcome == "Open"), ZERO
-        ),
+        open_call_credit=open_call_credit,
+        open_call_mark_value=open_call_mark_value,
+        open_mark_profit_loss=open_call_credit - open_call_mark_value,
         dividends=dividends,
         total_cash_income=net_option_cash + dividends,
         win_rate=_ratio(wins, len(completed)),

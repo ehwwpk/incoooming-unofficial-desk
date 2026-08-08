@@ -1,5 +1,5 @@
 <section class="panel period-panel" id="periods" data-period-console>
-  <div class="period-panel-label"><span>WINDOW ACCOUNTING</span><small>REALIZED CASH · NORMALIZED PACE · RECONCILED SOURCES</small></div>
+  <div class="period-panel-label"><span>WINDOW ACCOUNTING</span><small>TRANSACTION CASH · NORMALIZED PACE · OPEN MARK SEPARATED</small></div>
 
   {% if snapshot.performance_windows %}
   <div class="period-sheets">
@@ -25,19 +25,19 @@
     >
       <header>
         <div><span>{{ window.label }}</span><strong>{{ window.range_label }}</strong></div>
-        <small>{{ window.days }} ACTUAL DAYS / REALIZED CASH{% if window.key == 'month' %} / PACE NORMALIZED TO 30.4 DAYS{% endif %}</small>
+        <small>{{ window.days }} ACTUAL DAYS / TRANSACTION CASH{% if window.key == 'month' %} / PACE NORMALIZED TO 30.4 DAYS{% endif %}</small>
       </header>
       <div class="period-primary">
-        <div class="option-cash"><span>NET OPTION INCOME</span><strong class="{{ window.option_cash | pnl_class }}">{{ window.option_cash | money }}</strong><small>Premium received minus close / roll costs</small></div>
+        <div class="option-cash"><span>NET PREMIUM CASH FLOW</span><strong class="{{ window.option_cash | pnl_class }}">{{ window.option_cash | money }}</strong><small>Premium received minus executed close / roll debits</small></div>
         <div><span>DIVIDEND INCOME</span><strong>{{ window.dividends | money }}</strong><small>Cash dividends received in this window</small></div>
-        <div><span>TOTAL STRATEGY INCOME</span><strong class="{{ window.total_cash | pnl_class }}">{{ window.total_cash | money }}</strong><small>Net options plus dividends</small></div>
-        <div><span>CALENDAR-MONTH PACE</span><strong class="{{ window.monthly_option_run_rate | pnl_class }}">{{ window.monthly_option_run_rate | money }}</strong><small>Net option income normalized to 30.4 days</small></div>
+        <div><span>TOTAL STRATEGY INCOME</span><strong class="{{ window.total_cash | pnl_class }}">{{ window.total_cash | money }}</strong><small>Net premium cash plus dividends</small></div>
+        <div><span>CALENDAR-MONTH PACE</span><strong class="{{ window.monthly_option_run_rate | pnl_class }}">{{ window.monthly_option_run_rate | money }}</strong><small>Net premium cash normalized to 30.4 days</small></div>
       </div>
       <div class="period-detail-grid">
-        <div><span>NET OPTION APR</span><b>{{ window.annualized_option_yield | percent }}</b></div>
+        <div><span>PREMIUM CASH APR</span><b>{{ window.annualized_option_yield | percent }}</b></div>
         <div><span>TOTAL INCOME APR</span><b>{{ window.annualized_total_yield | percent }}</b></div>
         <div><span>PREMIUM RECEIVED</span><b>{{ window.gross_premium | money(0) }}</b></div>
-        <div><span>CLOSE / ROLL COSTS</span><b class="negative">-{{ window.buyback_cost | money(0) }}</b></div>
+        <div><span>EXECUTED CLOSE / ROLL DEBITS</span><b class="negative">-{{ window.buyback_cost | money(0) }}</b></div>
         <div><span>CALLS / CONTRACTS</span><b>{{ window.call_tickets }} / {{ window.contracts }}</b></div>
         <div class="target-cell">
           <span><span data-target-pace-label>{{ snapshot.objective.monthly_option_target | money(0) }}</span>/MO PACE</span><b data-target-progress>{{ window.target_progress_percent | percent }}</b>
@@ -46,6 +46,13 @@
       </div>
     </article>
     {% endfor %}
+  </div>
+
+  <div class="open-book-reconcile" aria-label="Current open-call mark reconciliation">
+    <div><span>OPEN-CALL CREDIT RECEIVED</span><b>{{ snapshot.covered_calls.open_call_credit | money }}</b></div>
+    <div><span>CURRENT OPEN-CALL VALUE</span><b>{{ snapshot.covered_calls.open_call_mark_value | money }}</b></div>
+    <div><span>OPEN P/L AT CURRENT MARK</span><b class="{{ snapshot.covered_calls.open_mark_profit_loss | pnl_class }}">{{ snapshot.covered_calls.open_mark_profit_loss | money }}</b></div>
+    <p><b>OPEN BOOK · NOT WINDOW CASH</b> Today’s mark is an estimate, not an executed debit. Expiry, assignment, or a later close determines the final option outcome.</p>
   </div>
 
   <div class="quarter-history" data-quarter-history hidden>

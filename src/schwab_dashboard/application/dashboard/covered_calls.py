@@ -173,6 +173,8 @@ class CoveredCallPortfolioSummary:
     net_option_cash: Decimal
     realized_option_income: Decimal
     open_call_credit: Decimal
+    open_call_mark_value: Decimal
+    open_mark_profit_loss: Decimal
     dividends: Decimal
     total_cash_income: Decimal
     win_rate: Decimal

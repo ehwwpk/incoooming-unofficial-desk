@@ -5,7 +5,7 @@
       <h2>Option and dividend cashflow</h2>
     </div>
     <div class="legend" aria-label="Chart legend">
-      <span><i class="option-key"></i>Option net cash</span>
+      <span><i class="option-key"></i>Net premium cash</span>
       <span><i class="dividend-key"></i>Dividends</span>
       <span><i class="debit-key"></i>Net debit</span>
     </div>
@@ -33,8 +33,8 @@
 
   <div class="cash-reconcile">
     <span>PREMIUM RECEIVED <b>{{ snapshot.covered_calls.gross_premium | money }}</b></span>
-    <span>CLOSE / ROLL COSTS <b class="negative">-{{ snapshot.covered_calls.buyback_cost | money }}</b></span>
-    <span>NET OPTION INCOME <b class="positive">{{ snapshot.covered_calls.net_option_cash | money }}</b></span>
+    <span>EXECUTED CLOSE / ROLL DEBITS <b class="negative">-{{ snapshot.covered_calls.buyback_cost | money }}</b></span>
+    <span>NET PREMIUM CASH FLOW <b class="positive">{{ snapshot.covered_calls.net_option_cash | money }}</b></span>
     <span>DIVIDEND INCOME <b>{{ snapshot.covered_calls.dividends | money }}</b></span>
   </div>
 </section>

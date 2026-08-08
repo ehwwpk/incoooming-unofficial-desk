@@ -91,6 +91,8 @@ def _empty_covered_calls() -> CoveredCallPortfolioSummary:
         net_option_cash=ZERO,
         realized_option_income=ZERO,
         open_call_credit=ZERO,
+        open_call_mark_value=ZERO,
+        open_mark_profit_loss=ZERO,
         dividends=ZERO,
         total_cash_income=ZERO,
         win_rate=ZERO,

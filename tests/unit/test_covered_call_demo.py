@@ -47,6 +47,9 @@ def test_call_cash_and_lifecycle_reconcile_at_symbol_and_portfolio_level() -> No
     assert calls.gross_premium == D("9005.00")
     assert calls.buyback_cost == D("2665.00")
     assert calls.net_option_cash == D("6340.00")
+    assert calls.open_call_credit == D("3390.00")
+    assert calls.open_call_mark_value == D("3188.00")
+    assert calls.open_mark_profit_loss == D("202.00")
     assert calls.dividends == D("1246.00")
     assert calls.total_cash_income == D("7586.00")
     assert calls.net_option_cash == calls.gross_premium - calls.buyback_cost

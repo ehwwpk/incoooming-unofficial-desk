@@ -24,7 +24,7 @@ def create_app(container: Container | None = None) -> FastAPI:
             app_container.close()
 
     app = FastAPI(
-        title="Schwab Options Dashboard",
+        title="Premium Pavilion",
         version="0.1.0",
         docs_url="/api/docs",
         redoc_url=None,

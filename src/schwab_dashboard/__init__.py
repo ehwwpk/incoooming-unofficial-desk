@@ -1,3 +1,3 @@
-"""Local Schwab options analytics dashboard."""
+"""Premium Pavilion options-income analytics."""
 
 __version__ = "0.1.0"

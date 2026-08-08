@@ -13,12 +13,12 @@
         <div class="price-block"><strong>{{ item.current_price | money }}</strong><span>{{ item.market_value | money }} MV</span></div>
       </header>
       <div class="underlying-primary">
-        <div><span data-name-option-label>NET OPTION INCOME / 4 WEEKS</span><strong data-name-option-cash>{{ active_window.option_cash | money }}</strong></div>
+        <div><span data-name-option-label>NET PREMIUM CASH / 4 WEEKS</span><strong data-name-option-cash>{{ active_window.option_cash | money }}</strong></div>
         <div><span>SHARES</span><strong>{{ item.shares }}</strong></div>
         <div><span>ACTIVE CALLS</span><strong>{{ item.active_contracts }}/{{ item.contract_capacity }}</strong></div>
       </div>
       <div class="name-analytics">
-        <div><span data-name-option-apr-label>NET OPTION APR / 4W</span><b data-name-option-apr>{{ active_window.option_apr | percent }}</b></div>
+        <div><span data-name-option-apr-label>PREMIUM CASH APR / 4W</span><b data-name-option-apr>{{ active_window.option_apr | percent }}</b></div>
         <div><span data-name-dividend-label>DIVIDENDS / 4W</span><b data-name-dividends>{{ active_window.dividends | money }}</b></div>
         <div><span>AVG OPEN IV <i>SIM</i></span><b>{{ item.average_open_call_iv_percent | percent }}</b></div>
         <div><span>AVG CALL DELTA</span><b>{{ item.average_open_call_delta | number(2) }}</b></div>
@@ -136,7 +136,7 @@
       </div>
       <div class="execution-stats">
         <span>AVG STRIKE GAP <b>{{ item.average_strike_upside_percent | percent }}</b></span>
-        <span>WIN <b>{{ item.win_rate | percent }}</b></span>
+        <span>POS CASH <b>{{ item.win_rate | percent }}</b></span>
         <span>TICKETS <b>{{ item.call_tickets }}</b></span>
       </div>
       <div class="basis-chip">

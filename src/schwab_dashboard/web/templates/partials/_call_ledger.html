@@ -9,7 +9,7 @@
       <thead><tr>
         <th>Name</th><th>Sold</th><th>Expiry</th><th>DTE</th><th class="numeric">Qty</th>
         <th class="numeric">Spot → Strike</th><th class="numeric">Gap</th><th class="numeric">Credit</th>
-        <th class="numeric">BTC</th><th class="numeric">Net +$</th><th>Outcome</th><th>Sale signal</th>
+        <th class="numeric">Close debit</th><th class="numeric">Net cash</th><th>Outcome</th><th>Sale signal</th>
       </tr></thead>
       <tbody>
         {% for record in snapshot.call_history | reverse %}

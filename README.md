@@ -1,6 +1,6 @@
-# Schwab Options Dashboard
+# Premium Pavilion
 
-A private, local-first, read-only ledger and dashboard for Schwab portfolio and options analytics.
+A private, local-first options-income pavilion for Schwab portfolio, covered-call, dividend, and performance analytics.
 
 The first milestone is intentionally small: authenticate, read accounts and positions, preserve the raw broker response, normalize a position snapshot, and prove that the result reconciles. No trading endpoints are implemented.
 
@@ -14,7 +14,7 @@ The demo command serves a deterministic covered-call simulation through the same
 
 Open `http://127.0.0.1:8182`. Press `Ctrl+C` in the terminal to stop it.
 
-All demo trades and historical price paths are fictional. Current-price anchors are only for realistic sizing and must not be treated as broker marks or trading guidance.
+All demo trades, option marks, IV, and Greeks are fictional. Underlying paths are frozen public market-session closes; they are not broker marks or trading guidance.
 
 ## Quick start on Windows
 
