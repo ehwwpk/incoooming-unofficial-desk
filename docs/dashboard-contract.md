@@ -27,14 +27,15 @@ The browser and JSON API consume one typed dashboard snapshot regardless of data
 
 1. Combined portfolio: net value, selected-window net premium cash, total strategy income, coverage, calls sold, and shares called away.
 2. Underlying attribution: selected-window option income/APR/dividends/capture, a 13-week observed daily-close path with faint Friday guides and numbered simulated lifecycle event markers that map directly to a written event tape, and per-contract premium-received/current-option-value/open-P&L economics.
-3. Strategy intelligence: deterministic internal exceptions derived from the tracked book (marks versus credit, dividend-calendar overlap, IV/Greek dispersion, and covered-lot capacity). It never embeds financial-news or social-headline content.
-4. Income: 13 weekly periods with option cash and dividends reconciled to quarter totals.
-5. Lifecycle: contracts expired, closed, rolled, and still open, plus assignments and the completed-ticket positive-cash rate.
-6. Campaigns: current legs, dates, quarter option cash, open profit/loss, collateral, and return on capital.
-7. Call ledger: sale date, expiry, DTE, quantity, sale-time spot, strike, gap, premium, executed close debit, net cash, outcome, and sale signal.
-8. Positions and risk: reconciled inventory, buying-power use, delta, theta, concentration, and next expiration.
+3. Income: 13 weekly periods with option cash and dividends reconciled to quarter totals.
+4. Lifecycle: contracts expired, closed, rolled, and still open, plus assignments and the completed-ticket positive-cash rate.
+5. Campaigns: current legs, dates, quarter option cash, open profit/loss, collateral, and return on capital.
+6. Call ledger: sale date, expiry, DTE, quantity, sale-time spot, strike, gap, premium, executed close debit, net cash, outcome, and sale signal.
+7. Positions and risk: reconciled inventory, buying-power use, delta, theta, concentration, and next expiration.
 
 The default workspace keeps decision surfaces visible and moves verbose records into one collapsed detail area. “Active books,” “Call history,” and “Positions” are tabs inside that area; only one record view renders visibly at a time.
+
+The primary workspace does not reserve a generic news or telemetry rail. A derived exception earns visible space only when it is actionable and can be placed next to the affected security or contract.
 
 ## Performance windows
 

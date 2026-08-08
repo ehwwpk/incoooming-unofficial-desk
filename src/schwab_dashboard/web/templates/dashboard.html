@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <title>Incomming Unofficial Desk · Options Income</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=15">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=16">
   </head>
   <body>
     <header class="topbar">
@@ -78,10 +78,7 @@
       </section>
 
       {% include "partials/_summary.html" %}
-      <div class="operations-grid">
-        {% include "partials/_periods.html" %}
-        {% include "partials/_strategy_intelligence.html" %}
-      </div>
+      {% include "partials/_periods.html" %}
       {% if not snapshot.is_demo and not snapshot.token_available %}
         {% include "partials/_setup.html" %}
       {% endif %}

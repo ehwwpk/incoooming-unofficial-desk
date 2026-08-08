@@ -61,7 +61,6 @@ class ReadDashboard:
             campaigns=(),
             covered_calls=_empty_covered_calls(),
             underlyings=(),
-            strategy_insights=(),
             call_history=(),
             performance_windows=(),
             quarter_history=(),

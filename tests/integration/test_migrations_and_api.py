@@ -42,7 +42,6 @@ def test_initial_migration_supports_local_api(tmp_path: Path) -> None:
         assert payload["latest_sync"] is None
         assert payload["accounts"] == []
         assert payload["positions"] == []
-        assert payload["strategy_insights"] == []
         assert payload["portfolio"]["total_value"] == "0"
         assert payload["income"]["month"] == "0"
         assert page.status_code == 200
@@ -78,8 +77,6 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert len(payload["campaigns"]) == 3
         assert len(payload["positions"]) == 8
         assert len(payload["call_history"]) == 16
-        assert len(payload["strategy_insights"]) == 4
-        assert payload["strategy_insights"][0]["category"] == "MARK ANOMALY"
         assert [window["key"] for window in payload["performance_windows"]] == [
             "week",
             "month",
@@ -99,8 +96,8 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert '<span class="brand-mark">IU</span>' in page.text
         assert "WINDOW ACCOUNTING" in page.text
         assert "TRANSACTION CASH · NORMALIZED PACE · OPEN MARK SEPARATED" in page.text
-        assert "INTERNAL DESK FEED" in page.text
-        assert "NO MARKET HEADLINES" in page.text
+        assert "INTERNAL DESK FEED" not in page.text
+        assert "NO MARKET HEADLINES" not in page.text
         assert "R365" in page.text
         assert "$3,000</span> monthly net premium cash" in page.text
         assert 'data-period="month"' in page.text
@@ -109,7 +106,7 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "data-target-input" in page.text
         assert "DIV RISK // MONITOR" in page.text
         assert "SIM EX-DIV" in page.text
-        assert "app.css?v=15" in page.text
+        assert "app.css?v=16" in page.text
         assert "periods.js?v=14" in page.text
         assert 'data-rail-link="portfolio" aria-current="page"' in page.text
         assert "NET PREMIUM CASH / 4 WEEKS" in page.text

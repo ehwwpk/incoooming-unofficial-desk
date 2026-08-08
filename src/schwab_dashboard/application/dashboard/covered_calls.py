@@ -70,17 +70,6 @@ class OpenCallClock:
 
 
 @dataclass(frozen=True, slots=True)
-class StrategyInsight:
-    sequence: int
-    symbol: str
-    category: str
-    headline: str
-    detail: str
-    metric: str
-    severity: str
-
-
-@dataclass(frozen=True, slots=True)
 class CallSaleRecord:
     symbol: str
     sold_on: date

@@ -80,7 +80,7 @@ kbd { border: 1px solid var(--line-strong); padding: 2px 3px; background: var(--
 .demo-banner > *:last-child { border-right: 0; }
 .demo-banner strong { color: var(--gold); letter-spacing: .08em; }
 .demo-banner b { color: var(--text); }
-.terminal-shell { display: grid; grid-template-columns: 54px minmax(0, 1fr); width: min(1580px, calc(100% - 20px)); margin: 10px auto 0; border: 1px solid var(--line-strong); background: var(--bg); }
+.terminal-shell { display: grid; grid-template-columns: 54px minmax(0, 1fr); width: min(2200px, calc(100% - 20px)); margin: 10px auto 0; border: 1px solid var(--line-strong); background: var(--bg); }
 .function-rail { position: sticky; z-index: 10; top: 55px; align-self: start; max-height: calc(100vh - 65px); border-right: 1px solid var(--line-strong); background: #070809; }
 .function-rail a { display: grid; min-height: 55px; place-items: center; align-content: center; gap: 5px; border-bottom: 1px solid var(--line); color: var(--subtle); font: .43rem var(--mono); }
 .function-rail a[aria-current="page"] { color: var(--gold); background: var(--surface-raised); box-shadow: inset 2px 0 var(--gold); }

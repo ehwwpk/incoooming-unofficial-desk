@@ -332,27 +332,3 @@ def test_price_paths_use_daily_closes_and_reconciled_option_events() -> None:
     )
     assert all(D("0") <= event.x_percent <= D("100") for event in events)
     assert all(D("0") <= event.y_percent <= D("100") for event in events)
-
-
-def test_strategy_intelligence_is_internal_book_telemetry() -> None:
-    snapshot = DemoDashboardReader().execute()
-    insights = snapshot.strategy_insights
-
-    assert tuple(insight.sequence for insight in insights) == (1, 2, 3, 4)
-    assert {insight.category for insight in insights} == {
-        "MARK ANOMALY",
-        "CALENDAR OVERLAP",
-        "IV DISPERSION",
-        "COVERAGE CAPACITY",
-    }
-    assert {insight.severity for insight in insights} == {
-        "critical",
-        "warning",
-        "watch",
-        "info",
-    }
-    assert insights[0].symbol == "KTOS"
-    assert insights[0].metric == "134.7%"
-    assert "-$425" in insights[0].detail
-    assert insights[-1].symbol == "URNM"
-    assert all("headline" not in insight.detail.lower() for insight in insights)
