@@ -24,7 +24,7 @@ def create_app(container: Container | None = None) -> FastAPI:
             app_container.close()
 
     app = FastAPI(
-        title="Incomming Unofficial Desk",
+        title="Incoooming Unofficial Desk",
         version="0.1.0",
         docs_url="/api/docs",
         redoc_url=None,

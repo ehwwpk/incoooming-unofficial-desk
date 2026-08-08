@@ -2,7 +2,7 @@
 
 ## Objective
 
-Let a person use Incomming Unofficial Desk without becoming a broker API developer or sharing brokerage credentials with the application.
+Let a person use Incoooming Unofficial Desk without becoming a broker API developer or sharing brokerage credentials with the application.
 
 The accounting domain must remain broker-neutral. Schwab, an aggregator, and file imports should all produce the same normalized accounts, positions, executions, option lifecycle events, dividends, and cash movements.
 
@@ -14,15 +14,15 @@ The accounting domain must remain broker-neutral. Schwab, an aggregator, and fil
 - Allow bring-your-own Schwab developer credentials for advanced self-hosters.
 - Add broker statement and transaction-file imports as the universal fallback.
 - Store tokens in the operating-system credential vault and account data only on the user's machine.
-- Do not require a central Incomming account.
+- Do not require a central Incoooming account.
 
 This path is private and inexpensive, but it is not a one-click experience for general users.
 
 ### Hosted public application
 
-1. The user creates an Incomming account.
+1. The user creates an Incoooming account.
 2. The user clicks **Connect brokerage** and completes a broker or approved aggregator consent flow.
-3. The connection provider returns a scoped connection token; Incomming never receives the brokerage password.
+3. The connection provider returns a scoped connection token; Incoooming never receives the brokerage password.
 4. Background workers ingest read-only accounts, holdings, transactions, option positions, dividends, expirations, assignments, and exercises.
 5. Broker adapters normalize those observations into the existing internal ledger.
 6. A separate licensed market-data provider supplies current option marks, IV, Greeks, and underlying prices when the brokerage feed does not.

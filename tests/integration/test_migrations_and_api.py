@@ -45,7 +45,7 @@ def test_initial_migration_supports_local_api(tmp_path: Path) -> None:
         assert payload["portfolio"]["total_value"] == "0"
         assert payload["income"]["month"] == "0"
         assert page.status_code == 200
-        assert "Incomming Unofficial Desk" in page.text
+        assert "Incoooming Unofficial Desk" in page.text
         assert "Schwab approval is the only external blocker" in page.text
     finally:
         container.close()
