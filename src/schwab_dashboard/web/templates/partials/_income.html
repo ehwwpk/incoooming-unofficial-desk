@@ -32,9 +32,9 @@
   {% endif %}
 
   <div class="cash-reconcile">
-    <span>GROSS PREMIUM <b>{{ snapshot.covered_calls.gross_premium | money }}</b></span>
-    <span>BUY-TO-CLOSE <b class="negative">-{{ snapshot.covered_calls.buyback_cost | money }}</b></span>
-    <span>NET OPTION CASH <b class="positive">{{ snapshot.covered_calls.net_option_cash | money }}</b></span>
-    <span>DIVIDENDS <b>{{ snapshot.covered_calls.dividends | money }}</b></span>
+    <span>PREMIUM RECEIVED <b>{{ snapshot.covered_calls.gross_premium | money }}</b></span>
+    <span>CLOSE / ROLL COSTS <b class="negative">-{{ snapshot.covered_calls.buyback_cost | money }}</b></span>
+    <span>NET OPTION INCOME <b class="positive">{{ snapshot.covered_calls.net_option_cash | money }}</b></span>
+    <span>DIVIDEND INCOME <b>{{ snapshot.covered_calls.dividends | money }}</b></span>
   </div>
 </section>

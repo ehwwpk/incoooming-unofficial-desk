@@ -13,12 +13,12 @@
         <div class="price-block"><strong>{{ item.current_price | money }}</strong><span>{{ item.market_value | money }} MV</span></div>
       </header>
       <div class="underlying-primary">
-        <div><span data-name-option-label>OPTION +$ / 4 WEEKS</span><strong data-name-option-cash>{{ active_window.option_cash | money }}</strong></div>
+        <div><span data-name-option-label>NET OPTION INCOME / 4 WEEKS</span><strong data-name-option-cash>{{ active_window.option_cash | money }}</strong></div>
         <div><span>SHARES</span><strong>{{ item.shares }}</strong></div>
         <div><span>ACTIVE CALLS</span><strong>{{ item.active_contracts }}/{{ item.contract_capacity }}</strong></div>
       </div>
       <div class="name-analytics">
-        <div><span data-name-option-apr-label>OPTION APR / 4W</span><b data-name-option-apr>{{ active_window.option_apr | percent }}</b></div>
+        <div><span data-name-option-apr-label>NET OPTION APR / 4W</span><b data-name-option-apr>{{ active_window.option_apr | percent }}</b></div>
         <div><span data-name-dividend-label>DIVIDENDS / 4W</span><b data-name-dividends>{{ active_window.dividends | money }}</b></div>
         <div><span>AVG OPEN IV <i>SIM</i></span><b>{{ item.average_open_call_iv_percent | percent }}</b></div>
         <div><span>AVG CALL DELTA</span><b>{{ item.average_open_call_delta | number(2) }}</b></div>
@@ -47,9 +47,9 @@
       {% endif %}
 
       <div class="underlying-decision-grid">
-        <section class="price-map" aria-label="{{ item.symbol }} thirteen-week price path and call-sale timing">
+        <section class="price-map" aria-label="{{ item.symbol }} thirteen-week daily price path and option events">
           <div class="price-map-heading">
-            <div><span>13W PRICE PATH</span><small>WEEKLY CLOSE / SALE TIMING</small></div>
+            <div><span>13W DAILY PRICE</span><small>DAILY CLOSE{% if snapshot.is_demo %} <i>SIM</i>{% endif %} / OPTION EVENTS</small></div>
             <b class="{{ item.thirteen_week_change_percent | pnl_class }}">{{ item.thirteen_week_change_percent | percent }} MOVE</b>
           </div>
           <div class="price-context-strip">
@@ -62,6 +62,7 @@
             <span class="price-axis mid">{{ item.thirteen_week_mid | money }}</span>
             <span class="price-axis low">{{ item.thirteen_week_low | money }}</span>
             <div class="price-path-canvas">
+              {% for point in item.price_points %}{% if point.is_friday %}<i class="friday-guide" style="--event-x: {{ point.x_percent }}%" aria-hidden="true"></i>{% endif %}{% endfor %}
               <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                 <defs>
                   <linearGradient id="{{ item.symbol | lower }}-price-fill" x1="0" y1="0" x2="0" y2="1">
@@ -72,21 +73,17 @@
                 <polygon class="price-area" fill="url(#{{ item.symbol | lower }}-price-fill)" points="0,96 {% for point in item.price_points %}{{ point.x_percent }},{{ point.y_percent }} {% endfor %}100,96" />
                 <polyline class="price-line" points="{% for point in item.price_points %}{{ point.x_percent }},{{ point.y_percent }} {% endfor %}" />
               </svg>
-              {% for point in item.price_points %}
-                {% if point.call_sale %}
-                <i class="price-sale-event" style="--event-x: {{ point.x_percent }}%; --event-y: {{ point.y_percent }}%" title="{{ point.label }} // sold call near {{ point.price | money }}" aria-label="Call sold {{ point.label }} near {{ point.price | money }}"><b>S</b></i>
-                {% endif %}
-                {% if loop.last %}<i class="price-now-event" style="--event-x: {{ point.x_percent }}%; --event-y: {{ point.y_percent }}%"><b>NOW</b></i>{% endif %}
-              {% endfor %}
+              {% for event in item.price_events %}<i class="price-event {{ event.event_type }}" style="--event-x: {{ event.x_percent }}%; --event-y: {{ event.y_percent }}%; --event-offset: {{ event.vertical_offset }}px" title="{{ event.label }} // {{ event.detail }}" aria-label="{{ event.label }} {{ event.detail }}"><b>{{ event.glyph }}</b></i>{% endfor %}
+              {% set last_point = item.price_points[-1] %}<i class="price-now-event" style="--event-x: {{ last_point.x_percent }}%; --event-y: {{ last_point.y_percent }}%"><b>NOW</b></i>
             </div>
-            <div class="price-date-axis"><span>{{ item.price_points[0].label }}</span><span>{{ item.price_points[6].label }}</span><span>{{ item.price_points[-1].label }}</span></div>
+            <div class="price-date-axis"><span>{{ item.price_points[0].label }}</span><span>{{ item.price_points[30].label }}</span><span>{{ item.price_points[-1].label }}</span></div>
           </div>
-          <div class="price-map-legend"><span><i></i> WEEKLY CLOSE</span><span><b>S</b> CALL SOLD</span><small>Markers sit on the actual sale-week close.</small></div>
+          <div class="price-map-legend"><span><i></i> DAILY CLOSE</span><span><b class="sale">S</b> SOLD</span><span><b class="expired">X</b> EXPIRED</span><span><b class="managed">C/R</b> MANAGED</span><span><b class="assigned">A</b> ASSIGNED</span><small>Faint verticals mark Fridays.</small></div>
         </section>
 
         <section class="call-clock-board">
           <div class="call-clock-heading">
-            <div><span>OPEN CALLS</span><small>ENTRY CREDIT VS ESTIMATED BUYBACK</small></div>
+            <div><span>OPEN OPTION STATUS</span><small>PREMIUM RECEIVED / CURRENT MARK / OPEN P&amp;L</small></div>
             <small>MARK / THETA <i>SIM</i></small>
           </div>
           {% for call in item.open_call_clocks %}
@@ -97,23 +94,17 @@
             </header>
             <div class="call-economics">
               <div class="call-open-result">
-                <span>OPEN P/L IF CLOSED NOW</span>
+                <span>OPEN P/L AT CURRENT MARK</span>
                 <strong class="{{ call.open_profit_loss | pnl_class }}">{{ call.open_profit_loss | money }}</strong>
                 {% if call.open_profit_loss >= 0 %}
-                <small>{{ call.credit_capture_percent | percent }} of entry credit retained</small>
+                <small>{{ call.credit_capture_percent | percent }} of premium currently earned</small>
                 {% else %}
-                <small>Buyback is {{ call.buyback_vs_credit_percent | percent }} of entry credit</small>
+                <small>Option value is {{ call.option_value_vs_credit_percent | percent }} of premium received</small>
                 {% endif %}
               </div>
-              <div class="premium-comparison">
-                <div class="premium-row entry">
-                  <span>SOLD FOR <b>{{ call.entry_credit_per_share | money }}/SH</b></span><strong>{{ call.entry_credit | money(0) }}</strong>
-                  <i><em style="--premium-width: {{ call.entry_bar_percent }}%"></em></i>
-                </div>
-                <div class="premium-row current {{ call.open_profit_loss | pnl_class }}">
-                  <span>BUYBACK NOW <b>{{ call.mark_per_share | money }}/SH</b></span><strong>{{ call.current_buyback_cost | money(0) }}</strong>
-                  <i><em style="--premium-width: {{ call.buyback_bar_percent }}%"></em></i>
-                </div>
+              <div class="option-mark-metrics">
+                <div><span>PREMIUM RECEIVED</span><strong>{{ call.entry_credit | money(0) }}</strong><small>{{ call.entry_credit_per_share | money }}/share</small></div>
+                <div><span>OPTION VALUE NOW</span><strong>{{ call.current_option_value | money(0) }}</strong><small>{{ call.mark_per_share | money }}/share current mark</small></div>
               </div>
             </div>
             <div class="call-context-strip">

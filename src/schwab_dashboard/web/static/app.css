@@ -1,7 +1,7 @@
-@import url("./base.css?v=10");
-@import url("./components.css?v=10");
-@import url("./performance.css?v=10");
-@import url("./dashboard.css?v=10");
+@import url("./base.css?v=11");
+@import url("./components.css?v=11");
+@import url("./performance.css?v=11");
+@import url("./dashboard.css?v=11");
 
 @media (max-width: 1240px) {
   .portfolio-console { grid-template-columns: repeat(3, 1fr); }
@@ -60,6 +60,8 @@
   .section-heading { align-items: flex-start; flex-direction: column; }
   .target-editor { width: 100%; }
   .legend { margin-top: 3px; }
+  .price-map-legend { flex-wrap: wrap; }
+  .price-map-legend small { width: 100%; margin-left: 0; }
   .records-workspace > summary { grid-template-columns: 1fr auto; gap: 8px; }
   .records-workspace > summary > span { grid-column: 1 / -1; grid-row: 2; }
   .records-tabs button { flex: 1; padding-inline: 6px; }
@@ -91,6 +93,7 @@
   .call-context-strip { grid-template-columns: repeat(2, 1fr); }
   .call-context-strip > span:nth-child(2) { border-right: 0; }
   .call-context-strip > span:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
+  .option-mark-metrics { grid-template-columns: 1fr; }
   .price-context-strip { grid-template-columns: 1fr 1fr; }
   .price-context-strip > div:first-child { grid-column: 1 / -1; border-right: 0; border-bottom: 1px solid var(--line); }
   .price-context-strip > div:nth-child(2) { border-right: 1px solid var(--line); }

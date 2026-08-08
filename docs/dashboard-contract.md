@@ -18,14 +18,14 @@ The browser and JSON API consume one typed dashboard snapshot regardless of data
 - Returns deterministic, clearly labeled fictional values from an isolated adapter.
 - Exercises a personalized but fictional 13-week book: 700 CVX, 800 KTOS, and 500 URNM shares.
 - Keeps every mock call 15–40% above the underlying at sale and 21–56 days to expiration.
-- Derives premium, buyback, net cash, coverage, and lifecycle totals from execution records.
+- Derives premium received, close/roll costs, net option income, coverage, and lifecycle totals from execution records.
 - Never calls Schwab, creates a sync run, or writes to SQLite.
 - Uses the same API serializer, Jinja templates, and display formatters as live mode.
 
 ## Stable view sections
 
-1. Combined portfolio: net value, selected-window option cash, total cash income, coverage, calls sold, and shares called away.
-2. Underlying attribution: selected-window option cash/APR/dividends/capture, a true 13-week price path with sale-week markers, and per-contract entry-credit/current-buyback/open-P&L economics.
+1. Combined portfolio: net value, selected-window net option income, total strategy income, coverage, calls sold, and shares called away.
+2. Underlying attribution: selected-window option income/APR/dividends/capture, a 13-week daily price path with faint Friday guides and lifecycle event markers, and per-contract premium-received/current-option-value/open-P&L economics.
 3. Income: 13 weekly periods with option cash and dividends reconciled to quarter totals.
 4. Lifecycle: contracts expired, closed, rolled, and still open, plus assignments and completed-trade win rate.
 5. Campaigns: current legs, dates, quarter option cash, open profit/loss, collateral, and return on capital.
@@ -44,7 +44,8 @@ The default workspace keeps decision surfaces visible and moves verbose records 
 - Calendar YTD runs from January 1 through the snapshot date.
 - Rolling 365 uses the trailing 365 calendar days and is intentionally separate from YTD.
 - The year control exposes both YTD and rolling-365 totals; completed-quarter bars provide trend context but do not claim to reconcile a partial current quarter to 365 days.
-- Monthly run-rate equals net option cash divided by elapsed days and scaled to `365 / 12` days.
+- The selected window always reports actual realized amounts: premium received minus close/roll costs equals net option income; net option income plus dividends equals total strategy income.
+- Calendar-month pace is a comparison metric, not additional cash. It equals net option income divided by elapsed days and scaled to `365 / 12` days. For example, a 28-day total can differ from its normalized 30.4-day pace.
 - APR equals window cash divided by current stock market value and annualized by actual window days. It is not total return and can be distorted by short windows.
 
 ## Manager objective
@@ -66,7 +67,8 @@ The default workspace keeps decision surfaces visible and moves verbose records 
 - Premium capture is net option cash divided by gross premium; buyback drag is buy-to-close cash divided by gross premium.
 - The lifetime basis lens subtracts tracked option and dividend cash from original purchase cost for a private “capital earned back” view. Below 100% it shows original capital remaining. At or above 100% it shows a positive surplus beyond original cost instead of asking the user to interpret a negative adjusted basis. It never changes brokerage or tax-lot cost basis.
 - Demo IV and delta values are explicitly marked simulated. Live values will be quantity-weighted from current open-call contracts after Schwab market-data access is approved.
-- Each open call compares original credit with the current estimated buyback cost and derives open P/L, credit capture, intrinsic value, and remaining time value. This comparison can go negative when the option mark rises above its sale price.
+- Each open call compares premium received with current option value and derives open P/L, credit capture, intrinsic value, and remaining time value. Open P/L can be negative when the option mark rises above its sale price; the dashboard does not frame that mark as a buyback recommendation.
+- Demo charts interpolate deterministic weekday closes from weekly anchors and are labeled simulations. Sale markers reconcile one-for-one to call-history records, while expired, closed, rolled, and assigned markers reconcile to completed records. Live charts will use exchange-session observations from market data.
 - Per-contract DTE and short-position theta remain supporting context. Demo theta is explicitly simulated and reconciles to portfolio daily theta. The time-value pace is a simple current-time-value/current-theta ratio, not forecast income or a decay schedule.
 - Assignment is tracked separately as assigned contracts and shares called away; current share inventory can include shares reacquired after a historical assignment.
 - A dividend-overlap monitor appears when an open call expires on or after the next ex-dividend date. The overlap is a calendar screen, not an assignment prediction; live evaluation must also consider moneyness and remaining extrinsic value.

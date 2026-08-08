@@ -33,6 +33,11 @@ def test_mock_calls_follow_requested_strike_and_expiration_guardrails() -> None:
         assert record.gross_premium == record.premium_per_share * record.contracts * 100
         assert record.net_cash == record.gross_premium - record.buyback_cost
         assert "low" not in record.sale_signal.lower()
+        if record.outcome == "Open":
+            assert record.closed_on is None
+        else:
+            assert record.closed_on is not None
+            assert record.sold_on <= record.closed_on <= snapshot.as_of.date()
 
 
 def test_call_cash_and_lifecycle_reconcile_at_symbol_and_portfolio_level() -> None:
@@ -227,10 +232,8 @@ def test_open_call_clocks_expose_per_contract_dte_and_reconcile_theta() -> None:
         assert clock.short_theta_per_day > D("0")
         assert clock.remaining_extrinsic_value > D("0")
         assert clock.entry_credit == clock.entry_credit_per_share * clock.contracts * 100
-        assert clock.current_buyback_cost == clock.mark_per_share * clock.contracts * 100
-        assert clock.open_profit_loss == clock.entry_credit - clock.current_buyback_cost
-        assert clock.entry_bar_percent <= D("100")
-        assert clock.buyback_bar_percent <= D("100")
+        assert clock.current_option_value == clock.mark_per_share * clock.contracts * 100
+        assert clock.open_profit_loss == clock.entry_credit - clock.current_option_value
         assert clock.theta_days_of_time_value > D("0")
         assert D("0") <= clock.time_remaining_percent <= D("100")
 
@@ -242,19 +245,40 @@ def test_open_call_clocks_expose_per_contract_dte_and_reconcile_theta() -> None:
         if clock.strike == D("75")
     )
     assert ktos_loss.entry_credit == D("1225")
-    assert ktos_loss.current_buyback_cost == D("1650")
+    assert ktos_loss.current_option_value == D("1650")
     assert ktos_loss.open_profit_loss == D("-425")
-    assert ktos_loss.buyback_vs_credit_percent == D("134.7")
+    assert ktos_loss.option_value_vs_credit_percent == D("134.7")
 
 
-def test_price_paths_use_actual_weekly_sequence_and_readable_range_context() -> None:
+def test_price_paths_use_daily_closes_and_reconciled_option_events() -> None:
     snapshot = DemoDashboardReader().execute()
 
     for item in snapshot.underlyings:
-        assert len(item.price_points) == 13
+        assert len(item.price_points) == 61
         assert item.price_points[0].x_percent == D("0.0")
         assert item.price_points[-1].x_percent == D("100.0")
         assert all(D("0") <= point.y_percent <= D("100") for point in item.price_points)
+        assert sum(point.is_friday for point in item.price_points) == 13
+        assert all(point.date.weekday() < 5 for point in item.price_points)
+        assert tuple(point.date for point in item.price_points) == tuple(
+            sorted(point.date for point in item.price_points)
+        )
         assert item.thirteen_week_low <= item.current_price <= item.thirteen_week_high
         assert D("0") <= item.range_position_percent <= D("100")
         assert item.distance_from_high_percent <= D("0")
+        assert {event.event_type for event in item.price_events} <= {
+            "sale",
+            "expired",
+            "closed",
+            "rolled",
+            "assigned",
+        }
+        assert any(event.event_type == "sale" for event in item.price_events)
+
+    events = [event for item in snapshot.underlyings for event in item.price_events]
+    assert sum(event.event_type == "sale" for event in events) == len(snapshot.call_history)
+    assert sum(event.event_type != "sale" for event in events) == sum(
+        record.outcome != "Open" for record in snapshot.call_history
+    )
+    assert all(D("0") <= event.x_percent <= D("100") for event in events)
+    assert all(D("0") <= event.y_percent <= D("100") for event in events)

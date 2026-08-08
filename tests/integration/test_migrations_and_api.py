@@ -95,13 +95,14 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "data-target-input" in page.text
         assert "DIV RISK // MONITOR" in page.text
         assert "SIM EX-DIV" in page.text
-        assert "app.css?v=10" in page.text
-        assert "periods.js?v=9" in page.text
-        assert "OPTION +$ / 4 WEEKS" in page.text
-        assert "ENTRY CREDIT VS ESTIMATED BUYBACK" in page.text
-        assert "OPEN P/L IF CLOSED NOW" in page.text
-        assert "BUYBACK NOW" in page.text
-        assert "13W PRICE PATH" in page.text
+        assert "app.css?v=11" in page.text
+        assert "periods.js?v=10" in page.text
+        assert "NET OPTION INCOME / 4 WEEKS" in page.text
+        assert "PREMIUM RECEIVED / CURRENT MARK / OPEN P&amp;L" in page.text
+        assert "OPEN P/L AT CURRENT MARK" in page.text
+        assert "OPTION VALUE NOW" in page.text
+        assert "13W DAILY PRICE" in page.text
+        assert "Faint verticals mark Fridays" in page.text
         assert "RANGE POSITION" in page.text
         assert "2 ASSIGNED / 200 SH" in page.text
         assert "LIFETIME BASIS LENS" in page.text

@@ -110,8 +110,8 @@ def build_positions() -> tuple[PositionSummary, ...]:
 def build_allocations() -> tuple[AllocationSlice, ...]:
     return (
         AllocationSlice("CVX shares", D("134582"), D("57.04"), "amber"),
-        AllocationSlice("KTOS shares", D("52152"), D("22.10"), "cyan"),
-        AllocationSlice("URNM shares", D("27285"), D("11.56"), "violet"),
+        AllocationSlice("KTOS shares", D("52152"), D("22.10"), "emerald"),
+        AllocationSlice("URNM shares", D("27285"), D("11.56"), "olive"),
         AllocationSlice("Cash", D("18750"), D("7.95"), "green"),
         AllocationSlice("Short calls", D("3188"), D("1.35"), "red"),
     )

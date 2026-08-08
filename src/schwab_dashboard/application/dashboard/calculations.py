@@ -73,7 +73,7 @@ def summarize_allocations(
     for position in positions:
         grouped[position.asset_type.upper()] += abs(position.market_value or ZERO)
     total = sum(grouped.values(), ZERO)
-    tones = ("blue", "violet", "green", "amber")
+    tones = ("gold", "emerald", "olive", "green")
     return tuple(
         AllocationSlice(
             label=label.replace("_", " ").title(),

@@ -8,6 +8,16 @@ from schwab_dashboard.application.dashboard.covered_calls import CallSaleRecord
 D = Decimal
 CENT = D("0.01")
 
+CLOSED_ON = {
+    ("CVX", date(2026, 5, 22)): date(2026, 7, 2),
+    ("CVX", date(2026, 7, 7)): date(2026, 8, 7),
+    ("KTOS", date(2026, 5, 29)): date(2026, 7, 10),
+    ("KTOS", date(2026, 6, 26)): date(2026, 8, 7),
+    ("KTOS", date(2026, 7, 10)): date(2026, 8, 6),
+    ("URNM", date(2026, 6, 5)): date(2026, 7, 16),
+    ("URNM", date(2026, 7, 10)): date(2026, 8, 6),
+}
+
 
 def build_call_history() -> tuple[CallSaleRecord, ...]:
     rows = (
@@ -224,6 +234,7 @@ def _record(
     premium_value = D(premium)
     gross_premium = premium_value * contracts * 100
     buyback_value = D(buyback_cost)
+    closed_on = None if outcome == "Open" else CLOSED_ON.get((symbol, sold_on), expires_on)
     return CallSaleRecord(
         symbol=symbol,
         sold_on=sold_on,
@@ -239,4 +250,5 @@ def _record(
         net_cash=gross_premium - buyback_value,
         outcome=outcome,
         sale_signal=signal,
+        closed_on=closed_on,
     )

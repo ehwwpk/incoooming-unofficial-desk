@@ -8,11 +8,24 @@ from decimal import Decimal
 
 @dataclass(frozen=True, slots=True)
 class PricePoint:
+    date: date
     label: str
     price: Decimal
     x_percent: Decimal
     y_percent: Decimal
-    call_sale: bool
+    is_friday: bool
+
+
+@dataclass(frozen=True, slots=True)
+class PriceEvent:
+    date: date
+    label: str
+    event_type: str
+    glyph: str
+    detail: str
+    x_percent: Decimal
+    y_percent: Decimal
+    vertical_offset: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,12 +50,10 @@ class OpenCallClock:
     mark_per_share: Decimal
     entry_credit_per_share: Decimal
     entry_credit: Decimal
-    current_buyback_cost: Decimal
+    current_option_value: Decimal
     open_profit_loss: Decimal
     credit_capture_percent: Decimal
-    buyback_vs_credit_percent: Decimal
-    entry_bar_percent: Decimal
-    buyback_bar_percent: Decimal
+    option_value_vs_credit_percent: Decimal
     intrinsic_value: Decimal
     remaining_extrinsic_value: Decimal
     theta_per_share: Decimal
@@ -69,6 +80,7 @@ class CallSaleRecord:
     net_cash: Decimal
     outcome: str
     sale_signal: str
+    closed_on: date | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,6 +135,7 @@ class UnderlyingCallStats:
     range_position_percent: Decimal
     distance_from_high_percent: Decimal
     price_points: Sequence[PricePoint]
+    price_events: Sequence[PriceEvent]
     tone: str
 
 

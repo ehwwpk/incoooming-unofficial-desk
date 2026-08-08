@@ -8,12 +8,15 @@ from schwab_dashboard.application.dashboard.covered_calls import (
     CallSaleRecord,
     CoveredCallPortfolioSummary,
     OpenCallClock,
-    PricePoint,
     UnderlyingCallStats,
 )
 from schwab_dashboard.infrastructure.demo.fixtures.holdings import HOLDINGS, HoldingFixture
 from schwab_dashboard.infrastructure.demo.fixtures.name_windows import build_name_windows
 from schwab_dashboard.infrastructure.demo.fixtures.open_call_metrics import OPEN_CALL_METRICS
+from schwab_dashboard.infrastructure.demo.fixtures.price_paths import (
+    build_daily_price_points,
+    build_price_events,
+)
 
 D = Decimal
 ZERO = D("0")
@@ -97,7 +100,8 @@ def _summarize_holding(
     lifetime_income = holding.lifetime_option_income + holding.lifetime_dividends
     income_adjusted_basis = original_cost_basis - lifetime_income
     annual_factor = YEAR_DAYS / QUARTER_DAYS
-    prices = [D(row[1]) for row in holding.weekly_prices]
+    price_points = build_daily_price_points(holding.weekly_closes)
+    prices = [point.price for point in price_points]
     return UnderlyingCallStats(
         symbol=holding.symbol,
         company_name=holding.company_name,
@@ -162,7 +166,8 @@ def _summarize_holding(
         distance_from_high_percent=((holding.current_price / max(prices) - 1) * HUNDRED).quantize(
             TENTH
         ),
-        price_points=_price_points(holding.weekly_prices),
+        price_points=price_points,
+        price_events=build_price_events(symbol_records, price_points, as_of),
         tone=holding.tone,
     )
 
@@ -185,29 +190,6 @@ def _dividend_overlap_contracts(
     return sum(record.contracts for record in records if record.expires_on >= ex_dividend_date)
 
 
-def _price_points(rows: Sequence[tuple[str, str, bool]]) -> tuple[PricePoint, ...]:
-    prices = [D(row[1]) for row in rows]
-    low = min(prices)
-    spread = max(prices) - low
-    last_index = len(rows) - 1
-    return tuple(
-        PricePoint(
-            label=label,
-            price=D(price),
-            x_percent=(D(index) / D(last_index) * HUNDRED).quantize(TENTH)
-            if last_index
-            else D("50.0"),
-            y_percent=(
-                D("50.0")
-                if not spread
-                else (D("88") - (D(price) - low) / spread * D("76")).quantize(TENTH)
-            ),
-            call_sale=call_sale,
-        )
-        for index, (label, price, call_sale) in enumerate(rows)
-    )
-
-
 def _contracts(records: Sequence[CallSaleRecord], outcome: str) -> int:
     return sum(record.contracts for record in records if record.outcome == outcome)
 
@@ -223,9 +205,8 @@ def _open_call_clock(record: CallSaleRecord, current_price: Decimal, as_of: date
     extrinsic_per_share = max(ZERO, metric.mark_per_share - intrinsic_per_share)
     remaining_extrinsic = extrinsic_per_share * record.contracts * 100
     intrinsic_value = intrinsic_per_share * record.contracts * 100
-    current_buyback_cost = metric.mark_per_share * record.contracts * 100
-    open_profit_loss = record.gross_premium - current_buyback_cost
-    comparison_max = max(record.gross_premium, current_buyback_cost)
+    current_option_value = metric.mark_per_share * record.contracts * 100
+    open_profit_loss = record.gross_premium - current_option_value
     short_theta_per_day = -metric.theta_per_share * record.contracts * 100
     return OpenCallClock(
         expires_on=record.expires_on,
@@ -235,14 +216,12 @@ def _open_call_clock(record: CallSaleRecord, current_price: Decimal, as_of: date
         mark_per_share=metric.mark_per_share,
         entry_credit_per_share=record.premium_per_share,
         entry_credit=record.gross_premium,
-        current_buyback_cost=current_buyback_cost,
+        current_option_value=current_option_value,
         open_profit_loss=open_profit_loss,
         credit_capture_percent=(open_profit_loss / record.gross_premium * HUNDRED).quantize(TENTH),
-        buyback_vs_credit_percent=(current_buyback_cost / record.gross_premium * HUNDRED).quantize(
-            TENTH
-        ),
-        entry_bar_percent=(record.gross_premium / comparison_max * HUNDRED).quantize(TENTH),
-        buyback_bar_percent=(current_buyback_cost / comparison_max * HUNDRED).quantize(TENTH),
+        option_value_vs_credit_percent=(
+            current_option_value / record.gross_premium * HUNDRED
+        ).quantize(TENTH),
         intrinsic_value=intrinsic_value,
         remaining_extrinsic_value=remaining_extrinsic,
         theta_per_share=metric.theta_per_share,
