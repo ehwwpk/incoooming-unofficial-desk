@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from decimal import Decimal
 
 from schwab_dashboard.application.dashboard.models import AllocationSlice, PositionSummary
@@ -13,10 +14,10 @@ def build_positions() -> tuple[PositionSummary, ...]:
             "EQUITY",
             "700",
             "155.40",
-            "192.26",
-            "134582",
-            "-840",
-            "-0.62",
+            "186.56",
+            "130592",
+            "-1869",
+            "-1.41",
             "Covered calls",
         ),
         (
@@ -25,10 +26,10 @@ def build_positions() -> tuple[PositionSummary, ...]:
             "EQUITY",
             "800",
             "31.75",
-            "65.19",
-            "52152",
-            "1760",
-            "3.49",
+            "60.77",
+            "48616",
+            "2688",
+            "5.85",
             "Covered calls",
         ),
         (
@@ -37,10 +38,10 @@ def build_positions() -> tuple[PositionSummary, ...]:
             "EQUITY",
             "500",
             "44.20",
-            "54.57",
-            "27285",
-            "755",
-            "2.85",
+            "54.53",
+            "27265",
+            "735",
+            "2.77",
             "Covered calls",
         ),
         (
@@ -56,8 +57,8 @@ def build_positions() -> tuple[PositionSummary, ...]:
             "Covered call",
         ),
         (
-            "CVX 260918C00225000",
-            "Sep 18 225 call",
+            "CVX 260918C00230000",
+            "Sep 18 230 call",
             "OPTION",
             "-2",
             "1.80",
@@ -68,8 +69,8 @@ def build_positions() -> tuple[PositionSummary, ...]:
             "Covered call",
         ),
         (
-            "KTOS 260918C00075000",
-            "Sep 18 75 call",
+            "KTOS 260918C00065000",
+            "Sep 18 65 call",
             "OPTION",
             "-5",
             "2.45",
@@ -80,8 +81,8 @@ def build_positions() -> tuple[PositionSummary, ...]:
             "Covered call",
         ),
         (
-            "KTOS 260918C00082500",
-            "Sep 18 82.5 call",
+            "KTOS 260918C00075000",
+            "Sep 18 75 call",
             "OPTION",
             "-3",
             "1.55",
@@ -107,13 +108,31 @@ def build_positions() -> tuple[PositionSummary, ...]:
     return tuple(_position(row) for row in rows)
 
 
-def build_allocations() -> tuple[AllocationSlice, ...]:
-    return (
-        AllocationSlice("CVX shares", D("134582"), D("57.04"), "amber"),
-        AllocationSlice("KTOS shares", D("52152"), D("22.10"), "emerald"),
-        AllocationSlice("URNM shares", D("27285"), D("11.56"), "olive"),
-        AllocationSlice("Cash", D("18750"), D("7.95"), "green"),
-        AllocationSlice("Short calls", D("3188"), D("1.35"), "red"),
+def build_allocations(
+    positions: Sequence[PositionSummary], cash_value: Decimal
+) -> tuple[AllocationSlice, ...]:
+    equities = {
+        item.symbol: item.market_value or D("0")
+        for item in positions
+        if item.asset_type == "EQUITY"
+    }
+    option_value = abs(
+        sum(
+            ((item.market_value or D("0")) for item in positions if item.asset_type == "OPTION"),
+            D("0"),
+        )
+    )
+    rows = (
+        ("CVX shares", equities["CVX"], "amber"),
+        ("KTOS shares", equities["KTOS"], "emerald"),
+        ("URNM shares", equities["URNM"], "olive"),
+        ("Cash", cash_value, "green"),
+        ("Short calls", option_value, "red"),
+    )
+    total = sum((value for _, value, _ in rows), D("0"))
+    return tuple(
+        AllocationSlice(label, value, (value / total * 100).quantize(D("0.01")), tone)
+        for label, value, tone in rows
     )
 
 

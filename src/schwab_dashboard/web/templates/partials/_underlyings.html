@@ -1,7 +1,7 @@
 <section class="section-block" id="underlyings">
   <div class="section-heading terminal-heading">
     <div><p class="eyebrow">SECURITY WORKSPACES</p><h2>Stocks and active calls</h2></div>
-    <span>SELECTED-WINDOW CASH // DAILY PRICE // NUMBERED OPTION EVENTS</span>
+    <span>SELECTED-WINDOW CASH // MARKET-SESSION CLOSES // NUMBERED OPTION EVENTS</span>
   </div>
   {% if snapshot.underlyings %}
   <div class="underlying-grid">
@@ -47,9 +47,9 @@
       {% endif %}
 
       <div class="underlying-decision-grid">
-        <section class="price-map" aria-label="{{ item.symbol }} thirteen-week daily price path and option events">
+        <section class="price-map" aria-label="{{ item.symbol }} verified daily close history and simulated option events">
           <div class="price-map-heading">
-            <div><span>13W DAILY PRICE</span><small>DAILY CLOSE{% if snapshot.is_demo %} <i>SIM</i>{% endif %} / OPTION EVENTS</small></div>
+            <div><span>13W DAILY CLOSES</span><small>OBSERVED MARKET CLOSE / OPTION EVENTS <i>SIM</i></small></div>
             <b class="{{ item.thirteen_week_change_percent | pnl_class }}">{{ item.thirteen_week_change_percent | percent }} MOVE</b>
           </div>
           <div class="price-context-strip">
@@ -79,7 +79,7 @@
             </div>
             <div class="price-date-axis"><span>{{ item.price_points[0].label }}</span><span>{{ item.price_points[30].label }}</span><span>{{ item.price_points[-1].label }}</span></div>
           </div>
-          <div class="price-map-legend"><span><i></i> 61 DAILY CLOSES</span><span><b class="sale">S</b> SOLD</span><span><b class="expired">X</b> EXPIRED</span><span><b class="managed">C/R</b> MANAGED</span><span><b class="assigned">A</b> ASSIGNED</span><small>Numbers map directly to the event tape.</small></div>
+          <div class="price-map-legend"><span><i></i> {{ item.price_points | length }} MARKET SESSIONS</span><span><b class="sale">S</b> SOLD</span><span><b class="expired">X</b> EXPIRED</span><span><b class="managed">C/R</b> MANAGED</span><span><b class="assigned">A</b> ASSIGNED</span><small>YAHOO FINANCE CLOSE · FROZEN 08/07/26 · SIMULATED CALLS</small></div>
           <div class="price-event-ledger" aria-label="{{ item.symbol }} numbered option event tape">
             {% for event in item.price_events %}
             <div class="{{ event.event_type }}"><b>{{ event.sequence }}</b><span><i>{{ event.label }} · {{ event.glyph }}</i><strong>{{ event.detail }}</strong></span></div>

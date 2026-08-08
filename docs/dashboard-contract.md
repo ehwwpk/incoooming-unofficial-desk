@@ -16,7 +16,8 @@ The browser and JSON API consume one typed dashboard snapshot regardless of data
 ### Demo
 
 - Returns deterministic, clearly labeled fictional values from an isolated adapter.
-- Exercises a personalized but fictional 13-week book: 700 CVX, 800 KTOS, and 500 URNM shares.
+- Exercises a personalized but fictional 13-week option book over 700 CVX, 800 KTOS, and 500 URNM shares.
+- Uses frozen, unadjusted Yahoo Finance daily closes retrieved on August 7, 2026 for the underlying price paths. These are real market-session observations; the option executions, marks, IV, and Greeks remain clearly simulated.
 - Keeps every mock call 15–40% above the underlying at sale and 21–56 days to expiration.
 - Derives premium received, close/roll costs, net option income, coverage, and lifecycle totals from execution records.
 - Never calls Schwab, creates a sync run, or writes to SQLite.
@@ -25,7 +26,7 @@ The browser and JSON API consume one typed dashboard snapshot regardless of data
 ## Stable view sections
 
 1. Combined portfolio: net value, selected-window net option income, total strategy income, coverage, calls sold, and shares called away.
-2. Underlying attribution: selected-window option income/APR/dividends/capture, a 13-week daily price path with faint Friday guides and numbered lifecycle event markers that map directly to a written event tape, and per-contract premium-received/current-option-value/open-P&L economics.
+2. Underlying attribution: selected-window option income/APR/dividends/capture, a 13-week observed daily-close path with faint Friday guides and numbered simulated lifecycle event markers that map directly to a written event tape, and per-contract premium-received/current-option-value/open-P&L economics.
 3. Strategy intelligence: deterministic internal exceptions derived from the tracked book (marks versus credit, dividend-calendar overlap, IV/Greek dispersion, and covered-lot capacity). It never embeds financial-news or social-headline content.
 4. Income: 13 weekly periods with option cash and dividends reconciled to quarter totals.
 5. Lifecycle: contracts expired, closed, rolled, and still open, plus assignments and completed-trade win rate.
@@ -70,7 +71,7 @@ The default workspace keeps decision surfaces visible and moves verbose records 
 - The lifetime basis lens subtracts tracked option and dividend cash from original purchase cost for a private “capital earned back” view. Below 100% it shows original capital remaining. At or above 100% it shows a positive surplus beyond original cost instead of asking the user to interpret a negative adjusted basis. It never changes brokerage or tax-lot cost basis.
 - Demo IV and delta values are explicitly marked simulated. Live values will be quantity-weighted from current open-call contracts after Schwab market-data access is approved.
 - Each open call compares premium received with current option value and derives open P/L, credit capture, intrinsic value, and remaining time value. Open P/L can be negative when the option mark rises above its sale price; the dashboard does not frame that mark as a buyback recommendation.
-- Demo charts interpolate deterministic weekday closes from weekly anchors and are labeled simulations. Numbered sale markers reconcile one-for-one to call-history records and a visible event tape, while expired, closed, rolled, and assigned markers reconcile to completed records. Live charts will use exchange-session observations from market data.
+- Demo charts use an explicit frozen close for each observed market session; they never interpolate between weekly anchors. Each simulated call ticket uses the observed close on its sale date, and its strike remains 15–40% above that close. Numbered sale markers reconcile one-for-one to call-history records and a visible event tape, while expired, closed, rolled, and assigned markers reconcile to completed records. Live charts will replace the frozen fixture with Schwab market-data observations.
 - Per-contract DTE and short-position theta remain supporting context. Demo theta is explicitly simulated and reconciles to portfolio daily theta. Calendar time elapsed is `days since sale / original days from sale to expiry`; it is intentionally separate from theta and option-value decay. The time-value pace is a simple current-time-value/current-theta ratio, not forecast income or a decay schedule.
 - Assignment is tracked separately as assigned contracts and shares called away; current share inventory can include shares reacquired after a historical assignment.
 - A dividend-overlap monitor appears when an open call expires on or after the next ex-dividend date. The overlap is a calendar screen, not an assignment prediction; live evaluation must also consider moneyness and remaining extrinsic value.

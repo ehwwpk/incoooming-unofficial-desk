@@ -10,6 +10,7 @@ from schwab_dashboard.application.dashboard.covered_calls import (
     OpenCallClock,
     UnderlyingCallStats,
 )
+from schwab_dashboard.infrastructure.demo.fixtures.daily_prices import DAILY_CLOSES
 from schwab_dashboard.infrastructure.demo.fixtures.holdings import HOLDINGS, HoldingFixture
 from schwab_dashboard.infrastructure.demo.fixtures.name_windows import build_name_windows
 from schwab_dashboard.infrastructure.demo.fixtures.open_call_metrics import OPEN_CALL_METRICS
@@ -100,7 +101,7 @@ def _summarize_holding(
     lifetime_income = holding.lifetime_option_income + holding.lifetime_dividends
     income_adjusted_basis = original_cost_basis - lifetime_income
     annual_factor = YEAR_DAYS / QUARTER_DAYS
-    price_points = build_daily_price_points(holding.weekly_closes)
+    price_points = build_daily_price_points(DAILY_CLOSES[holding.symbol])
     prices = [point.price for point in price_points]
     return UnderlyingCallStats(
         symbol=holding.symbol,

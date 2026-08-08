@@ -4,8 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
-    <title>Options Income Desk</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=12">
+    <title>Premium Pit · Options Income</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=13">
   </head>
   <body>
     <header class="topbar">
@@ -44,17 +44,17 @@
 
     <div class="terminal-shell">
       <nav class="function-rail" aria-label="Dashboard functions">
-        <a href="#portfolio"><kbd>F1</kbd><span>DESK</span></a>
-        <a href="#underlyings"><kbd>F2</kbd><span>NAMES</span></a>
-        <a href="#income"><kbd>F3</kbd><span>CASH</span></a>
-        <a href="#records"><kbd>F4</kbd><span>LOG</span></a>
+        <a href="#portfolio" data-rail-link="portfolio" aria-current="page"><kbd>F1</kbd><span>DESK</span></a>
+        <a href="#underlyings" data-rail-link="underlyings"><kbd>F2</kbd><span>NAMES</span></a>
+        <a href="#income" data-rail-link="income"><kbd>F3</kbd><span>CASH</span></a>
+        <a href="#records" data-rail-link="records"><kbd>F4</kbd><span>LOG</span></a>
       </nav>
 
       <main class="shell">
       <section class="desk-heading" id="portfolio">
         <div class="desk-title">
           <p class="eyebrow">YOUR OPTIONS INCOME BOOK</p>
-          <h1>Options income desk</h1>
+          <h1>Premium Pit</h1>
         </div>
         <div class="desk-period-selector" data-period-controls role="tablist" aria-label="Performance window">
           <span>WINDOW</span>
@@ -101,6 +101,6 @@
       </footer>
       </main>
     </div>
-    <script src="{{ url_for('static', path='/periods.js') }}?v=11" defer></script>
+    <script src="{{ url_for('static', path='/periods.js') }}?v=12" defer></script>
   </body>
 </html>

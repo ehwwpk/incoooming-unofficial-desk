@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
-from itertools import pairwise
 
 from schwab_dashboard.application.dashboard.covered_calls import (
     CallSaleRecord,
@@ -12,20 +11,20 @@ from schwab_dashboard.application.dashboard.covered_calls import (
 )
 
 D = Decimal
-CENT = D("0.01")
 TENTH = D("0.1")
 HUNDRED = D("100")
-WIGGLE = (D("-0.55"), D("0.35"), D("-0.20"), D("0.50"))
 
 
 def build_daily_price_points(
-    weekly_closes: Sequence[tuple[str, str]],
+    daily_closes: Sequence[tuple[str, str]],
     year: int = 2026,
 ) -> tuple[PricePoint, ...]:
-    anchors = tuple((_parse_label(label, year), D(price)) for label, price in weekly_closes)
-    daily_prices: list[tuple[date, Decimal]] = [anchors[0]]
-    for start, end in pairwise(anchors):
-        daily_prices.extend(_interpolate_business_days(start, end))
+    daily_prices = tuple((_parse_label(label, year), D(price)) for label, price in daily_closes)
+    if len(daily_prices) < 2:
+        raise ValueError("Daily price history requires at least two observations")
+    dates = tuple(point_date for point_date, _ in daily_prices)
+    if dates != tuple(sorted(set(dates))):
+        raise ValueError("Daily price history dates must be unique and chronological")
 
     prices = [price for _, price in daily_prices]
     low, high = min(prices), max(prices)
@@ -112,31 +111,6 @@ def build_price_events(
             )
         )
     return tuple(events)
-
-
-def _interpolate_business_days(
-    start: tuple[date, Decimal],
-    end: tuple[date, Decimal],
-) -> tuple[tuple[date, Decimal], ...]:
-    start_date, start_price = start
-    end_date, end_price = end
-    dates: list[date] = []
-    cursor = start_date + timedelta(days=1)
-    while cursor <= end_date:
-        if cursor.weekday() < 5:
-            dates.append(cursor)
-        cursor += timedelta(days=1)
-
-    delta = end_price - start_price
-    amplitude = max(abs(delta) * D("0.08"), start_price * D("0.0015"))
-    result: list[tuple[date, Decimal]] = []
-    for index, point_date in enumerate(dates, start=1):
-        fraction = D(index) / D(len(dates))
-        price = start_price + delta * fraction
-        if point_date != end_date:
-            price += amplitude * WIGGLE[(index - 1) % len(WIGGLE)]
-        result.append((point_date, price.quantize(CENT)))
-    return tuple(result)
 
 
 def _parse_label(label: str, year: int) -> date:

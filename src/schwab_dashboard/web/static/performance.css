@@ -2,8 +2,8 @@
 .operations-grid > * { min-width: 0; }
 .period-panel { margin: 0; padding: 0; overflow: hidden; border-top-color: var(--gold-soft); }
 .period-panel-label { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 12px; border-bottom: 1px solid var(--line); background: var(--surface-raised); }
-.period-panel-label p, .period-panel-label span { margin: 0; color: var(--subtle); font: .43rem var(--mono); letter-spacing: .06em; }
-.period-panel-label p { color: var(--gold); font-weight: 800; }
+.period-panel-label span, .period-panel-label small { margin: 0; color: var(--subtle); font: 700 .43rem var(--mono); letter-spacing: .06em; }
+.period-panel-label span { color: var(--gold); font-weight: 800; }
 .period-controls, .annual-controls { display: flex; border: 1px solid var(--line-strong); }
 .period-controls button, .annual-controls button { border: 0; border-right: 1px solid var(--line); padding: 7px 10px; background: var(--surface); color: var(--subtle); font: 700 .5rem var(--mono); }
 .period-controls button:last-child, .annual-controls button:last-child { border-right: 0; }

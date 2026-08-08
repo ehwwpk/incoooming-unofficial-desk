@@ -66,11 +66,13 @@ def test_call_cash_and_lifecycle_reconcile_at_symbol_and_portfolio_level() -> No
     assert len(assigned) == 1
     assert assigned[0].symbol == "KTOS"
     assert assigned[0].contracts == 2
-    assert assigned[0].underlying_at_sale == D("38.60")
-    assert assigned[0].strike == D("45")
+    assert assigned[0].underlying_at_sale == D("52.09")
+    assert assigned[0].strike == D("60")
     ktos = next(item for item in snapshot.underlyings if item.symbol == "KTOS")
-    expiry_week = next(point for point in ktos.price_points if point.label == "06/26")
-    assert expiry_week.price > assigned[0].strike
+    assignment_day = next(
+        point for point in ktos.price_points if point.date == assigned[0].closed_on
+    )
+    assert assignment_day.price > assigned[0].strike
 
 
 def test_portfolio_value_reconciles_with_personalized_inventory() -> None:
@@ -102,6 +104,13 @@ def test_every_performance_window_reconciles_cash_and_goal_math() -> None:
             else D("0")
         )
         assert window.premium_capture_percent == expected_capture
+        expected_drag = (
+            (window.buyback_cost / window.gross_premium * 100).quantize(D("0.1"))
+            if window.gross_premium
+            else D("0")
+        )
+        assert window.buyback_drag_percent == expected_drag
+        assert window.premium_capture_percent + window.buyback_drag_percent == D("100.0")
 
     assert windows["quarter"].option_cash == snapshot.covered_calls.net_option_cash
     assert windows["quarter"].dividends == snapshot.covered_calls.dividends
@@ -177,7 +186,7 @@ def test_per_name_apr_iv_and_assignment_buffer_metrics_are_populated() -> None:
         assert item.quarter_total_cash_apr >= item.quarter_option_apr
         assert item.average_open_call_iv_percent > D("0")
         assert D("0") < item.average_open_call_delta < D("0.5")
-        assert item.current_strike_buffer_percent >= D("15")
+        assert item.current_strike_buffer_percent > D("0")
         assert item.premium_capture_percent <= D("100")
         assert item.income_adjusted_basis_per_share < item.average_cost
 
@@ -258,7 +267,7 @@ def test_open_call_clocks_expose_per_contract_dte_and_reconcile_theta() -> None:
         for item in snapshot.underlyings
         if item.symbol == "KTOS"
         for clock in item.open_call_clocks
-        if clock.strike == D("75")
+        if clock.strike == D("65")
     )
     assert ktos_loss.entry_credit == D("1225")
     assert ktos_loss.current_option_value == D("1650")
@@ -270,11 +279,12 @@ def test_price_paths_use_daily_closes_and_reconciled_option_events() -> None:
     snapshot = DemoDashboardReader().execute()
 
     for item in snapshot.underlyings:
-        assert len(item.price_points) == 61
+        assert len(item.price_points) == 58
         assert item.price_points[0].x_percent == D("0.0")
         assert item.price_points[-1].x_percent == D("100.0")
+        assert item.current_price == item.price_points[-1].price
         assert all(D("0") <= point.y_percent <= D("100") for point in item.price_points)
-        assert sum(point.is_friday for point in item.price_points) == 13
+        assert sum(point.is_friday for point in item.price_points) == 11
         assert all(point.date.weekday() < 5 for point in item.price_points)
         assert tuple(point.date for point in item.price_points) == tuple(
             sorted(point.date for point in item.price_points)
@@ -293,6 +303,22 @@ def test_price_paths_use_daily_closes_and_reconciled_option_events() -> None:
         assert tuple(event.sequence for event in item.price_events) == tuple(
             range(1, len(item.price_events) + 1)
         )
+
+        prices_by_date = {point.date: point.price for point in item.price_points}
+        for record in snapshot.call_history:
+            if record.symbol == item.symbol:
+                assert record.underlying_at_sale == prices_by_date[record.sold_on]
+
+    by_symbol = {item.symbol: item for item in snapshot.underlyings}
+    assert next(
+        point.price for point in by_symbol["CVX"].price_points if point.label == "05/19"
+    ) == D("197.25")
+    assert next(
+        point.price for point in by_symbol["KTOS"].price_points if point.label == "05/28"
+    ) == D("65.19")
+    assert next(
+        point.price for point in by_symbol["URNM"].price_points if point.label == "06/02"
+    ) == D("65.34")
 
     events = [event for item in snapshot.underlyings for event in item.price_events]
     assert sum(event.event_type == "sale" for event in events) == len(snapshot.call_history)

@@ -132,6 +132,7 @@ const setupPeriodConsole = () => {
     setText("[data-active-win-rate]", `${sheet.dataset.winRate} completed win rate`);
     setText("[data-active-capture-label]", `PREMIUM CAPTURE / ${sheet.dataset.windowLabel}`);
     setText("[data-active-capture-value]", sheet.dataset.capture);
+    setText("[data-active-capture-meta]", `${sheet.dataset.buybackDrag} close / roll drag`);
   };
 
   const updateUnderlyingCards = (activeSheetKey, windowLabel) => {
@@ -256,6 +257,34 @@ const setupCommandJump = () => {
   input.dataset.commandReady = "true";
 };
 
+const setupFunctionRail = () => {
+  const links = [...document.querySelectorAll("[data-rail-link]")];
+  if (!links.length) return;
+  const targets = links
+    .map((link) => ({ link, target: document.getElementById(link.dataset.railLink) }))
+    .filter(({ target }) => target);
+
+  const select = (activeId) => {
+    links.forEach((link) => {
+      if (link.dataset.railLink === activeId) link.setAttribute("aria-current", "page");
+      else link.removeAttribute("aria-current");
+    });
+  };
+
+  const sync = () => {
+    const threshold = window.scrollY + 150;
+    let activeId = targets[0]?.target.id;
+    targets.forEach(({ target }) => {
+      if (target.offsetTop <= threshold) activeId = target.id;
+    });
+    if (activeId) select(activeId);
+  };
+
+  links.forEach((link) => link.addEventListener("click", () => select(link.dataset.railLink)));
+  window.addEventListener("scroll", sync, { passive: true });
+  sync();
+};
+
 const setupRecordWorkspace = () => {
   const workspace = document.querySelector("[data-records-workspace]");
   if (!workspace || workspace.dataset.recordReady === "true") return;
@@ -295,6 +324,7 @@ const setupRecordWorkspace = () => {
 
 const setupDashboardInteractions = () => {
   setupCommandJump();
+  setupFunctionRail();
   setupPeriodConsole();
   setupRecordWorkspace();
 };

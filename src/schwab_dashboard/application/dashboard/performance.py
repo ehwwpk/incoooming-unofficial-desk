@@ -29,6 +29,7 @@ class PerformanceWindowSummary:
     target_cash_for_window: Decimal
     target_progress_percent: Decimal
     premium_capture_percent: Decimal
+    buyback_drag_percent: Decimal
 
 
 @dataclass(frozen=True, slots=True)

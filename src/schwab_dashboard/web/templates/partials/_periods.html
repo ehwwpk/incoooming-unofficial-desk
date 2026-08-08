@@ -1,5 +1,5 @@
 <section class="panel period-panel" id="periods" data-period-console>
-  <div class="period-panel-label"><span>WINDOW ACCOUNTING</span><small>ACTUAL CASH / NORMALIZED PACE / SOURCE RECONCILIATION</small></div>
+  <div class="period-panel-label"><span>WINDOW ACCOUNTING</span><small>REALIZED CASH · NORMALIZED PACE · RECONCILED SOURCES</small></div>
 
   {% if snapshot.performance_windows %}
   <div class="period-sheets">
@@ -19,6 +19,7 @@
       data-contracts="{{ window.contracts }}"
       data-win-rate="{{ window.win_rate | percent }}"
       data-capture="{{ window.premium_capture_percent | percent }}"
+      data-buyback-drag="{{ window.buyback_drag_percent | percent }}"
       data-monthly-run-rate="{{ window.monthly_option_run_rate }}"
       {{ '' if window.key == 'month' else 'hidden' }}
     >

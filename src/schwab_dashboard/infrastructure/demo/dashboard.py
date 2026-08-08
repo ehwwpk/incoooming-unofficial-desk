@@ -39,7 +39,30 @@ class DemoDashboardReader:
         as_of = date(2026, 8, 7)
         underlyings = build_underlying_stats(call_history, as_of)
         covered_calls = build_covered_call_summary(call_history, underlyings)
-        performance_windows = build_performance_windows(covered_calls, D("214019.00"))
+        positions = build_positions()
+        cash_value = D("18750.00")
+        stock_value = sum(
+            (
+                (position.market_value or D("0"))
+                for position in positions
+                if position.asset_type == "EQUITY"
+            ),
+            D("0"),
+        )
+        option_value = sum(
+            (
+                (position.market_value or D("0"))
+                for position in positions
+                if position.asset_type == "OPTION"
+            ),
+            D("0"),
+        )
+        day_profit_loss = sum(
+            ((position.day_profit_loss or D("0")) for position in positions), D("0")
+        )
+        total_value = stock_value + option_value + cash_value
+        previous_value = total_value - day_profit_loss
+        performance_windows = build_performance_windows(covered_calls, stock_value)
         windows_by_key = {window.key: window for window in performance_windows}
         return DashboardSnapshot(
             mode="demo",
@@ -55,13 +78,15 @@ class DemoDashboardReader:
                 },
             ),
             portfolio=PortfolioSummary(
-                total_value=D("229581.00"),
-                invested_value=D("211256.00"),
-                cash_value=D("18750.00"),
-                stock_value=D("214019.00"),
-                option_value=D("-3188.00"),
-                day_profit_loss=D("1687.00"),
-                day_profit_loss_percent=D("0.7389"),
+                total_value=total_value,
+                invested_value=stock_value + option_value,
+                cash_value=cash_value,
+                stock_value=stock_value,
+                option_value=option_value,
+                day_profit_loss=day_profit_loss,
+                day_profit_loss_percent=(day_profit_loss / previous_value * 100).quantize(
+                    D("0.0001")
+                ),
             ),
             income=IncomeSummary(
                 week=D("80.00"),
@@ -83,15 +108,15 @@ class DemoDashboardReader:
             quarter_history=build_quarter_history(),
             objective=build_objective_summary(call_history, covered_calls, performance_windows),
             basis_lens=build_basis_lens(underlyings),
-            positions=build_positions(),
-            allocations=build_allocations(),
+            positions=positions,
+            allocations=build_allocations(positions, cash_value),
             risk=RiskSummary(
                 buying_power_used_percent=D("7.8"),
                 portfolio_delta=D("1624.0"),
                 daily_theta=D("83.40"),
                 short_contracts=covered_calls.active_contracts,
                 next_expiration=date(2026, 9, 4),
-                largest_position_percent=D("58.5"),
+                largest_position_percent=D("58.8"),
                 open_campaigns=3,
             ),
         )

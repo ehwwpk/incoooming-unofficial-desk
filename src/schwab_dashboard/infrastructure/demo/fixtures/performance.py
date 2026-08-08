@@ -228,6 +228,9 @@ def _window(row: tuple[object, ...], stock_value: Decimal) -> PerformanceWindowS
         premium_capture_percent=(option_cash / gross_premium * 100).quantize(TENTH)
         if gross_premium
         else ZERO,
+        buyback_drag_percent=(buyback_cost / gross_premium * 100).quantize(TENTH)
+        if gross_premium
+        else ZERO,
     )
 
 
