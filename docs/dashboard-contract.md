@@ -32,6 +32,8 @@ The browser and JSON API consume one typed dashboard snapshot regardless of data
 6. Call ledger: sale date, expiry, DTE, quantity, sale-time spot, strike, gap, premium, buyback, net cash, outcome, and sale signal.
 7. Positions and risk: reconciled inventory, buying-power use, delta, theta, concentration, and next expiration.
 
+The default workspace keeps decision surfaces visible and moves verbose records into one collapsed detail area. “Active books,” “Call history,” and “Positions” are tabs inside that area; only one record view renders visibly at a time.
+
 ## Performance windows
 
 - Week uses the latest seven calendar days.
@@ -62,7 +64,7 @@ The browser and JSON API consume one typed dashboard snapshot regardless of data
 - Rolled tickets preserve the close debit on the old call and the new sale as separate execution records.
 - Active coverage is open contracts divided by share-backed contract capacity.
 - Premium capture is net option cash divided by gross premium; buyback drag is buy-to-close cash divided by gross premium.
-- The lifetime basis lens subtracts tracked option and dividend cash from original purchase cost for a private “capital earned back” view. It never changes brokerage or tax-lot cost basis.
+- The lifetime basis lens subtracts tracked option and dividend cash from original purchase cost for a private “capital earned back” view. Below 100% it shows original capital remaining. At or above 100% it shows a positive surplus beyond original cost instead of asking the user to interpret a negative adjusted basis. It never changes brokerage or tax-lot cost basis.
 - Demo IV and delta values are explicitly marked simulated. Live values will be quantity-weighted from current open-call contracts after Schwab market-data access is approved.
 - Each open-call clock shows its own DTE, remaining extrinsic value, and short-position theta benefit. Demo theta is explicitly simulated and reconciles to portfolio daily theta. It is a theoretical one-day sensitivity with other pricing inputs held equal, not forecast income.
 - A dividend-overlap monitor appears when an open call expires on or after the next ex-dividend date. The overlap is a calendar screen, not an assignment prediction; live evaluation must also consider moneyness and remaining extrinsic value.

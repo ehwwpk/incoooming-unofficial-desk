@@ -1,0 +1,20 @@
+<details class="panel records-workspace section-block" id="records" data-records-workspace>
+  <summary>
+    <div>
+      <p class="eyebrow">DETAIL WORKSPACE</p>
+      <strong>Trades &amp; positions</strong>
+    </div>
+    <span>{{ snapshot.call_history | length }} CALLS // {{ snapshot.positions | length }} POSITIONS // {{ snapshot.campaigns | length }} ACTIVE BOOKS</span>
+    <b><span class="records-open-label">OPEN DETAIL</span><span class="records-close-label">CLOSE DETAIL</span></b>
+  </summary>
+  <div class="records-tabs" role="tablist" aria-label="Detailed records view">
+    <button type="button" role="tab" data-record-tab="books" aria-selected="false"><kbd>F5</kbd> ACTIVE BOOKS</button>
+    <button type="button" role="tab" data-record-tab="history" aria-selected="true"><kbd>F6</kbd> CALL HISTORY</button>
+    <button type="button" role="tab" data-record-tab="positions" aria-selected="false"><kbd>F7</kbd> POSITIONS</button>
+  </div>
+  <div class="records-panes">
+    <div data-record-pane="books" hidden>{% include "partials/_campaigns.html" %}</div>
+    <div data-record-pane="history">{% include "partials/_call_ledger.html" %}</div>
+    <div data-record-pane="positions" hidden>{% include "partials/_positions.html" %}</div>
+  </div>
+</details>

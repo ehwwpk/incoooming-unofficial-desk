@@ -4,6 +4,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 
+ZERO = Decimal("0")
+TENTH = Decimal("0.1")
+
 
 @dataclass(frozen=True, slots=True)
 class PerformanceWindowSummary:
@@ -70,3 +73,30 @@ class BasisLensSummary:
     income_adjusted_basis: Decimal
     income_adjusted_basis_per_share: Decimal | None
     basis_offset_percent: Decimal
+    capital_remaining: Decimal
+    recovery_surplus: Decimal
+    fully_recovered: bool
+
+
+@dataclass(frozen=True, slots=True)
+class CapitalRecovery:
+    income_adjusted_basis: Decimal
+    capital_remaining: Decimal
+    recovery_surplus: Decimal
+    recovered_percent: Decimal
+    fully_recovered: bool
+
+
+def calculate_capital_recovery(
+    original_cost_basis: Decimal, management_income: Decimal
+) -> CapitalRecovery:
+    if original_cost_basis <= ZERO:
+        raise ValueError("Original cost basis must be greater than zero")
+    adjusted_basis = original_cost_basis - management_income
+    return CapitalRecovery(
+        income_adjusted_basis=adjusted_basis,
+        capital_remaining=max(ZERO, adjusted_basis),
+        recovery_surplus=max(ZERO, -adjusted_basis),
+        recovered_percent=(management_income / original_cost_basis * 100).quantize(TENTH),
+        fully_recovered=management_income >= original_cost_basis,
+    )

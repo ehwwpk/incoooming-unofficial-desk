@@ -1,6 +1,6 @@
 <section class="panel positions-panel" id="positions">
   <div class="section-heading terminal-heading wide-heading">
-    <div><p class="eyebrow">RECONCILED INVENTORY</p><h2>Current shares and short calls</h2></div>
+    <div><p class="eyebrow">CURRENT POSITIONS</p><h2>Shares and short calls</h2></div>
     <span>{{ snapshot.positions | length }} ROWS / ACCOUNT {{ snapshot.accounts[0].account_mask if snapshot.accounts else '---' }}</span>
   </div>
   {% if snapshot.positions %}

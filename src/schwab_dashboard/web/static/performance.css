@@ -1,5 +1,5 @@
-.period-panel { margin-bottom: 18px; padding: 0; overflow: hidden; }
-.period-toolbar { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 14px; padding: 13px 15px; border-bottom: 1px solid var(--line); }
+.period-panel { margin-bottom: 10px; padding: 0; overflow: hidden; }
+.period-toolbar { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
 .period-toolbar h2 { margin: 0; font-size: .92rem; }
 .period-controls, .annual-controls { display: flex; border: 1px solid var(--line-strong); }
 .period-controls button, .annual-controls button { border: 0; border-right: 1px solid var(--line); padding: 7px 10px; background: #080b0e; color: var(--subtle); font: 700 .5rem var(--mono); }
@@ -53,7 +53,7 @@
 .target-editor input:focus { border-color: var(--amber); background: #151006; }
 .target-editor button { align-self: stretch; border: 0; border-left: 1px solid var(--line); padding: 6px 8px; background: transparent; color: var(--amber); font-size: .47rem; }
 .target-editor small { grid-column: 1 / -1; padding: 5px 8px; border-top: 1px solid var(--line); color: var(--subtle); font: .43rem var(--mono); }
-.run-rate-grid { display: grid; grid-template-columns: repeat(4, 1fr); border-inline: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.run-rate-grid { display: grid; grid-template-columns: repeat(3, 1fr); border-inline: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .run-rate-grid div, .discipline-grid div { display: grid; gap: 5px; padding: 9px; border-right: 1px solid var(--line); }
 .run-rate-grid div:last-child { border-right: 0; }
 .run-rate-grid span, .discipline-grid span { color: var(--subtle); font: .47rem var(--mono); }
@@ -69,6 +69,7 @@
 .basis-hero strong { color: var(--amber); font: 650 1.3rem var(--mono); }
 .basis-adjusted { display: flex; justify-content: space-between; gap: 12px; padding: 10px; border: 1px solid var(--line); border-top: 0; }
 .basis-adjusted b { font: .65rem var(--mono); }
+.basis-adjusted.recovered { border-color: #285b3e; background: #07110b; }
 .basis-list { display: grid; margin-top: 11px; border: 1px solid var(--line); }
 .basis-list > div { display: grid; grid-template-columns: .55fr 1fr 1fr .8fr; gap: 8px; padding: 9px; border-bottom: 1px solid var(--line); }
 .basis-list > div:last-child { border-bottom: 0; }

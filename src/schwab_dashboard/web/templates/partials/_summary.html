@@ -28,8 +28,8 @@
     <small data-active-win-rate>{% if active %}{{ active.win_rate | percent }}{% else %}0.0%{% endif %} completed win rate</small>
   </article>
   <article class="console-cell">
-    <span>SHARES CALLED AWAY</span>
-    <strong>{{ snapshot.covered_calls.called_away_shares }}</strong>
-    <small data-active-capture>{% if active %}{{ active.premium_capture_percent | percent }}{% else %}0.0%{% endif %} of gross premium retained</small>
+    <span data-active-capture-label>PREMIUM CAPTURE / {{ active.label if active else 'WINDOW' }}</span>
+    <strong data-active-capture-value>{% if active %}{{ active.premium_capture_percent | percent }}{% else %}0.0%{% endif %}</strong>
+    <small>{{ snapshot.covered_calls.called_away_shares }} shares called away / 13W</small>
   </article>
 </section>

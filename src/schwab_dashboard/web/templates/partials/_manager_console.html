@@ -32,7 +32,6 @@
       <div><span>ROLLING 4W</span><b>{{ snapshot.objective.rolling_four_week_option_cash | money }}</b></div>
       <div><span>13W / MONTH</span><b>{{ snapshot.objective.quarter_monthly_run_rate | money }}</b></div>
       <div><span>YTD / MONTH</span><b class="positive">{{ snapshot.objective.year_to_date_monthly_run_rate | money }}</b></div>
-      <div><span>R365 / MONTH</span><b>{{ snapshot.objective.rolling_year_monthly_average | money }}</b></div>
     </div>
     <div class="discipline-grid">
       <div><span>MONTHS AT <span data-months-target-label>{{ snapshot.objective.monthly_option_target | money(0) }}</span></span><b data-months-hit>{{ snapshot.objective.target_months_hit }}/{{ snapshot.objective.observed_months }}</b></div>
@@ -56,24 +55,32 @@
     {% if snapshot.basis_lens %}
     {% set portfolio_basis = snapshot.basis_lens[0] %}
     <div class="basis-hero">
-      <span>OPTION + DIVIDEND INCOME</span>
-      <strong>{{ portfolio_basis.lifetime_management_income | money }}</strong>
-      <small>{{ portfolio_basis.basis_offset_percent | percent }} of {{ portfolio_basis.original_cost_basis | money }} original basis</small>
+      <span>ORIGINAL CAPITAL RECOVERED</span>
+      <strong>{{ portfolio_basis.basis_offset_percent | percent }}</strong>
+      <small>{{ portfolio_basis.lifetime_management_income | money }} option + dividend cash / {{ portfolio_basis.original_cost_basis | money }} original cost</small>
     </div>
-    <div class="basis-adjusted">
-      <span>INCOME-ADJUSTED PORT BASIS</span><b>{{ portfolio_basis.income_adjusted_basis | money }}</b>
+    <div class="basis-adjusted {{ 'recovered' if portfolio_basis.fully_recovered else '' }}">
+      {% if portfolio_basis.fully_recovered %}
+      <span>SURPLUS BEYOND ORIGINAL COST</span><b class="positive">+{{ portfolio_basis.recovery_surplus | money }}</b>
+      {% else %}
+      <span>ORIGINAL CAPITAL REMAINING</span><b>{{ portfolio_basis.capital_remaining | money }}</b>
+      {% endif %}
     </div>
     <div class="basis-list">
       {% for item in snapshot.basis_lens[1:] %}
       <div>
         <strong>{{ item.symbol }}</strong>
         <span>{{ item.lifetime_management_income | money(0) }} LIFE INC</span>
-        <b>{{ item.income_adjusted_basis_per_share | money }} / SH</b>
-        <em>{{ item.basis_offset_percent | percent }} OFFSET</em>
+        {% if item.fully_recovered %}
+        <b class="positive">+{{ item.recovery_surplus | money(0) }} BEYOND COST</b>
+        {% else %}
+        <b>{{ item.income_adjusted_basis_per_share | money }} / SH LEFT</b>
+        {% endif %}
+        <em>{{ item.basis_offset_percent | percent }} RECOVERED</em>
       </div>
       {% endfor %}
     </div>
-    <p>This does not change brokerage or tax-lot cost basis. It is a private “capital earned back” perspective.</p>
+    <p>This does not change brokerage or tax-lot cost basis. Above 100%, the display switches from capital remaining to surplus beyond original cost.</p>
     {% endif %}
   </aside>
 </section>

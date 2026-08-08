@@ -1,5 +1,8 @@
 from decimal import Decimal
 
+import pytest
+
+from schwab_dashboard.application.dashboard.performance import calculate_capital_recovery
 from schwab_dashboard.infrastructure.demo.dashboard import DemoDashboardReader
 
 D = Decimal
@@ -131,6 +134,22 @@ def test_lifetime_income_basis_lens_is_analytical_and_reconciled() -> None:
     assert portfolio.lifetime_management_income == sum(
         (item.lifetime_management_income for item in symbols), D("0")
     )
+    assert portfolio.capital_remaining == portfolio.income_adjusted_basis
+    assert portfolio.recovery_surplus == D("0")
+    assert not portfolio.fully_recovered
+
+
+def test_capital_recovery_switches_to_surplus_after_original_cost_is_earned_back() -> None:
+    recovery = calculate_capital_recovery(D("100000"), D("127500"))
+
+    assert recovery.income_adjusted_basis == D("-27500")
+    assert recovery.capital_remaining == D("0")
+    assert recovery.recovery_surplus == D("27500")
+    assert recovery.recovered_percent == D("127.5")
+    assert recovery.fully_recovered
+
+    with pytest.raises(ValueError, match="Original cost basis"):
+        calculate_capital_recovery(D("0"), D("100"))
 
 
 def test_per_name_apr_iv_and_assignment_buffer_metrics_are_populated() -> None:

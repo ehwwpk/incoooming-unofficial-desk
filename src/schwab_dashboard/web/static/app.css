@@ -1,7 +1,7 @@
-@import url("./base.css?v=5");
-@import url("./components.css?v=5");
-@import url("./performance.css?v=5");
-@import url("./dashboard.css?v=5");
+@import url("./base.css?v=8");
+@import url("./components.css?v=8");
+@import url("./performance.css?v=8");
+@import url("./dashboard.css?v=8");
 
 @media (max-width: 1240px) {
   .portfolio-console { grid-template-columns: repeat(3, 1fr); }
@@ -41,9 +41,6 @@
   .underlying-card .price-rhythm { border-right: 0; }
   .side-stack { grid-template-columns: 1fr; }
   .income-chart { min-width: 670px; }
-  .income-stats { grid-template-columns: repeat(2, 1fr); }
-  .income-stats div:nth-child(2) { border-right: 0; }
-  .income-stats div:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
   .cash-reconcile { display: grid; grid-template-columns: 1fr 1fr; }
   .period-toolbar { grid-template-columns: 1fr; }
   .period-controls, .annual-controls { justify-self: stretch; }
@@ -67,6 +64,9 @@
   .section-heading { align-items: flex-start; flex-direction: column; }
   .target-editor { width: 100%; }
   .legend { margin-top: 3px; }
+  .records-workspace > summary { grid-template-columns: 1fr auto; gap: 8px; }
+  .records-workspace > summary > span { grid-column: 1 / -1; grid-row: 2; }
+  .records-tabs button { flex: 1; padding-inline: 6px; }
   footer { flex-direction: column; }
 }
 
@@ -80,10 +80,8 @@
   .period-detail-grid > div:nth-child(3) { border-right: 1px solid var(--line); }
   .period-detail-grid > div:nth-child(2n) { border-right: 0; }
   .period-detail-grid > div:nth-child(-n + 4) { border-bottom: 1px solid var(--line); }
-  .objective-hero, .run-rate-grid { grid-template-columns: repeat(2, 1fr); }
+  .objective-hero { grid-template-columns: repeat(2, 1fr); }
   .objective-hero > div:first-child { border-right: 0; border-bottom: 1px solid var(--line); }
-  .run-rate-grid div:nth-child(2) { border-right: 0; }
-  .run-rate-grid div:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
   .discipline-grid { grid-template-columns: repeat(2, 1fr); }
   .discipline-grid div:nth-child(3n) { border-right: 1px solid var(--line); }
   .discipline-grid div:nth-child(2n) { border-right: 0; }
@@ -98,6 +96,8 @@
   .call-clock > div:not(.time-left-meter) { border-bottom: 1px solid var(--line); }
   .call-clock > div:nth-child(2n) { border-right: 0; }
   .time-left-meter { grid-template-columns: 1fr; }
+  .records-tabs kbd { display: none; }
+  .records-workspace > summary > b { min-width: 72px; }
   .lifecycle-grid, .risk-grid { grid-template-columns: repeat(2, 1fr); }
   .lifecycle-grid div:nth-child(3n), .risk-grid div:nth-child(3n) { border-right: 1px solid var(--line); }
   .lifecycle-grid div:nth-child(2n), .risk-grid div:nth-child(2n) { border-right: 0; }

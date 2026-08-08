@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <title>Covered Call Desk</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=5">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=8">
   </head>
   <body>
     <header class="topbar">
@@ -24,7 +24,7 @@
         <a href="#portfolio"><kbd>F1</kbd> PORT</a>
         <a href="#underlyings"><kbd>F2</kbd> NAMES</a>
         <a href="#income"><kbd>F3</kbd> CASH</a>
-        <a href="#call-log"><kbd>F4</kbd> CALL LOG</a>
+        <a href="#records"><kbd>F4</kbd> RECORDS</a>
       </nav>
       <span class="source-pill {{ 'demo' if snapshot.is_demo else 'live' }}">
         <span class="source-dot"></span>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}
@@ -45,8 +45,7 @@
       <section class="desk-heading" id="portfolio">
         <div>
           <p class="eyebrow">CC-01 / COVERED CALL OPERATIONS</p>
-          <h1>Active income desk</h1>
-          <p>Sell strength. Track every roll. Separate collected cash from realized outcome.</p>
+          <h1>ACTIVE INCOME DESK</h1>
         </div>
         <div class="desk-meta">
           <span>WINDOW <b data-active-window>4W</b></span>
@@ -69,15 +68,13 @@
       </div>
 
       {% include "partials/_manager_console.html" %}
-      {% include "partials/_campaigns.html" %}
-      {% include "partials/_call_ledger.html" %}
-      {% include "partials/_positions.html" %}
+      {% include "partials/_records.html" %}
 
       <footer>
         <span>LOCALHOST / PRIVATE / READ-ONLY BROKER ADAPTER</span>
         <span>PERFORMANCE ACCOUNTING — NOT TAX OR INVESTMENT ADVICE</span>
       </footer>
     </main>
-    <script src="{{ url_for('static', path='/periods.js') }}?v=7" defer></script>
+    <script src="{{ url_for('static', path='/periods.js') }}?v=9" defer></script>
   </body>
 </html>

@@ -13,6 +13,7 @@ from schwab_dashboard.application.dashboard.performance import (
     ManagementObjectiveSummary,
     PerformanceWindowSummary,
     QuarterPerformanceSummary,
+    calculate_capital_recovery,
 )
 
 D = Decimal
@@ -174,15 +175,19 @@ def build_basis_lens(
     option_income = sum((item.lifetime_option_income for item in items), ZERO)
     dividends = sum((item.lifetime_dividends for item in items), ZERO)
     management_income = option_income + dividends
+    recovery = calculate_capital_recovery(original, management_income)
     portfolio = BasisLensSummary(
         symbol="PORT",
         original_cost_basis=original,
         lifetime_option_income=option_income,
         lifetime_dividends=dividends,
         lifetime_management_income=management_income,
-        income_adjusted_basis=original - management_income,
+        income_adjusted_basis=recovery.income_adjusted_basis,
         income_adjusted_basis_per_share=None,
-        basis_offset_percent=(management_income / original * 100).quantize(TENTH),
+        basis_offset_percent=recovery.recovered_percent,
+        capital_remaining=recovery.capital_remaining,
+        recovery_surplus=recovery.recovery_surplus,
+        fully_recovered=recovery.fully_recovered,
     )
     return (portfolio, *items)
 
@@ -229,13 +234,17 @@ def _window(row: tuple[object, ...], stock_value: Decimal) -> PerformanceWindowS
 def _basis_item(underlying: UnderlyingCallStats) -> BasisLensSummary:
     original = underlying.average_cost * underlying.shares
     management_income = underlying.lifetime_option_income + underlying.lifetime_dividends
+    recovery = calculate_capital_recovery(original, management_income)
     return BasisLensSummary(
         symbol=underlying.symbol,
         original_cost_basis=original,
         lifetime_option_income=underlying.lifetime_option_income,
         lifetime_dividends=underlying.lifetime_dividends,
         lifetime_management_income=management_income,
-        income_adjusted_basis=underlying.income_adjusted_basis,
+        income_adjusted_basis=recovery.income_adjusted_basis,
         income_adjusted_basis_per_share=underlying.income_adjusted_basis_per_share,
-        basis_offset_percent=underlying.basis_offset_percent,
+        basis_offset_percent=recovery.recovered_percent,
+        capital_remaining=recovery.capital_remaining,
+        recovery_surplus=recovery.recovery_surplus,
+        fully_recovered=recovery.fully_recovered,
     )

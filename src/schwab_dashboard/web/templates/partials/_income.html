@@ -31,13 +31,6 @@
   <p class="empty-state">Income history will appear after transaction ingestion is connected.</p>
   {% endif %}
 
-  <div class="income-stats">
-    <div><span>THIS WEEK</span><strong class="{{ snapshot.income.week | pnl_class }}">{{ snapshot.income.week | money }}</strong></div>
-    <div><span>ROLLING 4W</span><strong>{{ snapshot.income.month | money }}</strong></div>
-    <div><span>OPTION +$ / 13W</span><strong>{{ snapshot.income.quarter | money }}</strong></div>
-    <div><span>TOTAL CASH / QTR</span><strong>{{ snapshot.covered_calls.total_cash_income | money }}</strong></div>
-  </div>
-
   <div class="cash-reconcile">
     <span>GROSS PREMIUM <b>{{ snapshot.covered_calls.gross_premium | money }}</b></span>
     <span>BUY-TO-CLOSE <b class="negative">-{{ snapshot.covered_calls.buyback_cost | money }}</b></span>

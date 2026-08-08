@@ -129,7 +129,8 @@ const setupPeriodConsole = () => {
     setText("[data-active-total-meta]", `${sheet.dataset.totalApr} APR / includes ${sheet.dataset.dividends} dividends`);
     setText("[data-active-calls-contracts]", `${sheet.dataset.calls} / ${sheet.dataset.contracts}`);
     setText("[data-active-win-rate]", `${sheet.dataset.winRate} completed win rate`);
-    setText("[data-active-capture]", `${sheet.dataset.capture} of gross premium retained`);
+    setText("[data-active-capture-label]", `PREMIUM CAPTURE / ${sheet.dataset.windowLabel}`);
+    setText("[data-active-capture-value]", sheet.dataset.capture);
   };
 
   const updateUnderlyingCards = (activeSheetKey, windowLabel) => {
@@ -186,7 +187,7 @@ const setupPeriodConsole = () => {
     if (["input", "textarea", "select"].includes(tag) || event.target?.isContentEditable) return;
     const periodShortcuts = { "1": "week", "2": "month", "3": "quarter", "4": "annual" };
     const annualShortcuts = { y: "ytd", r: "r365" };
-    const sectionShortcuts = { F1: "portfolio", F2: "underlyings", F3: "income", F4: "call-log" };
+    const sectionShortcuts = { F1: "portfolio", F2: "underlyings", F3: "income", F4: "records" };
     if (periodShortcuts[event.key]) {
       selectedPeriod = periodShortcuts[event.key];
       activate();
@@ -205,8 +206,50 @@ const setupPeriodConsole = () => {
   consoleRoot.dataset.periodReady = "true";
 };
 
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", setupPeriodConsole, { once: true });
-} else {
+const setupRecordWorkspace = () => {
+  const workspace = document.querySelector("[data-records-workspace]");
+  if (!workspace || workspace.dataset.recordReady === "true") return;
+
+  const buttons = [...workspace.querySelectorAll("[data-record-tab]")];
+  const panes = [...workspace.querySelectorAll("[data-record-pane]")];
+  let selectedRecord = "history";
+
+  const activateRecord = (key) => {
+    selectedRecord = key;
+    buttons.forEach((button) => {
+      button.setAttribute("aria-selected", String(button.dataset.recordTab === selectedRecord));
+    });
+    panes.forEach((pane) => {
+      pane.hidden = pane.dataset.recordPane !== selectedRecord;
+    });
+  };
+
+  buttons.forEach((button) => {
+    button.addEventListener("click", () => activateRecord(button.dataset.recordTab));
+  });
+
+  document.addEventListener("keydown", (event) => {
+    const tag = event.target?.tagName?.toLowerCase();
+    if (["input", "textarea", "select"].includes(tag) || event.target?.isContentEditable) return;
+    const recordShortcuts = { F5: "books", F6: "history", F7: "positions" };
+    if (!recordShortcuts[event.key]) return;
+    event.preventDefault();
+    workspace.open = true;
+    activateRecord(recordShortcuts[event.key]);
+    workspace.scrollIntoView({ behavior: "smooth" });
+  });
+
+  activateRecord(selectedRecord);
+  workspace.dataset.recordReady = "true";
+};
+
+const setupDashboardInteractions = () => {
   setupPeriodConsole();
+  setupRecordWorkspace();
+};
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", setupDashboardInteractions, { once: true });
+} else {
+  setupDashboardInteractions();
 }
