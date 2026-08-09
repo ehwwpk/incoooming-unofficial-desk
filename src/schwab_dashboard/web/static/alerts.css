@@ -123,58 +123,34 @@ body[data-nibwick-popover-open="true"] .nibwick-stage .nibwick-obstacle { animat
 }
 .nibwick-popover-heading {
   display: grid;
-  grid-template-columns: 110px minmax(0, 1fr) 40px;
+  grid-template-columns: minmax(0, 1fr) 124px 40px;
   align-items: stretch;
-  min-height: 76px;
+  min-height: 84px;
   border-bottom: 1px solid #343a3d;
   border-radius: 3px 3px 0 0;
   background: #1b1f21;
 }
-.nibwick-popover-heading > div { display: grid; align-content: center; gap: 4px; padding: 8px 12px; }
-.nibwick-popover-heading > .nibwick-portrait { place-items: center; border-right: 1px solid var(--line); color: var(--gold); }
-.nibwick-portrait-art { position: relative; width: 62px; height: 36px; }
-.nibwick-portrait-art pre {
-  position: absolute;
-  inset: 50% auto auto 50%;
-  margin: 0;
-  color: var(--gold);
-  font: 700 .5rem/.9 var(--mono);
-  text-align: left;
-  transform: translate(-50%, -50%);
-  white-space: pre;
-}
-.nibwick-portrait-art pre:first-child { animation: nibwick-portrait-awake 4.8s steps(1, end) infinite; }
-.nibwick-portrait-art pre:last-child { opacity: 0; animation: nibwick-portrait-blink 4.8s steps(1, end) infinite; }
-.nibwick-popover-heading p, .nibwick-popover-heading small { margin: 0; color: var(--subtle); font: 600 .625rem/14px var(--mono); letter-spacing: .04em; }
+.nibwick-popover-heading small { margin: 0; color: var(--subtle); font: 600 .625rem/14px var(--mono); letter-spacing: .04em; }
 .nibwick-popover-heading h2 { margin: 0; font: 650 1rem/22px var(--sans); letter-spacing: -.01em; }
-.nibwick-popover-heading > .nibwick-popover-copy { grid-template-columns: minmax(0, 1fr) 92px; align-items: center; gap: 10px; padding-left: 16px; }
-.nibwick-popover-copy > div:first-child { display: grid; gap: 4px; }
-.nibwick-noticing { position: relative; width: 92px; height: 46px; justify-self: end; overflow: hidden; color: var(--gold); }
-.nibwick-noticing pre {
+.nibwick-popover-heading > .nibwick-popover-copy { display: grid; min-width: 0; align-content: center; gap: 4px; padding: 10px 16px; }
+.nibwick-ledger-scene { position: relative; min-width: 0; overflow: hidden; border-left: 1px solid var(--line); background: #171a1c; color: var(--gold); }
+.nibwick-ledger-scene pre {
   position: absolute;
   inset: 50% auto auto 50%;
   margin: 0;
   opacity: 0;
-  font: 700 .5rem/.9 var(--mono);
+  font: 700 .475rem/.92 var(--mono);
   text-align: left;
   transform: translate(-50%, -50%);
   white-space: pre;
-  animation: nibwick-noticing-frame 3.6s steps(1, end) infinite;
+  animation: nibwick-ledger-frame 6.4s steps(1, end) infinite;
 }
-.nibwick-noticing pre:nth-child(2) { animation-delay: .9s; }
-.nibwick-noticing pre:nth-child(3) { animation-delay: 1.8s; }
-.nibwick-noticing pre:nth-child(4) { animation-delay: 2.7s; }
-@keyframes nibwick-noticing-frame {
+.nibwick-ledger-scene pre:nth-child(2) { animation-delay: 1.6s; }
+.nibwick-ledger-scene pre:nth-child(3) { animation-delay: 3.2s; }
+.nibwick-ledger-scene pre:nth-child(4) { animation-delay: 4.8s; }
+@keyframes nibwick-ledger-frame {
   0%, 24.9% { opacity: 1; }
   25%, 100% { opacity: 0; }
-}
-@keyframes nibwick-portrait-awake {
-  0%, 85.9%, 92%, 100% { opacity: 1; }
-  86%, 91.9% { opacity: 0; }
-}
-@keyframes nibwick-portrait-blink {
-  0%, 85.9%, 92%, 100% { opacity: 0; }
-  86%, 91.9% { opacity: 1; }
 }
 .nibwick-popover-heading > button {
   border: 0;
@@ -276,11 +252,9 @@ body[data-nibwick-popover-open="true"] .nibwick-stage .nibwick-obstacle { animat
   .nibwick-stage .nibwick-alert-badge { animation: none; transform: translate3d(0, 3px, 0); }
   .nibwick-alert-plaque,
   .nibwick-stage[data-attention="true"] .nibwick-alert-plaque { animation: none; }
-  .nibwick-portrait-art pre:first-child { animation: none; opacity: 1; }
-  .nibwick-portrait-art pre:last-child { animation: none; opacity: 0; }
-  .nibwick-noticing pre { animation: none; }
-  .nibwick-noticing pre:not(:last-child) { display: none; }
-  .nibwick-noticing pre:last-child { opacity: 1; }
+  .nibwick-ledger-scene pre { animation: none; }
+  .nibwick-ledger-scene pre:not(:first-child) { display: none; }
+  .nibwick-ledger-scene pre:first-child { opacity: 1; }
   .underlying-card[data-nibwick-arrival="true"] { animation: none; outline: 1px solid var(--gold); outline-offset: 3px; }
 }
 
@@ -298,7 +272,7 @@ body[data-nibwick-popover-open="true"] .nibwick-stage .nibwick-obstacle { animat
 }
 
 @media (max-width: 480px) {
-  .nibwick-popover-heading { grid-template-columns: 88px minmax(0, 1fr) 36px; }
-  .nibwick-popover-heading > .nibwick-popover-copy { grid-template-columns: minmax(0, 1fr); padding-left: 12px; }
-  .nibwick-noticing { display: none; }
+  .nibwick-popover-heading { grid-template-columns: minmax(0, 1fr) 36px; }
+  .nibwick-popover-heading > .nibwick-popover-copy { padding-left: 12px; }
+  .nibwick-ledger-scene { display: none; }
 }
