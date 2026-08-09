@@ -39,6 +39,8 @@ The primary workspace does not reserve a generic news or telemetry rail. A deriv
 
 Nibwick is a small bear clerk, with the same round-ear, nose, and paw language across patrol, reaction, and note poses. His note panel is conditional and initially hidden, so alerts reserve no permanent dashboard space. Entering a flagged security workspace makes the mascot wave and marks the note badge; it never opens the panel automatically. Clicking Nibwick or the badge opens the relevant note as a compact, dismissible non-modal popover, with close, outside-click, and Escape paths. The active note subtly marks its underlying workspace, and its action closes the note and takes the user directly to that security. The decorative noticing animation is hidden from assistive technology and becomes a static pose when reduced motion is requested. Alert severity, facts, and thresholds come from typed application rules; the mascot adds plain-English presentation but never invents advice.
 
+Note typography uses a fixed productive UI scale: 16/22 headings, 14/20 body copy, 12/16 supporting labels and actions, and 10/14 micro labels. The panel heading, note heading, and body share one left edge; spacing follows four-pixel increments.
+
 ## Performance windows
 
 - Week uses the latest seven calendar days.

@@ -59,7 +59,7 @@
     if (position) position.textContent = `${activeIndex + 1} / ${notes.length}`;
     const symbol = notes[activeIndex].dataset.alertSymbol;
     panel.dataset.activeSymbol = symbol;
-    if (panelTitle) panelTitle.textContent = `Nibwick noticed something in ${symbol}`;
+    if (panelTitle) panelTitle.textContent = `Nibwick noticed ${symbol}`;
     linkActiveCard();
     positionPanel();
   };
