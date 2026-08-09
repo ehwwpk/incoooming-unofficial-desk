@@ -6,21 +6,16 @@
     <meta name="color-scheme" content="dark">
     <title>{{ workspace.label }} · Incoooming Unofficial Desk</title>
     <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=39">
-    <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=1">
+    <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=2">
   </head>
   <body class="workspace-page" data-workspace-key="{{ workspace.key.value }}" data-workspace-context='{"account":"{{ snapshot.accounts[0].account_mask if snapshot.accounts else "---" }}","symbol":"ALL","asOf":"{{ snapshot.as_of.date().isoformat() }}"}'>
     <header class="topbar workspace-topbar">
       <a class="brand" href="/" aria-label="Return to the Desk">
         <span class="brand-mark">IU</span>
-        <span><strong>INCOOOMING//UNOFFICIAL</strong><small>MULTI-WINDOW ANALYTICS</small></span>
+        <span><strong>INCOOOMING//UNOFFICIAL</strong><small>DESK TOOLS · READ ONLY</small></span>
       </a>
-      <nav class="workspace-tabs" aria-label="Workspaces">
-        {% for item in workspaces %}
-        <a href="{{ item.route }}" {% if item.key == workspace.key %}aria-current="page"{% endif %}>
-          <kbd>{{ item.function_key }}</kbd><span>{{ item.label }}</span>
-        </a>
-        {% endfor %}
-      </nav>
+      {% set current_workspace_key = workspace.key.value %}
+      {% include "partials/_product_nav.html" %}
       <div class="session-state">
         <b class="{{ 'muted' if snapshot.is_demo else 'positive' }}">{{ 'DEMO SOURCE' if snapshot.is_demo else 'LIVE SOURCE' }}</b>
         <small>{{ snapshot.as_of | short_date }} · READ ONLY</small>
@@ -36,26 +31,14 @@
     </div>
 
     <div class="workspace-frame">
-      <aside class="workspace-directory" aria-label="Workspace directory">
-        <p>WORKSPACES</p>
-        {% for item in workspaces %}
-        <div class="workspace-directory-row {% if item.key == workspace.key %}active{% endif %}">
-          <a href="{{ item.route }}">
-            <kbd>{{ item.function_key }}</kbd>
-            <span><b>{{ item.short_label }}</b><small>{{ item.eyebrow }}</small></span>
-          </a>
-          {% if item.key != workspace.key %}
-          <button type="button" data-open-workspace data-workspace-url="{{ item.route }}" data-window-name="{{ item.window_name }}" aria-label="Open {{ item.label }} in its own window" title="Open {{ item.label }} in its own window">↗</button>
-          {% endif %}
-        </div>
-        {% endfor %}
-        <div class="workspace-directory-note">
-          <b>WINDOW LINK</b>
-          <span>Account and symbol context stay aligned. Brokerage secrets never cross windows.</span>
-        </div>
-      </aside>
-
       <main class="workspace-main" id="workspace-main">
+        <nav class="workspace-breadcrumb" aria-label="Breadcrumb">
+          <a href="/">DESK</a>
+          <span aria-hidden="true">/</span>
+          <span>TOOLS</span>
+          <span aria-hidden="true">/</span>
+          <b aria-current="page">{{ workspace.label | upper }}</b>
+        </nav>
         <header class="workspace-heading">
           <div>
             <p class="eyebrow">{{ workspace.eyebrow }}</p>
@@ -63,7 +46,7 @@
             <p>{{ workspace.description }}</p>
           </div>
           <div class="workspace-actions">
-            <a href="/" class="workspace-action">← DESK</a>
+            <a href="/" class="workspace-action">← BACK TO DESK</a>
             <button type="button" data-open-workspace data-workspace-url="{{ workspace.route }}" data-window-name="{{ workspace.window_name }}">OPEN OWN WINDOW ↗</button>
           </div>
         </header>
@@ -83,7 +66,7 @@
       </main>
     </div>
 
-    <script src="{{ url_for('static', path='/workspace-navigation.js') }}?v=1" defer></script>
+    <script src="{{ url_for('static', path='/workspace-navigation.js') }}?v=2" defer></script>
     <script src="{{ url_for('static', path='/workspace-channel.js') }}?v=1" defer></script>
   </body>
 </html>

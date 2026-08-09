@@ -20,9 +20,11 @@ def test_workspace_catalog_keeps_stable_keys_separate_from_labels() -> None:
     assert [item.key for item in workspaces] == list(WorkspaceKey)
     assert len({item.route for item in workspaces}) == len(workspaces)
     assert len({item.window_name for item in workspaces}) == len(workspaces)
-    assert get_workspace(WorkspaceKey.RISK).label == "Open Book"
+    assert get_workspace(WorkspaceKey.RISK).label == "Open Calls"
     assert get_workspace(WorkspaceKey.ATTRIBUTION).label == "Strategy Review"
-    assert get_workspace(WorkspaceKey.RECORDS).label == "Source Ledger"
+    assert get_workspace(WorkspaceKey.RECORDS).label == "Data & Records"
+    assert get_workspace(WorkspaceKey.RISK).route == "/workspaces/risk"
+    assert get_workspace(WorkspaceKey.RECORDS).window_name == "iud-source-ledger"
 
 
 def test_open_book_projection_reconciles_to_dashboard_open_mark() -> None:

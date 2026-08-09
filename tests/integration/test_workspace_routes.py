@@ -18,7 +18,9 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
     container = Container(settings)
 
     try:
-        catalog, risk, review, volatility, records = asyncio.run(_request_workspaces(container))
+        catalog, desk, risk, review, volatility, records = asyncio.run(
+            _request_workspaces(container)
+        )
         assert catalog.status_code == 200
         assert [item["key"] for item in catalog.json()] == [
             "desk",
@@ -29,11 +31,21 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         ]
         assert len({item["window_name"] for item in catalog.json()}) == 5
 
+        assert desk.status_code == 200
+        assert desk.text.count("data-tools-toggle") == 1
+        assert "desk-workspace-launcher" not in desk.text
+        assert "function-rail" in desk.text
+
         assert risk.status_code == 200
         assert "Open obligations" in risk.text
         assert "ENTRY CASH ≠ CURRENT LIABILITY" in risk.text
         assert "OPEN OWN WINDOW" in risk.text
         assert 'data-workspace-key="risk"' in risk.text
+        assert risk.text.count("data-tools-toggle") == 1
+        assert "workspace-tabs" not in risk.text
+        assert "workspace-directory" not in risk.text
+        assert 'class="workspace-breadcrumb"' in risk.text
+        assert "BACK TO DESK" in risk.text
 
         assert review.status_code == 200
         assert "Cash results and normalized pace" in review.text
@@ -70,11 +82,19 @@ def test_empty_live_ledger_keeps_workspaces_available_before_broker_auth(tmp_pat
 
 async def _request_workspaces(
     container: Container,
-) -> tuple[httpx.Response, httpx.Response, httpx.Response, httpx.Response, httpx.Response]:
+) -> tuple[
+    httpx.Response,
+    httpx.Response,
+    httpx.Response,
+    httpx.Response,
+    httpx.Response,
+    httpx.Response,
+]:
     transport = httpx.ASGITransport(app=create_app(container))
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         responses = await asyncio.gather(
             client.get("/api/v1/workspaces"),
+            client.get("/"),
             client.get("/workspaces/risk"),
             client.get("/workspaces/attribution"),
             client.get("/workspaces/volatility"),

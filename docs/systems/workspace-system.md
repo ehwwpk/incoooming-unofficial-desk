@@ -8,16 +8,18 @@ into an unreadable wall of equally weighted boxes.
 
 ## Information architecture
 
-Five bounded workspaces share a consistent shell:
+One primary Desk and four bounded secondary tools share a consistent shell:
 
 - Desk: outcomes, exceptions, target progress, and data health.
-- Risk: open obligations, exposures, catalysts, and scenarios.
+- Open Calls: cross-portfolio obligations, strike pressure, marks, and time decay.
 - Attribution: actual versus baseline, lifecycle economics, and cohorts.
 - Volatility: surfaces, histories, regimes, and research studies.
-- Records: executions, cash, positions, lifecycle events, breaks, and raw source drill-through.
+- Data & Records: executions, cash, positions, lifecycle events, source readiness, and provenance.
 
-The default desk is an inverted pyramid: headline decisions first, supporting evidence second, raw
-records last. Nibwick is an optional friendly exception interface, not a parallel navigation system.
+The default Desk is an inverted pyramid: headline decisions first, supporting evidence second, raw
+records last. Its F1-F4 rail is local page navigation, not a second application hierarchy. Less
+frequent analytical routes sit behind one `TOOLS` disclosure. Nibwick is an optional friendly
+exception interface, not a parallel navigation system.
 
 ## Layout model
 

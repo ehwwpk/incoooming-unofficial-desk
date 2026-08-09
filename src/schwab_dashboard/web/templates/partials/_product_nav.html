@@ -1,0 +1,30 @@
+<nav class="product-nav" aria-label="Product navigation">
+  <a class="product-nav-desk" href="/" {% if current_workspace_key == 'desk' %}aria-current="page"{% endif %}>
+    <span>DESK</span>
+    <small>DAILY OPERATIONS</small>
+  </a>
+  <div class="tools-disclosure" data-tools-disclosure>
+    <button type="button" class="tools-toggle" data-tools-toggle aria-expanded="false" aria-controls="tools-panel">
+      <span>TOOLS</span>
+      <small>ANALYSIS &amp; RECORDS</small>
+      <i aria-hidden="true">⌄</i>
+    </button>
+    <div class="tools-panel" id="tools-panel" data-tools-panel hidden>
+      <header>
+        <b>SECONDARY TOOLS</b>
+        <span>Open here or send a tool to its own window.</span>
+      </header>
+      <div class="tools-list">
+        {% for item in workspaces if item.key.value != 'desk' %}
+        <div class="tool-menu-row {% if current_workspace_key == item.key.value %}active{% endif %}">
+          <a href="{{ item.route }}" {% if current_workspace_key == item.key.value %}aria-current="page"{% endif %}>
+            <b>{{ item.label }}</b>
+            <span>{{ item.description }}</span>
+          </a>
+          <button type="button" data-open-workspace data-window-button-compact data-workspace-url="{{ item.route }}" data-window-name="{{ item.window_name }}" aria-label="Open {{ item.label }} in its own window" title="Open {{ item.label }} in its own window">↗</button>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</nav>

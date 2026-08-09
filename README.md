@@ -14,7 +14,7 @@ The demo command serves a deterministic covered-call simulation through the same
 
 Open `http://127.0.0.1:8182`. Press `Ctrl+C` in the terminal to stop it.
 
-The main Desk links to four focused workspaces: Open Book, Strategy Review, Volatility Lab, and Source Ledger. Each link can replace the current page or open an explicitly requested named window. The same routes and read models work in demo and live-ledger modes.
+The main Desk keeps daily decisions in one operating surface. A single `TOOLS` disclosure opens four secondary instruments—Open Calls, Strategy Review, Volatility Lab, and Data & Records—in the current page or an explicitly requested named window. The same stable routes and read models work in demo and live-ledger modes.
 
 All demo trades, option marks, IV, and Greeks are fictional. Underlying paths are frozen public market-session closes; they are not broker marks or trading guidance.
 

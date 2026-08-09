@@ -34,10 +34,10 @@ WORKSPACE_CATALOG = (
     ),
     WorkspaceDefinition(
         key=WorkspaceKey.RISK,
-        label="Open Book",
-        short_label="BOOK",
+        label="Open Calls",
+        short_label="CALLS",
         eyebrow="LIVE OBLIGATIONS",
-        description="Every open call, its remaining liability, strike distance, and time decay.",
+        description="Cross-portfolio obligations, strike pressure, marks, and time decay.",
         route="/workspaces/risk",
         template_name="workspaces/_open_book.html",
         window_name="iud-open-book",
@@ -67,11 +67,11 @@ WORKSPACE_CATALOG = (
     ),
     WorkspaceDefinition(
         key=WorkspaceKey.RECORDS,
-        label="Source Ledger",
-        short_label="LEDGER",
+        label="Data & Records",
+        short_label="DATA",
         eyebrow="PROVENANCE / RECORDS",
         description=(
-            "Positions, normalized call activity, and exactly which source supplied each fact."
+            "Positions, activity, provenance, and source readiness in one maintenance view."
         ),
         route="/workspaces/records",
         template_name="workspaces/_source_ledger.html",
