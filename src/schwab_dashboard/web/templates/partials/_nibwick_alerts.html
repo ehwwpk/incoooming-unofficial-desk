@@ -2,16 +2,18 @@
 <p class="nibwick-announcement" data-nibwick-announcement aria-live="polite"></p>
 <aside id="nibwick-note-popover" class="nibwick-popover" data-nibwick-popover role="dialog" aria-modal="false" aria-labelledby="nibwick-panel-title" hidden>
   <header class="nibwick-popover-heading">
-    <div><span>NW</span><p>NIBWICK</p></div>
-    <div><small>DESK NOTE</small><h2 id="nibwick-panel-title">Something worth seeing</h2></div>
+    <div><pre aria-hidden="true"> .-.
+(o o)</pre><p>NIBWICK</p></div>
+    <div><small>A QUICK HEADS-UP</small><h2 id="nibwick-panel-title" data-nibwick-panel-title>Nibwick noticed something</h2></div>
     <button type="button" data-nibwick-close aria-label="Close Nibwick's notes">×</button>
   </header>
   <div class="nibwick-popover-notes">
     {% for alert in snapshot.alerts %}
-    <article class="nibwick-note {{ alert.level }}" data-nibwick-note data-alert-index="{{ loop.index0 }}" data-alert-symbol="{{ alert.symbol }}"{% if not loop.first %} hidden{% endif %}>
+    <article class="nibwick-note {{ alert.level }}" data-nibwick-note data-alert-index="{{ loop.index0 }}" data-alert-symbol="{{ alert.symbol }}" data-alert-target="{{ alert.target_id }}"{% if not loop.first %} hidden{% endif %}>
       <header>
+        <strong>{{ alert.symbol }}</strong>
         <b>{{ alert.level_label }}</b>
-        <small>{{ loop.index }} OF {{ loop.length }}</small>
+        <small>{{ loop.index }} OF {{ loop.length }} · COVERED CALLS</small>
       </header>
       <div>
         <h3>{{ alert.headline }}</h3>
@@ -20,15 +22,15 @@
       <dl>
         {% for fact in alert.facts %}<div><dt>{{ fact.label }}</dt><dd>{{ fact.value }}</dd></div>{% endfor %}
       </dl>
-      <a href="#{{ alert.target_id }}" data-nibwick-show-name>SHOW {{ alert.symbol }}</a>
+      <a href="#{{ alert.target_id }}" data-nibwick-show-name>SHOW ME {{ alert.symbol }} →</a>
     </article>
     {% endfor %}
   </div>
   {% if snapshot.alerts | length > 1 %}
   <footer class="nibwick-popover-nav" aria-label="Browse Nibwick's notes">
-    <button type="button" data-nibwick-note-prev>PREVIOUS</button>
+    <button type="button" data-nibwick-note-prev>← PREVIOUS</button>
     <span data-nibwick-note-position>1 / {{ snapshot.alerts | length }}</span>
-    <button type="button" data-nibwick-note-next>NEXT NOTE</button>
+    <button type="button" data-nibwick-note-next>NEXT →</button>
   </footer>
   {% endif %}
 </aside>

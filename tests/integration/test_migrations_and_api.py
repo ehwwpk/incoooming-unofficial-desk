@@ -113,17 +113,17 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "DIV RISK // MONITOR" not in page.text
         assert "WORTH CHECKING" in page.text
         assert "KEEP AN EYE ON THIS" in page.text
-        assert "KTOS has moved up quickly." in page.text
-        assert "CVX has a dividend coming up." in page.text
+        assert "KTOS is moving fast" in page.text
+        assert "dividend is getting close" in page.text
         assert "CHECK SOON" not in page.text
-        assert "app.css?v=25" in page.text
+        assert "app.css?v=26" in page.text
         assert "periods.js?v=14" in page.text
         assert "workspace-splitter.js?v=1" in page.text
         assert "chart-viewport.js?v=1" in page.text
         assert "chart-focus.js?v=1" in page.text
         assert "event-layout.js?v=3" in page.text
         assert "lifecycle-links.js?v=1" in page.text
-        assert "nibwick-alerts.js?v=2" in page.text
+        assert "nibwick-alerts.js?v=3" in page.text
         assert "nibwick.js?v=4" in page.text
         assert page.text.count("data-chart-range=") == 9
         assert page.text.count("data-chart-focus") == 3
@@ -132,6 +132,9 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert page.text.count("data-nibwick-note ") == 2
         assert "data-nibwick-alert-badge" in page.text
         assert 'data-nibwick-popover role="dialog"' in page.text
+        assert "data-nibwick-panel-title" in page.text
+        assert 'data-alert-target="ktos-workspace"' in page.text
+        assert "SHOW ME KTOS" in page.text
         assert 'aria-labelledby="nibwick-panel-title" hidden' in page.text
         assert "data-nibwick-announcement" in page.text
         assert "data-nibwick-wire" not in page.text

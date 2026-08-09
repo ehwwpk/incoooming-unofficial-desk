@@ -394,13 +394,21 @@ def test_nibwick_alerts_are_specific_ranked_and_plain_english() -> None:
         ("dividend_overlap", "watch", "CVX"),
     ]
     assert snapshot.alerts[0].level_label == "WORTH CHECKING"
-    assert snapshot.alerts[0].headline == "KTOS has moved up quickly."
-    assert "last five trading sessions" in snapshot.alerts[0].message
-    assert "does not require an action" in snapshot.alerts[0].message
+    assert snapshot.alerts[0].headline == "KTOS is moving fast"
+    assert "last five trading days" in snapshot.alerts[0].message
+    assert "No fire drill" in snapshot.alerts[0].message
+    assert [(fact.label, fact.value) for fact in snapshot.alerts[0].facts] == [
+        ("LAST 5 TRADING DAYS", "+30.4%"),
+        ("CLOSEST OPEN CALL", "$65.00C"),
+        ("TIME LEFT", "42 DTE"),
+    ]
     assert snapshot.alerts[1].level_label == "KEEP AN EYE ON THIS"
-    assert snapshot.alerts[1].headline == "CVX has a dividend coming up."
-    assert "check again closer to the date" in snapshot.alerts[1].message
-    assert all(alert.target_id.endswith("-workspace") for alert in snapshot.alerts)
+    assert snapshot.alerts[1].headline == "CVX's dividend is getting close"
+    assert "not sounding an assignment alarm" in snapshot.alerts[1].message
+    assert [alert.target_id for alert in snapshot.alerts] == [
+        "ktos-workspace",
+        "cvx-workspace",
+    ]
 
 
 def test_dividend_warning_escalates_only_when_the_math_supports_it() -> None:
@@ -427,7 +435,7 @@ def test_dividend_warning_escalates_only_when_the_math_supports_it() -> None:
     assert alert.level == "attention"
     assert alert.level_label == "NEEDS ATTENTION"
     assert "in the money" in alert.message
-    assert "increase the chance of early assignment" in alert.message
+    assert "raise early-assignment risk" in alert.message
     assert (
         evaluate_dividend_overlap(
             replace(at_risk, next_ex_dividend_date=as_of + timedelta(days=15)), as_of=as_of

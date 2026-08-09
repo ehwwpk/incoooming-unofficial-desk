@@ -8,10 +8,43 @@
   if (!panel || !notes.length || !stage || !nibwick || !badge || !closeButton) return;
 
   const position = panel.querySelector("[data-nibwick-note-position]");
+  const panelTitle = panel.querySelector("[data-nibwick-panel-title]");
   const announcement = document.querySelector("[data-nibwick-announcement]");
   const seenSymbols = new Set();
   let activeIndex = 0;
   let returnFocus = null;
+  let linkedCard = null;
+
+  const clearLinkedCard = () => {
+    if (!linkedCard) return;
+    delete linkedCard.dataset.nibwickLinked;
+    linkedCard.removeAttribute("aria-describedby");
+    linkedCard = null;
+  };
+
+  const linkActiveCard = () => {
+    clearLinkedCard();
+    if (panel.hidden) return;
+    linkedCard = document.getElementById(notes[activeIndex].dataset.alertTarget);
+    if (!linkedCard) return;
+    linkedCard.dataset.nibwickLinked = "true";
+    linkedCard.setAttribute("aria-describedby", "nibwick-panel-title");
+  };
+
+  const positionPanel = () => {
+    if (panel.hidden) return;
+    const source = returnFocus instanceof HTMLElement ? returnFocus : nibwick;
+    const sourceRect = source.getBoundingClientRect();
+    const panelHeight = panel.getBoundingClientRect().height;
+    const sourceCenter = sourceRect.top + sourceRect.height / 2;
+    const panelTop = Math.min(
+      Math.max(72, sourceCenter - 42),
+      Math.max(72, window.innerHeight - panelHeight - 12),
+    );
+    const tipPosition = Math.min(Math.max(20, sourceCenter - panelTop), panelHeight - 20);
+    panel.style.setProperty("--nibwick-popover-top", `${panelTop}px`);
+    panel.style.setProperty("--nibwick-tip-y", `${tipPosition}px`);
+  };
 
   const setExpanded = (expanded) => {
     nibwick.setAttribute("aria-expanded", String(expanded));
@@ -24,7 +57,11 @@
       note.hidden = noteIndex !== activeIndex;
     });
     if (position) position.textContent = `${activeIndex + 1} / ${notes.length}`;
-    panel.dataset.activeSymbol = notes[activeIndex].dataset.alertSymbol;
+    const symbol = notes[activeIndex].dataset.alertSymbol;
+    panel.dataset.activeSymbol = symbol;
+    if (panelTitle) panelTitle.textContent = `Nibwick noticed something in ${symbol}`;
+    linkActiveCard();
+    positionPanel();
   };
 
   const showSymbol = (symbol) => {
@@ -39,6 +76,8 @@
     document.body.dataset.nibwickPopoverOpen = "true";
     delete stage.dataset.attention;
     setExpanded(true);
+    linkActiveCard();
+    positionPanel();
     closeButton.focus({ preventScroll: true });
     document.dispatchEvent(
       new CustomEvent("nibwick:panel-state", { detail: { open: true } }),
@@ -48,6 +87,7 @@
   const closePanel = (restoreFocus = true) => {
     if (panel.hidden) return;
     panel.hidden = true;
+    clearLinkedCard();
     delete document.body.dataset.nibwickPopoverOpen;
     setExpanded(false);
     document.dispatchEvent(
@@ -82,7 +122,15 @@
   });
   panel.querySelectorAll("[data-nibwick-show-name]").forEach((link) => {
     link.addEventListener("click", () => {
-      seenSymbols.add(notes[activeIndex].dataset.alertSymbol);
+      const activeNote = link.closest("[data-nibwick-note]");
+      const targetId = activeNote?.dataset.alertTarget;
+      const symbol = activeNote?.dataset.alertSymbol;
+      const targetCard = targetId ? document.getElementById(targetId) : null;
+      if (symbol) seenSymbols.add(symbol);
+      if (targetCard) {
+        targetCard.dataset.nibwickArrival = "true";
+        window.setTimeout(() => delete targetCard.dataset.nibwickArrival, 2400);
+      }
       closePanel(false);
     });
   });
@@ -104,6 +152,7 @@
     }
     closePanel(false);
   });
+  window.addEventListener("resize", positionPanel, { passive: true });
 
   if ("IntersectionObserver" in window) {
     const observer = new IntersectionObserver(

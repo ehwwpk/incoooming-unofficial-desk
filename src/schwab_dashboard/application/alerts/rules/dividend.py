@@ -51,20 +51,20 @@ def evaluate_dividend_overlap(
     if risky_calls:
         message = (
             "One or more calls are in the money and have less time value than the "
-            "dividend. That can increase the chance of early assignment. Please review "
-            "them before the ex-dividend date."
+            "dividend. That combination can raise early-assignment risk, so review the "
+            "live option values before the dividend date."
         )
     elif any(underlying.current_price > call.strike for call in crossing_calls):
         message = (
             "At least one call is in the money, but its remaining time value is still "
-            "greater than the dividend. This is a reminder to check the live values again "
-            "closer to the date."
+            "greater than the dividend. Nibwick is keeping it on the radar—not sounding "
+            "an alarm. Check the live values again closer to the date."
         )
     else:
         message = (
-            f"{_call_count_text(crossing_contracts)} stay active through "
-            "the dividend date. They are currently below their strikes, so this is a "
-            "reminder to check again closer to the date."
+            f"Your {_call_count_text(crossing_contracts)} stay open across the dividend "
+            "date. They are below their strikes today, so Nibwick is pointing this out "
+            "early—not sounding an assignment alarm."
         )
 
     return DeskAlert(
@@ -74,7 +74,7 @@ def evaluate_dividend_overlap(
         level_label=level.friendly_label,
         symbol=underlying.symbol,
         target_id=f"{underlying.symbol.lower()}-workspace",
-        headline=f"{underlying.symbol} has a dividend coming up.",
+        headline=f"{underlying.symbol}'s dividend is getting close",
         message=message,
         facts=(
             AlertFact("DIVIDEND DATE", ex_date.strftime("%b %d").upper()),

@@ -32,18 +32,17 @@ def evaluate_fast_move(underlying: UnderlyingCallStats) -> DeskAlert | None:
         level_label=level.friendly_label,
         symbol=underlying.symbol,
         target_id=f"{underlying.symbol.lower()}-workspace",
-        headline=f"{underlying.symbol} has moved up quickly.",
+        headline=f"{underlying.symbol} is moving fast",
         message=(
-            f"It is up {move:.1f}% over the last five trading sessions. The nearest open "
-            f"call strike is ${closest.strike:.2f}, about {abs(strike_gap):.1f}% "
-            f"{strike_position} today's "
-            "price. Keep an eye on the distance to the strike; this note does not require "
-            "an action."
+            f"{underlying.symbol} climbed {move:.1f}% over the last five trading days. "
+            f"Your closest open call (${closest.strike:.2f}) is now {abs(strike_gap):.1f}% "
+            f"{strike_position} today's price. No fire drill—Nibwick just wants it on "
+            "your next review."
         ),
         facts=(
-            AlertFact("5-SESSION MOVE", f"+{move:.1f}%"),
-            AlertFact("CLOSEST STRIKE", f"${closest.strike:.2f}"),
-            AlertFact("DAYS TO EXPIRATION", str(closest.days_to_expiration)),
+            AlertFact("LAST 5 TRADING DAYS", f"+{move:.1f}%"),
+            AlertFact("CLOSEST OPEN CALL", f"${closest.strike:.2f}C"),
+            AlertFact("TIME LEFT", f"{closest.days_to_expiration} DTE"),
         ),
         priority=priority,
     )
