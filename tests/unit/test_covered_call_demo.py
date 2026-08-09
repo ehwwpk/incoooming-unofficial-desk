@@ -394,17 +394,26 @@ def test_nibwick_alerts_are_specific_ranked_and_plain_english() -> None:
         ("dividend_overlap", "watch", "CVX"),
     ]
     assert snapshot.alerts[0].level_label == "WORTH CHECKING"
-    assert snapshot.alerts[0].headline == "KTOS is moving fast"
-    assert "last five trading days" in snapshot.alerts[0].message
-    assert "No fire drill" in snapshot.alerts[0].message
+    assert snapshot.alerts[0].headline == "KTOS is closing in on $65"
+    assert "+30.4% five-session move" in snapshot.alerts[0].message
+    assert "not an instruction to roll" in snapshot.alerts[0].message
     assert [(fact.label, fact.value) for fact in snapshot.alerts[0].facts] == [
-        ("LAST 5 TRADING DAYS", "+30.4%"),
-        ("CLOSEST OPEN CALL", "$65.00C"),
-        ("TIME LEFT", "42 DTE"),
+        ("TO STRIKE", "$4.23 / 7.0%"),
+        ("MARK / ENTRY CREDIT", "$3.30 / $2.45 · 1.35x"),
+        ("ROLL REVIEW / TIME", "55/100 ELEVATED · 42 DTE"),
     ]
+    assert snapshot.alerts[0].method_note is not None
+    assert "NOT A PROBABILITY OR TRADE SIGNAL" in snapshot.alerts[0].method_note
     assert snapshot.alerts[1].level_label == "KEEP AN EYE ON THIS"
-    assert snapshot.alerts[1].headline == "CVX's dividend is getting close"
-    assert "not sounding an assignment alarm" in snapshot.alerts[1].message
+    assert snapshot.alerts[1].headline == "CVX's dividend needs context"
+    assert "pulls the stock price down, not up" in snapshot.alerts[1].message
+    assert [(fact.label, fact.value) for fact in snapshot.alerts[1].facts] == [
+        ("EX-DIV / CALLS", "AUG 19 · 12D · 6"),
+        ("PRE-DIV GRAY LINE", "$231.78 · +$45.22"),
+        ("DIV / $230 TIME VALUE", "$1.78 / $1.80 · 0.99x"),
+    ]
+    assert snapshot.alerts[1].method_note is not None
+    assert "NOT A PRICE FORECAST" in snapshot.alerts[1].method_note
     assert [alert.target_id for alert in snapshot.alerts] == [
         "ktos-workspace",
         "cvx-workspace",
@@ -435,7 +444,8 @@ def test_dividend_warning_escalates_only_when_the_math_supports_it() -> None:
     assert alert.level == "attention"
     assert alert.level_label == "NEEDS ATTENTION"
     assert "in the money" in alert.message
-    assert "raise early-assignment risk" in alert.message
+    assert "raises early-assignment sensitivity" in alert.message
+    assert "cannot predict assignment" in alert.message
     assert (
         evaluate_dividend_overlap(
             replace(at_risk, next_ex_dividend_date=as_of + timedelta(days=15)), as_of=as_of

@@ -36,3 +36,4 @@ class DeskAlert:
     message: str
     facts: tuple[AlertFact, ...]
     priority: int
+    method_note: str | None = None

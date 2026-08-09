@@ -59,6 +59,7 @@
       <dl>
         {% for fact in alert.facts %}<div><dt>{{ fact.label }}</dt><dd>{{ fact.value }}</dd></div>{% endfor %}
       </dl>
+      {% if alert.method_note %}<p class="nibwick-method-note">{{ alert.method_note }}</p>{% endif %}
       <a href="#{{ alert.target_id }}" data-nibwick-show-name>SHOW ME {{ alert.symbol }} →</a>
     </article>
     {% endfor %}

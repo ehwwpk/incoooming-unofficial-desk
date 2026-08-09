@@ -215,6 +215,17 @@ body[data-nibwick-popover-open="true"] .nibwick-stage .nibwick-obstacle { animat
 .nibwick-note dl > div { display: grid; gap: 4px; padding: 10px 12px; border-right: 1px solid #303538; }
 .nibwick-note dl > div:last-child { border-right: 0; }
 .nibwick-note dd { margin: 0; font: 700 .875rem/20px var(--mono); }
+.nibwick-note > .nibwick-method-note {
+  grid-column: 1 / -1;
+  max-width: none;
+  margin: 0;
+  border-top: 1px solid #303538;
+  padding: 7px 12px;
+  background: #121618;
+  color: #858c91;
+  font: 550 .55rem/14px var(--mono);
+  letter-spacing: .035em;
+}
 .nibwick-note > a {
   grid-column: 1 / -1;
   border-top: 1px solid #303538;
@@ -282,6 +293,7 @@ body[data-nibwick-popover-open="true"] .nibwick-stage .nibwick-obstacle { animat
   .nibwick-note dl { grid-column: auto; grid-template-columns: 1fr; }
   .nibwick-note dl > div { border-right: 0; border-bottom: 1px solid var(--line); }
   .nibwick-note dl > div:last-child { border-bottom: 0; }
+  .nibwick-note > .nibwick-method-note { grid-column: auto; }
   .nibwick-note > a { grid-column: auto; }
 }
 

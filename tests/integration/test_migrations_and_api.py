@@ -113,10 +113,13 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "DIV RISK // MONITOR" not in page.text
         assert "WORTH CHECKING" in page.text
         assert "KEEP AN EYE ON THIS" in page.text
-        assert "KTOS is moving fast" in page.text
-        assert "dividend is getting close" in page.text
+        assert "KTOS is closing in on $65" in page.text
+        assert "CVX&#39;s dividend needs context" in page.text
+        assert "55/100 ELEVATED" in page.text
+        assert "$231.78" in page.text
+        assert "nibwick-method-note" in page.text
         assert "CHECK SOON" not in page.text
-        assert "app.css?v=33" in page.text
+        assert "app.css?v=34" in page.text
         assert "periods.js?v=14" in page.text
         assert "workspace-splitter.js?v=1" in page.text
         assert "chart-viewport.js?v=1" in page.text

@@ -3,6 +3,10 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
+from schwab_dashboard.application.alerts.context import (
+    DividendReviewContext,
+    build_dividend_review_context,
+)
 from schwab_dashboard.application.alerts.models import AlertFact, AlertLevel, DeskAlert
 from schwab_dashboard.application.dashboard.covered_calls import UnderlyingCallStats
 
@@ -27,16 +31,17 @@ def evaluate_dividend_overlap(
     )
     if not crossing_calls:
         return None
-    crossing_contracts = sum(call.contracts for call in crossing_calls)
 
-    closest = min(crossing_calls, key=lambda call: abs(call.strike - underlying.current_price))
-    strike_gap = (closest.strike / underlying.current_price - 1) * D("100")
-    risky_calls = tuple(
-        call
-        for call in crossing_calls
-        if underlying.current_price > call.strike
-        and underlying.dividend_per_share > call.remaining_extrinsic_value / D(call.contracts * 100)
+    context = build_dividend_review_context(
+        underlying,
+        crossing_calls=crossing_calls,
+        as_of=as_of,
     )
+    call_contexts = tuple(
+        build_dividend_review_context(underlying, crossing_calls=(call,), as_of=as_of)
+        for call in crossing_calls
+    )
+    risky_calls = tuple(item for item in call_contexts if item.early_assignment_sensitive)
 
     if risky_calls and days_until <= 2:
         level = AlertLevel.ATTENTION
@@ -51,20 +56,26 @@ def evaluate_dividend_overlap(
     if risky_calls:
         message = (
             "One or more calls are in the money and have less time value than the "
-            "dividend. That combination can raise early-assignment risk, so review the "
-            "live option values before the dividend date."
+            f"${underlying.dividend_per_share:.2f} dividend. That is the specific "
+            "combination that raises early-assignment sensitivity before the ex-date. "
+            "Nibwick cannot predict assignment; check the live option values again."
         )
-    elif any(underlying.current_price > call.strike for call in crossing_calls):
+    elif any(item.is_in_the_money for item in call_contexts):
         message = (
             "At least one call is in the money, but its remaining time value is still "
             "greater than the dividend. Nibwick is keeping it on the radar—not sounding "
-            "an alarm. Check the live values again closer to the date."
+            "an alarm. The live time value matters more than a simple strike-distance "
+            "estimate here."
         )
     else:
         message = (
-            f"Your {_call_count_text(crossing_contracts)} stay open across the dividend "
-            "date. They are below their strikes today, so Nibwick is pointing this out "
-            "early—not sounding an assignment alarm."
+            "A dividend normally pulls the stock price down, not up. "
+            f"{underlying.symbol} is ${context.strike_distance_per_share:.2f}/share "
+            f"({context.strike_distance_percent:.1f}%) below the closest "
+            f"${context.call.strike:.2f} call. To remain near that strike after a "
+            f"dividend-sized ${underlying.dividend_per_share:.2f} adjustment, it would "
+            f"need to be around ${context.pre_dividend_gray_line:.2f} before ex-date—"
+            f"{_signed_money(context.distance_to_gray_line_per_share)} from today."
         )
 
     return DeskAlert(
@@ -74,17 +85,39 @@ def evaluate_dividend_overlap(
         level_label=level.friendly_label,
         symbol=underlying.symbol,
         target_id=f"{underlying.symbol.lower()}-workspace",
-        headline=f"{underlying.symbol}'s dividend is getting close",
+        headline=f"{underlying.symbol}'s dividend needs context",
         message=message,
         facts=(
-            AlertFact("DIVIDEND DATE", ex_date.strftime("%b %d").upper()),
-            AlertFact("CALLS CROSSING DATE", str(crossing_contracts)),
-            AlertFact("CLOSEST STRIKE GAP", f"{strike_gap:+.1f}%"),
+            AlertFact(
+                "EX-DIV / CALLS",
+                f"{ex_date.strftime('%b %d').upper()} · {days_until}D · "
+                f"{context.crossing_contracts}",
+            ),
+            AlertFact(
+                "PRE-DIV GRAY LINE",
+                f"${context.pre_dividend_gray_line:.2f} · "
+                f"{_signed_money(context.distance_to_gray_line_per_share)}",
+            ),
+            AlertFact(
+                f"DIV / ${context.call.strike:g} TIME VALUE",
+                f"${underlying.dividend_per_share:.2f} / "
+                f"${context.extrinsic_per_share:.2f} · {_ratio_text(context)}",
+            ),
         ),
         priority=priority,
+        method_note=(
+            "GRAY LINE = STRIKE + INDICATED DIVIDEND. IT IS A SIMPLE EX-DATE "
+            "ADJUSTMENT, NOT A PRICE FORECAST. EARLY ASSIGNMENT CANNOT BE "
+            "PREDICTED."
+        ),
     )
 
 
-def _call_count_text(contracts: int) -> str:
-    noun = "open call contract" if contracts == 1 else "open call contracts"
-    return f"{contracts} {noun}"
+def _ratio_text(context: DividendReviewContext) -> str:
+    ratio = context.dividend_to_extrinsic_ratio
+    return f"{ratio:.2f}x" if ratio is not None else "NO TIME VALUE"
+
+
+def _signed_money(value: Decimal) -> str:
+    sign = "+" if value >= D("0") else "-"
+    return f"{sign}${abs(value):.2f}"
