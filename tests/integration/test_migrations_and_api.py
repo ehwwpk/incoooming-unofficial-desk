@@ -119,7 +119,7 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "$231.78" in page.text
         assert "nibwick-method-note" in page.text
         assert "CHECK SOON" not in page.text
-        assert "app.css?v=35" in page.text
+        assert "app.css?v=36" in page.text
         assert "periods.js?v=14" in page.text
         assert "workspace-splitter.js?v=1" in page.text
         assert "chart-viewport.js?v=1" in page.text
@@ -140,7 +140,7 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "data-nibwick-panel-title" in page.text
         assert "data-nibwick-scene" in page.text
         assert "nibwick-note-meta" in page.text
-        assert page.text.count("()___") >= 5
+        assert page.text.count("()___()") >= 5
         assert 'data-alert-target="ktos-workspace"' in page.text
         assert "SHOW ME KTOS" in page.text
         assert 'aria-labelledby="nibwick-panel-title" hidden' in page.text
