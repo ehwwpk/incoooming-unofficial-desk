@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <title>Incoooming Unofficial Desk · Options Income</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=31">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=32">
   </head>
   <body>
     <header class="topbar">
@@ -50,7 +50,7 @@
         <div class="nibwick-stage" data-nibwick-stage>
           {% if snapshot.alerts %}
           <button type="button" class="nibwick-alert-badge" data-nibwick-alert-badge aria-label="Open Nibwick's {{ snapshot.alerts | length }} notes" aria-expanded="false" aria-controls="nibwick-note-popover">
-            <b>!</b><span>{{ snapshot.alerts | length }}</span>
+            <span class="nibwick-alert-plaque" aria-hidden="true"><b>!</b><span>{{ snapshot.alerts | length }}</span></span>
           </button>
           {% endif %}
           <i class="nibwick-obstacle" data-nibwick-obstacle aria-hidden="true">[?]</i>

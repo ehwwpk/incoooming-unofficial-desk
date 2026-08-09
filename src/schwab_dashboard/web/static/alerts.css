@@ -1,10 +1,36 @@
 .nibwick-stage .nibwick-alert-badge {
   position: absolute;
   z-index: 3;
-  top: 4px;
-  right: 3px;
+  top: 3px;
+  left: 42px;
+  width: 25px;
+  height: 24px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--gold);
+  cursor: pointer;
+  animation: nibwick-patrol 42s linear infinite;
+  will-change: transform;
+}
+.nibwick-alert-badge::before {
+  position: absolute;
+  z-index: 0;
+  top: 15px;
+  left: -6px;
+  width: 8px;
+  border-top: 1px solid #806425;
+  content: "";
+  opacity: .72;
+  pointer-events: none;
+  transform: rotate(-32deg);
+  transform-origin: right center;
+}
+.nibwick-alert-plaque {
+  position: relative;
+  z-index: 1;
   display: grid;
-  min-width: 22px;
+  min-width: 23px;
   min-height: 20px;
   grid-template-columns: auto auto;
   place-content: center;
@@ -13,28 +39,46 @@
   padding: 2px 3px;
   background: #11100c;
   color: var(--gold);
-  cursor: pointer;
   font: 750 .34rem/1 var(--mono);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 45%);
+  transform-origin: 20% 80%;
+  animation: nibwick-badge-bob 1800ms ease-in-out infinite;
 }
-.nibwick-alert-badge b { font-size: .42rem; }
-.nibwick-alert-badge:hover, .nibwick-alert-badge:focus-visible {
+.nibwick-alert-plaque b { font-size: .42rem; }
+.nibwick-alert-badge:hover .nibwick-alert-plaque,
+.nibwick-alert-badge:focus-visible .nibwick-alert-plaque {
   border-color: var(--gold);
   background: var(--surface-raised);
   color: var(--text);
   outline: 1px solid var(--gold);
   outline-offset: 1px;
 }
-.nibwick-stage[data-attention="true"] .nibwick-alert-badge {
+.nibwick-alert-badge:focus-visible { outline: 0; }
+.nibwick-alert-badge:hover::before,
+.nibwick-alert-badge:focus-visible::before,
+.nibwick-stage[data-attention="true"] .nibwick-alert-badge::before { border-color: var(--gold); }
+.nibwick-stage[data-attention="true"] .nibwick-alert-plaque {
   border-color: var(--gold);
   box-shadow: 0 0 0 2px rgb(222 184 79 / 15%);
-  animation: nibwick-alert-ping 900ms ease-out 2;
+  animation:
+    nibwick-badge-bob 1800ms ease-in-out infinite,
+    nibwick-alert-ping 900ms ease-out 2;
 }
+.nibwick-stage[data-reaction] .nibwick-alert-badge,
+.nibwick-stage[data-paused="true"] .nibwick-alert-badge,
+body[data-nibwick-popover-open="true"] .nibwick-stage .nibwick-alert-badge,
+body[data-nibwick-popover-open="true"] .nibwick-stage .nibwick,
+body[data-nibwick-popover-open="true"] .nibwick-stage .nibwick-obstacle { animation-play-state: paused; }
 .nibwick-stage[data-attention="true"] .nibwick { color: var(--gold); }
 .nibwick-announcement { position: fixed; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@keyframes nibwick-badge-bob {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(-2deg); }
+  50% { transform: translate3d(1px, -2px, 0) rotate(2deg); }
+}
 @keyframes nibwick-alert-ping {
-  0% { box-shadow: 0 0 0 0 rgb(222 184 79 / 42%); transform: scale(1); }
-  65% { box-shadow: 0 0 0 7px rgb(222 184 79 / 0%); transform: scale(1.08); }
-  100% { box-shadow: 0 0 0 0 rgb(222 184 79 / 0%); transform: scale(1); }
+  0% { box-shadow: 0 0 0 0 rgb(222 184 79 / 42%), 0 2px 8px rgb(0 0 0 / 45%); }
+  65% { box-shadow: 0 0 0 7px rgb(222 184 79 / 0%), 0 2px 8px rgb(0 0 0 / 45%); }
+  100% { box-shadow: 0 0 0 0 rgb(222 184 79 / 0%), 0 2px 8px rgb(0 0 0 / 45%); }
 }
 
 .nibwick-popover {
@@ -197,7 +241,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .nibwick-stage[data-attention="true"] .nibwick-alert-badge { animation: none; }
+  .nibwick-stage .nibwick-alert-badge { animation: none; transform: translate3d(0, 3px, 0); }
+  .nibwick-alert-plaque,
+  .nibwick-stage[data-attention="true"] .nibwick-alert-plaque { animation: none; }
   .nibwick-noticing pre { animation: none; }
   .nibwick-noticing pre:not(:last-child) { display: none; }
   .nibwick-noticing pre:last-child { opacity: 1; }
@@ -205,6 +251,7 @@
 }
 
 @media (max-width: 700px) {
+  .nibwick-stage .nibwick-alert-badge { animation: none; transform: none; }
   .nibwick-popover { inset: 106px 10px auto; width: auto; max-height: calc(100vh - 118px); overflow: auto; }
   .nibwick-popover::before, .nibwick-popover::after { display: none; }
   .nibwick-note { grid-template-columns: 1fr; }
