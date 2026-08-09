@@ -116,7 +116,7 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "KTOS is moving fast" in page.text
         assert "dividend is getting close" in page.text
         assert "CHECK SOON" not in page.text
-        assert "app.css?v=26" in page.text
+        assert "app.css?v=28" in page.text
         assert "periods.js?v=14" in page.text
         assert "workspace-splitter.js?v=1" in page.text
         assert "chart-viewport.js?v=1" in page.text
@@ -133,6 +133,7 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "data-nibwick-alert-badge" in page.text
         assert 'data-nibwick-popover role="dialog"' in page.text
         assert "data-nibwick-panel-title" in page.text
+        assert "data-nibwick-noticing" in page.text
         assert 'data-alert-target="ktos-workspace"' in page.text
         assert "SHOW ME KTOS" in page.text
         assert 'aria-labelledby="nibwick-panel-title" hidden' in page.text

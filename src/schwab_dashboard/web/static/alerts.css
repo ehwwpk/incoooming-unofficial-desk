@@ -42,7 +42,7 @@
   z-index: 40;
   top: var(--nibwick-popover-top, 116px);
   left: max(82px, calc((100vw - 2200px) / 2 + 78px));
-  width: min(560px, calc(100vw - 102px));
+  width: min(500px, calc(100vw - 102px));
   max-height: calc(100vh - 138px);
   overflow: visible;
   border: 1px solid #4a5154;
@@ -79,17 +79,37 @@
 }
 .nibwick-popover-heading {
   display: grid;
-  grid-template-columns: 66px minmax(0, 1fr) 38px;
+  grid-template-columns: 60px minmax(0, 1fr) 34px;
   align-items: stretch;
   border-bottom: 1px solid #343a3d;
   border-radius: 3px 3px 0 0;
   background: #1b1f21;
 }
-.nibwick-popover-heading > div { display: grid; align-content: center; gap: 4px; padding: 9px 12px; }
+.nibwick-popover-heading > div { display: grid; align-content: center; gap: 4px; padding: 8px 10px; }
 .nibwick-popover-heading > div:first-child { place-items: center; border-right: 1px solid var(--line); color: var(--gold); }
 .nibwick-popover-heading > div:first-child pre { margin: 0; color: var(--gold); font: 700 .43rem/.82 var(--mono); }
 .nibwick-popover-heading p, .nibwick-popover-heading small { color: var(--subtle); font: .35rem/1 var(--mono); letter-spacing: .07em; }
-.nibwick-popover-heading h2 { font: 650 .69rem/1.25 var(--sans); }
+.nibwick-popover-heading h2 { font: 650 .67rem/1.22 var(--sans); }
+.nibwick-popover-heading > .nibwick-popover-copy { grid-template-columns: minmax(0, 1fr) 60px; align-items: center; gap: 8px; }
+.nibwick-popover-copy > div:first-child { display: grid; gap: 4px; }
+.nibwick-noticing { position: relative; width: 60px; height: 28px; justify-self: end; overflow: hidden; color: var(--gold); }
+.nibwick-noticing pre {
+  position: absolute;
+  inset: 50% 0 auto;
+  margin: 0;
+  opacity: 0;
+  font: 700 .42rem/.95 var(--mono);
+  text-align: center;
+  transform: translateY(-50%);
+  animation: nibwick-noticing-frame 3.6s steps(1, end) infinite;
+}
+.nibwick-noticing pre:nth-child(2) { animation-delay: .9s; }
+.nibwick-noticing pre:nth-child(3) { animation-delay: 1.8s; }
+.nibwick-noticing pre:nth-child(4) { animation-delay: 2.7s; }
+@keyframes nibwick-noticing-frame {
+  0%, 24.9% { opacity: 1; }
+  25%, 100% { opacity: 0; }
+}
 .nibwick-popover-heading > button {
   border: 0;
   border-left: 1px solid var(--line);
@@ -102,19 +122,19 @@
 .nibwick-popover-notes { min-width: 0; background: #141719; }
 .nibwick-note {
   display: grid;
-  grid-template-columns: 110px minmax(250px, 1fr);
+  grid-template-columns: 100px minmax(238px, 1fr);
 }
 .nibwick-note[hidden] { display: none; }
-.nibwick-note > header, .nibwick-note > div, .nibwick-note > dl, .nibwick-note > a { padding: 11px 13px; }
-.nibwick-note > header { display: grid; align-content: center; gap: 6px; border-right: 1px solid #303538; background: #171a1c; }
+.nibwick-note > header, .nibwick-note > div { padding: 9px 11px; }
+.nibwick-note > header { display: grid; align-content: center; gap: 5px; border-right: 1px solid #303538; background: #171a1c; }
 .nibwick-note > header strong { color: var(--gold); font: 800 .72rem/1 var(--mono); letter-spacing: .05em; }
 .nibwick-note > header b { color: var(--gold); font: 750 .46rem/1.25 var(--mono); }
 .nibwick-note.attention > header b { color: var(--red); }
 .nibwick-note.watch > header b { color: #7fc79c; }
 .nibwick-note > header small, .nibwick-note dt { color: var(--subtle); font: .37rem/1.2 var(--mono); letter-spacing: .06em; }
-.nibwick-note > div { display: grid; align-content: center; gap: 5px; background: #141719; }
+.nibwick-note > div { display: grid; align-content: center; gap: 4px; background: #141719; }
 .nibwick-note h3 { font: 650 .74rem/1.25 var(--sans); }
-.nibwick-note p { max-width: 62ch; color: #b0b4b7; font: .55rem/1.5 var(--sans); }
+.nibwick-note p { max-width: 58ch; color: #b0b4b7; font: .55rem/1.42 var(--sans); }
 .nibwick-note dl {
   grid-column: 1 / -1;
   display: grid;
@@ -124,12 +144,13 @@
   border-top: 1px solid #303538;
   background: #111517;
 }
-.nibwick-note dl > div { display: grid; gap: 4px; padding: 9px 13px; border-right: 1px solid #303538; }
+.nibwick-note dl > div { display: grid; gap: 3px; padding: 7px 10px; border-right: 1px solid #303538; }
 .nibwick-note dl > div:last-child { border-right: 0; }
 .nibwick-note dd { margin: 0; font: 700 .56rem/1.15 var(--mono); }
 .nibwick-note > a {
   grid-column: 1 / -1;
   border-top: 1px solid #303538;
+  padding: 8px 10px;
   background: #181c1e;
   color: var(--gold);
   font: 750 .42rem/1 var(--mono);
@@ -139,22 +160,26 @@
 .nibwick-note > a:hover, .nibwick-note > a:focus-visible { background: #17150e; color: var(--text); outline: 1px solid var(--gold); outline-offset: -1px; }
 .nibwick-popover-nav {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: auto 1fr auto;
+  margin: 0;
+  padding: 0;
   border-top: 1px solid #3b4144;
   border-radius: 0 0 3px 3px;
   background: #1a1e20;
 }
 .nibwick-popover-nav button {
-  min-height: 30px;
+  min-height: 28px;
   border: 0;
+  padding: 0 10px;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
   font: 700 .38rem/1 var(--mono);
 }
+.nibwick-popover-nav button:first-child { border-right: 1px solid var(--line); }
 .nibwick-popover-nav button:last-child { border-left: 1px solid var(--line); }
 .nibwick-popover-nav button:hover, .nibwick-popover-nav button:focus-visible { background: #17150e; color: var(--gold); outline: 1px solid var(--gold); outline-offset: -1px; }
-.nibwick-popover-nav span { display: grid; min-width: 64px; place-items: center; border-left: 1px solid var(--line); color: var(--subtle); font: .36rem/1 var(--mono); }
+.nibwick-popover-nav span { display: grid; min-width: 48px; place-items: center; color: var(--subtle); font: .36rem/1 var(--mono); }
 
 .underlying-card[data-nibwick-linked="true"] {
   outline: 1px solid #9b8644;
@@ -170,6 +195,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .nibwick-stage[data-attention="true"] .nibwick-alert-badge { animation: none; }
+  .nibwick-noticing pre { animation: none; }
+  .nibwick-noticing pre:not(:last-child) { display: none; }
+  .nibwick-noticing pre:last-child { opacity: 1; }
   .underlying-card[data-nibwick-arrival="true"] { animation: none; outline: 1px solid var(--gold); outline-offset: 3px; }
 }
 
