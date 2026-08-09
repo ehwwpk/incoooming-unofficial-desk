@@ -55,12 +55,12 @@
           {% endif %}
           <i class="nibwick-obstacle" data-nibwick-obstacle aria-hidden="true">[?]</i>
           <button type="button" class="nibwick" data-nibwick data-paused="false" {% if snapshot.alerts %}aria-label="Open Nibwick's notes" aria-expanded="false" aria-controls="nibwick-note-popover" title="Nibwick has a desk note // click to open"{% else %}aria-label="Pause Nibwick's desk patrol" aria-pressed="false" title="Nibwick // unofficial night clerk // click to pause"{% endif %}>
-            <pre data-nibwick-art aria-hidden="true"> .-___-.
+            <pre data-nibwick-art aria-hidden="true"> ()___()
 ( o   o )
-|   v   |
+|   ^   |
 (  /_\  )
  `-._.-'
-   / \</pre>
+  /   \</pre>
             <span data-nibwick-status>STUDY</span>
           </button>
         </div>
@@ -123,6 +123,6 @@
     <script src="{{ url_for('static', path='/event-layout.js') }}?v=3" defer></script>
     <script src="{{ url_for('static', path='/lifecycle-links.js') }}?v=1" defer></script>
     <script src="{{ url_for('static', path='/nibwick-alerts.js') }}?v=3" defer></script>
-    <script src="{{ url_for('static', path='/nibwick.js') }}?v=4" defer></script>
+    <script src="{{ url_for('static', path='/nibwick.js') }}?v=5" defer></script>
   </body>
 </html>

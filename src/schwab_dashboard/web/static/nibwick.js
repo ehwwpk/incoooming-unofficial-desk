@@ -11,25 +11,25 @@
   const CYCLE_DURATION = 42000;
   const REACTION_DURATION = 1650;
   const hasAlertNotes = Boolean(alertPanel);
-  const makeFrame = (eyes, mouth, prop, feet = "   / \\") =>
-    [" .-___-.", `( ${eyes} )`, `|   ${mouth}   |`, `( ${prop} )`, " `-._.-'", feet].join(
+  const makeFrame = (eyes, nose, paws, feet = "  /   \\") =>
+    [" ()___()", `( ${eyes} )`, `|   ${nose}   |`, `( ${paws} )`, " `-._.-'", feet].join(
       "\n",
     );
-  const STUDY_FRAME = makeFrame("-   -", "v", " /_\\ ");
-  const STUDY_BLINK_FRAME = makeFrame("o   o", "v", " /_\\ ");
+  const STUDY_FRAME = makeFrame("-   -", "^", " /_\\ ");
+  const STUDY_BLINK_FRAME = makeFrame("o   o", "^", " /_\\ ");
   const WALK_FRAMES = [
-    makeFrame("o   o", "v", " [O] ", "   /  _"),
-    makeFrame("o   o", "v", " [O] ", "  _  \\"),
+    makeFrame("o   o", "^", " | | ", "  /   _"),
+    makeFrame("o   o", "^", " | | ", "  _   \\"),
   ];
-  const KICK_FRAME = makeFrame("o   o", "!", " /_> ", "   /__>");
+  const KICK_FRAME = makeFrame("O   O", "^", " /_> ", "  /__>");
   const WAVE_FRAMES = [
-    [" .-___-.", "( o   o )", " |  !  |/", "(  [!]  )", " `-._.-'", "   / \\"].join("\n"),
-    [" .-___-.", "( o   o )", "\\|  !  | ", "(  [!]  )", " `-._.-'", "   / \\"].join("\n"),
+    [" ()___()", "( o   o )", "|   ^   /", "(  | |  )", " `-._.-'", "  /   \\"].join("\n"),
+    [" ()___()", "( o   o )", "\\   ^   |", "(  | |  )", " `-._.-'", "  /   \\"].join("\n"),
   ];
   const REACTIONS = {
-    audit: { art: makeFrame("o   o", "!", " [T] "), label: "AUDIT" },
-    recount: { art: makeFrame("o   o", "v", " [#] "), label: "RECOUNT" },
-    shares: { art: makeFrame("o   o", "v", " [+] "), label: "SHARES" },
+    audit: { art: makeFrame("O   O", "^", " [T] "), label: "AUDIT" },
+    recount: { art: makeFrame("o   o", "^", " [#] "), label: "RECOUNT" },
+    shares: { art: makeFrame("o   o", "^", " [+] "), label: "SHARES" },
     notice: { frames: WAVE_FRAMES, label: "NOTE", duration: 2600 },
   };
   const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");

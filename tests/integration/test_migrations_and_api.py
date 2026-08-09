@@ -124,7 +124,7 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "event-layout.js?v=3" in page.text
         assert "lifecycle-links.js?v=1" in page.text
         assert "nibwick-alerts.js?v=3" in page.text
-        assert "nibwick.js?v=4" in page.text
+        assert "nibwick.js?v=5" in page.text
         assert page.text.count("data-chart-range=") == 9
         assert page.text.count("data-chart-focus") == 3
         assert page.text.count("data-chart-point") == 174
@@ -134,6 +134,8 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert 'data-nibwick-popover role="dialog"' in page.text
         assert "data-nibwick-panel-title" in page.text
         assert "data-nibwick-noticing" in page.text
+        assert "()___()" in page.text
+        assert "()_()" in page.text
         assert 'data-alert-target="ktos-workspace"' in page.text
         assert "SHOW ME KTOS" in page.text
         assert 'aria-labelledby="nibwick-panel-title" hidden' in page.text
