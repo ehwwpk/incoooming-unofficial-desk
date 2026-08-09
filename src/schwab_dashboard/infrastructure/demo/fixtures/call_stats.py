@@ -225,6 +225,7 @@ def _open_call_clock(record: CallSaleRecord, current_price: Decimal, as_of: date
         else HUNDRED
     ).quantize(TENTH)
     intrinsic_per_share = max(ZERO, current_price - record.strike)
+    strike_distance_per_share = record.strike - current_price
     extrinsic_per_share = max(ZERO, metric.mark_per_share - intrinsic_per_share)
     remaining_extrinsic = extrinsic_per_share * record.contracts * 100
     intrinsic_value = intrinsic_per_share * record.contracts * 100
@@ -240,6 +241,10 @@ def _open_call_clock(record: CallSaleRecord, current_price: Decimal, as_of: date
         elapsed_days=elapsed_days,
         elapsed_time_percent=elapsed_time_percent,
         days_to_expiration=days_to_expiration,
+        strike_distance_per_share=strike_distance_per_share,
+        strike_distance_percent=(strike_distance_per_share / current_price * HUNDRED).quantize(
+            TENTH
+        ),
         mark_per_share=metric.mark_per_share,
         entry_credit_per_share=record.premium_per_share,
         entry_credit=record.gross_premium,

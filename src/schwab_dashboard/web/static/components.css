@@ -155,9 +155,12 @@
 .call-position { border-bottom: 1px solid var(--line-strong); background: var(--surface); }
 .call-position:last-child { border-bottom: 0; }
 .call-position > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 10px; border-bottom: 1px solid var(--line); background: var(--surface-raised); }
-.call-position > header > div:first-child { display: flex; align-items: center; gap: 8px; }
+.call-position > header > div:first-child { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .call-position > header strong { font: 750 .58rem var(--mono); }
 .call-position > header span { color: var(--gold); font: .4rem var(--mono); }
+.call-position > header .call-strike-distance { padding-left: 8px; border-left: 1px solid var(--line-strong); color: var(--text); }
+.call-position > header .call-strike-distance.positive { color: var(--green); }
+.call-position > header .call-strike-distance.negative { color: var(--red); }
 .call-position > header > div:last-child { display: flex; align-items: baseline; gap: 4px; }
 .call-position > header > div:last-child b { font: 750 .68rem var(--mono); }
 .call-position > header > div:last-child span { color: var(--subtle); }

@@ -115,7 +115,15 @@
           {% for call in item.open_call_clocks %}
           <article class="call-position {{ call.open_profit_loss | pnl_class }}">
             <header>
-              <div><strong>-{{ call.contracts }} {{ call.expires_on.strftime('%b %d') | upper }} ${{ '%g' | format(call.strike) }}C</strong><span>{{ call.decay_stage }}</span></div>
+              <div>
+                <strong>-{{ call.contracts }} {{ call.expires_on.strftime('%b %d') | upper }} ${{ '%g' | format(call.strike) }}C</strong>
+                <span>{{ call.decay_stage }}</span>
+                {% if call.strike_distance_per_share >= 0 %}
+                <span class="call-strike-distance positive">{{ call.strike_distance_per_share | money }} / {{ call.strike_distance_percent | percent }} TO STRIKE</span>
+                {% else %}
+                <span class="call-strike-distance negative">{{ (-call.strike_distance_per_share) | money }} / {{ (-call.strike_distance_percent) | percent }} PAST STRIKE</span>
+                {% endif %}
+              </div>
               <div><b>{{ call.days_to_expiration }}</b><span>DTE</span></div>
             </header>
             <div class="call-economics">

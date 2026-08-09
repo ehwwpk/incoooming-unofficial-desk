@@ -119,7 +119,9 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "$231.78" in page.text
         assert "nibwick-method-note" in page.text
         assert "CHECK SOON" not in page.text
-        assert "app.css?v=37" in page.text
+        assert "app.css?v=38" in page.text
+        assert "DEMO CHECKED" in page.text
+        assert "$4.23 / 7.0% TO STRIKE" in page.text
         assert "periods.js?v=14" in page.text
         assert "workspace-splitter.js?v=1" in page.text
         assert "chart-viewport.js?v=1" in page.text

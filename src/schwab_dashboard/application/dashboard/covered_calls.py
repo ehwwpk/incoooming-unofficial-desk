@@ -67,6 +67,8 @@ class OpenCallClock:
     elapsed_days: int
     elapsed_time_percent: Decimal
     days_to_expiration: int
+    strike_distance_per_share: Decimal
+    strike_distance_percent: Decimal
     mark_per_share: Decimal
     entry_credit_per_share: Decimal
     entry_credit: Decimal

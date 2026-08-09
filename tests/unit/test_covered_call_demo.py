@@ -255,6 +255,12 @@ def test_open_call_clocks_expose_per_contract_dte_and_reconcile_theta() -> None:
         assert clock.original_days_to_expiration == (clock.expires_on - clock.sold_on).days
         assert clock.elapsed_days == (snapshot.as_of.date() - clock.sold_on).days
         assert clock.elapsed_days + clock.days_to_expiration == (clock.original_days_to_expiration)
+        current_price = next(
+            item.current_price for item in snapshot.underlyings if clock in item.open_call_clocks
+        )
+        assert clock.strike_distance_percent == (
+            clock.strike_distance_per_share / current_price * D("100")
+        ).quantize(D("0.1"))
         assert clock.elapsed_time_percent + clock.time_remaining_percent == D("100.0")
         assert clock.theta_per_share < D("0")
         assert clock.short_theta_per_day > D("0")
@@ -288,6 +294,8 @@ def test_open_call_clocks_expose_per_contract_dte_and_reconcile_theta() -> None:
     assert ktos_loss.current_option_value == D("1650")
     assert ktos_loss.open_profit_loss == D("-425")
     assert ktos_loss.option_value_vs_credit_percent == D("134.7")
+    assert ktos_loss.strike_distance_per_share == D("4.23")
+    assert ktos_loss.strike_distance_percent == D("7.0")
 
 
 def test_price_paths_use_daily_closes_and_reconciled_option_events() -> None:

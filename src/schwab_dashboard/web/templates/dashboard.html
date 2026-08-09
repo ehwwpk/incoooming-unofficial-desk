@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <title>Incoooming Unofficial Desk · Options Income</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=37">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=38">
   </head>
   <body>
     <header class="topbar">
@@ -19,7 +19,7 @@
         <kbd>CTRL K</kbd>
       </label>
       <div class="session-state">
-        <b class="positive">RECONCILED</b>
+        <b class="positive">{{ 'DEMO CHECKED' if snapshot.is_demo else 'RECONCILED' }}</b>
         <small>{{ snapshot.as_of | short_date }} · {{ 'SIMULATION' if snapshot.is_demo else 'LIVE LEDGER' }}</small>
       </div>
     </header>
@@ -91,7 +91,7 @@
           <span>WINDOW <b data-active-window>4W</b></span>
           <span>RANGE <b data-active-range>{{ snapshot.performance_windows[1].range_label if snapshot.performance_windows else '—' }}</b></span>
           <span>AS OF <b>{{ snapshot.as_of | short_date }}</b></span>
-          <span>STATUS <b class="positive">RECONCILED</b></span>
+          <span>STATUS <b class="positive">{{ 'DEMO CHECKED' if snapshot.is_demo else 'RECONCILED' }}</b></span>
         </div>
       </section>
 
