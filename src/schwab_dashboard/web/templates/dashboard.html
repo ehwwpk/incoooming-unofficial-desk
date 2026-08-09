@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <title>Incoooming Unofficial Desk · Options Income</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=38">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=39">
+    <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=1">
   </head>
-  <body>
+  <body data-workspace-key="desk" data-workspace-context='{"account":"{{ snapshot.accounts[0].account_mask if snapshot.accounts else "---" }}","symbol":"ALL","asOf":"{{ snapshot.as_of.date().isoformat() }}"}'>
     <header class="topbar">
       <a class="brand" href="/" aria-label="Dashboard home">
         <span class="brand-mark">IU</span>
@@ -40,6 +41,16 @@
       <span>MOCK LEDGER / NO SCHWAB WRITES</span>
     </aside>
     {% endif %}
+
+    <nav class="desk-workspace-launcher" aria-label="Independent analytics workspaces">
+      <span><b>WORKSPACES</b><small>SWITCH HERE OR OPEN A SEPARATE WINDOW</small></span>
+      {% for item in workspaces if item.key.value != 'desk' %}
+      <div>
+        <a href="{{ item.route }}"><kbd>{{ item.function_key }}</kbd><span>{{ item.label }}</span></a>
+        <button type="button" data-open-workspace data-workspace-url="{{ item.route }}" data-window-name="{{ item.window_name }}" aria-label="Open {{ item.label }} in its own window" title="Open {{ item.label }} in its own window">↗</button>
+      </div>
+      {% endfor %}
+    </nav>
 
     <div class="terminal-shell">
       <nav class="function-rail" aria-label="Dashboard functions">
@@ -124,5 +135,7 @@
     <script src="{{ url_for('static', path='/lifecycle-links.js') }}?v=1" defer></script>
     <script src="{{ url_for('static', path='/nibwick-alerts.js') }}?v=6" defer></script>
     <script src="{{ url_for('static', path='/nibwick.js') }}?v=5" defer></script>
+    <script src="{{ url_for('static', path='/workspace-navigation.js') }}?v=1" defer></script>
+    <script src="{{ url_for('static', path='/workspace-channel.js') }}?v=1" defer></script>
   </body>
 </html>

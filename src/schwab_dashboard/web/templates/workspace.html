@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>{{ workspace.label }} · Incoooming Unofficial Desk</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=39">
+    <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=1">
+  </head>
+  <body class="workspace-page" data-workspace-key="{{ workspace.key.value }}" data-workspace-context='{"account":"{{ snapshot.accounts[0].account_mask if snapshot.accounts else "---" }}","symbol":"ALL","asOf":"{{ snapshot.as_of.date().isoformat() }}"}'>
+    <header class="topbar workspace-topbar">
+      <a class="brand" href="/" aria-label="Return to the Desk">
+        <span class="brand-mark">IU</span>
+        <span><strong>INCOOOMING//UNOFFICIAL</strong><small>MULTI-WINDOW ANALYTICS</small></span>
+      </a>
+      <nav class="workspace-tabs" aria-label="Workspaces">
+        {% for item in workspaces %}
+        <a href="{{ item.route }}" {% if item.key == workspace.key %}aria-current="page"{% endif %}>
+          <kbd>{{ item.function_key }}</kbd><span>{{ item.label }}</span>
+        </a>
+        {% endfor %}
+      </nav>
+      <div class="session-state">
+        <b class="{{ 'muted' if snapshot.is_demo else 'positive' }}">{{ 'DEMO SOURCE' if snapshot.is_demo else 'LIVE SOURCE' }}</b>
+        <small>{{ snapshot.as_of | short_date }} · READ ONLY</small>
+      </div>
+    </header>
+
+    <div class="workspace-tape" aria-label="Shared desk context">
+      <span>ACCOUNT <b data-context-account>{{ snapshot.accounts[0].account_mask if snapshot.accounts else '---' }}</b></span>
+      <span>FOCUS <b data-context-symbol>ALL NAMES</b></span>
+      <span>AS OF <b>{{ snapshot.as_of | short_date }}</b></span>
+      <span>SOURCE <b>{{ 'SIMULATED LEDGER' if snapshot.is_demo else 'NORMALIZED LEDGER' }}</b></span>
+      <span data-window-state>SAME-ORIGIN WINDOW LINK READY</span>
+    </div>
+
+    <div class="workspace-frame">
+      <aside class="workspace-directory" aria-label="Workspace directory">
+        <p>WORKSPACES</p>
+        {% for item in workspaces %}
+        <div class="workspace-directory-row {% if item.key == workspace.key %}active{% endif %}">
+          <a href="{{ item.route }}">
+            <kbd>{{ item.function_key }}</kbd>
+            <span><b>{{ item.short_label }}</b><small>{{ item.eyebrow }}</small></span>
+          </a>
+          {% if item.key != workspace.key %}
+          <button type="button" data-open-workspace data-workspace-url="{{ item.route }}" data-window-name="{{ item.window_name }}" aria-label="Open {{ item.label }} in its own window" title="Open {{ item.label }} in its own window">↗</button>
+          {% endif %}
+        </div>
+        {% endfor %}
+        <div class="workspace-directory-note">
+          <b>WINDOW LINK</b>
+          <span>Account and symbol context stay aligned. Brokerage secrets never cross windows.</span>
+        </div>
+      </aside>
+
+      <main class="workspace-main" id="workspace-main">
+        <header class="workspace-heading">
+          <div>
+            <p class="eyebrow">{{ workspace.eyebrow }}</p>
+            <h1>{{ workspace.label }}</h1>
+            <p>{{ workspace.description }}</p>
+          </div>
+          <div class="workspace-actions">
+            <a href="/" class="workspace-action">← DESK</a>
+            <button type="button" data-open-workspace data-workspace-url="{{ workspace.route }}" data-window-name="{{ workspace.window_name }}">OPEN OWN WINDOW ↗</button>
+          </div>
+        </header>
+
+        {% if snapshot.is_demo %}
+        <div class="workspace-demo-note" role="status">
+          <b>SIM</b><span>Real calculations over fictional fixtures. No brokerage connection or order path is active.</span>
+        </div>
+        {% endif %}
+
+        {% include workspace.template_name %}
+
+        <footer>
+          <span>{{ workspace.label | upper }} / PRIVATE / READ ONLY</span>
+          <span>CALCULATION CONTEXT AND SOURCE QUALITY STAY VISIBLE</span>
+        </footer>
+      </main>
+    </div>
+
+    <script src="{{ url_for('static', path='/workspace-navigation.js') }}?v=1" defer></script>
+    <script src="{{ url_for('static', path='/workspace-channel.js') }}?v=1" defer></script>
+  </body>
+</html>

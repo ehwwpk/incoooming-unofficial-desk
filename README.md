@@ -1,6 +1,6 @@
 # Incoooming Unofficial Desk
 
-A private, local-first options-income pavilion for Schwab portfolio, covered-call, dividend, and performance analytics.
+A private, local-first options-income desk for portfolio, covered-call, dividend, and performance analytics.
 
 The first milestone is intentionally small: authenticate, read accounts and positions, preserve the raw broker response, normalize a position snapshot, and prove that the result reconciles. No trading endpoints are implemented.
 
@@ -13,6 +13,8 @@ The demo command serves a deterministic covered-call simulation through the same
 ```
 
 Open `http://127.0.0.1:8182`. Press `Ctrl+C` in the terminal to stop it.
+
+The main Desk links to four focused workspaces: Open Book, Strategy Review, Volatility Lab, and Source Ledger. Each link can replace the current page or open an explicitly requested named window. The same routes and read models work in demo and live-ledger modes.
 
 All demo trades, option marks, IV, and Greeks are fictional. Underlying paths are frozen public market-session closes; they are not broker marks or trading guidance.
 
@@ -67,5 +69,7 @@ Open `http://127.0.0.1:8182`. The server binds to loopback by default.
 - [Attribution Lab](docs/systems/attribution-lab.md)
 - [Volatility Lab](docs/systems/volatility-lab.md)
 - [Workspace System](docs/systems/workspace-system.md)
+- [Independent workspace shell](docs/workspaces/workspace-shell.md)
+- [Broker adapter strategy](docs/integrations/broker-adapter-strategy.md)
 - [Integrated platform plan](docs/systems/integrated-platform-plan.md)
 - [Local-first architecture decision](docs/decisions/0001-local-first-modular-monolith.md)

@@ -1,0 +1,53 @@
+<div class="workspace-integrity-note">
+  <b>HONEST RANGE</b>
+  <p>Realized volatility uses the {{ volatility_rows[0].sessions if volatility_rows else 0 }} daily closes in this book. Current IV is the average across open calls. Historical IV is not yet collected, so IV rank and percentile remain unavailable instead of being guessed.</p>
+</div>
+
+<section class="workspace-panel">
+  <header class="workspace-panel-heading">
+    <div><p class="eyebrow">REGIME BOARD</p><h2>Movement versus option pricing</h2></div>
+    <span>ANNUALIZED / DAILY LOG RETURNS</span>
+  </header>
+  <div class="volatility-board">
+    {% for row in volatility_rows %}
+    <article class="volatility-card" data-context-symbol-row="{{ row.symbol }}">
+      <header>
+        <button type="button" data-set-symbol="{{ row.symbol }}">{{ row.symbol }}</button>
+        <span>{{ row.sessions }} SESSIONS / {{ row.quality | upper }}</span>
+      </header>
+      <div class="volatility-hero">
+        <div><span>OPEN-CALL IV</span><strong>{{ row.open_call_iv_percent | percent }}</strong><small>CURRENT CROSS-SECTION</small></div>
+        <i>vs</i>
+        <div><span>REALIZED VOL</span><strong>{{ row.realized_volatility_percent | percent }}</strong><small>OBSERVED PRICE PATH</small></div>
+      </div>
+      <div class="volatility-detail">
+        <div><span>IV − REALIZED</span><strong class="{{ row.implied_minus_realized_points | pnl_class }}">{{ row.implied_minus_realized_points | number(1) }} pts</strong></div>
+        <div><span>13W MOVE</span><strong class="{{ row.thirteen_week_change_percent | pnl_class }}">{{ row.thirteen_week_change_percent | percent }}</strong></div>
+        <div><span>RANGE POSITION</span><strong>{{ row.range_position_percent | percent }}</strong></div>
+        <div><span>CALL STRIKE BUFFER</span><strong class="{{ row.strike_buffer_percent | pnl_class }}">{{ row.strike_buffer_percent | percent }}</strong></div>
+      </div>
+      <div class="range-meter" aria-label="{{ row.symbol }} is {{ row.range_position_percent }} percent through its 13 week range"><span style="--range-position: {{ row.range_position_percent }}%"></span></div>
+      <footer><span>IV RANK</span><b>{{ row.iv_rank_percent | percent if row.iv_rank_percent is not none else 'WAITING FOR IV HISTORY' }}</b></footer>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
+<div class="workspace-two-column">
+  <section class="workspace-panel workspace-explain">
+    <header class="workspace-panel-heading"><div><p class="eyebrow">DECISION SUPPORT</p><h2>What earns attention</h2></div></header>
+    <ol>
+      <li><b>IV above realized</b><span>Option pricing is rich relative to the observed price path, but that alone is not a sell signal.</span></li>
+      <li><b>Price near range high</b><span>A useful timing input for your process, separate from whether the premium is attractive.</span></li>
+      <li><b>Thin strike buffer</b><span>Shows assignment pressure; dividend and event timing still need their own checks.</span></li>
+    </ol>
+  </section>
+  <section class="workspace-panel workspace-missing-data">
+    <header class="workspace-panel-heading"><div><p class="eyebrow">NEXT DATA EDGE</p><h2>What live sources must add</h2></div></header>
+    <ul>
+      <li><span>Historical contract IV</span><b>Needed for defensible IV rank / percentile</b></li>
+      <li><span>Bid / ask and quote quality</span><b>Needed to judge whether marks are tradable</b></li>
+      <li><span>Greeks by contract</span><b>Needed for contract-level delta, gamma, theta, and vega</b></li>
+    </ul>
+  </section>
+</div>

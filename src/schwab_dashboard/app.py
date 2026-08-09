@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from schwab_dashboard.api.routes.dashboard import router as dashboard_router
 from schwab_dashboard.api.routes.health import router as health_router
+from schwab_dashboard.api.routes.workspaces import router as workspaces_router
 from schwab_dashboard.container import Container
 
 
@@ -35,4 +36,5 @@ def create_app(container: Container | None = None) -> FastAPI:
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
     app.include_router(health_router)
     app.include_router(dashboard_router)
+    app.include_router(workspaces_router)
     return app

@@ -1,0 +1,76 @@
+<section class="workspace-metric-strip strategy-strip" aria-label="Strategy objective summary">
+  <div><span>MONTHLY TARGET</span><strong>{{ snapshot.objective.monthly_option_target | money }}</strong></div>
+  <div><span>LAST 4 WEEKS</span><strong>{{ snapshot.objective.rolling_four_week_option_cash | money }}</strong></div>
+  <div><span>ROLLING-YEAR MONTH AVG</span><strong>{{ snapshot.objective.rolling_year_monthly_average | money }}</strong></div>
+  <div><span>TARGET MONTHS HIT</span><strong>{{ snapshot.objective.target_months_hit }}/{{ snapshot.objective.observed_months }}</strong></div>
+  <div><span>PREMIUM CAPTURE</span><strong>{{ snapshot.objective.premium_capture_percent | percent }}</strong></div>
+  <div><span>AVG STRIKE GAP</span><strong>{{ snapshot.objective.average_strike_gap_percent | percent }}</strong></div>
+</section>
+
+<section class="workspace-panel">
+  <header class="workspace-panel-heading">
+    <div><p class="eyebrow">PERFORMANCE WINDOWS</p><h2>Cash results and normalized pace</h2></div>
+    <span>OPEN MARK EXCLUDED FROM CASH</span>
+  </header>
+  <div class="workspace-table-wrap">
+    <table class="workspace-table review-table">
+      <thead><tr><th>Window</th><th>Range</th><th class="numeric">Net option cash</th><th class="numeric">Dividends</th><th class="numeric">Total strategy cash</th><th class="numeric">Monthly pace</th><th class="numeric">Option APR</th><th class="numeric">Capture</th></tr></thead>
+      <tbody>
+        {% for window in snapshot.performance_windows %}
+        <tr>
+          <td><strong>{{ window.label }}</strong><small>{{ window.days }} DAYS</small></td>
+          <td>{{ window.range_label }}</td>
+          <td class="numeric positive">{{ window.option_cash | money }}</td>
+          <td class="numeric">{{ window.dividends | money }}</td>
+          <td class="numeric positive">{{ window.total_cash | money }}</td>
+          <td class="numeric">{{ window.monthly_total_run_rate | money }}</td>
+          <td class="numeric">{{ window.annualized_option_yield | percent }}</td>
+          <td class="numeric">{{ window.premium_capture_percent | percent }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<div class="workspace-two-column review-columns">
+  <section class="workspace-panel">
+    <header class="workspace-panel-heading"><div><p class="eyebrow">OUTCOMES</p><h2>What happened to the calls</h2></div><span>{{ snapshot.covered_calls.contracts_sold }} CONTRACTS SOLD</span></header>
+    <div class="workspace-outcomes">
+      <div><span>EXPIRED</span><strong>{{ snapshot.covered_calls.expired_contracts }}</strong></div>
+      <div><span>CLOSED</span><strong>{{ snapshot.covered_calls.closed_contracts }}</strong></div>
+      <div><span>ROLLED</span><strong>{{ snapshot.covered_calls.rolled_contracts }}</strong></div>
+      <div><span>ASSIGNED</span><strong class="negative">{{ snapshot.covered_calls.assigned_contracts }}</strong><small>{{ snapshot.covered_calls.called_away_shares }} shares</small></div>
+      <div><span>STILL OPEN</span><strong>{{ snapshot.covered_calls.active_contracts }}</strong></div>
+    </div>
+  </section>
+  <section class="workspace-panel">
+    <header class="workspace-panel-heading"><div><p class="eyebrow">OPEN BOOK SEPARATION</p><h2>Unrealized obligation</h2></div></header>
+    <div class="open-mark-bridge">
+      <div><span>OPEN CALL CREDIT</span><strong>{{ snapshot.covered_calls.open_call_credit | money }}</strong></div>
+      <i>−</i>
+      <div><span>CURRENT OPTION VALUE</span><strong>{{ snapshot.covered_calls.open_call_mark_value | money }}</strong></div>
+      <i>=</i>
+      <div><span>OPEN MARK P/L</span><strong class="{{ snapshot.covered_calls.open_mark_profit_loss | pnl_class }}">{{ snapshot.covered_calls.open_mark_profit_loss | money }}</strong></div>
+    </div>
+    <p class="workspace-footnote">A current option mark is not a close or roll cost unless you actually trade against it.</p>
+  </section>
+</div>
+
+<section class="workspace-panel">
+  <header class="workspace-panel-heading"><div><p class="eyebrow">CAPITAL RECOVERY</p><h2>Lifetime option + dividend income against original share cost</h2></div><span>MANAGEMENT LENS / NOT TAX BASIS</span></header>
+  <div class="basis-workspace-grid">
+    {% for item in snapshot.basis_lens %}
+    <article class="basis-workspace-card {% if item.fully_recovered %}recovered{% endif %}">
+      <header><b>{{ item.symbol }}</b><span>{{ item.basis_offset_percent | percent }} OFFSET</span></header>
+      <div><span>ORIGINAL SHARE COST</span><strong>{{ item.original_cost_basis | money }}</strong></div>
+      <div><span>LIFETIME MANAGEMENT INCOME</span><strong class="positive">{{ item.lifetime_management_income | money }}</strong></div>
+      {% if item.fully_recovered %}
+      <div><span>INCOME BEYOND ORIGINAL COST</span><strong class="positive">+{{ item.recovery_surplus | money }}</strong></div>
+      {% else %}
+      <div><span>ORIGINAL CAPITAL NOT YET OFFSET</span><strong>{{ item.capital_remaining | money }}</strong></div>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+</section>

@@ -1,0 +1,37 @@
+<section class="workspace-panel">
+  <header class="workspace-panel-heading">
+    <div><p class="eyebrow">SOURCE PATHS</p><h2>Broker portability without fake parity</h2></div>
+    <span>ONE CANONICAL LEDGER / MANY ADAPTERS</span>
+  </header>
+  <div class="source-path-grid">
+    {% for profile in source_profiles %}
+    <article class="source-path-card">
+      <header><span>{{ profile.kind.value | replace('_', ' ') | upper }}</span><b>{{ profile.display_name }}</b><i>READ ONLY</i></header>
+      <ul>
+        {% for support in profile.support %}
+        <li><span>{{ support.capability.value | replace('_', ' ') | upper }}</span><b class="state-{{ support.state.value }}">{{ support.state.value | upper }}</b><small>{{ support.note }}</small></li>
+        {% endfor %}
+      </ul>
+    </article>
+    {% endfor %}
+  </div>
+  <p class="workspace-footnote">“Conditional” means the normalized contract is designed, not that a provider or brokerage has been connected. Every adapter must pass quantity, sign, multiplier, freshness, and reconciliation checks before its data is trusted.</p>
+</section>
+
+<section class="workspace-panel source-flow">
+  <header class="workspace-panel-heading"><div><p class="eyebrow">NORMALIZATION SPINE</p><h2>How every source reaches the dashboard</h2></div></header>
+  <div>
+    <span><b>1</b>BROKER / AGGREGATOR / FILE<small>Original source stays identifiable</small></span>
+    <i>→</i>
+    <span><b>2</b>ADAPTER VALIDATION<small>Quantity, sign, multiplier, timestamp</small></span>
+    <i>→</i>
+    <span><b>3</b>CANONICAL TRUTH LEDGER<small>Raw event retained beside normalized facts</small></span>
+    <i>→</i>
+    <span><b>4</b>CALCULATION ENGINES<small>Risk, attribution, income, volatility</small></span>
+    <i>→</i>
+    <span><b>5</b>WORKSPACES<small>Same answers in every window</small></span>
+  </div>
+</section>
+
+{% include "partials/_positions.html" %}
+{% include "partials/_call_ledger.html" %}
