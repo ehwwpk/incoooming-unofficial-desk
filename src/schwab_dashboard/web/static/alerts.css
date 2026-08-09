@@ -125,27 +125,40 @@ body[data-nibwick-popover-open="true"] .nibwick-stage .nibwick-obstacle { animat
   display: grid;
   grid-template-columns: 110px minmax(0, 1fr) 40px;
   align-items: stretch;
-  min-height: 64px;
+  min-height: 76px;
   border-bottom: 1px solid #343a3d;
   border-radius: 3px 3px 0 0;
   background: #1b1f21;
 }
 .nibwick-popover-heading > div { display: grid; align-content: center; gap: 4px; padding: 8px 12px; }
-.nibwick-popover-heading > div:first-child { place-items: center; border-right: 1px solid var(--line); color: var(--gold); }
-.nibwick-popover-heading > div:first-child pre { margin: 0; color: var(--gold); font: 700 .625rem/.95 var(--mono); }
+.nibwick-popover-heading > .nibwick-portrait { place-items: center; border-right: 1px solid var(--line); color: var(--gold); }
+.nibwick-portrait-art { position: relative; width: 62px; height: 36px; }
+.nibwick-portrait-art pre {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  margin: 0;
+  color: var(--gold);
+  font: 700 .5rem/.9 var(--mono);
+  text-align: left;
+  transform: translate(-50%, -50%);
+  white-space: pre;
+}
+.nibwick-portrait-art pre:first-child { animation: nibwick-portrait-awake 4.8s steps(1, end) infinite; }
+.nibwick-portrait-art pre:last-child { opacity: 0; animation: nibwick-portrait-blink 4.8s steps(1, end) infinite; }
 .nibwick-popover-heading p, .nibwick-popover-heading small { margin: 0; color: var(--subtle); font: 600 .625rem/14px var(--mono); letter-spacing: .04em; }
 .nibwick-popover-heading h2 { margin: 0; font: 650 1rem/22px var(--sans); letter-spacing: -.01em; }
-.nibwick-popover-heading > .nibwick-popover-copy { grid-template-columns: minmax(0, 1fr) 72px; align-items: center; gap: 12px; padding-left: 16px; }
+.nibwick-popover-heading > .nibwick-popover-copy { grid-template-columns: minmax(0, 1fr) 92px; align-items: center; gap: 10px; padding-left: 16px; }
 .nibwick-popover-copy > div:first-child { display: grid; gap: 4px; }
-.nibwick-noticing { position: relative; width: 72px; height: 34px; justify-self: end; overflow: hidden; color: var(--gold); }
+.nibwick-noticing { position: relative; width: 92px; height: 46px; justify-self: end; overflow: hidden; color: var(--gold); }
 .nibwick-noticing pre {
   position: absolute;
-  inset: 50% 0 auto;
+  inset: 50% auto auto 50%;
   margin: 0;
   opacity: 0;
-  font: 700 .625rem/1 var(--mono);
-  text-align: center;
-  transform: translateY(-50%);
+  font: 700 .5rem/.9 var(--mono);
+  text-align: left;
+  transform: translate(-50%, -50%);
+  white-space: pre;
   animation: nibwick-noticing-frame 3.6s steps(1, end) infinite;
 }
 .nibwick-noticing pre:nth-child(2) { animation-delay: .9s; }
@@ -154,6 +167,14 @@ body[data-nibwick-popover-open="true"] .nibwick-stage .nibwick-obstacle { animat
 @keyframes nibwick-noticing-frame {
   0%, 24.9% { opacity: 1; }
   25%, 100% { opacity: 0; }
+}
+@keyframes nibwick-portrait-awake {
+  0%, 85.9%, 92%, 100% { opacity: 1; }
+  86%, 91.9% { opacity: 0; }
+}
+@keyframes nibwick-portrait-blink {
+  0%, 85.9%, 92%, 100% { opacity: 0; }
+  86%, 91.9% { opacity: 1; }
 }
 .nibwick-popover-heading > button {
   border: 0;
@@ -244,6 +265,8 @@ body[data-nibwick-popover-open="true"] .nibwick-stage .nibwick-obstacle { animat
   .nibwick-stage .nibwick-alert-badge { animation: none; transform: translate3d(0, 3px, 0); }
   .nibwick-alert-plaque,
   .nibwick-stage[data-attention="true"] .nibwick-alert-plaque { animation: none; }
+  .nibwick-portrait-art pre:first-child { animation: none; opacity: 1; }
+  .nibwick-portrait-art pre:last-child { animation: none; opacity: 0; }
   .nibwick-noticing pre { animation: none; }
   .nibwick-noticing pre:not(:last-child) { display: none; }
   .nibwick-noticing pre:last-child { opacity: 1; }
@@ -260,4 +283,10 @@ body[data-nibwick-popover-open="true"] .nibwick-stage .nibwick-obstacle { animat
   .nibwick-note dl > div { border-right: 0; border-bottom: 1px solid var(--line); }
   .nibwick-note dl > div:last-child { border-bottom: 0; }
   .nibwick-note > a { grid-column: auto; }
+}
+
+@media (max-width: 480px) {
+  .nibwick-popover-heading { grid-template-columns: 88px minmax(0, 1fr) 36px; }
+  .nibwick-popover-heading > .nibwick-popover-copy { grid-template-columns: minmax(0, 1fr); padding-left: 12px; }
+  .nibwick-noticing { display: none; }
 }
