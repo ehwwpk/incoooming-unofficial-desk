@@ -6,7 +6,7 @@ The first milestone is intentionally small: authenticate, read accounts and posi
 
 ## Explore the dashboard while Schwab access is pending
 
-The demo command serves a deterministic covered-call simulation through the same application contract used by live data. It models 700 CVX, 800 KTOS, and 500 URNM shares, including weekly, monthly, 13-week, calendar-YTD, and rolling-365 performance; per-name APR/IV and call statistics; a $3,000 monthly objective; lifetime income-adjusted-basis analytics; rolls, closes, expirations, active coverage; and a full execution ledger. It never writes fake records to the real ledger.
+The demo command serves a deterministic covered-call simulation through the same application contract used by live data. It models 700 CVX, 800 KTOS, and 500 URNM shares, including weekly, monthly, 13-week, calendar-YTD, and rolling-365 performance; per-name APR/IV and call statistics; an editable monthly objective; lifetime income-adjusted-basis analytics; rolls, closes, expirations, active coverage; and a full execution ledger. It never writes fake records to the real ledger.
 
 ```powershell
 .\scripts\run-demo.cmd
@@ -60,4 +60,12 @@ Open `http://127.0.0.1:8182`. The server binds to loopback by default.
 - [Data contracts](docs/data-contracts.md)
 - [Dashboard contract](docs/dashboard-contract.md)
 - [Multi-broker product path](docs/multi-broker-product-path.md)
+- [Operator workflows](docs/product/operator-workflows.md)
+- [Capability roadmap](docs/product/capability-roadmap.md)
+- [Truth Engine](docs/systems/truth-engine.md)
+- [Open Risk Board](docs/systems/open-risk-board.md)
+- [Attribution Lab](docs/systems/attribution-lab.md)
+- [Volatility Lab](docs/systems/volatility-lab.md)
+- [Workspace System](docs/systems/workspace-system.md)
+- [Integrated platform plan](docs/systems/integrated-platform-plan.md)
 - [Local-first architecture decision](docs/decisions/0001-local-first-modular-monolith.md)

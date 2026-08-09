@@ -1,0 +1,88 @@
+# Workspace System
+
+## Job to be done
+
+The Workspace System lets one operator move from portfolio summary to name, contract, calculation,
+and source evidence without losing context. It provides density and speed without turning the desk
+into an unreadable wall of equally weighted boxes.
+
+## Information architecture
+
+Five bounded workspaces share a consistent shell:
+
+- Desk: outcomes, exceptions, target progress, and data health.
+- Risk: open obligations, exposures, catalysts, and scenarios.
+- Attribution: actual versus baseline, lifecycle economics, and cohorts.
+- Volatility: surfaces, histories, regimes, and research studies.
+- Records: executions, cash, positions, lifecycle events, breaks, and raw source drill-through.
+
+The default desk is an inverted pyramid: headline decisions first, supporting evidence second, raw
+records last. Nibwick is an optional friendly exception interface, not a parallel navigation system.
+
+## Layout model
+
+Saved workspace state is presentation data, not financial truth. It can store:
+
+- visible panels and order;
+- split-pane proportions with bounded minimums;
+- selected period, accounts, names, expiries, and filters;
+- table columns, sort, grouping, density, and widths;
+- chart range/focus preferences;
+- reduced-motion, contrast, and text-density preferences.
+
+Version each layout schema. Unknown or invalid settings fall back to a safe default without touching
+financial records.
+
+## Dense interaction principles
+
+- Keyboard and pointer paths have equivalent capability.
+- A global command palette finds symbols, contracts, workspaces, calculations, and source records.
+- Sticky navigation reflects the section actually in view.
+- Tables are the canonical high-density inspection surface; charts have matching tabular evidence.
+- Progressive disclosure reveals detail on demand rather than duplicating every metric.
+- Focus mode and zoom clarify dense charts without changing the underlying values.
+- Resizing is bounded, reversible, and persisted only after the user completes the interaction.
+
+## Accessibility and legibility
+
+- Reflow works at 400% zoom without hiding actions or requiring two-dimensional scrolling for text.
+- Focus is visible and not obscured by sticky headers or popovers.
+- Color is never the only status or sign encoding.
+- Motion honors `prefers-reduced-motion` and includes a still mascot state.
+- Text and component spacing survive user overrides.
+- Touch targets and keyboard focus targets are distinct where dense desktop tables require it.
+
+## Notification model
+
+Notifications are a queue with stable ids, unread/read state, evidence, target object, timestamp, and
+severity. Opening and traversing the queue clears unread state according to an explicit policy.
+Snooze/dismiss state is user workspace data; the underlying alert evidence remains reproducible.
+
+## Export and portability
+
+Every analytical table should export visible rows and a machine-readable full result with method,
+timestamp, filters, and source ids. Saved layouts and alert preferences are portable separately from
+broker credentials and financial data.
+
+## Release slices
+
+1. Typed workspace preferences and saved local layouts.
+2. Shared data grid, command palette, filters, and cross-workspace deep links.
+3. Calculation/source drill-through drawer and export contracts.
+4. Accessibility control surface and automated reflow/focus tests.
+5. Multi-user identity/authorization only if the product moves beyond local personal use.
+
+## Verification requirements
+
+- Invalid/old layout versions migrate or fall back safely.
+- Fullscreen, half-screen, tablet-width, and 400% zoom layouts retain primary actions.
+- Splitters are keyboard-operable and cannot collapse required information.
+- Active navigation matches the destination after click and after manual scroll.
+- Notification unread state behaves consistently after opening, traversing, snoozing, and refresh.
+- Exports reproduce the visible calculation metadata and do not leak secrets.
+
+## Primary references
+
+- Bloomberg Launchpad workspace model: <https://www.bloomberg.com.br/produto/launchpad/>
+- WCAG 2.2: <https://www.w3.org/TR/WCAG22/>
+- UK Government dashboard testing guidance: <https://analysisfunction.civilservice.gov.uk/policy-store/data-visualisation-testing-dashboards-for-design-and-accessibility/>

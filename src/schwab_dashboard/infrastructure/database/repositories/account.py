@@ -57,6 +57,19 @@ class SqlAccountRepository:
             for row in rows
         ]
 
+    def require_id(self, *, source: str, external_account_key: str) -> str:
+        account_id = self._session.scalar(
+            select(AccountTable.id).where(
+                AccountTable.source == source,
+                AccountTable.external_account_key == external_account_key,
+            )
+        )
+        if account_id is None:
+            raise LookupError(
+                f"Account {external_account_key!r} from source {source!r} does not exist"
+            )
+        return account_id
+
 
 class SqlPositionSnapshotRepository:
     def __init__(self, session: Session) -> None:

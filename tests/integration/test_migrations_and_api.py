@@ -23,10 +23,18 @@ def test_initial_migration_supports_local_api(tmp_path: Path) -> None:
         assert {
             "accounts",
             "alembic_version",
+            "cash_movements",
+            "executions",
+            "instruments",
+            "option_lifecycle_events",
+            "option_market_snapshots",
             "position_snapshots",
             "raw_broker_events",
+            "raw_market_events",
             "reconciliation_issues",
             "sync_runs",
+            "underlying_market_snapshots",
+            "workspace_preferences",
         } <= set(inspect(container.engine).get_table_names())
 
         responses = asyncio.run(_request_initial_routes(container))

@@ -8,3 +8,7 @@ class BrokerPayloadError(RuntimeError):
 
 class SyncValidationError(RuntimeError):
     """Raised when a broker observation cannot produce an unambiguous snapshot."""
+
+
+class SourceRecordConflictError(RuntimeError):
+    """Raised when a stable source identity is reused for different immutable facts."""
