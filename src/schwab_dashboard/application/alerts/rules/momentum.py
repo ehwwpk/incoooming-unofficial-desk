@@ -50,26 +50,25 @@ def evaluate_fast_move(underlying: UnderlyingCallStats) -> DeskAlert | None:
         target_id=f"{underlying.symbol.lower()}-workspace",
         headline=f"{underlying.symbol} is closing in on ${closest.strike:g}",
         message=(
-            f"After a +{move:.1f}% five-session move, {underlying.symbol} "
-            f"{distance_message}. Roll review pressure is "
-            f"{context.pressure.label.lower()}, driven mainly by {drivers}; it is not "
-            "an instruction to roll."
+            f"{underlying.symbol} rose {move:.1f}% in five sessions and {distance_message}. "
+            f"Review pressure is {context.pressure.label.lower()}, driven by {drivers}. "
+            "This is context, not a roll instruction."
         ),
         facts=(
             AlertFact(
                 "TO STRIKE",
-                f"${abs(context.strike_distance_per_share):.2f} / "
-                f"{abs(context.strike_distance_percent):.1f}%",
+                f"${abs(context.strike_distance_per_share):.2f}",
+                f"{abs(context.strike_distance_percent):.1f}% BUFFER",
             ),
             AlertFact(
                 "MARK / ENTRY CREDIT",
-                f"${closest.mark_per_share:.2f} / ${closest.entry_credit_per_share:.2f} "
-                f"· {context.mark_to_credit_ratio:.2f}x",
+                f"${closest.mark_per_share:.2f} / ${closest.entry_credit_per_share:.2f}",
+                f"{context.mark_to_credit_ratio:.2f}x ENTRY",
             ),
             AlertFact(
                 "ROLL REVIEW / TIME",
-                f"{context.pressure.score}/100 {context.pressure.label} "
-                f"· {closest.days_to_expiration} DTE",
+                f"{context.pressure.score}/100 {context.pressure.label}",
+                f"{closest.days_to_expiration} DTE",
             ),
         ),
         priority=priority,

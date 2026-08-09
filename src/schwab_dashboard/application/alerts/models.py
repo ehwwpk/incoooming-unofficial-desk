@@ -22,6 +22,7 @@ class AlertLevel(StrEnum):
 class AlertFact:
     label: str
     value: str
+    detail: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

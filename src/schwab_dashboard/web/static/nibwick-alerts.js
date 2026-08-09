@@ -10,10 +10,60 @@
   const position = panel.querySelector("[data-nibwick-note-position]");
   const panelTitle = panel.querySelector("[data-nibwick-panel-title]");
   const announcement = document.querySelector("[data-nibwick-announcement]");
+  const unreadCountElement = badge.querySelector("[data-nibwick-unread-count]");
+  const readStorageKey = "incoooming:nibwick-read-alerts";
+  const currentAlertIds = new Set(notes.map((note) => note.dataset.alertId));
+  const readAlertIds = new Set();
   const seenSymbols = new Set();
   let activeIndex = 0;
   let returnFocus = null;
   let linkedCard = null;
+
+  try {
+    const storedIds = JSON.parse(window.sessionStorage.getItem(readStorageKey) || "[]");
+    if (Array.isArray(storedIds)) {
+      storedIds.forEach((alertId) => {
+        if (typeof alertId === "string" && currentAlertIds.has(alertId)) {
+          readAlertIds.add(alertId);
+        }
+      });
+    }
+  } catch {
+    // A blocked session store should not prevent notes from working.
+  }
+
+  const persistReadState = () => {
+    try {
+      window.sessionStorage.setItem(readStorageKey, JSON.stringify([...readAlertIds]));
+    } catch {
+      // Read state can remain in memory when browser storage is unavailable.
+    }
+  };
+
+  const renderUnreadState = () => {
+    const unreadCount = notes.filter((note) => !readAlertIds.has(note.dataset.alertId)).length;
+    badge.hidden = unreadCount === 0;
+    if (unreadCountElement) unreadCountElement.textContent = String(unreadCount);
+    badge.setAttribute(
+      "aria-label",
+      unreadCount
+        ? `Open Nibwick's ${unreadCount} unread ${unreadCount === 1 ? "note" : "notes"}`
+        : "All Nibwick notes reviewed",
+    );
+    stage.dataset.notesRead = unreadCount === 0 ? "true" : "false";
+    if (unreadCount === 0) {
+      delete stage.dataset.attention;
+      if (announcement) announcement.textContent = "All Nibwick notes reviewed.";
+    }
+  };
+
+  const markNoteRead = (index) => {
+    const alertId = notes[index]?.dataset.alertId;
+    if (!alertId || readAlertIds.has(alertId)) return;
+    readAlertIds.add(alertId);
+    persistReadState();
+    renderUnreadState();
+  };
 
   const clearLinkedCard = () => {
     if (!linkedCard) return;
@@ -59,15 +109,10 @@
     if (position) position.textContent = `${activeIndex + 1} / ${notes.length}`;
     const symbol = notes[activeIndex].dataset.alertSymbol;
     panel.dataset.activeSymbol = symbol;
-    if (panelTitle) panelTitle.textContent = `Nibwick noticed ${symbol}`;
+    if (panelTitle) panelTitle.textContent = `${symbol} / DESK NOTE`;
+    if (!panel.hidden) markNoteRead(activeIndex);
     linkActiveCard();
     positionPanel();
-  };
-
-  const showSymbol = (symbol) => {
-    const index = notes.findIndex((note) => note.dataset.alertSymbol === symbol);
-    if (index >= 0) showNote(index);
-    return index >= 0;
   };
 
   const openPanel = (trigger) => {
@@ -75,6 +120,7 @@
     panel.hidden = false;
     document.body.dataset.nibwickPopoverOpen = "true";
     delete stage.dataset.attention;
+    markNoteRead(activeIndex);
     setExpanded(true);
     linkActiveCard();
     positionPanel();
@@ -94,7 +140,8 @@
       new CustomEvent("nibwick:panel-state", { detail: { open: false } }),
     );
     if (restoreFocus && returnFocus instanceof HTMLElement) {
-      returnFocus.focus({ preventScroll: true });
+      const focusTarget = returnFocus === badge && badge.hidden ? nibwick : returnFocus;
+      focusTarget.focus({ preventScroll: true });
     }
   };
 
@@ -104,7 +151,16 @@
   };
 
   const signalSymbol = (symbol) => {
-    if (seenSymbols.has(symbol) || !showSymbol(symbol) || !panel.hidden) return;
+    const index = notes.findIndex((note) => note.dataset.alertSymbol === symbol);
+    if (
+      index < 0 ||
+      readAlertIds.has(notes[index].dataset.alertId) ||
+      seenSymbols.has(symbol) ||
+      !panel.hidden
+    ) {
+      return;
+    }
+    showNote(index);
     seenSymbols.add(symbol);
     stage.dataset.attention = "true";
     badge.setAttribute("aria-label", `Open Nibwick's ${symbol} note`);
@@ -114,11 +170,11 @@
     );
   };
 
-  panel.querySelector("[data-nibwick-note-prev]")?.addEventListener("click", () => {
-    showNote(activeIndex - 1);
+  panel.querySelectorAll("[data-nibwick-note-prev]").forEach((button) => {
+    button.addEventListener("click", () => showNote(activeIndex - 1));
   });
-  panel.querySelector("[data-nibwick-note-next]")?.addEventListener("click", () => {
-    showNote(activeIndex + 1);
+  panel.querySelectorAll("[data-nibwick-note-next]").forEach((button) => {
+    button.addEventListener("click", () => showNote(activeIndex + 1));
   });
   panel.querySelectorAll("[data-nibwick-show-name]").forEach((link) => {
     link.addEventListener("click", () => {
@@ -127,6 +183,7 @@
       const symbol = activeNote?.dataset.alertSymbol;
       const targetCard = targetId ? document.getElementById(targetId) : null;
       if (symbol) seenSymbols.add(symbol);
+      markNoteRead(activeIndex);
       if (targetCard) {
         targetCard.dataset.nibwickArrival = "true";
         window.setTimeout(() => delete targetCard.dataset.nibwickArrival, 2400);
@@ -153,6 +210,9 @@
     closePanel(false);
   });
   window.addEventListener("resize", positionPanel, { passive: true });
+  panel.querySelectorAll("details").forEach((details) => {
+    details.addEventListener("toggle", positionPanel);
+  });
 
   if ("IntersectionObserver" in window) {
     const observer = new IntersectionObserver(
@@ -171,5 +231,6 @@
   }
 
   showNote(0);
+  renderUnreadState();
   setExpanded(false);
 })();

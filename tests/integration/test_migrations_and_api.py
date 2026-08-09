@@ -119,14 +119,14 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "$231.78" in page.text
         assert "nibwick-method-note" in page.text
         assert "CHECK SOON" not in page.text
-        assert "app.css?v=36" in page.text
+        assert "app.css?v=37" in page.text
         assert "periods.js?v=14" in page.text
         assert "workspace-splitter.js?v=1" in page.text
         assert "chart-viewport.js?v=1" in page.text
         assert "chart-focus.js?v=1" in page.text
         assert "event-layout.js?v=3" in page.text
         assert "lifecycle-links.js?v=1" in page.text
-        assert "nibwick-alerts.js?v=4" in page.text
+        assert "nibwick-alerts.js?v=6" in page.text
         assert "nibwick.js?v=5" in page.text
         assert page.text.count("data-chart-range=") == 9
         assert page.text.count("data-chart-focus") == 3
@@ -139,10 +139,13 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert 'data-nibwick-popover role="dialog"' in page.text
         assert "data-nibwick-panel-title" in page.text
         assert "data-nibwick-scene" in page.text
-        assert "nibwick-note-meta" in page.text
+        assert "nibwick-note-heading" in page.text
+        assert "data-nibwick-unread-count" in page.text
+        assert 'data-alert-id="ktos-fast-move"' in page.text
+        assert "METHOD / LIMITS" in page.text
         assert page.text.count("()___()") >= 5
         assert 'data-alert-target="ktos-workspace"' in page.text
-        assert "SHOW ME KTOS" in page.text
+        assert "[GO]</span> KTOS" in page.text
         assert 'aria-labelledby="nibwick-panel-title" hidden' in page.text
         assert "data-nibwick-announcement" in page.text
         assert "data-nibwick-wire" not in page.text

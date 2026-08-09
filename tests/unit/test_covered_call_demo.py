@@ -395,22 +395,22 @@ def test_nibwick_alerts_are_specific_ranked_and_plain_english() -> None:
     ]
     assert snapshot.alerts[0].level_label == "WORTH CHECKING"
     assert snapshot.alerts[0].headline == "KTOS is closing in on $65"
-    assert "+30.4% five-session move" in snapshot.alerts[0].message
-    assert "not an instruction to roll" in snapshot.alerts[0].message
-    assert [(fact.label, fact.value) for fact in snapshot.alerts[0].facts] == [
-        ("TO STRIKE", "$4.23 / 7.0%"),
-        ("MARK / ENTRY CREDIT", "$3.30 / $2.45 · 1.35x"),
-        ("ROLL REVIEW / TIME", "55/100 ELEVATED · 42 DTE"),
+    assert "rose 30.4% in five sessions" in snapshot.alerts[0].message
+    assert "not a roll instruction" in snapshot.alerts[0].message
+    assert [(fact.label, fact.value, fact.detail) for fact in snapshot.alerts[0].facts] == [
+        ("TO STRIKE", "$4.23", "7.0% BUFFER"),
+        ("MARK / ENTRY CREDIT", "$3.30 / $2.45", "1.35x ENTRY"),
+        ("ROLL REVIEW / TIME", "55/100 ELEVATED", "42 DTE"),
     ]
     assert snapshot.alerts[0].method_note is not None
     assert "NOT A PROBABILITY OR TRADE SIGNAL" in snapshot.alerts[0].method_note
     assert snapshot.alerts[1].level_label == "KEEP AN EYE ON THIS"
     assert snapshot.alerts[1].headline == "CVX's dividend needs context"
     assert "pulls the stock price down, not up" in snapshot.alerts[1].message
-    assert [(fact.label, fact.value) for fact in snapshot.alerts[1].facts] == [
-        ("EX-DIV / CALLS", "AUG 19 · 12D · 6"),
-        ("PRE-DIV GRAY LINE", "$231.78 · +$45.22"),
-        ("DIV / $230 TIME VALUE", "$1.78 / $1.80 · 0.99x"),
+    assert [(fact.label, fact.value, fact.detail) for fact in snapshot.alerts[1].facts] == [
+        ("EX-DIV / CALLS", "AUG 19", "12D · 6 CALLS"),
+        ("PRE-DIV GRAY LINE", "$231.78", "+$45.22 FROM NOW"),
+        ("DIV / $230 TIME VALUE", "$1.78 / $1.80", "0.99x"),
     ]
     assert snapshot.alerts[1].method_note is not None
     assert "NOT A PRICE FORECAST" in snapshot.alerts[1].method_note

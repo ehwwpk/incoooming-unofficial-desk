@@ -3,8 +3,9 @@
 <aside id="nibwick-note-popover" class="nibwick-popover" data-nibwick-popover role="dialog" aria-modal="false" aria-labelledby="nibwick-panel-title" hidden>
   <header class="nibwick-popover-heading">
     <div class="nibwick-popover-copy">
-      <small>NIBWICK // DESK NOTE</small>
-      <h2 id="nibwick-panel-title" data-nibwick-panel-title>Nibwick noticed this</h2>
+      <span class="nibwick-command-code" aria-hidden="true">NWK</span>
+      <h2 id="nibwick-panel-title" data-nibwick-panel-title>DESK NOTE</h2>
+      <small data-nibwick-note-position>1 / {{ snapshot.alerts | length }}</small>
     </div>
     <div class="nibwick-ledger-scene" data-nibwick-scene aria-hidden="true">
       <pre> ()___()
@@ -36,30 +37,30 @@
   </header>
   <div class="nibwick-popover-notes">
     {% for alert in snapshot.alerts %}
-    <article class="nibwick-note {{ alert.level }}" data-nibwick-note data-alert-index="{{ loop.index0 }}" data-alert-symbol="{{ alert.symbol }}" data-alert-target="{{ alert.target_id }}"{% if not loop.first %} hidden{% endif %}>
-      <header>
+    <article class="nibwick-note {{ alert.level }}" data-nibwick-note data-alert-id="{{ alert.alert_id }}" data-alert-index="{{ loop.index0 }}" data-alert-symbol="{{ alert.symbol }}" data-alert-target="{{ alert.target_id }}"{% if not loop.first %} hidden{% endif %}>
+      <header class="nibwick-note-heading">
         <strong>{{ alert.symbol }}</strong>
-        <b>{{ alert.level_label }}</b>
-        <small class="nibwick-note-meta"><span>{{ loop.index }} OF {{ loop.length }}</span><span>COVERED CALLS</span></small>
-      </header>
-      <div>
         <h3>{{ alert.headline }}</h3>
+        <b>{{ alert.level_label }}</b>
+      </header>
+      <div class="nibwick-note-brief">
         <p>{{ alert.message }}</p>
       </div>
       <dl>
-        {% for fact in alert.facts %}<div><dt>{{ fact.label }}</dt><dd>{{ fact.value }}</dd></div>{% endfor %}
+        {% for fact in alert.facts %}<div><dt>{{ fact.label }}</dt><dd><strong>{{ fact.value }}</strong>{% if fact.detail %}<span>{{ fact.detail }}</span>{% endif %}</dd></div>{% endfor %}
       </dl>
-      {% if alert.method_note %}<p class="nibwick-method-note">{{ alert.method_note }}</p>{% endif %}
-      <a href="#{{ alert.target_id }}" data-nibwick-show-name>SHOW ME {{ alert.symbol }} →</a>
+      {% if alert.method_note %}<details class="nibwick-method-note"><summary>METHOD / LIMITS <span aria-hidden="true">+</span></summary><p>{{ alert.method_note }}</p></details>{% endif %}
+      <footer class="nibwick-note-actions">
+        {% if snapshot.alerts | length > 1 %}
+        <nav class="nibwick-popover-nav" aria-label="Browse Nibwick's notes">
+          <button type="button" data-nibwick-note-prev aria-label="Previous Nibwick note">← PREV</button>
+          <button type="button" data-nibwick-note-next aria-label="Next Nibwick note">NEXT →</button>
+        </nav>
+        {% endif %}
+        <a href="#{{ alert.target_id }}" data-nibwick-show-name><span>[GO]</span> {{ alert.symbol }} →</a>
+      </footer>
     </article>
     {% endfor %}
   </div>
-  {% if snapshot.alerts | length > 1 %}
-  <footer class="nibwick-popover-nav" aria-label="Browse Nibwick's notes">
-    <button type="button" data-nibwick-note-prev>← PREVIOUS</button>
-    <span data-nibwick-note-position>1 / {{ snapshot.alerts | length }}</span>
-    <button type="button" data-nibwick-note-next>NEXT →</button>
-  </footer>
-  {% endif %}
 </aside>
 {% endif %}

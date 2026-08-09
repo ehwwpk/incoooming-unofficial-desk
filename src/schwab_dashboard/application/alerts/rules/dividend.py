@@ -90,18 +90,19 @@ def evaluate_dividend_overlap(
         facts=(
             AlertFact(
                 "EX-DIV / CALLS",
-                f"{ex_date.strftime('%b %d').upper()} · {days_until}D · "
-                f"{context.crossing_contracts}",
+                ex_date.strftime("%b %d").upper(),
+                f"{days_until}D · {context.crossing_contracts} CALLS",
             ),
             AlertFact(
                 "PRE-DIV GRAY LINE",
-                f"${context.pre_dividend_gray_line:.2f} · "
-                f"{_signed_money(context.distance_to_gray_line_per_share)}",
+                f"${context.pre_dividend_gray_line:.2f}",
+                f"{_signed_money(context.distance_to_gray_line_per_share)} FROM NOW",
             ),
             AlertFact(
                 f"DIV / ${context.call.strike:g} TIME VALUE",
                 f"${underlying.dividend_per_share:.2f} / "
-                f"${context.extrinsic_per_share:.2f} · {_ratio_text(context)}",
+                f"${context.extrinsic_per_share:.2f}",
+                _ratio_text(context),
             ),
         ),
         priority=priority,

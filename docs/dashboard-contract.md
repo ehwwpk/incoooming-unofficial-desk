@@ -37,9 +37,22 @@ The default workspace keeps decision surfaces visible and moves verbose records 
 
 The primary workspace does not reserve a generic news or telemetry rail. A derived exception earns visible space only when it is actionable and can be placed next to the affected security or contract.
 
-Nibwick is a small bear clerk, with the same round-ear, broad-head, centered-nose, and paw language across patrol and reaction poses. The popup uses one mascot scene rather than repeating a static portrait and a second face: the canonical two-ear Nibwick reads, marks, and turns a ledger page before looking up. Every animation frame preserves the same recognizable silhouette used in the side rail; the ledger and paws carry the motion instead of distorting the character. The scene explains that Nibwick examined the note while leaving the larger share of the header to its title. His note panel is conditional and initially hidden, so alerts reserve no permanent dashboard space. Entering a flagged security workspace makes the mascot wave and marks the note badge; it never opens the panel automatically. The badge travels with Nibwick on patrol, connected by a short visual tether and a separate restrained bob; opening the note pauses the patrol so its pointer remains anchored. Clicking Nibwick or the badge opens the relevant note as a compact, dismissible non-modal popover, with close, outside-click, and Escape paths. The active note subtly marks its underlying workspace, and its action closes the note and takes the user directly to that security. Decorative movement is hidden from assistive technology and becomes a static reading pose when reduced motion is requested. Alert severity, facts, and thresholds come from typed application rules; the mascot adds plain-English presentation but never invents advice.
+### Nibwick desk notes
 
-Note typography follows the dashboard's compact hierarchy: 14/19 headings, 12.8/18 body copy, 11/15 actions, and 8.4–9/12–13 micro labels. Weight stays below display-heading intensity, and spacing is compressed without sacrificing readable line length.
+Nibwick is a small bear clerk. Round ears, a broad head, a centered nose, paws, and feet remain stable across patrol and reaction poses. The popup contains one animated ledger scene; every frame preserves that silhouette while the eyes, paws, and page carry the movement.
+
+The note is a terminal worksheet rather than a consumer modal:
+
+- A 56px command strip carries the `NWK` function code, security, position, ledger scene, and close command in one row.
+- The security, headline, severity, and plain-English evidence use the full worksheet width.
+- Each fact cell separates its primary value from its qualifier so numbers align instead of forming display cards.
+- Methodology and limitations remain available in a collapsed disclosure rather than occupying the default decision surface.
+- Previous, next, and security-jump commands share one footer.
+- The surface uses two interior charcoal tones, one grid-line tone, and an amber perimeter.
+
+The panel is conditional and initially hidden, so alerts reserve no permanent dashboard space. Entering a flagged security workspace can make Nibwick wave and mark the badge, but it never opens the note automatically. The badge reports unread notes—not the lifetime alert total—and disappears after every current note has been viewed in the browser session. Opening the note pauses the patrol, marks the active note read, and subtly links the affected security workspace. Close, outside-click, and Escape paths remain available. Reduced-motion users receive a static reading pose.
+
+Alert severity, facts, thresholds, and method notes come from typed application rules. Nibwick changes presentation, not the underlying decision logic, and never invents advice.
 
 ## Performance windows
 
