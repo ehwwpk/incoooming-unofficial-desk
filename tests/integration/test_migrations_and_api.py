@@ -133,7 +133,7 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "$231.78" in page.text
         assert "nibwick-method-note" in page.text
         assert "CHECK SOON" not in page.text
-        assert "app.css?v=43" in page.text
+        assert "app.css?v=44" in page.text
         assert "DEMO CHECKED" in page.text
         assert "$4.23 / 7.0% TO STRIKE" in page.text
         assert "periods.js?v=16" in page.text
@@ -202,7 +202,11 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "LIFETIME BASIS LENS" not in page.text
         assert "ORIGINAL CAPITAL REMAINING" not in page.text
         assert "13-week cash trend" in page.text
-        assert "AGGREGATED WEEKLY OPTION AND DIVIDEND TOTALS" in page.text
+        assert "AGGREGATED WEEKLY OPTION AND DIVIDEND TOTALS" not in page.text
+        assert "ONE ROW PER STOCK" not in page.text
+        assert "3</b> STOCKS" in page.text
+        assert "2,000</b> SHARES" in page.text
+        assert "18</b> CALL CONTRACTS" in page.text
         assert "Transaction records" in page.text
         assert "NEAR-FLAT ROLL CHECKS" in page.text
         assert "BTC ASK + STO BID · SIMULATED CHAIN" in page.text

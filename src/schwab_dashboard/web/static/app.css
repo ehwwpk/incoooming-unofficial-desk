@@ -3,7 +3,7 @@
 @import url("./alerts.css?v=15");
 @import url("./performance.css?v=24");
 @import url("./dashboard.css?v=24");
-@import url("./desk-overview.css?v=3");
+@import url("./desk-overview.css?v=4");
 
 @media (max-width: 1240px) {
   .portfolio-console { grid-template-columns: repeat(3, 1fr); }

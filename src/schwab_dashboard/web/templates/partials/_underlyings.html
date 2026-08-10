@@ -1,7 +1,14 @@
 <section class="section-block" id="underlyings">
-  <div class="section-heading terminal-heading">
-    <div><h2>Covered-call positions</h2></div>
-    <span class="section-instruction">ONE ROW PER STOCK · OPEN A STOCK FOR CHARTS AND CONTRACTS</span>
+  <div class="section-heading terminal-heading position-section-heading">
+    <h2>Covered-call positions</h2>
+    <div
+      class="position-book-summary"
+      aria-label="{{ snapshot.underlyings | length }} stocks, {{ snapshot.covered_calls.total_shares }} shares, {{ snapshot.covered_calls.active_contracts }} open call contracts"
+    >
+      <span><b>{{ snapshot.underlyings | length }}</b> STOCKS</span>
+      <span><b>{{ snapshot.covered_calls.total_shares | number(0) }}</b> SHARES</span>
+      <span><b>{{ snapshot.covered_calls.active_contracts }}</b> CALL CONTRACTS</span>
+    </div>
   </div>
   {% if snapshot.underlyings %}
   <div class="underlying-grid">
