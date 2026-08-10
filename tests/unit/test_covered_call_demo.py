@@ -401,7 +401,6 @@ def test_nibwick_alerts_are_specific_ranked_and_plain_english() -> None:
 
     assert [(alert.reason_code, alert.level, alert.symbol) for alert in snapshot.alerts] == [
         ("fast_move_near_call", "check", "KTOS"),
-        ("dividend_overlap", "watch", "CVX"),
     ]
     assert snapshot.alerts[0].level_label == "WORTH CHECKING"
     assert snapshot.alerts[0].headline == "Fast move; $65 call is 7.0% away"
@@ -432,21 +431,7 @@ def test_nibwick_alerts_are_specific_ranked_and_plain_english() -> None:
     assert snapshot.alerts[0].method_note is not None
     assert "NOT A PROBABILITY OR TRADE SIGNAL" in snapshot.alerts[0].method_note
     assert "BUY-TO-CLOSE ASK" in snapshot.alerts[0].method_note
-    assert snapshot.alerts[1].roll_scenarios == ()
-    assert snapshot.alerts[1].level_label == "KEEP AN EYE ON THIS"
-    assert snapshot.alerts[1].headline == "CVX's dividend needs context"
-    assert "pulls the stock price down, not up" in snapshot.alerts[1].message
-    assert [(fact.label, fact.value, fact.detail) for fact in snapshot.alerts[1].facts] == [
-        ("EX-DIV / CALLS", "AUG 19", "12D · 6 CALLS"),
-        ("PRE-DIV GRAY LINE", "$231.78", "+$45.22 FROM NOW"),
-        ("DIV / $230 TIME VALUE", "$1.78 / $1.80", "0.99x"),
-    ]
-    assert snapshot.alerts[1].method_note is not None
-    assert "NOT A PRICE FORECAST" in snapshot.alerts[1].method_note
-    assert [alert.target_id for alert in snapshot.alerts] == [
-        "ktos-workspace",
-        "cvx-workspace",
-    ]
+    assert [alert.target_id for alert in snapshot.alerts] == ["ktos-workspace"]
 
 
 def test_roll_checks_reject_non_later_non_higher_and_non_neutral_quotes() -> None:
@@ -494,12 +479,41 @@ def test_dividend_warning_escalates_only_when_the_math_supports_it() -> None:
     assert alert is not None
     assert alert.level == "attention"
     assert alert.level_label == "NEEDS ATTENTION"
+    assert alert.headline == "CVX call may be assigned before the dividend"
     assert "in the money" in alert.message
+    assert "$0.78/share greater than remaining time value" in alert.message
     assert "raises early-assignment sensitivity" in alert.message
-    assert "cannot predict assignment" in alert.message
+    assert "cannot be predicted" in alert.message
+    assert [(fact.label, fact.value, fact.detail) for fact in alert.facts] == [
+        ("EX-DIVIDEND", "AUG 09", "2 DAYS"),
+        ("EXPOSED CALL", "CVX $235C", "3 CONTRACTS · 300 SHARES"),
+        ("IN THE MONEY", "$5.00 / 2.1%", "STOCK $240.00"),
+        ("DIV / TIME VALUE", "$1.78 / $1.00", "1.78x"),
+    ]
+    assert alert.method_note is not None
+    assert "WITHIN FIVE CALENDAR DAYS" in alert.method_note
+
+    check = evaluate_dividend_overlap(
+        replace(at_risk, next_ex_dividend_date=as_of + timedelta(days=5)),
+        as_of=as_of,
+    )
+    assert check is not None
+    assert check.level == "check"
+    assert check.headline == "CVX call needs a dividend check"
     assert (
         evaluate_dividend_overlap(
-            replace(at_risk, next_ex_dividend_date=as_of + timedelta(days=15)), as_of=as_of
+            replace(at_risk, next_ex_dividend_date=as_of + timedelta(days=6)), as_of=as_of
         )
         is None
     )
+    assert evaluate_dividend_overlap(replace(at_risk, current_price=D("234")), as_of=as_of) is None
+
+    time_value_rich_call = replace(at_risk_call, remaining_extrinsic_value=D("600"))
+    watch = evaluate_dividend_overlap(
+        replace(at_risk, open_call_clocks=(time_value_rich_call,)),
+        as_of=as_of,
+    )
+    assert watch is not None
+    assert watch.level == "watch"
+    assert watch.headline == "CVX call is in the dividend window"
+    assert "time value ($2.00/share) is still greater" in watch.message

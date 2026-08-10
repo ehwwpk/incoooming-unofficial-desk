@@ -85,7 +85,6 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
             (alert["reason_code"], alert["level"], alert["symbol"]) for alert in payload["alerts"]
         ] == [
             ("fast_move_near_call", "check", "KTOS"),
-            ("dividend_overlap", "watch", "CVX"),
         ]
         assert payload["alerts"][0]["roll_scenarios"][0]["target_strike"] == "70"
         assert payload["alerts"][0]["roll_scenarios"][0]["net_roll_cash"] == "25.00"
@@ -126,11 +125,14 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "data-target-input" in page.text
         assert "DIV RISK // MONITOR" not in page.text
         assert "WORTH CHECKING" in page.text
-        assert "KEEP AN EYE ON THIS" in page.text
+        assert "KEEP AN EYE ON THIS" not in page.text
         assert "Fast move; $65 call is 7.0% away" in page.text
-        assert "CVX&#39;s dividend needs context" in page.text
+        assert "CVX&#39;s dividend needs context" not in page.text
         assert "55/100 ELEVATED" in page.text
-        assert "$231.78" in page.text
+        assert "$231.78" not in page.text
+        assert "1 TO REVIEW" in page.text
+        assert "DIVIDEND OVERLAP" in page.text
+        assert "6 CONTRACTS" in page.text
         assert "nibwick-method-note" in page.text
         assert "CHECK SOON" not in page.text
         assert "app.css?v=44" in page.text
@@ -151,7 +153,7 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert page.text.count("data-chart-focus") == 3
         assert page.text.count("data-chart-point") == 174
         assert page.text.count("data-chart-event data-date") == 31
-        assert page.text.count("data-nibwick-note ") == 2
+        assert page.text.count("data-nibwick-note ") == 1
         assert "data-nibwick-alert-badge" in page.text
         assert "nibwick-alert-plaque" in page.text
         assert "nibwick-portrait-art" not in page.text
