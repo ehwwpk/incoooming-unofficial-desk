@@ -9,14 +9,14 @@
 >
   <article class="pulse-panel income-pulse">
     <header>
-      <div><p class="eyebrow">INCOME</p><h2>What the strategy earned</h2></div>
+      <div><h2>Income &amp; pace</h2><small>CASH EARNED · DIVIDENDS · MONTHLY GOAL</small></div>
       <a href="/workspaces/attribution">STRATEGY REVIEW <span aria-hidden="true">→</span></a>
     </header>
     <div class="pulse-income-grid">
       <div class="pulse-primary">
         <span data-active-option-label>NET OPTION INCOME / {{ active.label if active else 'WINDOW' }}</span>
         <strong class="{{ active.option_cash | pnl_class if active else '' }}" data-active-option-cash>{{ active.option_cash | money if active else snapshot.covered_calls.net_option_cash | money }}</strong>
-        <small data-active-option-meta>{% if active %}{{ active.annualized_option_yield | percent }} APR · after executed close and roll costs{% else %}Waiting for normalized option cash{% endif %}</small>
+        <small data-active-option-meta>{% if active %}{{ active.annualized_option_yield | percent }} APR · net of completed close and roll debits{% else %}Waiting for normalized option cash{% endif %}</small>
         <small class="pulse-average" data-active-option-average hidden></small>
       </div>
       <div>
@@ -48,7 +48,7 @@
 
   <article class="pulse-panel live-book-pulse">
     <header>
-      <div><p class="eyebrow">LIVE COVERED CALLS</p><h2>What is open right now</h2></div>
+      <div><h2>Live covered calls</h2><small>DISTANCE TO STRIKE · EXPIRATIONS · DIVIDEND TIMING</small></div>
       <a href="/workspaces/risk">OPEN CALLS <span aria-hidden="true">→</span></a>
     </header>
     <div class="live-book-grid">
@@ -82,7 +82,7 @@
       </div>
     </div>
     <footer class="live-book-footer">
-      <div><span>OPEN OPTION RESULT</span><b class="{{ desk_overview.open_mark_profit_loss | pnl_class }}">{{ desk_overview.open_mark_profit_loss | money }}</b><small>Unrealized estimate</small></div>
+      <div><span>OPEN MARK P/L</span><b class="{{ desk_overview.open_mark_profit_loss | pnl_class }}">{{ desk_overview.open_mark_profit_loss | money }}</b><small>Unrealized · changes with the market</small></div>
       <div><span>DIVIDEND OVERLAP</span><b>{{ desk_overview.dividend_overlap_contracts }} CONTRACTS</b><small>Calls open across an ex-dividend date</small></div>
       {% if snapshot.alerts %}
       <button type="button" data-nibwick-summary aria-expanded="false" aria-controls="nibwick-note-popover"><span>NIBWICK NOTES</span><b>{{ snapshot.alerts | length }} TO REVIEW</b><small>{{ snapshot.alerts[0].symbol }} · {{ snapshot.alerts[0].headline }}</small></button>

@@ -108,8 +108,9 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert payload["basis_lens"][0]["fully_recovered"] is False
         assert "SIMULATION" in page.text
         assert '<span class="brand-mark">IU</span>' in page.text
-        assert "What the strategy earned" in page.text
-        assert "What is open right now" in page.text
+        assert "Income &amp; pace" in page.text
+        assert "Live covered calls" in page.text
+        assert "What is open right now" not in page.text
         assert "WINDOW ACCOUNTING" not in page.text
         assert "TRANSACTION CASH · NORMALIZED PACE · OPEN MARK SEPARATED" not in page.text
         assert "INTERNAL DESK FEED" not in page.text
@@ -129,7 +130,7 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "$231.78" in page.text
         assert "nibwick-method-note" in page.text
         assert "CHECK SOON" not in page.text
-        assert "app.css?v=41" in page.text
+        assert "app.css?v=42" in page.text
         assert "DEMO CHECKED" in page.text
         assert "$4.23 / 7.0% TO STRIKE" in page.text
         assert "periods.js?v=16" in page.text
@@ -185,7 +186,7 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "data-active-option-average hidden" in page.text
         assert "PREMIUM RECEIVED / CURRENT MARK / OPEN P&amp;L" in page.text
         assert "PORTFOLIO OPEN-CALL DECAY EST. / DAY" not in page.text
-        assert "OPEN OPTION RESULT" in page.text
+        assert "OPEN MARK P/L" in page.text
         assert "OPEN P/L AT CURRENT MARK" in page.text
         assert "OPTION VALUE NOW" in page.text
         assert "FULL DAILY CLOSES" in page.text
@@ -197,7 +198,7 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "RANGE POSITION" in page.text
         assert "LIFETIME BASIS LENS" not in page.text
         assert "ORIGINAL CAPITAL REMAINING" not in page.text
-        assert "Activity &amp; records" in page.text
+        assert "Records &amp; audit trail" in page.text
         assert "Covered-call trades" in page.text
         assert "Shares and short calls" in page.text
         assert 'data-record-pane="books" hidden' in page.text

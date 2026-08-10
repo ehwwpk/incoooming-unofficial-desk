@@ -1,14 +1,15 @@
 .desk-pulse { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(460px, .92fr); gap: 10px; margin-top: 10px; }
 .pulse-panel { min-width: 0; border: 1px solid var(--line-strong); background: var(--surface); }
-.pulse-panel > header { display: flex; min-height: 52px; align-items: center; justify-content: space-between; gap: 14px; padding: 9px 12px; border-bottom: 1px solid var(--line); background: var(--surface-raised); }
-.pulse-panel > header div { display: grid; gap: 3px; }
+.pulse-panel > header { display: flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 14px; padding: 7px 11px; border-bottom: 1px solid var(--line); background: var(--surface-raised); }
+.pulse-panel > header div { display: grid; gap: 2px; }
 .pulse-panel > header p { margin: 0; }
-.pulse-panel > header h2 { margin: 0; font-size: .84rem; font-weight: 650; }
+.pulse-panel > header h2 { margin: 0; font-size: .78rem; font-weight: 680; }
+.pulse-panel > header small, .section-context { color: var(--subtle); font: 650 .42rem var(--mono); letter-spacing: .045em; }
 .pulse-panel > header a { border: 1px solid var(--line-strong); padding: 6px 8px; color: var(--gold); font: 700 .43rem var(--mono); white-space: nowrap; }
 .pulse-panel > header a:hover, .pulse-panel > header a:focus-visible { border-color: var(--gold); background: #1b170d; color: var(--text); outline: 0; }
 
 .pulse-income-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.pulse-income-grid > div { display: grid; min-height: 96px; align-content: center; gap: 7px; padding: 10px 11px; border-right: 1px solid var(--line); }
+.pulse-income-grid > div { display: grid; min-height: 88px; align-content: center; gap: 6px; padding: 9px 10px; border-right: 1px solid var(--line); }
 .pulse-income-grid > div:last-child { border-right: 0; }
 .pulse-income-grid span, .live-book-grid span, .live-book-footer span { color: var(--subtle); font: 650 .45rem var(--mono); letter-spacing: .04em; }
 .pulse-income-grid span b { color: inherit; font: inherit; }
@@ -18,7 +19,7 @@
 .pulse-primary strong { color: var(--green); }
 .pulse-average { padding-top: 4px; border-top: 1px solid var(--line); color: var(--gold) !important; }
 
-.income-target-bar { display: grid; grid-template-columns: auto auto minmax(170px, 1fr); min-height: 44px; align-items: stretch; margin: 0; padding: 0; border-top: 1px solid var(--line); background: #0a0b0c; }
+.income-target-bar { display: grid; grid-template-columns: auto auto minmax(170px, 1fr); min-height: 58px; align-items: stretch; margin: 0; padding: 0; border-top: 1px solid var(--line); background: #0a0b0c; }
 .income-target-bar label { display: flex; align-items: center; gap: 5px; padding: 7px 10px; color: var(--subtle); font: 700 .43rem var(--mono); }
 .income-target-bar label span { color: var(--gold); }
 .income-target-bar input { width: 76px; border: 0; border-bottom: 1px solid var(--gold-soft); padding: 3px; outline: 0; background: transparent; color: var(--text); font: 700 .58rem var(--mono); }
@@ -31,9 +32,9 @@
 .target-readout i { display: block; height: 3px; overflow: hidden; background: var(--line); }
 .target-readout em { display: block; width: min(var(--desk-target-progress), 100%); height: 100%; background: var(--gold); }
 
-.live-book-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.live-book-grid > div { display: grid; min-height: 78px; align-content: center; gap: 6px; padding: 9px 11px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.live-book-grid > div:nth-child(2n) { border-right: 0; }
+.live-book-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.live-book-grid > div { display: grid; min-height: 88px; align-content: center; gap: 6px; padding: 9px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.live-book-grid > div:last-child { border-right: 0; }
 .live-book-grid strong { font: 700 .85rem var(--mono); }
 .live-book-grid .nearest-call { background: #11120f; box-shadow: inset 2px 0 var(--gold); }
 .live-book-footer { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; padding: 0; }
@@ -78,6 +79,7 @@
 .position-detail > .name-analytics { border-top: 0; }
 
 .income-panel { margin-top: 10px; }
+.records-workspace > summary { min-height: 46px; }
 .income-panel-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px -14px -14px; padding: 8px 12px; border-top: 1px solid var(--line); background: #0a0b0c; }
 .income-panel-footer span, .income-panel-footer a { color: var(--subtle); font: .43rem var(--mono); }
 .income-panel-footer a { color: var(--gold); }
@@ -104,6 +106,8 @@
   .position-book > summary > div:nth-child(2n) { border-right: 0; }
   .position-open-control { border-left: 0; }
   .section-instruction { display: none; }
+  .live-book-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .live-book-grid > div:nth-child(2n) { border-right: 0; }
   .live-book-footer { grid-template-columns: 1fr; }
   .live-book-footer > div, .live-book-footer > button { border-right: 0; border-bottom: 1px solid var(--line); }
   .live-book-footer > :last-child { border-bottom: 0; }
