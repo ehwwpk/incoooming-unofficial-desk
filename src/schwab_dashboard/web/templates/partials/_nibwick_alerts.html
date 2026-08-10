@@ -1,11 +1,15 @@
 {% if snapshot.alerts %}
+{% set first_alert = snapshot.alerts[0] %}
 <p class="nibwick-announcement" data-nibwick-announcement aria-live="polite"></p>
 <aside id="nibwick-note-popover" class="nibwick-popover" data-nibwick-popover role="dialog" aria-modal="false" aria-labelledby="nibwick-panel-title" hidden>
   <header class="nibwick-popover-heading">
     <div class="nibwick-popover-copy">
-      <span class="nibwick-command-code" aria-hidden="true">NWK</span>
-      <h2 id="nibwick-panel-title" data-nibwick-panel-title>DESK NOTE</h2>
-      <small data-nibwick-note-position>1 / {{ snapshot.alerts | length }}</small>
+      <div class="nibwick-popover-meta">
+        <strong data-nibwick-header-symbol>{{ first_alert.symbol }}</strong>
+        <b class="nibwick-popover-level {{ first_alert.level }}" data-nibwick-header-level>{{ first_alert.level_label }}</b>
+        {% if snapshot.alerts | length > 1 %}<small data-nibwick-note-position>1 / {{ snapshot.alerts | length }}</small>{% endif %}
+      </div>
+      <h2 id="nibwick-panel-title" data-nibwick-panel-title>{{ first_alert.headline }}</h2>
     </div>
     <div class="nibwick-ledger-scene" data-nibwick-scene aria-hidden="true">
       <pre> ()___()
@@ -37,21 +41,25 @@
   </header>
   <div class="nibwick-popover-notes">
     {% for alert in snapshot.alerts %}
-    <article class="nibwick-note {{ alert.level }}" data-nibwick-note data-alert-id="{{ alert.alert_id }}" data-alert-index="{{ loop.index0 }}" data-alert-symbol="{{ alert.symbol }}" data-alert-target="{{ alert.target_id }}"{% if not loop.first %} hidden{% endif %}>
-      <header class="nibwick-note-heading">
-        <strong>{{ alert.symbol }}</strong>
-        <h3>{{ alert.headline }}</h3>
-        <b>{{ alert.level_label }}</b>
-      </header>
-      <div class="nibwick-note-brief">
-        <p>{{ alert.message }}</p>
-      </div>
+    <article
+      class="nibwick-note {{ alert.level }}"
+      data-nibwick-note
+      data-alert-id="{{ alert.alert_id }}"
+      data-alert-index="{{ loop.index0 }}"
+      data-alert-symbol="{{ alert.symbol }}"
+      data-alert-target="{{ alert.target_id }}"
+      data-alert-headline="{{ alert.headline }}"
+      data-alert-level="{{ alert.level }}"
+      data-alert-level-label="{{ alert.level_label }}"
+      {% if not loop.first %}hidden{% endif %}
+    >
+      <div class="nibwick-note-brief"><p>{{ alert.message }}</p></div>
       <dl{% if alert.facts | length == 4 %} class="four-up"{% endif %}>
         {% for fact in alert.facts %}<div><dt>{{ fact.label }}</dt><dd><strong>{{ fact.value }}</strong>{% if fact.detail %}<span>{{ fact.detail }}</span>{% endif %}</dd></div>{% endfor %}
       </dl>
       {% if alert.roll_scenarios %}
       <section class="nibwick-roll-ladder" aria-label="Near-flat roll comparisons">
-        <header><strong>NEAR-FLAT ROLL CHECKS</strong><span>BTC ASK + STO BID · {{ 'SIMULATED CHAIN' if snapshot.is_demo else 'LIVE CHAIN' }}</span></header>
+        <header><strong>ROLL COMPARISONS</strong><span>{{ 'SIMULATED' if snapshot.is_demo else 'LIVE' }} · ASK / BID</span></header>
         <div>
           {% for scenario in alert.roll_scenarios %}
           <article>
@@ -68,10 +76,8 @@
           </article>
           {% endfor %}
         </div>
-        <footer>INDICATIVE PLANNING MATH · NOT AN ORDER TICKET · FEES EXCLUDED</footer>
       </section>
       {% endif %}
-      {% if alert.method_note %}<details class="nibwick-method-note"><summary>METHOD / LIMITS <span aria-hidden="true">+</span></summary><p>{{ alert.method_note }}</p></details>{% endif %}
       <footer class="nibwick-note-actions">
         {% if snapshot.alerts | length > 1 %}
         <nav class="nibwick-popover-nav" aria-label="Browse Nibwick's notes">
@@ -79,7 +85,7 @@
           <button type="button" data-nibwick-note-next aria-label="Next Nibwick note">NEXT →</button>
         </nav>
         {% endif %}
-        <a href="#{{ alert.target_id }}" data-nibwick-show-name><span>[GO]</span> {{ alert.symbol }} →</a>
+        <a href="#{{ alert.target_id }}" data-nibwick-show-name>OPEN {{ alert.symbol }} →</a>
       </footer>
     </article>
     {% endfor %}

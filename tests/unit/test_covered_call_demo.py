@@ -405,13 +405,13 @@ def test_nibwick_alerts_are_specific_ranked_and_plain_english() -> None:
     assert snapshot.alerts[0].level_label == "WORTH CHECKING"
     assert snapshot.alerts[0].headline == "Fast move; $65 call is 7.0% away"
     assert "rose 30.4% in five sessions" in snapshot.alerts[0].message
-    assert "$46.60 when this call was sold to $60.77 now" in snapshot.alerts[0].message
-    assert "not a roll instruction" in snapshot.alerts[0].message
+    assert "$46.60 at sale to $60.77 now" in snapshot.alerts[0].message
+    assert "Review pressure" not in snapshot.alerts[0].message
     assert [(fact.label, fact.value, fact.detail) for fact in snapshot.alerts[0].facts] == [
         ("STOCK / SALE", "$60.77 NOW", "$46.60 SALE · +30.4%"),
         ("TO STRIKE", "$4.23", "7.0% BUFFER"),
-        ("MARK / ENTRY CREDIT", "$3.30 / $2.45", "1.35x ENTRY"),
-        ("ROLL REVIEW / TIME", "55/100 ELEVATED", "42 DTE"),
+        ("MARK / CREDIT", "$3.30 / $2.45", "1.35x ENTRY"),
+        ("REVIEW / TIME", "55/100 ELEVATED", "42 DTE"),
     ]
     assert [
         (

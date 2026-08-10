@@ -133,9 +133,10 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "1 TO REVIEW" in page.text
         assert "DIVIDEND OVERLAP" in page.text
         assert "6 CONTRACTS" in page.text
-        assert "nibwick-method-note" in page.text
+        assert "nibwick-method-note" not in page.text
         assert "CHECK SOON" not in page.text
-        assert "app.css?v=44" in page.text
+        assert "app.css?v=45" in page.text
+        assert "workspaces.css?v=3" in page.text
         assert "DEMO CHECKED" in page.text
         assert "$4.23 / 7.0% TO STRIKE" in page.text
         assert "periods.js?v=16" in page.text
@@ -144,7 +145,7 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "chart-focus.js?v=1" in page.text
         assert "event-layout.js?v=4" in page.text
         assert "lifecycle-links.js?v=2" in page.text
-        assert "nibwick-alerts.js?v=8" in page.text
+        assert "nibwick-alerts.js?v=9" in page.text
         assert "nibwick.js?v=5" in page.text
         assert "position-details.js?v=1" in page.text
         assert page.text.count("data-position-details") == 3
@@ -153,20 +154,23 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert page.text.count("data-chart-focus") == 3
         assert page.text.count("data-chart-point") == 174
         assert page.text.count("data-chart-event data-date") == 31
-        assert page.text.count("data-nibwick-note ") == 1
+        assert page.text.count("data-nibwick-note") == 1
         assert "data-nibwick-alert-badge" in page.text
         assert "nibwick-alert-plaque" in page.text
         assert "nibwick-portrait-art" not in page.text
         assert 'data-nibwick-popover role="dialog"' in page.text
         assert "data-nibwick-panel-title" in page.text
         assert "data-nibwick-scene" in page.text
-        assert "nibwick-note-heading" in page.text
+        assert "nibwick-note-heading" not in page.text
+        assert "data-nibwick-header-symbol" in page.text
+        assert "data-nibwick-header-level" in page.text
         assert "data-nibwick-unread-count" in page.text
         assert 'data-alert-id="ktos-fast-move"' in page.text
-        assert "METHOD / LIMITS" in page.text
+        assert "METHOD / LIMITS" not in page.text
+        assert "INDICATIVE PLANNING MATH" not in page.text
         assert page.text.count("()___()") >= 5
         assert 'data-alert-target="ktos-workspace"' in page.text
-        assert "[GO]</span> KTOS" in page.text
+        assert "OPEN KTOS →" in page.text
         assert 'aria-labelledby="nibwick-panel-title" hidden' in page.text
         assert "data-nibwick-announcement" in page.text
         assert "data-nibwick-wire" not in page.text
@@ -210,8 +214,8 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "2,000</b> SHARES" in page.text
         assert "18</b> CALL CONTRACTS" in page.text
         assert "Transaction records" in page.text
-        assert "NEAR-FLAT ROLL CHECKS" in page.text
-        assert "BTC ASK + STO BID · SIMULATED CHAIN" in page.text
+        assert "ROLL COMPARISONS" in page.text
+        assert "SIMULATED · ASK / BID" in page.text
         assert "+$25 total · $2,500 more call-away room" in page.text
         assert "data-nibwick-summary-count" in page.text
         assert "data-nibwick-summary-detail" in page.text

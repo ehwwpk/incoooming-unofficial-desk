@@ -10,6 +10,8 @@
 
   const position = panel.querySelector("[data-nibwick-note-position]");
   const panelTitle = panel.querySelector("[data-nibwick-panel-title]");
+  const headerSymbol = panel.querySelector("[data-nibwick-header-symbol]");
+  const headerLevel = panel.querySelector("[data-nibwick-header-level]");
   const announcement = document.querySelector("[data-nibwick-announcement]");
   const unreadCountElement = badge.querySelector("[data-nibwick-unread-count]");
   const readStorageKey = "incoooming:nibwick-read-alerts";
@@ -58,7 +60,7 @@
       if (count) count.textContent = unreadCount ? `${unreadCount} TO REVIEW` : "ALL REVIEWED";
       if (detail) {
         detail.textContent = nextUnreadNote
-          ? `${nextUnreadNote.dataset.alertSymbol} · ${nextUnreadNote.querySelector("h3")?.textContent || "Desk note"}`
+          ? `${nextUnreadNote.dataset.alertSymbol} · ${nextUnreadNote.dataset.alertHeadline || "Desk note"}`
           : "No unread desk notes";
       }
       trigger.setAttribute(
@@ -126,9 +128,16 @@
       note.hidden = noteIndex !== activeIndex;
     });
     if (position) position.textContent = `${activeIndex + 1} / ${notes.length}`;
-    const symbol = notes[activeIndex].dataset.alertSymbol;
+    const activeNote = notes[activeIndex];
+    const symbol = activeNote.dataset.alertSymbol;
     panel.dataset.activeSymbol = symbol;
-    if (panelTitle) panelTitle.textContent = `${symbol} / DESK NOTE`;
+    panel.dataset.activeLevel = activeNote.dataset.alertLevel;
+    if (panelTitle) panelTitle.textContent = activeNote.dataset.alertHeadline || "Desk note";
+    if (headerSymbol) headerSymbol.textContent = symbol;
+    if (headerLevel) {
+      headerLevel.textContent = activeNote.dataset.alertLevelLabel;
+      headerLevel.className = `nibwick-popover-level ${activeNote.dataset.alertLevel}`;
+    }
     if (!panel.hidden) markNoteRead(activeIndex);
     linkActiveCard();
     positionPanel();

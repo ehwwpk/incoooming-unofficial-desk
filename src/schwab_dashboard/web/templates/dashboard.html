@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <title>Incoooming Unofficial Desk · Options Income</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=44">
-    <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=2">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=45">
+    <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=3">
   </head>
   <body data-workspace-key="desk" data-workspace-context='{"account":"{{ snapshot.accounts[0].account_mask if snapshot.accounts else "---" }}","symbol":"ALL","asOf":"{{ snapshot.as_of.date().isoformat() }}"}'>
     <header class="topbar desk-topbar">
@@ -104,7 +104,7 @@
     <script src="{{ url_for('static', path='/chart-focus.js') }}?v=1" defer></script>
     <script src="{{ url_for('static', path='/event-layout.js') }}?v=4" defer></script>
     <script src="{{ url_for('static', path='/lifecycle-links.js') }}?v=2" defer></script>
-    <script src="{{ url_for('static', path='/nibwick-alerts.js') }}?v=8" defer></script>
+    <script src="{{ url_for('static', path='/nibwick-alerts.js') }}?v=9" defer></script>
     <script src="{{ url_for('static', path='/nibwick.js') }}?v=5" defer></script>
     <script src="{{ url_for('static', path='/position-details.js') }}?v=1" defer></script>
     <script src="{{ url_for('static', path='/workspace-navigation.js') }}?v=2" defer></script>

@@ -40,7 +40,6 @@ def evaluate_fast_move(underlying: UnderlyingCallStats) -> DeskAlert | None:
             f"({abs(context.strike_distance_percent):.1f}%) above your closest "
             f"${closest.strike:.2f} call, so that call is currently in the money"
         )
-    drivers = " and ".join(context.pressure.primary_drivers)
     roll_scenarios = build_neutral_roll_scenarios(
         closest,
         current_price=underlying.current_price,
@@ -55,11 +54,9 @@ def evaluate_fast_move(underlying: UnderlyingCallStats) -> DeskAlert | None:
         target_id=f"{underlying.symbol.lower()}-workspace",
         headline=f"Fast move; ${closest.strike:g} call is {abs(strike_gap):.1f}% away",
         message=(
-            f"{underlying.symbol} rose {move:.1f}% in five sessions—from "
-            f"${closest.underlying_at_sale:.2f} when this call was sold to "
-            f"${underlying.current_price:.2f} now—and {distance_message}. "
-            f"Review pressure is {context.pressure.label.lower()}, driven by {drivers}. "
-            "This is context, not a roll instruction."
+            f"{underlying.symbol} rose {move:.1f}% in five sessions, from "
+            f"${closest.underlying_at_sale:.2f} at sale to "
+            f"${underlying.current_price:.2f} now. It {distance_message}."
         ),
         facts=(
             AlertFact(
@@ -74,12 +71,12 @@ def evaluate_fast_move(underlying: UnderlyingCallStats) -> DeskAlert | None:
                 f"{abs(context.strike_distance_percent):.1f}% BUFFER",
             ),
             AlertFact(
-                "MARK / ENTRY CREDIT",
+                "MARK / CREDIT",
                 f"${closest.mark_per_share:.2f} / ${closest.entry_credit_per_share:.2f}",
                 f"{context.mark_to_credit_ratio:.2f}x ENTRY",
             ),
             AlertFact(
-                "ROLL REVIEW / TIME",
+                "REVIEW / TIME",
                 f"{context.pressure.score}/100 {context.pressure.label}",
                 f"{closest.days_to_expiration} DTE",
             ),

@@ -133,7 +133,7 @@
 .volatility-detail strong { font: 650 .56rem var(--mono); }
 .range-meter { height: 12px; margin: 12px 11px; border: 1px solid var(--line); background: #08090a; }
 .range-meter span { display: block; width: var(--range-position); height: 100%; background: var(--gold); }
-.volatility-card > footer { border-top: 1px solid var(--line); border-bottom: 0; }
+.volatility-card > footer { margin: 0; border-top: 1px solid var(--line); border-bottom: 0; }
 .volatility-card > footer b { color: var(--muted); font-size: .43rem; }
 .workspace-missing-data ul { margin: 0; padding: 0; list-style: none; }
 .workspace-missing-data li { display: grid; grid-template-columns: 160px 1fr; gap: 10px; padding: 11px 13px; border-bottom: 1px solid var(--line); }
