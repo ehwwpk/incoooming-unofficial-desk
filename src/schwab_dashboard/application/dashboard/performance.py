@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 
 ZERO = Decimal("0")
@@ -49,8 +50,63 @@ class MonthlyPerformanceSummary:
     option_cash: Decimal
     dividends: Decimal
     total_cash: Decimal
+    gross_premium: Decimal
+    closing_debits: Decimal
+    fees: Decimal
+    assigned_contracts: int
+    called_away_shares: int
+    average_covered_capital: Decimal
     target_progress_percent: Decimal
     is_partial: bool
+
+
+@dataclass(frozen=True, slots=True)
+class CashChartPoint:
+    label: str
+    option_cash: Decimal
+    dividends: Decimal
+    total_cash: Decimal
+    bar_percent: int
+
+
+@dataclass(frozen=True, slots=True)
+class CashChartSeries:
+    key: str
+    label: str
+    grain: str
+    points: Sequence[CashChartPoint]
+
+
+@dataclass(frozen=True, slots=True)
+class StrategyAttributionSummary:
+    key: str
+    label: str
+    actual_result: Decimal | None
+    stock_only_result: Decimal | None
+    active_management_difference: Decimal | None
+    underlying_change: Decimal | None
+    dividends: Decimal
+    completed_option_result: Decimal
+    open_option_mark: Decimal | None
+    capped_upside: Decimal | None
+    average_capital: Decimal | None
+    actual_return_percent: Decimal | None
+    stock_only_return_percent: Decimal | None
+    status: str
+    method_note: str
+
+
+@dataclass(frozen=True, slots=True)
+class ExpirationBucket:
+    expires_on: date
+    days_to_expiration: int
+    positions: int
+    contracts: int
+    committed_shares: int
+    opening_credit: Decimal
+    estimated_close_value: Decimal
+    nearest_strike_buffer_percent: Decimal
+    event_labels: tuple[str, ...]
 
 
 @dataclass(frozen=True, slots=True)

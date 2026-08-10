@@ -8,6 +8,7 @@ from schwab_dashboard.application.alerts.rolls import build_neutral_roll_scenari
 from schwab_dashboard.application.alerts.rules.dividend import evaluate_dividend_overlap
 from schwab_dashboard.application.dashboard.covered_calls import RollQuoteCandidate
 from schwab_dashboard.application.dashboard.performance import calculate_capital_recovery
+from schwab_dashboard.application.policy.evaluate import evaluate_policy_fit
 from schwab_dashboard.infrastructure.demo.dashboard import DemoDashboardReader
 
 D = Decimal
@@ -31,10 +32,9 @@ def test_personalized_holdings_and_coverage_are_consistent() -> None:
 def test_mock_calls_follow_requested_strike_and_expiration_guardrails() -> None:
     snapshot = DemoDashboardReader().execute()
 
-    assert len(snapshot.call_history) == 16
+    assert len(snapshot.call_history) == 17
+    assert len({record.record_id for record in snapshot.call_history}) == 17
     for record in snapshot.call_history:
-        assert D("15") <= record.strike_upside_percent <= D("40")
-        assert 21 <= record.days_to_expiration <= 56
         assert record.gross_premium == record.premium_per_share * record.contracts * 100
         assert record.net_cash == record.gross_premium - record.buyback_cost
         assert "low" not in record.sale_signal.lower()
@@ -43,6 +43,30 @@ def test_mock_calls_follow_requested_strike_and_expiration_guardrails() -> None:
         else:
             assert record.closed_on is not None
             assert record.sold_on <= record.closed_on <= snapshot.as_of.date()
+
+    policies = {
+        policy.policy_id: policy
+        for underlying_policy in snapshot.policies
+        for policy in underlying_policy.policies
+    }
+    open_calls = [record for record in snapshot.call_history if record.outcome == "Open"]
+    assert {(item.symbol, item.strike, item.contracts) for item in open_calls} == {
+        ("CVX", D("195"), 1),
+        ("CVX", D("205"), 1),
+        ("CVX", D("215"), 4),
+        ("KTOS", D("75"), 5),
+        ("KTOS", D("90"), 3),
+        ("URNM", D("67.5"), 4),
+    }
+    assert all(
+        evaluate_policy_fit(
+            policies[record.policy_id],
+            strike_buffer_percent=record.strike_upside_percent,
+            days_to_expiration=record.days_to_expiration,
+            effective_exit_price=record.strike + record.premium_per_share,
+        ).fits
+        for record in open_calls
+    )
 
 
 def test_call_cash_and_lifecycle_reconcile_at_symbol_and_portfolio_level() -> None:
@@ -53,8 +77,8 @@ def test_call_cash_and_lifecycle_reconcile_at_symbol_and_portfolio_level() -> No
     assert calls.buyback_cost == D("2665.00")
     assert calls.net_option_cash == D("6340.00")
     assert calls.open_call_credit == D("3390.00")
-    assert calls.open_call_mark_value == D("3188.00")
-    assert calls.open_mark_profit_loss == D("202.00")
+    assert calls.open_call_mark_value == D("1738.00")
+    assert calls.open_mark_profit_loss == D("1652.00")
     assert calls.dividends == D("1246.00")
     assert calls.total_cash_income == D("7586.00")
     assert calls.net_option_cash == calls.gross_premium - calls.buyback_cost
@@ -100,7 +124,7 @@ def test_every_performance_window_reconciles_cash_and_goal_math() -> None:
     snapshot = DemoDashboardReader().execute()
     windows = {window.key: window for window in snapshot.performance_windows}
 
-    assert tuple(windows) == ("week", "month", "quarter", "ytd", "r365")
+    assert tuple(windows) == ("month", "quarter", "ytd", "r365")
     for window in windows.values():
         assert window.gross_premium - window.buyback_cost == window.option_cash
         assert window.option_cash + window.dividends == window.total_cash
@@ -123,9 +147,9 @@ def test_every_performance_window_reconciles_cash_and_goal_math() -> None:
     assert windows["quarter"].option_cash == snapshot.covered_calls.net_option_cash
     assert windows["quarter"].dividends == snapshot.covered_calls.dividends
     assert windows["r365"].target_cash_for_window == D("36000.00")
-    assert windows["r365"].monthly_option_run_rate == D("2648.33")
-    assert windows["r365"].monthly_total_run_rate == D("3084.67")
-    assert windows["ytd"].monthly_option_run_rate > D("3000")
+    assert windows["r365"].monthly_option_run_rate == D("2177.92")
+    assert windows["r365"].monthly_total_run_rate == D("2514.00")
+    assert windows["ytd"].monthly_option_run_rate < D("3000")
     assert windows["r365"].monthly_option_run_rate < D("3000")
 
 
@@ -165,9 +189,10 @@ def test_management_objective_exposes_inputs_instead_of_a_single_risk_score() ->
         objective.monthly_option_target - objective.rolling_year_monthly_average
     )
     assert objective.premium_capture_percent + objective.buyback_drag_percent == D("100.0")
-    assert objective.compliant_call_tickets == objective.total_call_tickets == 16
+    assert objective.compliant_call_tickets == 15
+    assert objective.total_call_tickets == 17
     assert objective.target_months_hit <= objective.observed_months
-    assert sum(objective.monthly_option_results, D("0")) == D("31780")
+    assert sum(objective.monthly_option_results, D("0")) == D("26135")
     assert objective.target_months_hit == sum(
         1
         for result in objective.monthly_option_results
@@ -228,7 +253,7 @@ def test_per_name_apr_iv_and_assignment_buffer_metrics_are_populated() -> None:
         assert item.income_adjusted_basis_per_share < item.average_cost
 
     by_symbol = {item.symbol: item for item in snapshot.underlyings}
-    assert by_symbol["CVX"].dividend_overlap_contracts == 6
+    assert by_symbol["CVX"].dividend_overlap_contracts == 5
     assert by_symbol["CVX"].next_ex_dividend_date is not None
     assert by_symbol["CVX"].dividend_per_share == D("1.78")
     assert by_symbol["KTOS"].dividend_overlap_contracts == 0
@@ -268,10 +293,10 @@ def test_open_call_clocks_expose_per_contract_dte_and_reconcile_theta() -> None:
     clocks = [clock for item in snapshot.underlyings for clock in item.open_call_clocks]
     theta_by_symbol = {item.symbol: item.open_call_theta_per_day for item in snapshot.underlyings}
 
-    assert len(clocks) == 5
+    assert len(clocks) == 6
     assert theta_by_symbol == {
-        "CVX": D("23.00"),
-        "KTOS": D("46.00"),
+        "CVX": D("27.00"),
+        "KTOS": D("28.50"),
         "URNM": D("14.40"),
     }
     assert sum(theta_by_symbol.values(), D("0")) == snapshot.risk.daily_theta
@@ -306,25 +331,25 @@ def test_open_call_clocks_expose_per_contract_dte_and_reconcile_theta() -> None:
         for item in snapshot.underlyings
         if item.symbol == "CVX"
         for clock in item.open_call_clocks
-        if clock.strike == D("235")
+        if clock.strike == D("215")
     )
     assert cvx_clock.elapsed_days == 14
-    assert cvx_clock.original_days_to_expiration == 42
-    assert cvx_clock.elapsed_time_percent == D("33.3")
+    assert cvx_clock.original_days_to_expiration == 56
+    assert cvx_clock.elapsed_time_percent == D("25.0")
 
-    ktos_loss = next(
+    ktos_near = next(
         clock
         for item in snapshot.underlyings
         if item.symbol == "KTOS"
         for clock in item.open_call_clocks
-        if clock.strike == D("65")
+        if clock.strike == D("75")
     )
-    assert ktos_loss.entry_credit == D("1225")
-    assert ktos_loss.current_option_value == D("1650")
-    assert ktos_loss.open_profit_loss == D("-425")
-    assert ktos_loss.option_value_vs_credit_percent == D("134.7")
-    assert ktos_loss.strike_distance_per_share == D("4.23")
-    assert ktos_loss.strike_distance_percent == D("7.0")
+    assert ktos_near.entry_credit == D("1225")
+    assert ktos_near.current_option_value == D("350")
+    assert ktos_near.open_profit_loss == D("875")
+    assert ktos_near.option_value_vs_credit_percent == D("28.6")
+    assert ktos_near.strike_distance_per_share == D("14.23")
+    assert ktos_near.strike_distance_percent == D("23.4")
 
 
 def test_price_paths_use_daily_closes_and_reconciled_option_events() -> None:
@@ -417,60 +442,30 @@ def test_price_paths_use_daily_closes_and_reconciled_option_events() -> None:
         for item in snapshot.underlyings
     }
     assert lifecycle_pairs == {
-        "CVX": {(1, 3), (2, 4), (5, 8)},
+        "CVX": {(1, 3), (2, 4), (5, 6)},
         "KTOS": {(1, 2), (3, 5), (4, 10), (6, 8)},
         "URNM": {(1, 4), (2, 6), (3, 8), (5, 7)},
     }
 
 
-def test_nibwick_alerts_are_specific_ranked_and_plain_english() -> None:
+def test_nibwick_stays_quiet_when_no_call_crosses_an_alert_threshold() -> None:
     snapshot = DemoDashboardReader().execute()
 
-    assert [(alert.reason_code, alert.level, alert.symbol) for alert in snapshot.alerts] == [
-        ("fast_move_near_call", "check", "KTOS"),
-    ]
-    assert snapshot.alerts[0].level_label == "WORTH CHECKING"
-    assert snapshot.alerts[0].headline == "Fast move; $65 call is 7.0% away"
-    assert "moved fast after the sale" in snapshot.alerts[0].message
-    assert "$65 call is still $4.23/share out of the money" in snapshot.alerts[0].message
-    assert "cushion is narrow enough to review" in snapshot.alerts[0].message
-    assert "Review pressure" not in snapshot.alerts[0].message
-    assert [(fact.label, fact.value, fact.detail) for fact in snapshot.alerts[0].facts] == [
-        ("SPOT / MOVE", "$60.77", "+30.4% SINCE SALE"),
-        ("TO $65 CALL", "$4.23 / 7.0%", "OUT OF THE MONEY"),
-        ("MARK / TIME", "$3.30 NOW", "$2.45 COLLECTED · 42 DTE"),
-    ]
-    assert [
-        (
-            scenario.target_strike,
-            scenario.added_days,
-            scenario.net_roll_per_share,
-            scenario.net_roll_cash,
-            scenario.assignment_room_gain,
-            scenario.target_buffer_percent,
-            scenario.quote_source,
-        )
-        for scenario in snapshot.alerts[0].roll_scenarios
-    ] == [
-        (D("70"), 21, D("0.05"), D("25.00"), D("2500"), D("15.2"), "SIMULATED BID"),
-        (D("75"), 42, D("0.00"), D("0.00"), D("5000"), D("23.4"), "SIMULATED BID"),
-    ]
-    assert snapshot.alerts[0].method_note is not None
-    assert "NOT A PROBABILITY OR TRADE SIGNAL" in snapshot.alerts[0].method_note
-    assert "BUY-TO-CLOSE ASK" in snapshot.alerts[0].method_note
-    assert [alert.target_id for alert in snapshot.alerts] == ["ktos-workspace"]
+    assert snapshot.alerts == ()
+    ktos = next(item for item in snapshot.underlyings if item.symbol == "KTOS")
+    assert min(call.strike_distance_percent for call in ktos.open_call_clocks) == D("23.4")
 
 
 def test_roll_checks_reject_non_later_non_higher_and_non_neutral_quotes() -> None:
     snapshot = DemoDashboardReader().execute()
     ktos = next(item for item in snapshot.underlyings if item.symbol == "KTOS")
-    call = next(clock for clock in ktos.open_call_clocks if clock.strike == D("65"))
+    call = next(clock for clock in ktos.open_call_clocks if clock.strike == D("75"))
     later = call.expires_on + timedelta(days=21)
     candidates = (
-        RollQuoteCandidate(later, D("60"), D("3.30"), "LOWER STRIKE"),
-        RollQuoteCandidate(call.expires_on, D("70"), D("3.30"), "SAME EXPIRY"),
-        RollQuoteCandidate(later, D("70"), D("3.60"), "OUTSIDE BAND"),
-        RollQuoteCandidate(later, D("70"), D("3.30"), "VALID BID"),
+        RollQuoteCandidate(later, D("70"), D("0.75"), "LOWER STRIKE"),
+        RollQuoteCandidate(call.expires_on, D("80"), D("0.75"), "SAME EXPIRY"),
+        RollQuoteCandidate(later, D("80"), D("1.10"), "OUTSIDE BAND"),
+        RollQuoteCandidate(later, D("80"), D("0.75"), "VALID BID"),
     )
 
     scenarios = build_neutral_roll_scenarios(

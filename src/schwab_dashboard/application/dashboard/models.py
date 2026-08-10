@@ -14,11 +14,15 @@ from schwab_dashboard.application.dashboard.covered_calls import (
 )
 from schwab_dashboard.application.dashboard.performance import (
     BasisLensSummary,
+    CashChartSeries,
+    ExpirationBucket,
     ManagementObjectiveSummary,
     MonthlyPerformanceSummary,
     PerformanceWindowSummary,
     QuarterPerformanceSummary,
+    StrategyAttributionSummary,
 )
+from schwab_dashboard.application.policy.models import UnderlyingPolicy
 from schwab_dashboard.application.ports.repositories import SyncRunSummary
 
 
@@ -56,17 +60,30 @@ class IncomePeriod:
 
 @dataclass(frozen=True, slots=True)
 class CampaignSummary:
+    campaign_id: str
     symbol: str
-    strategy: str
+    intent_label: str
     status: str
     opened_on: date
     expires_on: date
     days_to_expiration: int
     legs: Sequence[str]
-    net_option_cash: Decimal
-    unrealized_profit_loss: Decimal
+    gross_opening_credit: Decimal
+    closing_debits: Decimal
+    fees: Decimal
+    net_cash_to_date: Decimal
+    realized_cash: Decimal
+    open_credit: Decimal
+    estimated_close_value: Decimal
+    open_mark_profit_loss: Decimal
+    initial_strike: Decimal
+    current_strike: Decimal
+    strike_change: Decimal
+    days_extended: int
+    called_away_shares: int
+    effective_exit_price: Decimal | None
     collateral: Decimal
-    return_on_risk_percent: Decimal
+    cash_on_capital_percent: Decimal
     progress_percent: int
 
 
@@ -115,6 +132,7 @@ class DashboardSnapshot:
     portfolio: PortfolioSummary
     income: IncomeSummary
     income_periods: Sequence[IncomePeriod]
+    cash_chart_series: Sequence[CashChartSeries]
     campaigns: Sequence[CampaignSummary]
     covered_calls: CoveredCallPortfolioSummary
     underlyings: Sequence[UnderlyingCallStats]
@@ -122,6 +140,9 @@ class DashboardSnapshot:
     call_history: Sequence[CallSaleRecord]
     performance_windows: Sequence[PerformanceWindowSummary]
     monthly_performance: Sequence[MonthlyPerformanceSummary]
+    strategy_attribution: Sequence[StrategyAttributionSummary]
+    expiration_calendar: Sequence[ExpirationBucket]
+    policies: Sequence[UnderlyingPolicy]
     quarter_history: Sequence[QuarterPerformanceSummary]
     objective: ManagementObjectiveSummary
     basis_lens: Sequence[BasisLensSummary]

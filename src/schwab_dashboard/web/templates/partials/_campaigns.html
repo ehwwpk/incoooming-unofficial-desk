@@ -1,34 +1,30 @@
 <section class="section-block" id="campaigns">
   <div class="section-heading terminal-heading wide-heading">
-    <div><p class="eyebrow">BOOK DETAIL</p><h2>Active call books</h2></div>
-    <span>{{ snapshot.campaigns | length }} NAMES / {{ snapshot.risk.short_contracts }} CONTRACTS</span>
+    <div><p class="eyebrow">ROLL-AWARE LEDGER</p><h2>Call campaigns</h2></div>
+    <span>{{ snapshot.campaigns | selectattr('status', 'equalto', 'OPEN') | list | length }} OPEN / {{ snapshot.campaigns | length }} TOTAL</span>
   </div>
 
-  {% if snapshot.campaigns %}
   <div class="campaign-grid">
     {% for campaign in snapshot.campaigns %}
-    <article class="campaign-card">
+    <article class="campaign-card{% if campaign.status != 'OPEN' %} completed{% endif %}">
       <header>
         <div class="symbol-badge">{{ campaign.symbol[:1] }}</div>
-        <div><strong>{{ campaign.symbol }}</strong><span>{{ campaign.strategy }}</span></div>
+        <div><strong>{{ campaign.symbol }}</strong><span>{{ campaign.intent_label }}</span></div>
         <span class="campaign-status">{{ campaign.status }}</span>
       </header>
       <div class="campaign-legs">
         {% for leg in campaign.legs %}<span>{{ leg }}</span>{% endfor %}
       </div>
       <div class="campaign-metrics">
-        <div><span>OPTION +$ / QTR</span><strong>{{ campaign.net_option_cash | money }}</strong></div>
-        <div><span>OPEN P/L</span><strong class="{{ campaign.unrealized_profit_loss | pnl_class }}">{{ campaign.unrealized_profit_loss | money }}</strong></div>
-        <div><span>RETURN / CAPITAL</span><strong>{{ campaign.return_on_risk_percent | percent }}</strong></div>
+        <div><span>NET CASH TO DATE</span><strong class="{{ campaign.net_cash_to_date | pnl_class }}">{{ campaign.net_cash_to_date | money }}</strong></div>
+        <div><span>OPEN MARK P/L</span><strong class="{{ campaign.open_mark_profit_loss | pnl_class }}">{{ campaign.open_mark_profit_loss | money }}</strong></div>
+        <div><span>CASH / COVERED CAPITAL</span><strong>{{ campaign.cash_on_capital_percent | percent }}</strong></div>
       </div>
       <div class="campaign-footer">
         <div class="progress-track"><span style="--progress: {{ campaign.progress_percent }}%"></span></div>
-        <span>{{ campaign.days_to_expiration }} DTE / {{ campaign.expires_on | short_date }} / {{ campaign.collateral | money }} SHARES</span>
+        <span>{{ campaign.days_to_expiration }} DTE · ${{ campaign.initial_strike | number }} → ${{ campaign.current_strike | number }} · {{ campaign.days_extended }} DAYS ADDED</span>
       </div>
     </article>
     {% endfor %}
   </div>
-  {% else %}
-  <div class="panel empty-state">Campaigns will be assembled from executions, assignments, expirations, and closing trades.</div>
-  {% endif %}
 </section>

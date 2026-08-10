@@ -14,21 +14,23 @@
   const headerLevel = panel.querySelector("[data-nibwick-header-level]");
   const announcement = document.querySelector("[data-nibwick-announcement]");
   const unreadCountElement = badge.querySelector("[data-nibwick-unread-count]");
-  const readStorageKey = "incoooming:nibwick-read-alerts";
+  const stateStorageKey = "incoooming:nibwick-alert-state:v1";
   const currentAlertIds = new Set(notes.map((note) => note.dataset.alertId));
   const readAlertIds = new Set();
+  const alertState = {};
   const seenSymbols = new Set();
   let activeIndex = 0;
   let returnFocus = null;
   let linkedCard = null;
 
   try {
-    const storedIds = JSON.parse(window.sessionStorage.getItem(readStorageKey) || "[]");
-    if (Array.isArray(storedIds)) {
-      storedIds.forEach((alertId) => {
-        if (typeof alertId === "string" && currentAlertIds.has(alertId)) {
-          readAlertIds.add(alertId);
-        }
+    const storedState = JSON.parse(window.localStorage.getItem(stateStorageKey) || "{}");
+    if (storedState && typeof storedState === "object") {
+      Object.entries(storedState).forEach(([alertId, value]) => {
+        if (!currentAlertIds.has(alertId) || !value || typeof value !== "object") return;
+        if (value.status === "snoozed" && Number(value.until) <= Date.now()) return;
+        alertState[alertId] = value;
+        readAlertIds.add(alertId);
       });
     }
   } catch {
@@ -37,7 +39,7 @@
 
   const persistReadState = () => {
     try {
-      window.sessionStorage.setItem(readStorageKey, JSON.stringify([...readAlertIds]));
+      window.localStorage.setItem(stateStorageKey, JSON.stringify(alertState));
     } catch {
       // Read state can remain in memory when browser storage is unavailable.
     }
@@ -79,8 +81,23 @@
     const alertId = notes[index]?.dataset.alertId;
     if (!alertId || readAlertIds.has(alertId)) return;
     readAlertIds.add(alertId);
+    alertState[alertId] = { status: "read", updatedAt: Date.now() };
     persistReadState();
     renderUnreadState();
+  };
+
+  const setResolution = (status) => {
+    const alertId = notes[activeIndex]?.dataset.alertId;
+    if (!alertId) return;
+    readAlertIds.add(alertId);
+    alertState[alertId] = {
+      status,
+      updatedAt: Date.now(),
+      ...(status === "snoozed" ? { until: Date.now() + 24 * 60 * 60 * 1000 } : {}),
+    };
+    persistReadState();
+    renderUnreadState();
+    closePanel();
   };
 
   const clearLinkedCard = () => {
@@ -218,6 +235,12 @@
       }
       closePanel(false);
     });
+  });
+  panel.querySelectorAll("[data-nibwick-ack]").forEach((button) => {
+    button.addEventListener("click", () => setResolution("acknowledged"));
+  });
+  panel.querySelectorAll("[data-nibwick-snooze]").forEach((button) => {
+    button.addEventListener("click", () => setResolution("snoozed"));
   });
   closeButton.addEventListener("click", () => closePanel());
   badge.addEventListener("click", () => togglePanel(badge));

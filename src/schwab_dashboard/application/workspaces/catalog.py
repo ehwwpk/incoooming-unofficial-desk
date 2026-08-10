@@ -45,10 +45,12 @@ WORKSPACE_CATALOG = (
     ),
     WorkspaceDefinition(
         key=WorkspaceKey.ATTRIBUTION,
-        label="Strategy Review",
-        short_label="REVIEW",
+        label="Results",
+        short_label="RESULTS",
         eyebrow="RESULTS EXPLAINED",
-        description="Cash results, pace, outcomes, and capital recovery without mark-to-cash blur.",
+        description=(
+            "Monthly cash, campaign economics, and strategy results without mark-to-cash blur."
+        ),
         route="/workspaces/attribution",
         template_name="workspaces/_strategy_review.html",
         window_name="iud-strategy-review",

@@ -40,9 +40,7 @@ def evaluate_dividend_overlap(
     if not in_the_money_calls:
         return None
 
-    sensitive_calls = tuple(
-        item for item in in_the_money_calls if item.early_assignment_sensitive
-    )
+    sensitive_calls = tuple(item for item in in_the_money_calls if item.early_assignment_sensitive)
     if sensitive_calls and days_until <= DIVIDEND_WATCH_WINDOW_DAYS:
         level = AlertLevel.ATTENTION
         priority = 100
@@ -120,8 +118,7 @@ def evaluate_dividend_overlap(
             ),
             AlertFact(
                 "DIV / TIME VALUE",
-                f"${underlying.dividend_per_share:.2f} / "
-                f"${context.extrinsic_per_share:.2f}",
+                f"${underlying.dividend_per_share:.2f} / ${context.extrinsic_per_share:.2f}",
                 _ratio_text(context),
             ),
         ),

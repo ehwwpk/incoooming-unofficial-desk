@@ -17,16 +17,16 @@ def test_call_review_context_exposes_auditable_ktos_pressure() -> None:
 
     context = build_call_review_context(ktos, five_session_move_percent=move)
 
-    assert context.call.strike == D("65")
-    assert context.strike_distance_per_share == D("4.23")
-    assert context.strike_distance_percent.quantize(D("0.1")) == D("7.0")
-    assert context.covered_share_distance == D("2115.00")
-    assert context.mark_to_credit_ratio.quantize(D("0.01")) == D("1.35")
-    assert context.pressure.score == 55
-    assert context.pressure.label == "ELEVATED"
+    assert context.call.strike == D("75")
+    assert context.strike_distance_per_share == D("14.23")
+    assert context.strike_distance_percent.quantize(D("0.1")) == D("23.4")
+    assert context.covered_share_distance == D("7115.00")
+    assert context.mark_to_credit_ratio.quantize(D("0.01")) == D("0.29")
+    assert context.pressure.score == 36
+    assert context.pressure.label == "MODERATE"
     assert context.pressure.momentum_points == D("30")
-    assert context.pressure.time_urgency_points == D("0")
-    assert context.pressure.primary_drivers == ("recent move", "strike proximity")
+    assert context.pressure.time_urgency_points == D("6")
+    assert context.pressure.primary_drivers == ("recent move", "time left")
 
 
 def test_call_review_pressure_clamps_without_dividing_by_zero() -> None:
@@ -64,16 +64,16 @@ def test_dividend_context_keeps_price_adjustment_and_assignment_logic_separate()
         as_of=snapshot.as_of.date(),
     )
 
-    assert context.call.strike == D("230")
+    assert context.call.strike == D("205")
     assert context.days_until_ex_dividend == 12
-    assert context.crossing_contracts == 6
-    assert context.strike_distance_per_share == D("43.44")
-    assert context.pre_dividend_gray_line == D("231.78")
-    assert context.distance_to_gray_line_per_share == D("45.22")
-    assert context.distance_to_gray_line_percent.quantize(D("0.1")) == D("24.2")
-    assert context.extrinsic_per_share == D("1.80")
+    assert context.crossing_contracts == 5
+    assert context.strike_distance_per_share == D("18.44")
+    assert context.pre_dividend_gray_line == D("206.78")
+    assert context.distance_to_gray_line_per_share == D("20.22")
+    assert context.distance_to_gray_line_percent.quantize(D("0.1")) == D("10.8")
+    assert context.extrinsic_per_share == D("1.10")
     assert context.dividend_to_extrinsic_ratio is not None
-    assert context.dividend_to_extrinsic_ratio.quantize(D("0.01")) == D("0.99")
+    assert context.dividend_to_extrinsic_ratio.quantize(D("0.01")) == D("1.62")
     assert context.is_in_the_money is False
     assert context.early_assignment_sensitive is False
 

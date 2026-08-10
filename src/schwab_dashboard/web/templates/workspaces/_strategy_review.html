@@ -1,110 +1,73 @@
-<section class="workspace-metric-strip strategy-strip" aria-label="Strategy objective summary">
-  <div><span>MONTHLY TARGET</span><strong data-workspace-monthly-target>{{ snapshot.objective.monthly_option_target | money }}</strong></div>
-  <div><span>LAST 4 WEEKS</span><strong>{{ snapshot.objective.rolling_four_week_option_cash | money }}</strong></div>
-  <div><span>ROLLING-YEAR MONTH AVG</span><strong>{{ snapshot.objective.rolling_year_monthly_average | money }}</strong></div>
-  <div><span>TARGET MONTHS HIT</span><strong data-workspace-months-hit>{{ snapshot.objective.target_months_hit }}/{{ snapshot.objective.observed_months }}</strong></div>
-  <div><span>PREMIUM CAPTURE</span><strong>{{ snapshot.objective.premium_capture_percent | percent }}</strong></div>
-  <div><span>AVG STRIKE GAP</span><strong>{{ snapshot.objective.average_strike_gap_percent | percent }}</strong></div>
+{% if snapshot.performance_windows %}
+<section class="workspace-metric-strip operator-strip" aria-label="Results summary">
+  <div><span>LAST 4 WEEKS</span><strong class="{{ snapshot.performance_windows[0].option_cash | pnl_class }}">{{ snapshot.performance_windows[0].option_cash | money }}</strong><small>Option cash kept</small></div>
+  <div><span>ROLLING-YEAR MONTH AVG</span><strong>{{ snapshot.objective.rolling_year_monthly_average | money }}</strong><small>vs {{ snapshot.objective.monthly_option_target | money }} target</small></div>
+  <div><span>QUARTERLY CASH</span><strong>{{ snapshot.performance_windows[1].total_cash | money }}</strong><small>Options plus dividends</small></div>
+  <div><span>OPEN MARK P/L</span><strong class="{{ snapshot.covered_calls.open_mark_profit_loss | pnl_class }}">{{ snapshot.covered_calls.open_mark_profit_loss | money }}</strong><small>Unrealized · excluded from cash</small></div>
 </section>
 
 <section class="workspace-panel">
-  <header class="workspace-panel-heading">
-    <div><p class="eyebrow">PERFORMANCE WINDOWS</p><h2>Cash results and normalized pace</h2></div>
-    <span>OPEN MARK EXCLUDED FROM CASH</span>
-  </header>
+  <header class="workspace-panel-heading"><div><p class="eyebrow">CASH WINDOWS</p><h2>What the strategy paid</h2></div><span>EXECUTED CASH · NO MODEL THETA</span></header>
   <div class="workspace-table-wrap">
     <table class="workspace-table review-table">
-      <thead><tr><th>Window</th><th>Range</th><th class="numeric">Net option cash</th><th class="numeric">Dividends</th><th class="numeric">Total strategy cash</th><th class="numeric">Monthly pace</th><th class="numeric">Option APR</th><th class="numeric">Capture</th></tr></thead>
-      <tbody>
-        {% for window in snapshot.performance_windows %}
-        <tr>
-          <td><strong>{{ window.label }}</strong><small>{{ window.days }} DAYS</small></td>
-          <td>{{ window.range_label }}</td>
-          <td class="numeric positive">{{ window.option_cash | money }}</td>
-          <td class="numeric">{{ window.dividends | money }}</td>
-          <td class="numeric positive">{{ window.total_cash | money }}</td>
-          <td class="numeric">{{ window.monthly_total_run_rate | money }}</td>
-          <td class="numeric">{{ window.annualized_option_yield | percent }}</td>
-          <td class="numeric">{{ window.premium_capture_percent | percent }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
+      <thead><tr><th>Window</th><th>Range</th><th class="numeric">Option cash kept</th><th class="numeric">Dividends</th><th class="numeric">Total cash</th><th class="numeric">One-month pace</th><th class="numeric">Annualized</th><th class="numeric">Premium kept</th></tr></thead>
+      <tbody>{% for window in snapshot.performance_windows %}<tr>
+        <td><strong>{{ window.label }}</strong><small>{{ window.days }} DAYS</small></td><td>{{ window.range_label }}</td>
+        <td class="numeric {{ window.option_cash | pnl_class }}">{{ window.option_cash | money }}</td><td class="numeric">{{ window.dividends | money }}</td>
+        <td class="numeric {{ window.total_cash | pnl_class }}">{{ window.total_cash | money }}</td><td class="numeric">{{ window.monthly_total_run_rate | money }}</td>
+        <td class="numeric">{{ window.annualized_option_yield | percent }}</td><td class="numeric">{{ window.premium_capture_percent | percent }}</td>
+      </tr>{% endfor %}</tbody>
     </table>
   </div>
-  {% if snapshot.monthly_performance %}
-  <details
-    class="monthly-performance"
-    data-monthly-performance
-    data-default-target="{{ snapshot.objective.monthly_option_target }}"
-    data-monthly-results="{{ snapshot.objective.monthly_option_results | join(',') }}"
-  >
-    <summary>
-      <span><b>MONTH BY MONTH</b><small>CALENDAR {{ snapshot.monthly_performance[-1].year }} · ACTUAL CASH</small></span>
-      <span><strong>{{ snapshot.monthly_performance | length }} MONTHS</strong><i aria-hidden="true"></i></span>
-    </summary>
-    <div class="workspace-table-wrap">
-      <table class="workspace-table monthly-performance-table">
-        <thead><tr><th>Month</th><th class="numeric">Net option cash</th><th class="numeric">Dividends</th><th class="numeric">Total strategy cash</th><th>Option target</th></tr></thead>
-        <tbody>
-          {% for month in snapshot.monthly_performance %}
-          <tr data-month-performance data-option-cash="{{ month.option_cash }}"{% if month.is_partial %} class="partial"{% endif %}>
-            <td><strong>{{ month.label }}</strong><small>{{ month.year }}{% if month.is_partial %} · THROUGH {{ snapshot.as_of.strftime('%b %d') | upper }}{% endif %}</small></td>
-            <td class="numeric positive">{{ month.option_cash | money }}</td>
-            <td class="numeric">{{ month.dividends | money }}</td>
-            <td class="numeric positive">{{ month.total_cash | money }}</td>
-            <td>
-              <div class="monthly-target-meter">
-                <span><i data-month-progress-bar style="--month-progress: {{ month.target_progress_percent }}%"></i></span>
-                <b data-month-progress>{{ month.target_progress_percent | percent }}</b>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </details>
-  {% endif %}
 </section>
 
-<div class="workspace-two-column review-columns">
-  <section class="workspace-panel">
-    <header class="workspace-panel-heading"><div><p class="eyebrow">OUTCOMES</p><h2>What happened to the calls</h2></div><span>{{ snapshot.covered_calls.contracts_sold }} CONTRACTS SOLD</span></header>
-    <div class="workspace-outcomes">
-      <div><span>EXPIRED</span><strong>{{ snapshot.covered_calls.expired_contracts }}</strong></div>
-      <div><span>CLOSED</span><strong>{{ snapshot.covered_calls.closed_contracts }}</strong></div>
-      <div><span>ROLLED</span><strong>{{ snapshot.covered_calls.rolled_contracts }}</strong></div>
-      <div><span>ASSIGNED</span><strong class="negative">{{ snapshot.covered_calls.assigned_contracts }}</strong><small>{{ snapshot.covered_calls.called_away_shares }} shares</small></div>
-      <div><span>STILL OPEN</span><strong>{{ snapshot.covered_calls.active_contracts }}</strong></div>
-    </div>
-  </section>
-  <section class="workspace-panel">
-    <header class="workspace-panel-heading"><div><p class="eyebrow">OPEN BOOK SEPARATION</p><h2>Unrealized obligation</h2></div></header>
-    <div class="open-mark-bridge">
-      <div><span>OPEN CALL CREDIT</span><strong>{{ snapshot.covered_calls.open_call_credit | money }}</strong></div>
-      <i>−</i>
-      <div><span>CURRENT OPTION VALUE</span><strong>{{ snapshot.covered_calls.open_call_mark_value | money }}</strong></div>
-      <i>=</i>
-      <div><span>OPEN MARK P/L</span><strong class="{{ snapshot.covered_calls.open_mark_profit_loss | pnl_class }}">{{ snapshot.covered_calls.open_mark_profit_loss | money }}</strong></div>
-    </div>
-    <p class="workspace-footnote">A current option mark is not a close or roll cost unless you actually trade against it.</p>
-  </section>
-</div>
-
-<section class="workspace-panel">
-  <header class="workspace-panel-heading"><div><p class="eyebrow">CAPITAL RECOVERY</p><h2>Lifetime option + dividend income against original share cost</h2></div><span>MANAGEMENT LENS / NOT TAX BASIS</span></header>
-  <div class="basis-workspace-grid">
-    {% for item in snapshot.basis_lens %}
-    <article class="basis-workspace-card {% if item.fully_recovered %}recovered{% endif %}">
-      <header><b>{{ item.symbol }}</b><span>{{ item.basis_offset_percent | percent }} OFFSET</span></header>
-      <div><span>ORIGINAL SHARE COST</span><strong>{{ item.original_cost_basis | money }}</strong></div>
-      <div><span>LIFETIME MANAGEMENT INCOME</span><strong class="positive">{{ item.lifetime_management_income | money }}</strong></div>
-      {% if item.fully_recovered %}
-      <div><span>INCOME BEYOND ORIGINAL COST</span><strong class="positive">+{{ item.recovery_surplus | money }}</strong></div>
-      {% else %}
-      <div><span>ORIGINAL CAPITAL NOT YET OFFSET</span><strong>{{ item.capital_remaining | money }}</strong></div>
-      {% endif %}
-    </article>
-    {% endfor %}
+<section class="workspace-panel attribution-panel">
+  <header class="workspace-panel-heading"><div><p class="eyebrow">STRATEGY COMPARISON</p><h2>Covered calls versus shares alone</h2></div><span>CURRENT-INVENTORY PROXY WHERE SUPPORTED</span></header>
+  <div class="attribution-grid">
+    {% for item in snapshot.strategy_attribution %}<article data-attribution="{{ item.key }}">
+      <header><b>{{ item.label }}</b><span>{{ item.status }}</span></header>
+      {% if item.actual_result is not none %}
+      <div><span>MANAGED RESULT</span><strong class="{{ item.actual_result | pnl_class }}">{{ item.actual_result | money }}</strong><small>{{ item.actual_return_percent | percent }}</small></div>
+      <div><span>SHARES + DIVIDENDS</span><strong class="{{ item.stock_only_result | pnl_class }}">{{ item.stock_only_result | money }}</strong><small>{{ item.stock_only_return_percent | percent }}</small></div>
+      <div><span>MANAGEMENT DIFFERENCE</span><strong class="{{ item.active_management_difference | pnl_class }}">{{ item.active_management_difference | money }}</strong><small>{{ item.completed_option_result | money }} completed · {{ item.open_option_mark | money }} open mark</small></div>
+      <div><span>UPSIDE GIVEN UP</span><strong>{{ item.capped_upside | money }}</strong><small>Assigned shares above strike in this proxy</small></div>
+      {% else %}<p>{{ item.method_note }}</p>{% endif %}
+      <footer>{{ item.method_note }}</footer>
+    </article>{% endfor %}
   </div>
 </section>
+
+<details class="workspace-panel monthly-performance" open data-monthly-performance data-default-target="{{ snapshot.objective.monthly_option_target }}" data-monthly-results="{{ snapshot.objective.monthly_option_results | join(',') }}">
+  <summary><span><b>MONTH BY MONTH</b><small>CALENDAR {{ snapshot.monthly_performance[-1].year }} · ACTUAL CASH</small></span><span><strong>{{ snapshot.monthly_performance | length }} MONTHS</strong><i aria-hidden="true"></i></span></summary>
+  <div class="workspace-table-wrap"><table class="workspace-table monthly-performance-table">
+    <thead><tr><th>Month</th><th class="numeric">Premium received</th><th class="numeric">Closing debits</th><th class="numeric">Option cash kept</th><th class="numeric">Dividends</th><th class="numeric">Called away</th><th>Target</th></tr></thead>
+    <tbody>{% for month in snapshot.monthly_performance %}<tr data-month-performance data-option-cash="{{ month.option_cash }}"{% if month.is_partial %} class="partial"{% endif %}>
+      <td><strong>{{ month.label }}</strong><small>{{ month.year }}{% if month.is_partial %} · THROUGH {{ snapshot.as_of.strftime('%b %d') | upper }}{% endif %}</small></td>
+      <td class="numeric">{{ month.gross_premium | money }}</td><td class="numeric negative">{{ month.closing_debits | money }}</td>
+      <td class="numeric {{ month.option_cash | pnl_class }}">{{ month.option_cash | money }}</td><td class="numeric">{{ month.dividends | money }}</td>
+      <td class="numeric">{{ month.called_away_shares }} SH</td><td><div class="monthly-target-meter"><span><i data-month-progress-bar style="--month-progress: {{ month.target_progress_percent }}%"></i></span><b data-month-progress>{{ month.target_progress_percent | percent }}</b></div></td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+</details>
+{% include "partials/_campaigns.html" %}
+
+<details class="workspace-panel results-secondary">
+  <summary><b>OUTCOMES &amp; LIFETIME CAPITAL RECOVERY</b><span>SECONDARY REVIEW</span></summary>
+  <div class="workspace-outcomes">
+    <div><span>EXPIRED</span><strong>{{ snapshot.covered_calls.expired_contracts }}</strong></div><div><span>CLOSED</span><strong>{{ snapshot.covered_calls.closed_contracts }}</strong></div>
+    <div><span>ROLLED</span><strong>{{ snapshot.covered_calls.rolled_contracts }}</strong></div><div><span>ASSIGNED</span><strong>{{ snapshot.covered_calls.assigned_contracts }}</strong><small>{{ snapshot.covered_calls.called_away_shares }} shares</small></div>
+    <div><span>STILL OPEN</span><strong>{{ snapshot.covered_calls.active_contracts }}</strong></div>
+  </div>
+  <div class="basis-workspace-grid">{% for item in snapshot.basis_lens %}<article class="basis-workspace-card {% if item.fully_recovered %}recovered{% endif %}">
+    <header><b>{{ item.symbol }}</b><span>{{ item.basis_offset_percent | percent }} OFFSET</span></header>
+    <div><span>ORIGINAL SHARE COST</span><strong>{{ item.original_cost_basis | money }}</strong></div><div><span>LIFETIME OPTION + DIVIDEND CASH</span><strong class="positive">{{ item.lifetime_management_income | money }}</strong></div>
+    {% if item.fully_recovered %}<div><span>CASH BEYOND ORIGINAL COST</span><strong class="positive">+{{ item.recovery_surplus | money }}</strong></div>{% else %}<div><span>ORIGINAL CAPITAL NOT YET OFFSET</span><strong>{{ item.capital_remaining | money }}</strong></div>{% endif %}
+  </article>{% endfor %}</div>
+</details>
+{% else %}
+<section class="workspace-panel empty-state">
+  <p class="eyebrow">RESULTS WAITING FOR NORMALIZED ACTIVITY</p>
+  <h2>No performance ledger is available yet</h2>
+  <p>Connect a broker or import activity to build executed cash, campaigns, monthly results, and strategy comparisons. Unsupported results remain blank rather than estimated.</p>
+</section>
+{% endif %}

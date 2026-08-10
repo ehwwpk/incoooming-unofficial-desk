@@ -1,6 +1,6 @@
 # Approved pre-Schwab operator plan
 
-Status: approved product direction on August 10, 2026. This document scopes the work that can be completed and verified with deterministic fixtures before live Schwab payloads are available. It does not claim that the listed work is already implemented.
+Status: fixture-backed operator phase implemented and verified on August 10, 2026. This document scopes the work completed with deterministic fixtures before live Schwab payloads are available. Live-source items at the end remain intentionally unavailable until their mappings can be verified.
 
 ## Product promise
 
@@ -132,3 +132,19 @@ Every derived value identifies its denominator and whether it is observed, deriv
 - live slippage, execution-quality, and reconciliation statistics.
 
 Missing live fields remain unavailable. Demo values never silently fill a live account.
+
+## Implementation checkpoint
+
+The verified pre-Schwab build now includes:
+
+- a three-surface operator flow: Desk, Open Calls, and Results;
+- exact 4W, QTR, YTD, and R365 cash windows derived from one execution ledger;
+- 28 daily cash buckets for the 4W view, with zero-cash days preserved;
+- the 700 CVX, 800 KTOS, and 500 URNM fictional inventory with personalized fictional call tranches;
+- roll-linked campaigns, a month-by-month cash ledger, an expiration calendar, and current-inventory attribution;
+- expandable open-call rows with obligation, quote, mark, liquidity, Greek, event, policy, and lifecycle fields;
+- per-name and per-tranche retention policies without an unexplained trade score;
+- persistent Nibwick read, snooze, and acknowledgement state in the local browser;
+- deterministic reconciliation tests covering cash windows, campaign economics, obligations, attribution limits, and policy coverage.
+
+Fixture attribution is deliberately labeled as a current-inventory proxy. Time-weighted and money-weighted returns, authoritative event overlays, verified NBBO and Greeks, historical IV research, tax-lot truth, and broker reconciliation stay deferred until the necessary live or imported source data exists.

@@ -37,8 +37,10 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "function-rail" in desk.text
 
         assert risk.status_code == 200
-        assert "Open obligations" in risk.text
-        assert "ENTRY CASH ≠ CURRENT LIABILITY" in risk.text
+        assert "What comes due next" in risk.text
+        assert "OPEN A ROW FOR QUOTE, GREEKS, AND POLICY" in risk.text
+        assert "MODEL TIME DECAY / DAY" in risk.text
+        assert "EARNINGS DATE UNAVAILABLE" in risk.text
         assert "OPEN OWN WINDOW" in risk.text
         assert 'data-workspace-key="risk"' in risk.text
         assert risk.text.count("data-tools-toggle") == 1
@@ -48,8 +50,10 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "BACK TO DESK" in risk.text
 
         assert review.status_code == 200
-        assert "Cash results and normalized pace" in review.text
-        assert "OPEN MARK EXCLUDED FROM CASH" in review.text
+        assert "What the strategy paid" in review.text
+        assert "EXECUTED CASH" in review.text
+        assert "Covered calls versus shares alone" in review.text
+        assert "Call campaigns" in review.text
         assert "MONTH BY MONTH" in review.text
         assert "THROUGH AUG 07" in review.text
 
@@ -71,10 +75,13 @@ def test_empty_live_ledger_keeps_workspaces_available_before_broker_auth(tmp_pat
     container = Container(settings)
 
     try:
-        risk, volatility = asyncio.run(_request_pre_auth_workspaces(container))
+        risk, results, volatility = asyncio.run(_request_pre_auth_workspaces(container))
         assert risk.status_code == 200
         assert "No normalized open calls are available" in risk.text
         assert 'data-workspace-key="risk"' in risk.text
+        assert results.status_code == 200
+        assert "No performance ledger is available yet" in results.text
+        assert "Unsupported results remain blank" in results.text
         assert volatility.status_code == 200
         assert "Historical IV is not yet collected" in volatility.text
         assert "DEMO SOURCE" not in volatility.text
@@ -107,11 +114,12 @@ async def _request_workspaces(
 
 async def _request_pre_auth_workspaces(
     container: Container,
-) -> tuple[httpx.Response, httpx.Response]:
+) -> tuple[httpx.Response, httpx.Response, httpx.Response]:
     transport = httpx.ASGITransport(app=create_app(container))
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-        risk, volatility = await asyncio.gather(
+        risk, results, volatility = await asyncio.gather(
             client.get("/workspaces/risk"),
+            client.get("/workspaces/attribution"),
             client.get("/workspaces/volatility"),
         )
-    return risk, volatility
+    return risk, results, volatility

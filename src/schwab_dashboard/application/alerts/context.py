@@ -105,9 +105,7 @@ def build_call_review_context(
         ("option mark versus entry credit", mark_expansion_points),
     )
     score = int(
-        sum((points for _, points in components), ZERO).quantize(
-            D("1"), rounding=ROUND_HALF_UP
-        )
+        sum((points for _, points in components), ZERO).quantize(D("1"), rounding=ROUND_HALF_UP)
     )
     primary_drivers = tuple(
         name
@@ -155,9 +153,7 @@ def build_dividend_review_context(
         call.remaining_extrinsic_value / D(contract_shares) if contract_shares else ZERO
     )
     ratio = (
-        underlying.dividend_per_share / extrinsic_per_share
-        if extrinsic_per_share > ZERO
-        else None
+        underlying.dividend_per_share / extrinsic_per_share if extrinsic_per_share > ZERO else None
     )
     is_in_the_money = underlying.current_price > call.strike
     dividend_exceeds_time_value = underlying.dividend_per_share > extrinsic_per_share

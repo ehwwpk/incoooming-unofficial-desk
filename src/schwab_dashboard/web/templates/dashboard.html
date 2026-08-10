@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <title>Incoooming Unofficial Desk · Options Income</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=51">
-    <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=52">
+    <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=4">
   </head>
   <body data-workspace-key="desk" data-workspace-context='{"account":"{{ snapshot.accounts[0].account_mask if snapshot.accounts else "---" }}","symbol":"ALL","asOf":"{{ snapshot.as_of.date().isoformat() }}"}'>
     <header class="topbar desk-topbar">
@@ -32,7 +32,6 @@
         <a href="#portfolio" data-rail-link="portfolio" aria-current="page"><kbd>F1</kbd><span>DESK</span></a>
         <a href="#underlyings" data-rail-link="underlyings"><kbd>F2</kbd><span>NAMES</span></a>
         <a href="#income" data-rail-link="income"><kbd>F3</kbd><span>CASH</span></a>
-        <a href="#records" data-rail-link="records"><kbd>F4</kbd><span>LOG</span></a>
         <div class="nibwick-stage" data-nibwick-stage>
           {% if snapshot.alerts %}
           <button type="button" class="nibwick-alert-badge" data-nibwick-alert-badge aria-label="Open Nibwick's {{ snapshot.alerts | length }} notes" aria-expanded="false" aria-controls="nibwick-note-popover">
@@ -63,20 +62,16 @@
         <div class="desk-period-selector" data-period-controls role="tablist" aria-label="Performance window">
           <span>WINDOW</span>
           <div class="period-controls">
-            <button type="button" role="tab" data-period="week" aria-label="One week" aria-selected="false">1W</button>
             <button type="button" role="tab" data-period="month" aria-label="Four weeks" aria-selected="true">4W</button>
             <button type="button" role="tab" data-period="quarter" aria-label="Quarterly, rolling thirteen weeks" aria-selected="false">QTR</button>
-            <button type="button" role="tab" data-period="annual" aria-label="One year" aria-selected="false">1Y</button>
-          </div>
-          <div class="annual-controls" data-annual-controls hidden aria-label="Annual calculation mode">
-            <button type="button" data-annual="ytd" aria-pressed="true">YTD</button>
-            <button type="button" data-annual="r365" aria-pressed="false">R365</button>
+            <button type="button" role="tab" data-period="ytd" aria-label="Calendar year to date" aria-selected="false">YTD</button>
+            <button type="button" role="tab" data-period="r365" aria-label="Rolling 365 days" aria-selected="false">R365</button>
           </div>
         </div>
         <div class="desk-meta">
           <span>PORTFOLIO <b>{{ snapshot.portfolio.total_value | money }}</b></span>
           <span>TODAY <b class="{{ snapshot.portfolio.day_profit_loss | pnl_class }}">{{ snapshot.portfolio.day_profit_loss | money }} / {{ snapshot.portfolio.day_profit_loss_percent | percent(2) }}</b></span>
-          <span>RANGE <b data-active-range>{{ snapshot.performance_windows[1].range_label if snapshot.performance_windows else '—' }}</b></span>
+          <span>RANGE <b data-active-range>{{ snapshot.performance_windows[0].range_label if snapshot.performance_windows else '—' }}</b></span>
           <span>AS OF <b>{{ snapshot.as_of | short_date }}</b></span>
           <span>STATUS <b class="{{ 'muted' if snapshot.is_demo else 'positive' }}">{{ 'SIMULATION' if snapshot.is_demo else 'LIVE LEDGER' }}</b></span>
         </div>
@@ -90,7 +85,10 @@
       {% include "partials/_underlyings.html" %}
 
       {% include "partials/_income.html" %}
-      {% include "partials/_records.html" %}
+      <section class="desk-exit-links" aria-label="Detailed workspaces">
+        <a href="/workspaces/risk"><b>OPEN CALLS</b><span>Contracts, expirations, policy fit, and quote detail →</span></a>
+        <a href="/workspaces/attribution"><b>RESULTS</b><span>Monthly cash, campaigns, and strategy comparison →</span></a>
+      </section>
 
       <footer>
         <span>LOCALHOST / PRIVATE / READ-ONLY BROKER ADAPTER</span>
@@ -98,13 +96,13 @@
       </footer>
       </main>
     </div>
-    <script src="{{ url_for('static', path='/periods.js') }}?v=16" defer></script>
+    <script src="{{ url_for('static', path='/periods.js') }}?v=17" defer></script>
     <script src="{{ url_for('static', path='/workspace-splitter.js') }}?v=1" defer></script>
     <script src="{{ url_for('static', path='/chart-viewport.js') }}?v=1" defer></script>
     <script src="{{ url_for('static', path='/chart-focus.js') }}?v=1" defer></script>
     <script src="{{ url_for('static', path='/event-layout.js') }}?v=4" defer></script>
     <script src="{{ url_for('static', path='/lifecycle-links.js') }}?v=2" defer></script>
-    <script src="{{ url_for('static', path='/nibwick-alerts.js') }}?v=9" defer></script>
+    <script src="{{ url_for('static', path='/nibwick-alerts.js') }}?v=10" defer></script>
     <script src="{{ url_for('static', path='/nibwick.js') }}?v=5" defer></script>
     <script src="{{ url_for('static', path='/position-details.js') }}?v=1" defer></script>
     <script src="{{ url_for('static', path='/workspace-navigation.js') }}?v=2" defer></script>

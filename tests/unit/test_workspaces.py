@@ -22,7 +22,7 @@ def test_workspace_catalog_keeps_stable_keys_separate_from_labels() -> None:
     assert len({item.route for item in workspaces}) == len(workspaces)
     assert len({item.window_name for item in workspaces}) == len(workspaces)
     assert get_workspace(WorkspaceKey.RISK).label == "Open Calls"
-    assert get_workspace(WorkspaceKey.ATTRIBUTION).label == "Strategy Review"
+    assert get_workspace(WorkspaceKey.ATTRIBUTION).label == "Results"
     assert get_workspace(WorkspaceKey.RECORDS).label == "Data Health"
     assert get_workspace(WorkspaceKey.RISK).route == "/workspaces/risk"
     assert get_workspace(WorkspaceKey.RECORDS).window_name == "iud-source-ledger"
@@ -43,14 +43,14 @@ def test_desk_overview_prioritizes_the_nearest_live_call_without_losing_totals()
     snapshot = DemoDashboardReader().execute()
     overview = build_desk_overview(snapshot)
 
-    assert overview.open_positions == 5
+    assert overview.open_positions == 6
     assert overview.open_contracts == snapshot.covered_calls.active_contracts
     assert overview.open_mark_profit_loss == snapshot.covered_calls.open_mark_profit_loss
     assert overview.nearest_call is not None
-    assert overview.nearest_call.symbol == "KTOS"
-    assert overview.nearest_call.strike == 65
+    assert overview.nearest_call.symbol == "CVX"
+    assert overview.nearest_call.strike == 195
     assert overview.next_expiring_call is not None
-    assert overview.next_expiring_call.days_to_expiration == 28
+    assert overview.next_expiring_call.days_to_expiration == 7
     assert len(overview.position_rows) == len(snapshot.underlyings)
     assert sum(row.open_positions for row in overview.position_rows) == overview.open_positions
 

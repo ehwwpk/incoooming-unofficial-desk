@@ -1,34 +1,26 @@
 <section class="panel income-panel" id="income">
   <div class="section-heading terminal-heading">
-    <div>
-      <h2>Quarterly cash trend</h2>
-    </div>
+    <div><h2>Cash timeline</h2><span data-cash-grain>WEEKLY CASH · 4 WEEKS</span></div>
     <div class="legend" aria-label="Chart legend">
-      <span><i class="option-key"></i>Net option income</span>
+      <span><i class="option-key"></i>Option cash kept</span>
       <span><i class="dividend-key"></i>Dividends</span>
       <span><i class="debit-key"></i>Net debit</span>
     </div>
   </div>
 
-  {% if snapshot.income_periods %}
-  <div class="income-scroll">
-    <div class="income-chart" aria-label="Quarterly income chart, shown as thirteen weekly periods">
-      {% for period in snapshot.income_periods %}
-      <div class="bar-column {{ 'debit' if period.total < 0 else '' }}">
-        <div class="bar-value {{ period.total | pnl_class }}">{{ period.total | money(0) }}</div>
-        <div class="bar-track">
-          <div class="income-bar" style="--bar-height: {{ period.bar_percent }}%">
-            {% if period.dividends > 0 %}<span class="dividend-cap"></span>{% endif %}
-          </div>
-        </div>
-        <span>{{ period.label }}</span>
+  {% for series in snapshot.cash_chart_series %}
+  <div class="income-scroll" data-cash-series="{{ series.key }}"{% if series.key != 'month' %} hidden{% endif %}>
+    <div class="income-chart" aria-label="{{ series.label }} cash chart" style="--cash-columns: {{ series.points | length }}">
+      {% for point in series.points %}
+      <div class="bar-column {{ 'debit' if point.total_cash < 0 else '' }}">
+        <div class="bar-value {{ point.total_cash | pnl_class }}">{{ point.total_cash | money(0) }}</div>
+        <div class="bar-track"><div class="income-bar" style="--bar-height: {{ point.bar_percent }}%">{% if point.dividends > 0 %}<span class="dividend-cap"></span>{% endif %}</div></div>
+        <span>{{ point.label }}</span>
       </div>
       {% endfor %}
     </div>
   </div>
-  {% else %}
-  <p class="empty-state">Income history will appear after transaction ingestion is connected.</p>
-  {% endif %}
+  {% endfor %}
 
-  <footer class="income-panel-footer"><span>NET OPTION INCOME BY WEEK · DIVIDENDS INCLUDED IN EACH TOTAL</span><a href="/workspaces/attribution">FULL INCOME RECONCILIATION →</a></footer>
+  <footer class="income-panel-footer"><span data-cash-footer>EXECUTED OPTION CASH BY WEEK · MODEL THETA EXCLUDED</span><a href="/workspaces/attribution">MONTHLY RESULTS →</a></footer>
 </section>

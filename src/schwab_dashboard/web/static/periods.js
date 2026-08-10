@@ -128,12 +128,8 @@ const setupPeriodConsole = () => {
   if (!consoleRoot || !controlsRoot || consoleRoot.dataset.periodReady === "true") return;
 
   const periodButtons = [...controlsRoot.querySelectorAll("[data-period]")];
-  const annualButtons = [...controlsRoot.querySelectorAll("[data-annual]")];
   const sheets = [...consoleRoot.querySelectorAll("[data-period-sheet]")];
-  const annualControls = controlsRoot.querySelector("[data-annual-controls]");
-  const quarterHistory = consoleRoot.querySelector("[data-quarter-history]");
-  const windowCodes = { week: "1W", month: "4W", quarter: "QTR", ytd: "YTD", r365: "R365" };
-  let annualMode = "ytd";
+  const windowCodes = { month: "4W", quarter: "QTR", ytd: "YTD", r365: "R365" };
   let selectedPeriod = "month";
 
   const updateActiveDesk = (sheet) => {
@@ -141,12 +137,12 @@ const setupPeriodConsole = () => {
     const key = sheet.dataset.periodSheet;
     setText("[data-active-window]", windowCodes[key] || sheet.dataset.windowLabel);
     setText("[data-active-range]", sheet.dataset.rangeLabel);
-    setText("[data-active-option-label]", `NET OPTION INCOME / ${sheet.dataset.windowLabel}`);
+    setText("[data-active-option-label]", `OPTION CASH KEPT / ${sheet.dataset.windowLabel}`);
     setText("[data-active-option-cash]", sheet.dataset.optionCash);
-    setText("[data-active-option-meta]", `${sheet.dataset.optionApr} APR · after executed close and roll costs`);
+    setText("[data-active-option-meta]", `${sheet.dataset.optionApr} annualized · after executed closing debits`);
     setText("[data-active-window-label]", sheet.dataset.windowLabel);
     setText("[data-active-dividend-cash]", sheet.dataset.dividends);
-    setText("[data-active-total-label]", `TOTAL INCOME / ${sheet.dataset.windowLabel}`);
+    setText("[data-active-total-label]", `TOTAL CASH RECEIVED / ${sheet.dataset.windowLabel}`);
     setText("[data-active-total-cash]", sheet.dataset.totalCash);
     setText("[data-active-total-meta]", `Option income plus dividends · ${sheet.dataset.totalApr} APR`);
     setText("[data-active-monthly-pace]", sheet.dataset.monthlyTotalAverage);
@@ -168,6 +164,13 @@ const setupPeriodConsole = () => {
     setText("[data-active-capture-label]", `PREMIUM CAPTURE / ${sheet.dataset.windowLabel}`);
     setText("[data-active-capture-value]", sheet.dataset.capture);
     setText("[data-active-capture-meta]", `${sheet.dataset.buybackDrag} executed-debit drag`);
+    document.querySelectorAll("[data-cash-series]").forEach((series) => {
+      series.hidden = series.dataset.cashSeries !== key;
+    });
+    const activeSeries = document.querySelector(`[data-cash-series="${key}"]`);
+    const grain = activeSeries?.querySelector(".income-chart")?.getAttribute("aria-label") || "Cash";
+    setText("[data-cash-grain]", `${key === "month" || key === "quarter" ? "WEEKLY CASH" : "MONTHLY CASH"} · ${sheet.dataset.windowLabel}`);
+    setText("[data-cash-footer]", `${grain.toUpperCase()} · EXECUTED CASH ONLY · MODEL THETA EXCLUDED`);
   };
 
   const updateUnderlyingCards = (activeSheetKey, windowLabel) => {
@@ -189,7 +192,7 @@ const setupPeriodConsole = () => {
   };
 
   const activate = () => {
-    const activeSheetKey = selectedPeriod === "annual" ? annualMode : selectedPeriod;
+    const activeSheetKey = selectedPeriod;
     const activeSheet = sheets.find((sheet) => sheet.dataset.periodSheet === activeSheetKey);
     sheets.forEach((sheet) => {
       sheet.hidden = sheet !== activeSheet;
@@ -197,11 +200,6 @@ const setupPeriodConsole = () => {
     periodButtons.forEach((button) => {
       button.setAttribute("aria-selected", String(button.dataset.period === selectedPeriod));
     });
-    annualButtons.forEach((button) => {
-      button.setAttribute("aria-pressed", String(button.dataset.annual === annualMode));
-    });
-    if (annualControls) annualControls.hidden = selectedPeriod !== "annual";
-    if (quarterHistory) quarterHistory.hidden = selectedPeriod !== "annual";
     updateActiveDesk(activeSheet);
     if (activeSheet) {
       updateUnderlyingCards(activeSheetKey, activeSheet.dataset.windowLabel);
@@ -214,25 +212,17 @@ const setupPeriodConsole = () => {
       activate();
     });
   });
-  annualButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      annualMode = button.dataset.annual;
-      activate();
-    });
-  });
-
   document.addEventListener("keydown", (event) => {
     const tag = event.target?.tagName?.toLowerCase();
     if (["input", "textarea", "select"].includes(tag) || event.target?.isContentEditable) return;
-    const periodShortcuts = { "1": "week", "2": "month", "3": "quarter", "4": "annual" };
+    const periodShortcuts = { "1": "month", "2": "quarter", "3": "ytd", "4": "r365" };
     const annualShortcuts = { y: "ytd", r: "r365" };
-    const sectionShortcuts = { F1: "portfolio", F2: "underlyings", F3: "income", F4: "records" };
+    const sectionShortcuts = { F1: "portfolio", F2: "underlyings", F3: "income" };
     if (periodShortcuts[event.key]) {
       selectedPeriod = periodShortcuts[event.key];
       activate();
     } else if (annualShortcuts[event.key.toLowerCase()]) {
-      annualMode = annualShortcuts[event.key.toLowerCase()];
-      selectedPeriod = "annual";
+      selectedPeriod = annualShortcuts[event.key.toLowerCase()];
       activate();
     } else if (sectionShortcuts[event.key]) {
       event.preventDefault();

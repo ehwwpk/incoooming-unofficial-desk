@@ -69,12 +69,26 @@ class RollQuoteCandidate:
 
 @dataclass(frozen=True, slots=True)
 class OpenCallClock:
+    record_id: str
+    campaign_id: str
+    policy_id: str
     sold_on: date
     expires_on: date
     strike: Decimal
     contracts: int
     underlying_at_sale: Decimal
     close_ask_per_share: Decimal
+    bid_per_share: Decimal
+    spread_per_share: Decimal
+    spread_percent_of_mark: Decimal
+    quote_observed_on: date | None
+    quote_status: str
+    implied_volatility_percent: Decimal | None
+    delta: Decimal | None
+    gamma: Decimal | None
+    vega: Decimal | None
+    volume: int | None
+    open_interest: int | None
     roll_quote_candidates: tuple[RollQuoteCandidate, ...]
     original_days_to_expiration: int
     elapsed_days: int
@@ -101,6 +115,10 @@ class OpenCallClock:
 
 @dataclass(frozen=True, slots=True)
 class CallSaleRecord:
+    record_id: str
+    campaign_id: str
+    parent_record_id: str | None
+    policy_id: str
     symbol: str
     sold_on: date
     expires_on: date
@@ -116,6 +134,7 @@ class CallSaleRecord:
     outcome: str
     sale_signal: str
     closed_on: date | None
+    fees: Decimal
 
 
 @dataclass(frozen=True, slots=True)

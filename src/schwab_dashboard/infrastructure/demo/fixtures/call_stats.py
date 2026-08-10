@@ -234,12 +234,28 @@ def _open_call_clock(record: CallSaleRecord, current_price: Decimal, as_of: date
     open_profit_loss = record.gross_premium - current_option_value
     short_theta_per_day = -metric.theta_per_share * record.contracts * 100
     return OpenCallClock(
+        record_id=record.record_id,
+        campaign_id=record.campaign_id,
+        policy_id=record.policy_id,
         sold_on=record.sold_on,
         expires_on=record.expires_on,
         strike=record.strike,
         contracts=record.contracts,
         underlying_at_sale=record.underlying_at_sale,
         close_ask_per_share=metric.ask_per_share,
+        bid_per_share=metric.bid_per_share,
+        spread_per_share=metric.ask_per_share - metric.bid_per_share,
+        spread_percent_of_mark=(
+            (metric.ask_per_share - metric.bid_per_share) / metric.mark_per_share * HUNDRED
+        ).quantize(TENTH),
+        quote_observed_on=as_of,
+        quote_status="SIMULATED",
+        implied_volatility_percent=metric.implied_volatility_percent,
+        delta=metric.delta,
+        gamma=metric.gamma,
+        vega=metric.vega,
+        volume=metric.volume,
+        open_interest=metric.open_interest,
         roll_quote_candidates=ROLL_QUOTE_CANDIDATES.get(
             (record.symbol, record.expires_on, record.strike), ()
         ),

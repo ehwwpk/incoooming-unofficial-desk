@@ -15,13 +15,19 @@ from schwab_dashboard.infrastructure.demo.fixtures.call_stats import (
 )
 from schwab_dashboard.infrastructure.demo.fixtures.campaigns import build_campaigns
 from schwab_dashboard.infrastructure.demo.fixtures.income import build_income_periods
+from schwab_dashboard.infrastructure.demo.fixtures.obligations import (
+    build_expiration_calendar,
+)
 from schwab_dashboard.infrastructure.demo.fixtures.performance import (
     build_basis_lens,
+    build_cash_chart_series,
     build_monthly_performance,
     build_objective_summary,
     build_performance_windows,
     build_quarter_history,
+    build_strategy_attribution,
 )
+from schwab_dashboard.infrastructure.demo.fixtures.policies import build_policies
 from schwab_dashboard.infrastructure.demo.fixtures.positions import (
     build_allocations,
     build_positions,
@@ -61,7 +67,12 @@ class DemoDashboardReader:
         )
         total_value = stock_value + option_value + cash_value
         previous_value = total_value - day_profit_loss
-        performance_windows = build_performance_windows(covered_calls, stock_value)
+        monthly_performance = build_monthly_performance()
+        performance_windows = build_performance_windows(
+            call_history, stock_value, as_of, monthly_performance
+        )
+        policies = build_policies()
+        campaigns = build_campaigns(call_history, underlyings, policies, as_of)
         windows_by_key = {window.key: window for window in performance_windows}
         return DashboardSnapshot(
             mode="demo",
@@ -89,7 +100,7 @@ class DemoDashboardReader:
             ),
             income=IncomeSummary(
                 week=D("80.00"),
-                month=D("1950.00"),
+                month=windows_by_key["month"].option_cash,
                 quarter=covered_calls.net_option_cash,
                 year_to_date=windows_by_key["ytd"].total_cash,
                 win_rate=covered_calls.win_rate,
@@ -97,16 +108,24 @@ class DemoDashboardReader:
                 monthly_target=D("3000.00"),
                 target_progress_percent=windows_by_key["month"].target_progress_percent,
             ),
-            income_periods=build_income_periods(),
-            campaigns=build_campaigns(),
+            income_periods=build_income_periods(call_history),
+            cash_chart_series=build_cash_chart_series(call_history, monthly_performance, as_of),
+            campaigns=campaigns,
             covered_calls=covered_calls,
             underlyings=underlyings,
             alerts=build_desk_alerts(underlyings, as_of=as_of),
             call_history=call_history,
             performance_windows=performance_windows,
-            monthly_performance=build_monthly_performance(),
+            monthly_performance=monthly_performance,
+            strategy_attribution=build_strategy_attribution(
+                call_history, underlyings, performance_windows, as_of
+            ),
+            expiration_calendar=build_expiration_calendar(underlyings, as_of),
+            policies=policies,
             quarter_history=build_quarter_history(),
-            objective=build_objective_summary(call_history, covered_calls, performance_windows),
+            objective=build_objective_summary(
+                call_history, covered_calls, performance_windows, policies
+            ),
             basis_lens=build_basis_lens(underlyings),
             positions=positions,
             allocations=build_allocations(positions, cash_value),
@@ -118,8 +137,10 @@ class DemoDashboardReader:
                     D("0"),
                 ),
                 short_contracts=covered_calls.active_contracts,
-                next_expiration=date(2026, 9, 4),
+                next_expiration=min(
+                    clock.expires_on for item in underlyings for clock in item.open_call_clocks
+                ),
                 largest_position_percent=D("58.8"),
-                open_campaigns=3,
+                open_campaigns=sum(campaign.status == "OPEN" for campaign in campaigns),
             ),
         )

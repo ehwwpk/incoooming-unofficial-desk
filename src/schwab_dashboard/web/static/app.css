@@ -145,3 +145,25 @@
   .lifecycle-grid div:nth-last-child(-n + 3), .risk-grid div:nth-last-child(-n + 3) { border-bottom: 1px solid var(--line); }
   .lifecycle-grid div:nth-last-child(-n + 2), .risk-grid div:nth-last-child(-n + 2) { border-bottom: 0; }
 }
+.desk-exit-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 18px;
+  border: 1px solid var(--line);
+}
+.desk-exit-links a {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 14px 18px;
+  color: var(--text);
+  text-decoration: none;
+  border-right: 1px solid var(--line);
+}
+.desk-exit-links a:last-child { border-right: 0; }
+.desk-exit-links a:hover { background: rgba(231, 188, 80, .05); }
+.desk-exit-links span { color: var(--muted); font-size: 11px; }
+.income-chart {
+  grid-template-columns: repeat(var(--cash-columns, 13), minmax(32px, 1fr));
+  min-width: max(100%, calc(var(--cash-columns, 13) * 42px));
+}

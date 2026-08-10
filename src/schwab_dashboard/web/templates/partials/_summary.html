@@ -1,4 +1,4 @@
-{% set active = snapshot.performance_windows[1] if snapshot.performance_windows else none %}
+{% set active = snapshot.performance_windows[0] if snapshot.performance_windows else none %}
 <section
   class="desk-pulse"
   aria-label="Covered-call income and live option summary"
@@ -14,9 +14,9 @@
     </header>
     <div class="pulse-income-grid">
       <div class="pulse-primary">
-        <span data-active-option-label>NET OPTION INCOME / {{ active.label if active else 'WINDOW' }}</span>
+        <span data-active-option-label>OPTION CASH KEPT / {{ active.label if active else 'WINDOW' }}</span>
         <strong class="{{ active.option_cash | pnl_class if active else '' }}" data-active-option-cash>{{ active.option_cash | money if active else snapshot.covered_calls.net_option_cash | money }}</strong>
-        <small data-active-option-meta>{% if active %}{{ active.annualized_option_yield | percent }} APR · net of completed close and roll debits{% else %}Waiting for normalized option cash{% endif %}</small>
+        <small data-active-option-meta>{% if active %}{{ active.annualized_option_yield | percent }} annualized · after executed closing debits{% else %}Waiting for normalized option cash{% endif %}</small>
         <small class="pulse-average" data-active-option-average hidden></small>
       </div>
       <div>
@@ -25,15 +25,15 @@
         <small>Cash dividends received</small>
       </div>
       <div>
-        <span data-active-total-label>TOTAL INCOME / {{ active.label if active else 'WINDOW' }}</span>
+        <span data-active-total-label>TOTAL CASH RECEIVED / {{ active.label if active else 'WINDOW' }}</span>
         <strong class="{{ active.total_cash | pnl_class if active else '' }}" data-active-total-cash>{{ active.total_cash | money if active else snapshot.covered_calls.total_cash_income | money }}</strong>
         <small data-active-total-meta>Option income plus dividends</small>
         <small class="pulse-average" data-active-total-average hidden></small>
       </div>
       <div>
-        <span>MONTHLY TOTAL INCOME PACE</span>
+        <span>ONE-MONTH CASH PACE</span>
         <strong class="{{ active.monthly_total_run_rate | pnl_class if active else '' }}" data-active-monthly-pace>{{ active.monthly_total_run_rate | money if active else '$0.00' }}</strong>
-        <small>Selected income normalized to one month</small>
+        <small>Selected cash normalized to one month</small>
       </div>
     </div>
     <footer class="income-target-bar">

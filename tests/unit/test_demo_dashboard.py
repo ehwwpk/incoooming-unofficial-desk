@@ -38,9 +38,8 @@ def test_demo_income_period_totals_are_derived_from_components() -> None:
         snapshot.covered_calls.dividends
     )
     windows = {window.key: window for window in snapshot.performance_windows}
-    assert snapshot.income_periods[-1].option_income == windows["week"].option_cash
     assert (
-        sum((period.option_income for period in snapshot.income_periods[-4:]), Decimal("0"))
-        == windows["month"].option_cash
+        sum((period.option_income for period in snapshot.income_periods), Decimal("0"))
+        == windows["quarter"].option_cash
     )
-    assert windows["month"].option_cash == snapshot.income.month == Decimal("1950.00")
+    assert windows["month"].option_cash == snapshot.income.month == Decimal("1805.000")

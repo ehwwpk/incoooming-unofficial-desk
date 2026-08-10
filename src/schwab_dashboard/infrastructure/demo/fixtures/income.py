@@ -1,44 +1,51 @@
+from collections.abc import Sequence
+from datetime import timedelta
 from decimal import Decimal
 
+from schwab_dashboard.application.dashboard.cashflows import (
+    build_call_cash_events,
+    cash_total,
+)
+from schwab_dashboard.application.dashboard.covered_calls import CallSaleRecord
 from schwab_dashboard.application.dashboard.models import IncomePeriod
+from schwab_dashboard.infrastructure.demo.fixtures.cash_events import (
+    build_dividend_cash_events,
+)
 
 D = Decimal
 
 
-def build_income_periods() -> tuple[IncomePeriod, ...]:
-    rows = (
-        ("May 15", "900", "0"),
-        ("May 22", "500", "0"),
-        ("May 29", "500", "0"),
-        ("Jun 05", "150", "0"),
-        ("Jun 12", "0", "1246"),
-        ("Jun 19", "0", "0"),
-        ("Jun 26", "1825", "0"),
-        ("Jul 03", "-205", "0"),
-        ("Jul 10", "720", "0"),
-        ("Jul 17", "285", "0"),
-        ("Jul 24", "510", "0"),
-        ("Jul 31", "1075", "0"),
-        ("Aug 07", "80", "0"),
-    )
-    maximum = max(abs(D(option_income) + D(dividends)) for _, option_income, dividends in rows)
+def build_income_periods(
+    records: Sequence[CallSaleRecord],
+) -> tuple[IncomePeriod, ...]:
+    """Legacy API projection derived from the same execution events as cash charts."""
+
+    call_events = build_call_cash_events(records)
+    dividend_events = build_dividend_cash_events()
+    start = min(record.sold_on for record in records)
+    end = max(event.occurred_on for event in (*call_events, *dividend_events))
+    raw: list[tuple[str, Decimal, Decimal]] = []
+    cursor = start
+    while cursor <= end:
+        bucket_end = min(end, cursor + timedelta(days=6))
+        raw.append(
+            (
+                f"{bucket_end:%b %d}",
+                cash_total(call_events, start=cursor, end=bucket_end),
+                cash_total(dividend_events, start=cursor, end=bucket_end),
+            )
+        )
+        cursor = bucket_end + timedelta(days=1)
+    maximum = max(abs(option + dividends) for _, option, dividends in raw)
     return tuple(
-        _period(label, D(option_income), D(dividends), maximum)
-        for label, option_income, dividends in rows
-    )
-
-
-def _period(
-    label: str,
-    option_income: Decimal,
-    dividends: Decimal,
-    maximum: Decimal,
-) -> IncomePeriod:
-    total = option_income + dividends
-    return IncomePeriod(
-        label=label,
-        option_income=option_income,
-        dividends=dividends,
-        total=total,
-        bar_percent=(0 if not total else max(8, int(abs(total) / maximum * 100))),
+        IncomePeriod(
+            label=label,
+            option_income=option,
+            dividends=dividends,
+            total=option + dividends,
+            bar_percent=max(8, int(abs(option + dividends) / maximum * 100))
+            if option + dividends
+            else 0,
+        )
+        for label, option, dividends in raw
     )
