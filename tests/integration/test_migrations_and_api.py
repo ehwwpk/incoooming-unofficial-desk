@@ -135,7 +135,7 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "6 CONTRACTS" in page.text
         assert "nibwick-method-note" not in page.text
         assert "CHECK SOON" not in page.text
-        assert "app.css?v=45" in page.text
+        assert "app.css?v=46" in page.text
         assert "workspaces.css?v=3" in page.text
         assert "DEMO CHECKED" in page.text
         assert "$4.23 / 7.0% TO STRIKE" in page.text
@@ -214,9 +214,11 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "2,000</b> SHARES" in page.text
         assert "18</b> CALL CONTRACTS" in page.text
         assert "Transaction records" in page.text
-        assert "ROLL COMPARISONS" in page.text
-        assert "SIMULATED · ASK / BID" in page.text
-        assert "+$25 total · $2,500 more call-away room" in page.text
+        assert "ROLL MAP" in page.text
+        assert "ROOM BOUGHT WITH TIME" in page.text
+        assert "SIMULATED · BTC ASK / STO BID" in page.text
+        assert "+$25 TOTAL" in page.text
+        assert "+$2,500" in page.text
         assert "data-nibwick-summary-count" in page.text
         assert "data-nibwick-summary-detail" in page.text
         assert "Covered-call activity" in page.text
