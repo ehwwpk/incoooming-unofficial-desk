@@ -108,7 +108,7 @@ body[data-nibwick-popover-open="true"] .nibwick-stage .nibwick-obstacle { animat
 .nibwick-popover::before, .nibwick-popover::after { display: none; }
 .nibwick-popover-heading {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 62px 28px;
+  grid-template-columns: minmax(0, 1fr) 68px 28px;
   align-items: stretch;
   min-height: 48px;
   border-bottom: 1px solid var(--note-line);
@@ -128,19 +128,22 @@ body[data-nibwick-popover-open="true"] .nibwick-stage .nibwick-obstacle { animat
   inset: 50% auto auto 50%;
   margin: 0;
   opacity: 0;
-  font: 700 5.5px/.96 var(--mono);
+  font: 700 8.5px/.9 var(--mono);
   text-align: left;
   transform: translate(-50%, -50%);
   white-space: pre;
-  animation: nibwick-ledger-frame 6.4s steps(1, end) infinite;
+  animation-duration: 8s;
+  animation-iteration-count: infinite;
+  animation-timing-function: steps(1, end);
 }
-.nibwick-ledger-scene pre:nth-child(2) { animation-delay: 1.6s; }
-.nibwick-ledger-scene pre:nth-child(3) { animation-delay: 3.2s; }
-.nibwick-ledger-scene pre:nth-child(4) { animation-delay: 4.8s; }
-@keyframes nibwick-ledger-frame {
-  0%, 24.9% { opacity: 1; }
-  25%, 100% { opacity: 0; }
-}
+.nibwick-ledger-scene pre:nth-child(1) { animation-name: nibwick-frame-read; }
+.nibwick-ledger-scene pre:nth-child(2) { animation-name: nibwick-frame-blink; }
+.nibwick-ledger-scene pre:nth-child(3) { animation-name: nibwick-frame-page; }
+.nibwick-ledger-scene pre:nth-child(4) { animation-name: nibwick-frame-notice; }
+@keyframes nibwick-frame-read { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+@keyframes nibwick-frame-blink { 0%, 49% { opacity: 0; } 50%, 56% { opacity: 1; } 57%, 100% { opacity: 0; } }
+@keyframes nibwick-frame-page { 0%, 56% { opacity: 0; } 57%, 78% { opacity: 1; } 79%, 100% { opacity: 0; } }
+@keyframes nibwick-frame-notice { 0%, 78% { opacity: 0; } 79%, 99% { opacity: 1; } 100% { opacity: 0; } }
 .nibwick-popover-heading > button {
   border: 0;
   border-left: 1px solid var(--note-line);

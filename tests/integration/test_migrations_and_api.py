@@ -135,7 +135,7 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "6 CONTRACTS" in page.text
         assert "nibwick-method-note" not in page.text
         assert "CHECK SOON" not in page.text
-        assert "app.css?v=47" in page.text
+        assert "app.css?v=50" in page.text
         assert "workspaces.css?v=3" in page.text
         assert "DEMO CHECKED" in page.text
         assert "$4.23 / 7.0% TO STRIKE" in page.text
