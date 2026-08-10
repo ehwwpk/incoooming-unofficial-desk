@@ -28,18 +28,17 @@ def evaluate_fast_move(underlying: UnderlyingCallStats) -> DeskAlert | None:
     level = AlertLevel.CHECK if move >= D("25") or strike_gap <= D("3") else AlertLevel.WATCH
     priority = 90 if level is AlertLevel.CHECK else 60
     if context.strike_distance_per_share >= 0:
-        distance_message = (
-            f"is ${context.strike_distance_per_share:.2f}/share "
-            f"({context.strike_distance_percent:.1f}%) below your closest "
-            f"${closest.strike:.2f} call—about ${context.covered_share_distance:,.0f} "
-            f"across {closest.contracts * 100:,} covered shares"
+        position_message = (
+            f"is still ${context.strike_distance_per_share:.2f}/share out of the money, "
+            "but the cushion is narrow enough to review"
         )
+        distance_detail = "OUT OF THE MONEY"
     else:
-        distance_message = (
-            f"is ${abs(context.strike_distance_per_share):.2f}/share "
-            f"({abs(context.strike_distance_percent):.1f}%) above your closest "
-            f"${closest.strike:.2f} call, so that call is currently in the money"
+        position_message = (
+            f"is now ${abs(context.strike_distance_per_share):.2f}/share in the money "
+            "and deserves a review"
         )
+        distance_detail = "IN THE MONEY"
     roll_scenarios = build_neutral_roll_scenarios(
         closest,
         current_price=underlying.current_price,
@@ -54,30 +53,25 @@ def evaluate_fast_move(underlying: UnderlyingCallStats) -> DeskAlert | None:
         target_id=f"{underlying.symbol.lower()}-workspace",
         headline=f"Fast move; ${closest.strike:g} call is {abs(strike_gap):.1f}% away",
         message=(
-            f"{underlying.symbol} rose {move:.1f}% in five sessions, from "
-            f"${closest.underlying_at_sale:.2f} at sale to "
-            f"${underlying.current_price:.2f} now. It {distance_message}."
+            f"{underlying.symbol} moved fast after the sale. The ${closest.strike:g} call "
+            f"{position_message}."
         ),
         facts=(
             AlertFact(
-                "STOCK / SALE",
-                f"${underlying.current_price:.2f} NOW",
-                f"${closest.underlying_at_sale:.2f} SALE · "
-                f"{context.sale_to_current_move_percent:+.1f}%",
+                "SPOT / MOVE",
+                f"${underlying.current_price:.2f}",
+                f"{context.sale_to_current_move_percent:+.1f}% SINCE SALE",
             ),
             AlertFact(
-                "TO STRIKE",
-                f"${abs(context.strike_distance_per_share):.2f}",
-                f"{abs(context.strike_distance_percent):.1f}% BUFFER",
+                f"TO ${closest.strike:g} CALL",
+                f"${abs(context.strike_distance_per_share):.2f} / "
+                f"{abs(context.strike_distance_percent):.1f}%",
+                distance_detail,
             ),
             AlertFact(
-                "MARK / CREDIT",
-                f"${closest.mark_per_share:.2f} / ${closest.entry_credit_per_share:.2f}",
-                f"{context.mark_to_credit_ratio:.2f}x ENTRY",
-            ),
-            AlertFact(
-                "REVIEW / TIME",
-                f"{context.pressure.score}/100 {context.pressure.label}",
+                "MARK / TIME",
+                f"${closest.mark_per_share:.2f} NOW",
+                f"${closest.entry_credit_per_share:.2f} COLLECTED · "
                 f"{closest.days_to_expiration} DTE",
             ),
         ),

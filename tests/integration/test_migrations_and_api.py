@@ -128,14 +128,14 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "KEEP AN EYE ON THIS" not in page.text
         assert "Fast move; $65 call is 7.0% away" in page.text
         assert "CVX&#39;s dividend needs context" not in page.text
-        assert "55/100 ELEVATED" in page.text
+        assert "$2.45 COLLECTED · 42 DTE" in page.text
         assert "$231.78" not in page.text
         assert "1 TO REVIEW" in page.text
         assert "DIVIDEND OVERLAP" in page.text
         assert "6 CONTRACTS" in page.text
         assert "nibwick-method-note" not in page.text
         assert "CHECK SOON" not in page.text
-        assert "app.css?v=46" in page.text
+        assert "app.css?v=47" in page.text
         assert "workspaces.css?v=3" in page.text
         assert "DEMO CHECKED" in page.text
         assert "$4.23 / 7.0% TO STRIKE" in page.text
@@ -214,8 +214,7 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "2,000</b> SHARES" in page.text
         assert "18</b> CALL CONTRACTS" in page.text
         assert "Transaction records" in page.text
-        assert "ROLL MAP" in page.text
-        assert "ROOM BOUGHT WITH TIME" in page.text
+        assert "ROLL PREVIEW" in page.text
         assert "SIMULATED · BTC ASK / STO BID" in page.text
         assert "+$25 TOTAL" in page.text
         assert "+$2,500" in page.text

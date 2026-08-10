@@ -58,20 +58,17 @@
         {% for fact in alert.facts %}<div><dt>{{ fact.label }}</dt><dd><strong>{{ fact.value }}</strong>{% if fact.detail %}<span>{{ fact.detail }}</span>{% endif %}</dd></div>{% endfor %}
       </dl>
       {% if alert.roll_scenarios %}
-      <section class="nibwick-roll-ladder" aria-label="Indicative roll comparisons">
+      <section class="nibwick-roll-ladder" aria-label="Indicative roll preview">
         <header>
-          <div><strong>ROLL MAP</strong><small>ROOM BOUGHT WITH TIME</small></div>
+          <strong>ROLL PREVIEW</strong>
           <span>{{ 'SIMULATED' if snapshot.is_demo else 'LIVE' }} · BTC ASK / STO BID</span>
         </header>
-        <div class="nibwick-roll-table">
-          <div class="nibwick-roll-columns" aria-hidden="true">
-            <span>STRIKE / TIME</span><span>TARGET CALL</span><span>ROLL CASH</span><span>CALL-AWAY ROOM</span>
-          </div>
+        <div class="nibwick-roll-preview">
           {% for scenario in alert.roll_scenarios %}
           <article class="nibwick-roll-row">
-            <div><b>+{{ scenario.strike_lift_per_share | money(0) }}</b><small>+{{ scenario.added_days }} DAYS</small></div>
-            <div><b>{{ scenario.target_expiration | short_date }}</b><small>${{ '%g' | format(scenario.target_strike) }}C</small></div>
-            <div>
+            <div><b>${{ '%g' | format(scenario.target_strike) }}C · {{ scenario.target_expiration | short_date }}</b><small>+{{ scenario.strike_lift_per_share | money(0) }} STRIKE · +{{ scenario.added_days }} DAYS</small></div>
+            <div><b>+{{ scenario.assignment_room_gain | money(0) }} ROOM</b><small>{{ scenario.target_buffer_percent | percent }} ABOVE SPOT</small></div>
+            <div class="nibwick-roll-cash">
             {% if scenario.net_roll_per_share > 0 %}
               <b class="positive">+{{ scenario.net_roll_per_share | money }}/SH</b><small>+{{ scenario.net_roll_cash | money(0) }} TOTAL</small>
             {% elif scenario.net_roll_per_share < 0 %}
@@ -80,7 +77,6 @@
               <b>$0.00/SH</b><small>NEAR FLAT</small>
             {% endif %}
             </div>
-            <div><b>+{{ scenario.assignment_room_gain | money(0) }}</b><small>{{ scenario.target_buffer_percent | percent }} ABOVE SPOT</small></div>
           </article>
           {% endfor %}
         </div>

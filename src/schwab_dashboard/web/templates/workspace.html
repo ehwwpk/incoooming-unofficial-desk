@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <title>{{ workspace.label }} · Incoooming Unofficial Desk</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=46">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=47">
     <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=3">
   </head>
   <body class="workspace-page" data-workspace-key="{{ workspace.key.value }}" data-workspace-context='{"account":"{{ snapshot.accounts[0].account_mask if snapshot.accounts else "---" }}","symbol":"ALL","asOf":"{{ snapshot.as_of.date().isoformat() }}"}'>
