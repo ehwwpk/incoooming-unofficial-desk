@@ -132,7 +132,7 @@ const setupPeriodConsole = () => {
   const sheets = [...consoleRoot.querySelectorAll("[data-period-sheet]")];
   const annualControls = controlsRoot.querySelector("[data-annual-controls]");
   const quarterHistory = consoleRoot.querySelector("[data-quarter-history]");
-  const windowCodes = { week: "1W", month: "4W", quarter: "13W", ytd: "YTD", r365: "R365" };
+  const windowCodes = { week: "1W", month: "4W", quarter: "QTR", ytd: "YTD", r365: "R365" };
   let annualMode = "ytd";
   let selectedPeriod = "month";
 

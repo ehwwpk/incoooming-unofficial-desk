@@ -74,6 +74,21 @@
 .workspace-table .numeric { text-align: right; }
 .workspace-table td strong { color: var(--text); }
 .workspace-table td small { display: block; margin-top: 4px; color: var(--subtle); font-size: .44rem; }
+.monthly-performance { border-top: 1px solid var(--line-strong); background: #0c0e10; }
+.monthly-performance > summary { display: flex; min-height: 42px; align-items: center; justify-content: space-between; gap: 18px; padding: 7px 13px; color: var(--muted); cursor: pointer; list-style: none; }
+.monthly-performance > summary::-webkit-details-marker { display: none; }
+.monthly-performance > summary:hover, .monthly-performance > summary:focus-visible { background: #14150f; color: var(--text); outline: 1px solid var(--gold-soft); outline-offset: -1px; }
+.monthly-performance > summary > span { display: flex; align-items: center; gap: 9px; }
+.monthly-performance > summary b { color: var(--gold); font: 750 .48rem var(--mono); letter-spacing: .07em; }
+.monthly-performance > summary small, .monthly-performance > summary strong, .monthly-performance > summary i { color: var(--subtle); font: 650 .43rem var(--mono); font-style: normal; letter-spacing: .04em; }
+.monthly-performance > summary i::before { content: "+ EXPAND"; color: var(--gold); }
+.monthly-performance[open] > summary { border-bottom: 1px solid var(--line); }
+.monthly-performance[open] > summary i::before { content: "− COLLAPSE"; }
+.monthly-performance-table tr.partial { background: #14140e; box-shadow: inset 2px 0 var(--gold); }
+.monthly-target-meter { display: grid; grid-template-columns: minmax(90px, 1fr) 44px; align-items: center; gap: 8px; }
+.monthly-target-meter > span { display: block; height: 4px; overflow: hidden; background: #25282a; }
+.monthly-target-meter i { display: block; width: min(var(--month-progress), 100%); height: 100%; background: var(--green); }
+.monthly-target-meter b { color: var(--muted); font: 650 .46rem var(--mono); text-align: right; }
 .symbol-focus, .volatility-card header button { border: 0; padding: 0; background: transparent; color: var(--gold); font: 800 .62rem var(--mono); }
 .symbol-focus:hover, .symbol-focus:focus-visible, .volatility-card header button:hover, .volatility-card header button:focus-visible { text-decoration: underline; outline: 0; }
 .workspace-state { display: inline-block; border: 1px solid var(--gold-soft); padding: 3px 5px; color: var(--gold); font: 700 .43rem var(--mono); }
@@ -215,4 +230,5 @@
   .workspace-outcomes { grid-template-columns: repeat(2, 1fr); }
   .workspace-outcomes > div { border-bottom: 1px solid var(--line); }
   .workspace-outcomes > div:nth-child(2n) { border-right: 0; }
+  .monthly-performance > summary small { display: none; }
 }

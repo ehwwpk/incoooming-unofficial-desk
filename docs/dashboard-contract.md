@@ -17,7 +17,7 @@ The browser and JSON API consume one typed dashboard snapshot regardless of data
 
 - Returns deterministic, clearly labeled fictional values from an isolated adapter.
 - Uses `DEMO CHECKED` for internally reconciled fixtures; only live broker-backed state may display `RECONCILED`.
-- Exercises a personalized but fictional 13-week option book over 700 CVX, 800 KTOS, and 500 URNM shares.
+- Exercises a personalized but fictional quarterly option book over 700 CVX, 800 KTOS, and 500 URNM shares.
 - Uses frozen, unadjusted Yahoo Finance daily closes retrieved on August 7, 2026 for the underlying price paths. These are real market-session observations; the option executions, marks, IV, and Greeks remain clearly simulated.
 - Keeps every mock call 15–40% above the underlying at sale and 21–56 days to expiration.
 - Derives premium received, executed close/roll debits, net premium cash flow, coverage, and lifecycle totals from execution records.
@@ -28,7 +28,7 @@ The browser and JSON API consume one typed dashboard snapshot regardless of data
 
 1. Combined portfolio: net value, selected-window net premium cash, total strategy income, coverage, calls sold, and shares called away.
 2. Underlying attribution: selected-window option income/APR/dividends/capture, an observed daily-close path with `FULL`, `8W`, and `4W` date ranges, numbered simulated lifecycle markers that map directly to a written event tape, and per-contract premium-received/current-option-value/open-P&L economics.
-3. Income: 13 weekly periods with option cash and dividends reconciled to quarter totals.
+3. Income: a quarterly window with 13 weekly periods reconciled to the quarter total.
 4. Lifecycle: contracts expired, closed, rolled, and still open, plus assignments and the completed-ticket positive-cash rate.
 5. Campaigns: current legs, dates, quarter option cash, open profit/loss, collateral, and return on capital.
 6. Call ledger: sale date, expiry, DTE, quantity, sale-time spot, strike, gap, premium, executed close debit, net cash, outcome, and sale signal.
@@ -61,8 +61,8 @@ Alert severity, facts, thresholds, and method notes come from typed application 
 - Month uses a rolling 28-day view so partial calendar months do not distort the first comparison.
 - Month is the default screen window; changing the performance control updates the combined portfolio summary and window metadata from the same state.
 - The week/month/quarter/year control lives in the top operating header because it governs the full desk context. The accounting sheet below explains the selected window instead of owning the control.
-- Per-name windows reconcile option cash, dividends, gross premium, and executed buy-to-close debits back to the selected portfolio window. Static inventory, live-risk fields, and the 13-week price/execution tape do not pretend to change with that selection.
-- Quarter uses the current detailed 13-week ledger window.
+- Per-name windows reconcile option cash, dividends, gross premium, and executed buy-to-close debits back to the selected portfolio window. Static inventory, live-risk fields, and the quarterly price/execution tape do not pretend to change with that selection.
+- Quarterly uses the current rolling 13-week detailed ledger window.
 - Calendar YTD runs from January 1 through the snapshot date.
 - Rolling 365 uses the trailing 365 calendar days and is intentionally separate from YTD.
 - When rolling 365 is active, the two F1 income cells show explicit one-month averages for net premium cash and total strategy income. Each is the 365-day total divided by 12; the values are context, not additional cash.
@@ -75,7 +75,7 @@ Alert severity, facts, thresholds, and method notes come from typed application 
 
 - The default target is $3,000 per month of net premium cash; dividends are shown separately and do not count toward target attainment.
 - The target is editable from $100 to $1,000,000 and persists in local browser storage for this private installation. Changing it recalculates window pace, rolling-year progress, target gap, and historical months hit.
-- The objective view reports rolling 4-week cash, 13-week monthly run-rate, YTD monthly run-rate, and rolling-365 monthly average together.
+- The objective view reports rolling 4-week cash, quarterly monthly run-rate, YTD monthly run-rate, and rolling-365 monthly average together.
 - “Entry-rule fit” means only that a mock ticket fits the current personal rules: 15–40% above sale-time spot and 21–56 DTE. It is a discipline measure, not a risk score, safety claim, or probability of profit.
 - Coverage, concentration, strike buffer, average DTE, premium capture, and executed-debit drag remain separate inputs so the UI does not hide risk inside one opaque rating.
 

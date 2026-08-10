@@ -100,6 +100,8 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
             "ytd",
             "r365",
         ]
+        assert len(payload["monthly_performance"]) == 8
+        assert payload["monthly_performance"][-1]["is_partial"] is True
         r365 = payload["performance_windows"][-1]
         assert r365["monthly_option_run_rate"] == "2648.33"
         assert r365["monthly_total_run_rate"] == "3084.67"
@@ -207,7 +209,7 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "RANGE POSITION" in page.text
         assert "LIFETIME BASIS LENS" not in page.text
         assert "ORIGINAL CAPITAL REMAINING" not in page.text
-        assert "13-week cash trend" in page.text
+        assert "Quarterly cash trend" in page.text
         assert "AGGREGATED WEEKLY OPTION AND DIVIDEND TOTALS" not in page.text
         assert "ONE ROW PER STOCK" not in page.text
         assert "3</b> STOCKS" in page.text

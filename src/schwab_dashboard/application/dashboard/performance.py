@@ -43,6 +43,17 @@ class QuarterPerformanceSummary:
 
 
 @dataclass(frozen=True, slots=True)
+class MonthlyPerformanceSummary:
+    label: str
+    year: int
+    option_cash: Decimal
+    dividends: Decimal
+    total_cash: Decimal
+    target_progress_percent: Decimal
+    is_partial: bool
+
+
+@dataclass(frozen=True, slots=True)
 class ManagementObjectiveSummary:
     monthly_option_target: Decimal
     rolling_four_week_option_cash: Decimal

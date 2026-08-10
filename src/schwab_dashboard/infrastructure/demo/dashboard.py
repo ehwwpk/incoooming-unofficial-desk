@@ -17,6 +17,7 @@ from schwab_dashboard.infrastructure.demo.fixtures.campaigns import build_campai
 from schwab_dashboard.infrastructure.demo.fixtures.income import build_income_periods
 from schwab_dashboard.infrastructure.demo.fixtures.performance import (
     build_basis_lens,
+    build_monthly_performance,
     build_objective_summary,
     build_performance_windows,
     build_quarter_history,
@@ -103,6 +104,7 @@ class DemoDashboardReader:
             alerts=build_desk_alerts(underlyings, as_of=as_of),
             call_history=call_history,
             performance_windows=performance_windows,
+            monthly_performance=build_monthly_performance(),
             quarter_history=build_quarter_history(),
             objective=build_objective_summary(call_history, covered_calls, performance_windows),
             basis_lens=build_basis_lens(underlyings),

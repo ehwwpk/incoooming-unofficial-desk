@@ -22,11 +22,11 @@
       </div>
       <div class="volatility-detail">
         <div><span>IV − REALIZED</span><strong class="{{ row.implied_minus_realized_points | pnl_class }}">{{ row.implied_minus_realized_points | number(1) }} pts</strong></div>
-        <div><span>13W MOVE</span><strong class="{{ row.thirteen_week_change_percent | pnl_class }}">{{ row.thirteen_week_change_percent | percent }}</strong></div>
+        <div><span>QTR MOVE</span><strong class="{{ row.thirteen_week_change_percent | pnl_class }}">{{ row.thirteen_week_change_percent | percent }}</strong></div>
         <div><span>RANGE POSITION</span><strong>{{ row.range_position_percent | percent }}</strong></div>
         <div><span>CALL STRIKE BUFFER</span><strong class="{{ row.strike_buffer_percent | pnl_class }}">{{ row.strike_buffer_percent | percent }}</strong></div>
       </div>
-      <div class="range-meter" aria-label="{{ row.symbol }} is {{ row.range_position_percent }} percent through its 13 week range"><span style="--range-position: {{ row.range_position_percent }}%"></span></div>
+      <div class="range-meter" aria-label="{{ row.symbol }} is {{ row.range_position_percent }} percent through its rolling quarterly range"><span style="--range-position: {{ row.range_position_percent }}%"></span></div>
       <footer><span>IV RANK</span><b>{{ row.iv_rank_percent | percent if row.iv_rank_percent is not none else 'WAITING FOR IV HISTORY' }}</b></footer>
     </article>
     {% endfor %}

@@ -11,6 +11,7 @@ from schwab_dashboard.application.dashboard.covered_calls import (
 from schwab_dashboard.application.dashboard.performance import (
     BasisLensSummary,
     ManagementObjectiveSummary,
+    MonthlyPerformanceSummary,
     PerformanceWindowSummary,
     QuarterPerformanceSummary,
     calculate_capital_recovery,
@@ -34,7 +35,7 @@ def build_performance_windows(
         ("month", "4 WEEKS", "Jul 11 - Aug 07", 28, "1950", "0", "3390", "1440", 5, 18, 4, 3),
         (
             "quarter",
-            "13 WEEKS",
+            "QUARTERLY",
             "May 15 - Aug 07",
             85,
             str(covered_calls.net_option_cash),
@@ -96,6 +97,22 @@ def build_quarter_history() -> tuple[QuarterPerformanceSummary, ...]:
         )
         for label, option_cash, dividends in rows
     )
+
+
+def build_monthly_performance() -> tuple[MonthlyPerformanceSummary, ...]:
+    """Return calendar-YTD cash rows that reconcile to the demo YTD window."""
+
+    rows = (
+        ("JAN", 2026, "2100", "0", False),
+        ("FEB", 2026, "1700", "0", False),
+        ("MAR", 2026, "3300", "1197", False),
+        ("APR", 2026, "2900", "0", False),
+        ("MAY", 2026, "3600", "0", False),
+        ("JUN", 2026, "3100", "1421", False),
+        ("JUL", 2026, "3435", "798", False),
+        ("AUG", 2026, "1745", "0", True),
+    )
+    return tuple(_monthly_summary(row) for row in rows)
 
 
 def build_objective_summary(
@@ -233,6 +250,20 @@ def _window(row: tuple[object, ...], stock_value: Decimal) -> PerformanceWindowS
         buyback_drag_percent=(buyback_cost / gross_premium * 100).quantize(TENTH)
         if gross_premium
         else ZERO,
+    )
+
+
+def _monthly_summary(row: tuple[object, ...]) -> MonthlyPerformanceSummary:
+    label, year = str(row[0]), int(str(row[1]))
+    option_cash, dividends = D(str(row[2])), D(str(row[3]))
+    return MonthlyPerformanceSummary(
+        label=label,
+        year=year,
+        option_cash=option_cash,
+        dividends=dividends,
+        total_cash=option_cash + dividends,
+        target_progress_percent=(option_cash / MONTHLY_TARGET * 100).quantize(TENTH),
+        is_partial=bool(row[4]),
     )
 
 

@@ -92,7 +92,7 @@
             </div>
             <div class="price-date-axis"><span data-chart-date="start">{{ item.price_points[0].label }}</span><span data-chart-date="mid">{{ item.price_points[30].label }}</span><span data-chart-date="end">{{ item.price_points[-1].label }}</span></div>
           </div>
-          <div class="price-map-legend"><span><i></i> <b data-chart-session-count>{{ item.price_points | length }}</b> MARKET SESSIONS</span><span><b class="sale">S</b> SOLD</span><span><b class="expired">X</b> EXPIRED</span><span><b class="managed">C/R</b> MANAGED</span><span><b class="assigned">A</b> ASSIGNED</span><span><b class="share-trade">±</b> SHARES</span><small><b data-chart-event-count>{{ item.price_events | length + item.share_trade_events | length }}</b> VISIBLE EVENTS · YAHOO FINANCE CLOSE · FROZEN 08/07/26 · SIMULATED CALLS</small></div>
+          <div class="price-map-legend"><span><i></i> <b data-chart-session-count>{{ item.price_points | length }}</b> MARKET SESSIONS</span><span><b class="sale">S</b> SOLD</span><span><b class="expired">X</b> EXPIRED</span><span><b class="closed">C</b> CLOSED</span><span><b class="rolled">R</b> ROLLED</span><span><b class="assigned">A</b> ASSIGNED</span><span><b class="share-trade">±</b> SHARES</span><small><b data-chart-event-count>{{ item.price_events | length + item.share_trade_events | length }}</b> VISIBLE EVENTS · YAHOO FINANCE CLOSE · FROZEN 08/07/26 · SIMULATED CALLS</small></div>
           <div class="price-event-ledger" aria-label="{{ item.symbol }} numbered option event tape">
             {% for event in item.price_events %}
             <div class="{{ event.event_type }}" data-chart-ledger-event data-date="{{ event.date.isoformat() }}"><b>{{ event.sequence }}</b><span><i>{{ event.label }} · {{ event.glyph }}</i><strong>{{ event.detail }}</strong></span></div>
@@ -162,7 +162,7 @@
         </section>
 
         <section class="underlying-history" aria-label="{{ item.symbol }} execution outcomes and basis">
-          <div class="history-caption">13W EXECUTION OUTCOMES</div>
+          <div class="history-caption">QUARTERLY EXECUTION OUTCOMES</div>
           <div class="underlying-lifecycle">
             <div><span>Sold</span><b>{{ item.contracts_sold }}</b></div>
             <div><span>Expired</span><b>{{ item.expired_contracts }}</b></div>

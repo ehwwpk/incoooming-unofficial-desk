@@ -129,6 +129,33 @@ def test_every_performance_window_reconciles_cash_and_goal_math() -> None:
     assert windows["r365"].monthly_option_run_rate < D("3000")
 
 
+def test_monthly_performance_reconciles_to_calendar_ytd() -> None:
+    snapshot = DemoDashboardReader().execute()
+    ytd = next(window for window in snapshot.performance_windows if window.key == "ytd")
+
+    assert [month.label for month in snapshot.monthly_performance] == [
+        "JAN",
+        "FEB",
+        "MAR",
+        "APR",
+        "MAY",
+        "JUN",
+        "JUL",
+        "AUG",
+    ]
+    assert sum((month.option_cash for month in snapshot.monthly_performance), D("0")) == (
+        ytd.option_cash
+    )
+    assert sum((month.dividends for month in snapshot.monthly_performance), D("0")) == (
+        ytd.dividends
+    )
+    assert all(
+        month.total_cash == month.option_cash + month.dividends
+        for month in snapshot.monthly_performance
+    )
+    assert snapshot.monthly_performance[-1].is_partial
+
+
 def test_management_objective_exposes_inputs_instead_of_a_single_risk_score() -> None:
     snapshot = DemoDashboardReader().execute()
     objective = snapshot.objective

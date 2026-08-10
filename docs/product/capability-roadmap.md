@@ -14,7 +14,7 @@ The product's advantage is joining these clocks while never collapsing them into
 
 The demo already proves the interaction and presentation model for:
 
-- selectable 1W, rolling 4W, 13W, YTD, and rolling-365 cash windows;
+- selectable 1W, rolling 4W, QTR (rolling 13 weeks), YTD, and rolling-365 cash windows;
 - net premium cash, dividends, total strategy cash, APR, pace, and target tracking;
 - active coverage, lifecycle counts, called-away shares, and lifetime income lens;
 - daily underlying closes linked to simulated option and share events;

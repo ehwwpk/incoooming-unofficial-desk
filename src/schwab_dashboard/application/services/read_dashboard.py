@@ -64,6 +64,7 @@ class ReadDashboard:
             alerts=(),
             call_history=(),
             performance_windows=(),
+            monthly_performance=(),
             quarter_history=(),
             objective=_empty_objective(),
             basis_lens=(),

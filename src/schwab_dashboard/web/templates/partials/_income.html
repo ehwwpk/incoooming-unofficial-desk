@@ -1,7 +1,7 @@
 <section class="panel income-panel" id="income">
   <div class="section-heading terminal-heading">
     <div>
-      <h2>13-week cash trend</h2>
+      <h2>Quarterly cash trend</h2>
     </div>
     <div class="legend" aria-label="Chart legend">
       <span><i class="option-key"></i>Net option income</span>
@@ -12,7 +12,7 @@
 
   {% if snapshot.income_periods %}
   <div class="income-scroll">
-    <div class="income-chart" aria-label="Thirteen-week income chart">
+    <div class="income-chart" aria-label="Quarterly income chart, shown as thirteen weekly periods">
       {% for period in snapshot.income_periods %}
       <div class="bar-column {{ 'debit' if period.total < 0 else '' }}">
         <div class="bar-value {{ period.total | pnl_class }}">{{ period.total | money(0) }}</div>

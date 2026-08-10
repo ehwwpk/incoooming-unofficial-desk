@@ -15,6 +15,7 @@ from schwab_dashboard.application.dashboard.covered_calls import (
 from schwab_dashboard.application.dashboard.performance import (
     BasisLensSummary,
     ManagementObjectiveSummary,
+    MonthlyPerformanceSummary,
     PerformanceWindowSummary,
     QuarterPerformanceSummary,
 )
@@ -120,6 +121,7 @@ class DashboardSnapshot:
     alerts: Sequence[DeskAlert]
     call_history: Sequence[CallSaleRecord]
     performance_windows: Sequence[PerformanceWindowSummary]
+    monthly_performance: Sequence[MonthlyPerformanceSummary]
     quarter_history: Sequence[QuarterPerformanceSummary]
     objective: ManagementObjectiveSummary
     basis_lens: Sequence[BasisLensSummary]

@@ -50,6 +50,8 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert review.status_code == 200
         assert "Cash results and normalized pace" in review.text
         assert "OPEN MARK EXCLUDED FROM CASH" in review.text
+        assert "MONTH BY MONTH" in review.text
+        assert "THROUGH AUG 07" in review.text
 
         assert volatility.status_code == 200
         assert "Historical IV is not yet collected" in volatility.text
