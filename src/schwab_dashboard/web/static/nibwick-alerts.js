@@ -4,6 +4,7 @@
   const stage = document.querySelector("[data-nibwick-stage]");
   const nibwick = document.querySelector("[data-nibwick]");
   const badge = document.querySelector("[data-nibwick-alert-badge]");
+  const summaryTriggers = [...document.querySelectorAll("[data-nibwick-summary]")];
   const closeButton = panel?.querySelector("[data-nibwick-close]");
   if (!panel || !notes.length || !stage || !nibwick || !badge || !closeButton) return;
 
@@ -99,6 +100,9 @@
   const setExpanded = (expanded) => {
     nibwick.setAttribute("aria-expanded", String(expanded));
     badge.setAttribute("aria-expanded", String(expanded));
+    summaryTriggers.forEach((trigger) => {
+      trigger.setAttribute("aria-expanded", String(expanded));
+    });
   };
 
   const showNote = (index) => {
@@ -193,6 +197,9 @@
   });
   closeButton.addEventListener("click", () => closePanel());
   badge.addEventListener("click", () => togglePanel(badge));
+  summaryTriggers.forEach((trigger) => {
+    trigger.addEventListener("click", () => togglePanel(trigger));
+  });
   document.addEventListener("nibwick:toggle-notes", (event) => {
     togglePanel(event.detail?.trigger || nibwick);
   });
@@ -203,7 +210,7 @@
     if (
       panel.hidden ||
       !(event.target instanceof Element) ||
-      event.target.closest("[data-nibwick-popover], [data-nibwick], [data-nibwick-alert-badge]")
+      event.target.closest("[data-nibwick-popover], [data-nibwick], [data-nibwick-alert-badge], [data-nibwick-summary]")
     ) {
       return;
     }

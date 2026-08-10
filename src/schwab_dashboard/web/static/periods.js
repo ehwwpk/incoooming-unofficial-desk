@@ -1,4 +1,6 @@
 const TARGET_STORAGE_KEY = "callDesk.monthlyOptionTarget";
+let currentMonthlyTarget = 0;
+let activeMonthlyPace = 0;
 
 const currency = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -21,6 +23,14 @@ const setOptionalText = (selector, value, visible) => {
 
 const percent = (value) => `${value.toFixed(1)}%`;
 
+const updateDeskTargetProgress = () => {
+  const progress = currentMonthlyTarget > 0 ? (activeMonthlyPace / currentMonthlyTarget) * 100 : 0;
+  setText("[data-desk-target-progress]", percent(progress));
+  document.querySelectorAll("[data-desk-target-progress-bar]").forEach((bar) => {
+    bar.style.setProperty("--desk-target-progress", `${Math.min(Math.max(progress, 0), 100)}%`);
+  });
+};
+
 const setupTargetEditor = () => {
   const objective = document.querySelector("[data-objective-console]");
   if (!objective) return;
@@ -38,6 +48,7 @@ const setupTargetEditor = () => {
 
   const update = (rawTarget, persist = true) => {
     const target = normalize(Number(rawTarget) || defaultTarget);
+    currentMonthlyTarget = target;
     const targetLabel = currency.format(target);
     const gap = target - rollingAverage;
     const progress = target > 0 ? (rollingAverage / target) * 100 : 0;
@@ -57,6 +68,7 @@ const setupTargetEditor = () => {
     document.querySelectorAll("[data-objective-progress-bar]").forEach((bar) => {
       bar.style.setProperty("--objective-progress", `${Math.min(progress, 100)}%`);
     });
+    updateDeskTargetProgress();
     document.querySelectorAll("[data-period-sheet]").forEach((sheet) => {
       const runRate = Number(sheet.dataset.monthlyRunRate) || 0;
       const sheetProgress = target > 0 ? Math.max(0, (runRate / target) * 100) : 0;
@@ -129,12 +141,17 @@ const setupPeriodConsole = () => {
     const key = sheet.dataset.periodSheet;
     setText("[data-active-window]", windowCodes[key] || sheet.dataset.windowLabel);
     setText("[data-active-range]", sheet.dataset.rangeLabel);
-    setText("[data-active-option-label]", `NET PREMIUM CASH / ${sheet.dataset.windowLabel}`);
+    setText("[data-active-option-label]", `NET OPTION INCOME / ${sheet.dataset.windowLabel}`);
     setText("[data-active-option-cash]", sheet.dataset.optionCash);
-    setText("[data-active-option-meta]", `${sheet.dataset.optionApr} APR / ${sheet.dataset.gross} premium received`);
-    setText("[data-active-total-label]", `TOTAL STRATEGY INCOME / ${sheet.dataset.windowLabel}`);
+    setText("[data-active-option-meta]", `${sheet.dataset.optionApr} APR · after executed close and roll costs`);
+    setText("[data-active-window-label]", sheet.dataset.windowLabel);
+    setText("[data-active-dividend-cash]", sheet.dataset.dividends);
+    setText("[data-active-total-label]", `TOTAL INCOME / ${sheet.dataset.windowLabel}`);
     setText("[data-active-total-cash]", sheet.dataset.totalCash);
-    setText("[data-active-total-meta]", `${sheet.dataset.totalApr} APR / includes ${sheet.dataset.dividends} dividend income`);
+    setText("[data-active-total-meta]", `Option income plus dividends · ${sheet.dataset.totalApr} APR`);
+    setText("[data-active-monthly-pace]", sheet.dataset.monthlyTotalAverage);
+    activeMonthlyPace = Number(sheet.dataset.monthlyRunRate) || 0;
+    updateDeskTargetProgress();
     const showMonthlyAverage = key === "r365";
     setOptionalText(
       "[data-active-option-average]",
@@ -158,12 +175,14 @@ const setupPeriodConsole = () => {
       const windowData = card.querySelector(`[data-name-window="${activeSheetKey}"]`);
       if (!windowData) return;
       const windowCode = windowCodes[activeSheetKey] || windowLabel;
-      card.querySelector("[data-name-option-label]").textContent = `NET PREMIUM CASH / ${windowLabel}`;
+      card.querySelector("[data-name-option-label]").textContent = `NET OPTION INCOME / ${windowLabel}`;
       card.querySelector("[data-name-option-cash]").textContent = windowData.dataset.optionCash;
-      card.querySelector("[data-name-option-apr-label]").textContent = `PREMIUM CASH APR / ${windowCode}`;
+      card.querySelector("[data-name-option-apr-label]").textContent = `OPTION INCOME APR / ${windowCode}`;
       card.querySelector("[data-name-option-apr]").textContent = windowData.dataset.optionApr;
       card.querySelector("[data-name-dividend-label]").textContent = `DIVIDENDS / ${windowCode}`;
-      card.querySelector("[data-name-dividends]").textContent = windowData.dataset.dividends;
+      card.querySelectorAll("[data-name-dividends]").forEach((node) => {
+        node.textContent = windowData.dataset.dividends;
+      });
       card.querySelector("[data-name-capture-label]").textContent = `CAPTURE / ${windowCode}`;
       card.querySelector("[data-name-capture]").textContent = windowData.dataset.capture;
     });

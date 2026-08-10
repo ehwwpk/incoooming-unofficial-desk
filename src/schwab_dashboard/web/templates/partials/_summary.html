@@ -1,37 +1,94 @@
 {% set active = snapshot.performance_windows[1] if snapshot.performance_windows else none %}
-<section class="portfolio-console" aria-label="Combined portfolio covered call summary">
-  <article class="console-cell net-liq">
-    <span>NET LIQUIDATION</span>
-    <strong>{{ snapshot.portfolio.total_value | money }}</strong>
-    <small class="{{ snapshot.portfolio.day_profit_loss | pnl_class }}">
-      {{ snapshot.portfolio.day_profit_loss | money }} / {{ snapshot.portfolio.day_profit_loss_percent | percent(2) }} today
-    </small>
+<section
+  class="desk-pulse"
+  aria-label="Covered-call income and live option summary"
+  data-objective-console
+  data-default-target="{{ snapshot.objective.monthly_option_target }}"
+  data-rolling-average="{{ snapshot.objective.rolling_year_monthly_average }}"
+  data-monthly-results="{{ snapshot.objective.monthly_option_results | join(',') }}"
+>
+  <article class="pulse-panel income-pulse">
+    <header>
+      <div><p class="eyebrow">INCOME</p><h2>What the strategy earned</h2></div>
+      <a href="/workspaces/attribution">STRATEGY REVIEW <span aria-hidden="true">→</span></a>
+    </header>
+    <div class="pulse-income-grid">
+      <div class="pulse-primary">
+        <span data-active-option-label>NET OPTION INCOME / {{ active.label if active else 'WINDOW' }}</span>
+        <strong class="{{ active.option_cash | pnl_class if active else '' }}" data-active-option-cash>{{ active.option_cash | money if active else snapshot.covered_calls.net_option_cash | money }}</strong>
+        <small data-active-option-meta>{% if active %}{{ active.annualized_option_yield | percent }} APR · after executed close and roll costs{% else %}Waiting for normalized option cash{% endif %}</small>
+        <small class="pulse-average" data-active-option-average hidden></small>
+      </div>
+      <div>
+        <span>DIVIDENDS / <b data-active-window-label>{{ active.label if active else 'WINDOW' }}</b></span>
+        <strong data-active-dividend-cash>{{ active.dividends | money if active else snapshot.covered_calls.dividends | money }}</strong>
+        <small>Cash dividends received</small>
+      </div>
+      <div>
+        <span data-active-total-label>TOTAL INCOME / {{ active.label if active else 'WINDOW' }}</span>
+        <strong class="{{ active.total_cash | pnl_class if active else '' }}" data-active-total-cash>{{ active.total_cash | money if active else snapshot.covered_calls.total_cash_income | money }}</strong>
+        <small data-active-total-meta>Option income plus dividends</small>
+        <small class="pulse-average" data-active-total-average hidden></small>
+      </div>
+      <div>
+        <span>MONTHLY TOTAL INCOME PACE</span>
+        <strong class="{{ active.monthly_total_run_rate | pnl_class if active else '' }}" data-active-monthly-pace>{{ active.monthly_total_run_rate | money if active else '$0.00' }}</strong>
+        <small>Selected income normalized to one month</small>
+      </div>
+    </div>
+    <footer class="income-target-bar">
+      <label for="monthly-target">MONTHLY OPTION INCOME TARGET <span>$</span><input id="monthly-target" data-target-input type="number" inputmode="numeric" min="100" max="1000000" step="100" value="{{ snapshot.objective.monthly_option_target }}"></label>
+      <button type="button" data-target-reset>RESET</button>
+      <div class="target-readout">
+        <span><b data-desk-target-progress>{{ active.target_progress_percent | percent if active else '0.0%' }}</b> OF OPTION TARGET</span>
+        <i><em data-desk-target-progress-bar style="--desk-target-progress: {{ active.target_progress_percent if active else 0 }}%"></em></i>
+      </div>
+    </footer>
   </article>
-  <article class="console-cell cash-primary">
-    <span data-active-option-label>NET PREMIUM CASH / {{ active.label if active else 'WINDOW' }}</span>
-    <strong data-active-option-cash>{{ active.option_cash | money if active else snapshot.covered_calls.net_option_cash | money }}</strong>
-    <small data-active-option-meta>{% if active %}{{ active.annualized_option_yield | percent }} APR / {{ active.gross_premium | money }} premium received{% else %}AWAITING NORMALIZED CASH DATA{% endif %}</small>
-    <small class="console-monthly-average" data-active-option-average hidden></small>
-  </article>
-  <article class="console-cell">
-    <span data-active-total-label>TOTAL STRATEGY INCOME / {{ active.label if active else 'WINDOW' }}</span>
-    <strong data-active-total-cash>{{ active.total_cash | money if active else snapshot.covered_calls.total_cash_income | money }}</strong>
-    <small data-active-total-meta>{% if active %}{{ active.annualized_total_yield | percent }} APR / includes {{ active.dividends | money }} dividend income{% else %}AWAITING NORMALIZED CASH DATA{% endif %}</small>
-    <small class="console-monthly-average" data-active-total-average hidden></small>
-  </article>
-  <article class="console-cell">
-    <span>ACTIVE COVERAGE</span>
-    <strong>{{ snapshot.covered_calls.active_contracts }}/{{ snapshot.covered_calls.contract_capacity }}</strong>
-    <small>{{ snapshot.covered_calls.coverage_percent | percent }} of shares covered</small>
-  </article>
-  <article class="console-cell">
-    <span>CALLS / CONTRACTS SOLD</span>
-    <strong data-active-calls-contracts>{% if active %}{{ active.call_tickets }} / {{ active.contracts }}{% else %}0 / 0{% endif %}</strong>
-    <small data-active-win-rate>{% if active %}{{ active.win_rate | percent }}{% else %}0.0%{% endif %} positive-cash completion rate</small>
-  </article>
-  <article class="console-cell">
-    <span data-active-capture-label>PREMIUM CAPTURE / {{ active.label if active else 'WINDOW' }}</span>
-    <strong data-active-capture-value>{% if active %}{{ active.premium_capture_percent | percent }}{% else %}0.0%{% endif %}</strong>
-    <small data-active-capture-meta>{% if active %}{{ active.buyback_drag_percent | percent }} executed-debit drag{% else %}AWAITING NORMALIZED CASH DATA{% endif %}</small>
+
+  <article class="pulse-panel live-book-pulse">
+    <header>
+      <div><p class="eyebrow">LIVE COVERED CALLS</p><h2>What is open right now</h2></div>
+      <a href="/workspaces/risk">OPEN CALLS <span aria-hidden="true">→</span></a>
+    </header>
+    <div class="live-book-grid">
+      <div>
+        <span>OPEN OPTION POSITIONS</span>
+        <strong>{{ desk_overview.open_positions }}</strong>
+        <small>{{ desk_overview.open_contracts }} contracts across {{ desk_overview.position_rows | length }} stocks</small>
+      </div>
+      <div>
+        <span>SHARE LOTS COVERED</span>
+        <strong>{{ desk_overview.open_contracts }}/{{ desk_overview.contract_capacity }}</strong>
+        <small>{{ desk_overview.coverage_percent | percent }} covered</small>
+      </div>
+      <div class="nearest-call">
+        <span>CLOSEST CALL TO STRIKE</span>
+        {% if desk_overview.nearest_call %}
+        <strong>{{ desk_overview.nearest_call.symbol }} ${{ '%g' | format(desk_overview.nearest_call.strike) }}C</strong>
+        {% if desk_overview.nearest_call.strike_distance_per_share >= 0 %}
+        <small>{{ desk_overview.nearest_call.strike_distance_per_share | money }} / {{ desk_overview.nearest_call.strike_distance_percent | percent }} above spot</small>
+        {% else %}
+        <small class="negative">{{ (-desk_overview.nearest_call.strike_distance_per_share) | money }} / {{ (-desk_overview.nearest_call.strike_distance_percent) | percent }} past strike</small>
+        {% endif %}
+        {% else %}<strong>NONE</strong><small>No open short calls</small>{% endif %}
+      </div>
+      <div>
+        <span>NEXT EXPIRATION</span>
+        {% if desk_overview.next_expiring_call %}
+        <strong>{{ desk_overview.next_expiring_call.expires_on | short_date }}</strong>
+        <small>{{ desk_overview.next_expiring_call.symbol }} ${{ '%g' | format(desk_overview.next_expiring_call.strike) }}C · {{ desk_overview.next_expiring_call.days_to_expiration }} DTE</small>
+        {% else %}<strong>NONE</strong><small>No expiry scheduled</small>{% endif %}
+      </div>
+    </div>
+    <footer class="live-book-footer">
+      <div><span>OPEN OPTION RESULT</span><b class="{{ desk_overview.open_mark_profit_loss | pnl_class }}">{{ desk_overview.open_mark_profit_loss | money }}</b><small>Unrealized estimate</small></div>
+      <div><span>DIVIDEND OVERLAP</span><b>{{ desk_overview.dividend_overlap_contracts }} CONTRACTS</b><small>Calls open across an ex-dividend date</small></div>
+      {% if snapshot.alerts %}
+      <button type="button" data-nibwick-summary aria-expanded="false" aria-controls="nibwick-note-popover"><span>NIBWICK NOTES</span><b>{{ snapshot.alerts | length }} TO REVIEW</b><small>{{ snapshot.alerts[0].symbol }} · {{ snapshot.alerts[0].headline }}</small></button>
+      {% else %}
+      <div class="all-clear"><span>DESK NOTES</span><b>ALL CLEAR</b><small>No current exception needs review</small></div>
+      {% endif %}
+    </footer>
   </article>
 </section>

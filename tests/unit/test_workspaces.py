@@ -1,3 +1,4 @@
+from schwab_dashboard.application.dashboard.overview import build_desk_overview
 from schwab_dashboard.application.ports.brokerage_data import (
     BrokerageSourceProfile,
     BrokerCapability,
@@ -36,6 +37,22 @@ def test_open_book_projection_reconciles_to_dashboard_open_mark() -> None:
     assert projection.open_profit_loss == snapshot.covered_calls.open_mark_profit_loss
     assert projection.theta_estimate_per_day == snapshot.risk.daily_theta
     assert projection.obligated_shares == snapshot.covered_calls.active_contracts * 100
+
+
+def test_desk_overview_prioritizes_the_nearest_live_call_without_losing_totals() -> None:
+    snapshot = DemoDashboardReader().execute()
+    overview = build_desk_overview(snapshot)
+
+    assert overview.open_positions == 5
+    assert overview.open_contracts == snapshot.covered_calls.active_contracts
+    assert overview.open_mark_profit_loss == snapshot.covered_calls.open_mark_profit_loss
+    assert overview.nearest_call is not None
+    assert overview.nearest_call.symbol == "KTOS"
+    assert overview.nearest_call.strike == 65
+    assert overview.next_expiring_call is not None
+    assert overview.next_expiring_call.days_to_expiration == 28
+    assert len(overview.position_rows) == len(snapshot.underlyings)
+    assert sum(row.open_positions for row in overview.position_rows) == overview.open_positions
 
 
 def test_volatility_projection_uses_daily_closes_and_refuses_to_invent_iv_rank() -> None:

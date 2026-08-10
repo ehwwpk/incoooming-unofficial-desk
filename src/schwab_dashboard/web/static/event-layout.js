@@ -153,6 +153,7 @@
   for (const canvas of canvases) observer.observe(canvas);
   window.addEventListener("resize", scheduleLayout, { passive: true });
   document.addEventListener("chart-viewport-change", scheduleLayout);
+  document.addEventListener("position-detail-toggle", scheduleLayout);
   document.fonts?.ready.then(scheduleLayout);
   scheduleLayout();
 })();

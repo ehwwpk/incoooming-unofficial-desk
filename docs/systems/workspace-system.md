@@ -10,9 +10,9 @@ into an unreadable wall of equally weighted boxes.
 
 One primary Desk and four bounded secondary tools share a consistent shell:
 
-- Desk: outcomes, exceptions, target progress, and data health.
+- Desk: option income, dividends, target pace, live covered-call inventory, and exceptions.
 - Open Calls: cross-portfolio obligations, strike pressure, marks, and time decay.
-- Attribution: actual versus baseline, lifecycle economics, and cohorts.
+- Strategy Review: cash reconciliation, capture, lifecycle economics, outcomes, and basis.
 - Volatility: surfaces, histories, regimes, and research studies.
 - Data & Records: executions, cash, positions, lifecycle events, source readiness, and provenance.
 
@@ -20,6 +20,22 @@ The default Desk is an inverted pyramid: headline decisions first, supporting ev
 records last. Its F1-F4 rail is local page navigation, not a second application hierarchy. Less
 frequent analytical routes sit behind one `TOOLS` disclosure. Nibwick is an optional friendly
 exception interface, not a parallel navigation system.
+
+## Desk compression contract
+
+The default Desk is optimized for a covered-call seller and dividend collector. Its first fold must
+answer four questions without opening another panel:
+
+1. What net option income and dividend cash did the selected window produce?
+2. What is the normalized monthly pace versus the operator's editable target?
+3. How many calls and share lots are open, and which strike or expiration is nearest?
+4. Is there a dividend overlap or Nibwick note worth reviewing?
+
+The inventory uses one compact row per stock. Charts, event maps, individual contracts, Greeks, and
+lifetime basis calculations remain available inside a single-stock disclosure, with only one stock
+open at a time. The Desk may summarize specialist calculations, but their canonical detail lives in
+Open Calls, Strategy Review, Volatility Lab, or Data & Records. This prevents repeated values from
+competing with the two daily jobs: monitoring live obligations and measuring realized income.
 
 ## Layout model
 

@@ -75,6 +75,7 @@
   const observer = new ResizeObserver(scheduleDraw);
   for (const canvas of canvases) observer.observe(canvas);
   document.addEventListener("option-event-layout", scheduleDraw);
+  document.addEventListener("position-detail-toggle", scheduleDraw);
   window.addEventListener("resize", scheduleDraw, { passive: true });
   document.fonts?.ready.then(scheduleDraw);
   scheduleDraw();

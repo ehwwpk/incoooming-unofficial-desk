@@ -14,6 +14,11 @@ The Desk remains the primary daily operating surface. Its F1-F4 rail navigates D
 
 Labels are catalog data. Keys are permanent identities used by routes, stored preferences, tests, and future layouts. Renaming a window must never require a data migration.
 
+The Desk itself is intentionally shallow: one income panel, one live-call panel, one compact row per
+stock, a weekly income history, and a closed audit trail. Opening a stock reveals its full chart and
+contract book; opening a secondary tool reveals portfolio-wide specialist analysis. This is
+progressive disclosure, not a second tab hierarchy.
+
 ## Window behavior
 
 - A normal link always navigates in the current window.

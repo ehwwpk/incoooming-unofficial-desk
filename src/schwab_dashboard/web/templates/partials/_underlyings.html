@@ -1,31 +1,23 @@
 <section class="section-block" id="underlyings">
   <div class="section-heading terminal-heading">
-    <div><p class="eyebrow">SECURITY WORKSPACES</p><h2>Stocks and active calls</h2></div>
-    <span class="portfolio-theta-total" title="Theoretical one-day option value decay across all open short calls, holding other pricing inputs constant. Not realized income."><small>PORTFOLIO OPEN-CALL DECAY EST. / DAY</small><b>+{{ snapshot.risk.daily_theta | money }}</b><i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i></span>
+    <div><p class="eyebrow">COVERED-CALL INVENTORY</p><h2>Positions</h2></div>
+    <span class="section-instruction">ONE ROW PER STOCK · OPEN A NAME FOR CHARTS AND CONTRACT DETAIL</span>
   </div>
   {% if snapshot.underlyings %}
   <div class="underlying-grid">
-    {% for item in snapshot.underlyings %}
+    {% for row in desk_overview.position_rows %}
+    {% set item = row.underlying %}
     {% set active_window = item.performance_windows[1] %}
-    <article id="{{ item.symbol | lower }}-workspace" class="underlying-card {{ item.tone }}-edge" data-underlying-card="{{ item.symbol }}">
-      <header>
-        <div><strong>{{ item.symbol }}</strong><span>{{ item.company_name }}</span></div>
-        <div class="price-block"><strong>{{ item.current_price | money }}</strong><span>{{ item.market_value | money }} MV</span></div>
-      </header>
-      <div class="underlying-primary">
-        <div><span data-name-option-label>NET PREMIUM CASH / 4 WEEKS</span><strong data-name-option-cash>{{ active_window.option_cash | money }}</strong></div>
-        <div><span>SHARES</span><strong>{{ item.shares }}</strong></div>
-        <div><span>ACTIVE CALLS</span><strong>{{ item.active_contracts }}/{{ item.contract_capacity }}</strong></div>
-        <div class="theta-total" title="Theoretical one-day option value decay across this stock's open short calls, holding other pricing inputs constant. Not realized income."><span>EST. TIME DECAY / DAY</span><strong>+{{ item.open_call_theta_per_day | money }}</strong><small>ALL OPEN CALLS // {{ 'SIM' if snapshot.is_demo else 'LIVE' }}</small></div>
-      </div>
-      <div class="name-analytics">
-        <div><span data-name-option-apr-label>PREMIUM CASH APR / 4W</span><b data-name-option-apr>{{ active_window.option_apr | percent }}</b></div>
-        <div><span data-name-dividend-label>DIVIDENDS / 4W</span><b data-name-dividends>{{ active_window.dividends | money }}</b></div>
-        <div><span>AVG OPEN IV <i>SIM</i></span><b>{{ item.average_open_call_iv_percent | percent }}</b></div>
-        <div><span>AVG CALL DELTA</span><b>{{ item.average_open_call_delta | number(2) }}</b></div>
-        <div><span>STRIKE BUFFER</span><b>{{ item.current_strike_buffer_percent | percent }}</b></div>
-        <div><span data-name-capture-label>CAPTURE / 4W</span><b data-name-capture>{{ active_window.premium_capture_percent | percent }}</b></div>
-      </div>
+    <details id="{{ item.symbol | lower }}-workspace" class="underlying-card position-book {{ item.tone }}-edge" data-underlying-card="{{ item.symbol }}" data-position-details>
+      <summary class="position-row-summary">
+        <div class="position-identity"><strong>{{ item.symbol }}</strong><span>{{ item.company_name }}</span><small>{{ item.current_price | money }} · {{ item.market_value | money(0) }} value</small></div>
+        <div><span>SHARES</span><strong>{{ item.shares }}</strong><small>{{ item.active_contracts }}/{{ item.contract_capacity }} lots covered</small></div>
+        <div class="position-income"><span data-name-option-label>NET OPTION INCOME / 4 WEEKS</span><strong data-name-option-cash>{{ active_window.option_cash | money }}</strong><small><b data-name-dividends>{{ active_window.dividends | money }}</b> dividends</small></div>
+        <div><span>OPEN CALLS</span><strong>{{ row.open_positions }} <small>/ {{ item.active_contracts }} contracts</small></strong><small>{{ item.coverage_percent | percent }} share coverage</small></div>
+        <div class="position-nearest"><span>NEAREST STRIKE</span>{% if row.nearest_call %}<strong>${{ '%g' | format(row.nearest_call.strike) }}C</strong>{% if row.nearest_call.strike_distance_per_share >= 0 %}<small>{{ row.nearest_call.strike_distance_percent | percent }} above · {{ row.nearest_call.days_to_expiration }} DTE</small>{% else %}<small class="negative">{{ (-row.nearest_call.strike_distance_percent) | percent }} past · {{ row.nearest_call.days_to_expiration }} DTE</small>{% endif %}{% else %}<strong>NONE</strong><small>No open call</small>{% endif %}</div>
+        <div><span>OPEN OPTION RESULT</span><strong class="{{ row.open_mark_profit_loss | pnl_class }}">{{ row.open_mark_profit_loss | money }}</strong><small>Unrealized estimate</small></div>
+        <div class="position-open-control"><b><span class="position-open-label">OPEN DETAILS</span><span class="position-close-label">CLOSE DETAILS</span></b>{% if row.alert_count %}<small class="position-alert">{{ row.alert_count }} NOTE{{ '' if row.alert_count == 1 else 'S' }}</small>{% else %}<small>NO DESK NOTE</small>{% endif %}</div>
+      </summary>
 
       <div hidden aria-hidden="true">
         {% for window in item.performance_windows %}
@@ -38,6 +30,16 @@
         ></span>
         {% endfor %}
       </div>
+
+      <div class="position-detail">
+        <div class="name-analytics">
+          <div><span data-name-option-apr-label>OPTION INCOME APR / 4W</span><b data-name-option-apr>{{ active_window.option_apr | percent }}</b></div>
+          <div><span data-name-dividend-label>DIVIDENDS / 4W</span><b data-name-dividends>{{ active_window.dividends | money }}</b></div>
+          <div><span>AVG OPEN IV <i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i></span><b>{{ item.average_open_call_iv_percent | percent }}</b></div>
+          <div><span>AVG CALL DELTA</span><b>{{ item.average_open_call_delta | number(2) }}</b></div>
+          <div><span>STRIKE BUFFER</span><b>{{ item.current_strike_buffer_percent | percent }}</b></div>
+          <div><span data-name-capture-label>CAPTURE / 4W</span><b data-name-capture>{{ active_window.premium_capture_percent | percent }}</b></div>
+        </div>
 
       <div class="underlying-decision-grid" data-workspace-grid>
         <section id="{{ item.symbol | lower }}-price-pane" class="price-map" data-chart-workspace aria-label="{{ item.symbol }} verified daily close history and simulated option events">
@@ -175,7 +177,8 @@
         </section>
         </div>
       </div>
-    </article>
+      </div>
+    </details>
     {% endfor %}
   </div>
   {% else %}

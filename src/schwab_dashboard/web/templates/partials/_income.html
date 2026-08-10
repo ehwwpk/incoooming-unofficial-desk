@@ -1,8 +1,8 @@
 <section class="panel income-panel" id="income">
   <div class="section-heading terminal-heading">
     <div>
-      <p class="eyebrow">13W CASH TAPE</p>
-      <h2>Option and dividend cashflow</h2>
+      <p class="eyebrow">13-WEEK HISTORY</p>
+      <h2>Weekly option and dividend income</h2>
     </div>
     <div class="legend" aria-label="Chart legend">
       <span><i class="option-key"></i>Net premium cash</span>
@@ -31,10 +31,5 @@
   <p class="empty-state">Income history will appear after transaction ingestion is connected.</p>
   {% endif %}
 
-  <div class="cash-reconcile">
-    <span>PREMIUM RECEIVED <b>{{ snapshot.covered_calls.gross_premium | money }}</b></span>
-    <span>EXECUTED CLOSE / ROLL DEBITS <b class="negative">-{{ snapshot.covered_calls.buyback_cost | money }}</b></span>
-    <span>NET PREMIUM CASH FLOW <b class="positive">{{ snapshot.covered_calls.net_option_cash | money }}</b></span>
-    <span>DIVIDEND INCOME <b>{{ snapshot.covered_calls.dividends | money }}</b></span>
-  </div>
+  <footer class="income-panel-footer"><span>NET OPTION CASH BY WEEK · DIVIDENDS INCLUDED IN THE TOTAL BAR</span><a href="/workspaces/attribution">FULL INCOME RECONCILIATION →</a></footer>
 </section>

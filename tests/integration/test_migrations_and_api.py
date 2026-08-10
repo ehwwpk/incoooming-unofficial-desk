@@ -106,14 +106,16 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert payload["basis_lens"][0]["capital_remaining"] == "118310.00"
         assert payload["basis_lens"][0]["recovery_surplus"] == "0"
         assert payload["basis_lens"][0]["fully_recovered"] is False
-        assert "MOCK LEDGER / NO SCHWAB WRITES" in page.text
+        assert "SIMULATION" in page.text
         assert '<span class="brand-mark">IU</span>' in page.text
-        assert "WINDOW ACCOUNTING" in page.text
-        assert "TRANSACTION CASH · NORMALIZED PACE · OPEN MARK SEPARATED" in page.text
+        assert "What the strategy earned" in page.text
+        assert "What is open right now" in page.text
+        assert "WINDOW ACCOUNTING" not in page.text
+        assert "TRANSACTION CASH · NORMALIZED PACE · OPEN MARK SEPARATED" not in page.text
         assert "INTERNAL DESK FEED" not in page.text
         assert "NO MARKET HEADLINES" not in page.text
         assert "R365" in page.text
-        assert "$3,000</span> monthly net premium cash" in page.text
+        assert "MONTHLY OPTION INCOME TARGET" in page.text
         assert 'data-period="month"' in page.text
         assert 'aria-label="Four weeks" aria-selected="true"' in page.text
         assert 'data-period-sheet="month"' in page.text
@@ -127,17 +129,20 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "$231.78" in page.text
         assert "nibwick-method-note" in page.text
         assert "CHECK SOON" not in page.text
-        assert "app.css?v=39" in page.text
+        assert "app.css?v=41" in page.text
         assert "DEMO CHECKED" in page.text
         assert "$4.23 / 7.0% TO STRIKE" in page.text
-        assert "periods.js?v=14" in page.text
+        assert "periods.js?v=16" in page.text
         assert "workspace-splitter.js?v=1" in page.text
         assert "chart-viewport.js?v=1" in page.text
         assert "chart-focus.js?v=1" in page.text
-        assert "event-layout.js?v=3" in page.text
-        assert "lifecycle-links.js?v=1" in page.text
-        assert "nibwick-alerts.js?v=6" in page.text
+        assert "event-layout.js?v=4" in page.text
+        assert "lifecycle-links.js?v=2" in page.text
+        assert "nibwick-alerts.js?v=7" in page.text
         assert "nibwick.js?v=5" in page.text
+        assert "position-details.js?v=1" in page.text
+        assert page.text.count("data-position-details") == 3
+        assert page.text.count('class="position-detail"') == 3
         assert page.text.count("data-chart-range=") == 9
         assert page.text.count("data-chart-focus") == 3
         assert page.text.count("data-chart-point") == 174
@@ -170,32 +175,29 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert 'role="separator"' in page.text
         assert 'class="underlying-history"' in page.text
         assert 'data-rail-link="portfolio" aria-current="page"' in page.text
-        assert "NET PREMIUM CASH / 4 WEEKS" in page.text
-        assert "EXECUTED CLOSE / ROLL DEBITS" in page.text
-        assert "OPEN-CALL CREDIT RECEIVED" in page.text
-        assert "CURRENT OPEN-CALL VALUE" in page.text
-        assert "OPEN BOOK · NOT WINDOW CASH" in page.text
+        assert "NET OPTION INCOME / 4 WEEKS" in page.text
+        assert "EXECUTED CLOSE / ROLL DEBITS" not in page.text
+        assert "OPEN-CALL CREDIT RECEIVED" not in page.text
+        assert "CURRENT OPEN-CALL VALUE" not in page.text
+        assert "OPEN BOOK · NOT WINDOW CASH" not in page.text
         assert 'data-monthly-option-average="$2,648.33"' in page.text
         assert 'data-monthly-total-average="$3,084.67"' in page.text
         assert "data-active-option-average hidden" in page.text
         assert "PREMIUM RECEIVED / CURRENT MARK / OPEN P&amp;L" in page.text
-        assert "OPEN-CALL DECAY EST. / DAY" in page.text
-        assert page.text.count("PORTFOLIO OPEN-CALL DECAY EST. / DAY") == 1
-        assert page.text.count("EST. TIME DECAY / DAY") == 3
-        assert "+$46.00" in page.text
+        assert "PORTFOLIO OPEN-CALL DECAY EST. / DAY" not in page.text
+        assert "OPEN OPTION RESULT" in page.text
         assert "OPEN P/L AT CURRENT MARK" in page.text
         assert "OPTION VALUE NOW" in page.text
         assert "FULL DAILY CLOSES" in page.text
         assert "58 MARKET SESSIONS" in page.text
         assert "YAHOO FINANCE CLOSE" in page.text
         assert 'data-buyback-drag="34.1%"' in page.text
-        assert "42.5% executed-debit drag" in page.text
+        assert "42.5% executed-debit drag" not in page.text
         assert "TIME ELAPSED" in page.text
         assert "RANGE POSITION" in page.text
-        assert "2 ASSIGNED / 200 SH" in page.text
-        assert "LIFETIME BASIS LENS" in page.text
-        assert "ORIGINAL CAPITAL REMAINING" in page.text
-        assert "Trades &amp; positions" in page.text
+        assert "LIFETIME BASIS LENS" not in page.text
+        assert "ORIGINAL CAPITAL REMAINING" not in page.text
+        assert "Activity &amp; records" in page.text
         assert "Covered-call trades" in page.text
         assert "Shares and short calls" in page.text
         assert 'data-record-pane="books" hidden' in page.text

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <title>Incoooming Unofficial Desk · Options Income</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=39">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=41">
     <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=2">
   </head>
   <body data-workspace-key="desk" data-workspace-context='{"account":"{{ snapshot.accounts[0].account_mask if snapshot.accounts else "---" }}","symbol":"ALL","asOf":"{{ snapshot.as_of.date().isoformat() }}"}'>
@@ -26,23 +26,6 @@
         <small>{{ snapshot.as_of | short_date }} · {{ 'SIMULATION' if snapshot.is_demo else 'LIVE LEDGER' }}</small>
       </div>
     </header>
-
-    <div class="market-tape" aria-label="Portfolio tape">
-      {% for item in snapshot.underlyings %}<span><b>{{ item.symbol }}</b> {{ item.current_price | number(2) }}</span>{% endfor %}
-      {% if snapshot.performance_windows %}<span>PREMIUM CASH / 28D <b>{{ snapshot.performance_windows[1].option_cash | money(0) }}</b></span>{% endif %}
-      <span>TARGET <b data-header-target>{{ snapshot.objective.monthly_option_target | money(0) }}/MO</b></span>
-      <span class="source-pill {{ 'demo' if snapshot.is_demo else 'live' }}"><i class="source-dot"></i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</span>
-    </div>
-
-    {% if snapshot.is_demo %}
-    <aside class="demo-banner" role="status">
-      <strong>SIMULATION</strong>
-      <span>ACCT ...4831</span>
-      <span>BOOK 3 NAMES / 20 LOTS</span>
-      <span>TARGET <b data-header-target>{{ snapshot.objective.monthly_option_target | money(0) }}/MO</b></span>
-      <span>MOCK LEDGER / NO SCHWAB WRITES</span>
-    </aside>
-    {% endif %}
 
     <div class="terminal-shell">
       <nav class="function-rail" aria-label="Dashboard functions">
@@ -74,7 +57,7 @@
       <main class="shell">
       <section class="desk-heading" id="portfolio">
         <div class="desk-title">
-          <p class="eyebrow">YOUR OPTIONS INCOME BOOK</p>
+          <p class="eyebrow">YOUR COVERED-CALL INCOME BOOK</p>
           <h1>Incoooming Unofficial Desk</h1>
         </div>
         <div class="desk-period-selector" data-period-controls role="tablist" aria-label="Performance window">
@@ -91,10 +74,11 @@
           </div>
         </div>
         <div class="desk-meta">
-          <span>WINDOW <b data-active-window>4W</b></span>
+          <span>PORTFOLIO <b>{{ snapshot.portfolio.total_value | money }}</b></span>
+          <span>TODAY <b class="{{ snapshot.portfolio.day_profit_loss | pnl_class }}">{{ snapshot.portfolio.day_profit_loss | money }} / {{ snapshot.portfolio.day_profit_loss_percent | percent(2) }}</b></span>
           <span>RANGE <b data-active-range>{{ snapshot.performance_windows[1].range_label if snapshot.performance_windows else '—' }}</b></span>
           <span>AS OF <b>{{ snapshot.as_of | short_date }}</b></span>
-          <span>STATUS <b class="positive">{{ 'DEMO CHECKED' if snapshot.is_demo else 'RECONCILED' }}</b></span>
+          <span>STATUS <b class="{{ 'muted' if snapshot.is_demo else 'positive' }}">{{ 'SIMULATION' if snapshot.is_demo else 'LIVE LEDGER' }}</b></span>
         </div>
       </section>
 
@@ -105,12 +89,7 @@
       {% endif %}
       {% include "partials/_underlyings.html" %}
 
-      <div class="dashboard-grid">
-        {% include "partials/_income.html" %}
-        {% include "partials/_risk.html" %}
-      </div>
-
-      {% include "partials/_manager_console.html" %}
+      {% include "partials/_income.html" %}
       {% include "partials/_records.html" %}
 
       <footer>
@@ -119,14 +98,15 @@
       </footer>
       </main>
     </div>
-    <script src="{{ url_for('static', path='/periods.js') }}?v=14" defer></script>
+    <script src="{{ url_for('static', path='/periods.js') }}?v=16" defer></script>
     <script src="{{ url_for('static', path='/workspace-splitter.js') }}?v=1" defer></script>
     <script src="{{ url_for('static', path='/chart-viewport.js') }}?v=1" defer></script>
     <script src="{{ url_for('static', path='/chart-focus.js') }}?v=1" defer></script>
-    <script src="{{ url_for('static', path='/event-layout.js') }}?v=3" defer></script>
-    <script src="{{ url_for('static', path='/lifecycle-links.js') }}?v=1" defer></script>
-    <script src="{{ url_for('static', path='/nibwick-alerts.js') }}?v=6" defer></script>
+    <script src="{{ url_for('static', path='/event-layout.js') }}?v=4" defer></script>
+    <script src="{{ url_for('static', path='/lifecycle-links.js') }}?v=2" defer></script>
+    <script src="{{ url_for('static', path='/nibwick-alerts.js') }}?v=7" defer></script>
     <script src="{{ url_for('static', path='/nibwick.js') }}?v=5" defer></script>
+    <script src="{{ url_for('static', path='/position-details.js') }}?v=1" defer></script>
     <script src="{{ url_for('static', path='/workspace-navigation.js') }}?v=2" defer></script>
     <script src="{{ url_for('static', path='/workspace-channel.js') }}?v=1" defer></script>
   </body>

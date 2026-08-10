@@ -7,6 +7,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from schwab_dashboard.api.dependencies import get_container
+from schwab_dashboard.application.dashboard.overview import build_desk_overview
 from schwab_dashboard.application.errors import AuthenticationRequiredError
 from schwab_dashboard.application.workspaces.catalog import list_workspaces
 from schwab_dashboard.container import Container
@@ -41,7 +42,11 @@ def home(request: Request, container: ContainerDependency) -> HTMLResponse:
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
-        context={"snapshot": snapshot, "workspaces": list_workspaces()},
+        context={
+            "snapshot": snapshot,
+            "desk_overview": build_desk_overview(snapshot),
+            "workspaces": list_workspaces(),
+        },
     )
 
 
