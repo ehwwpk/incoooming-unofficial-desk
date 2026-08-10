@@ -1,4 +1,4 @@
-# Premium desk capability roadmap
+# Incoooming Unofficial Desk capability roadmap
 
 This map separates a professional analytics destination from what should be visible in the default workspace. It is intentionally broader than the first live Schwab release.
 
@@ -14,7 +14,7 @@ The product's advantage is joining these clocks while never collapsing them into
 
 The demo already proves the interaction and presentation model for:
 
-- selectable 1W, rolling 4W, QTR (rolling 13 weeks), YTD, and rolling-365 cash windows;
+- selectable rolling 4W, QTR, YTD, and rolling-365 cash windows, with daily source detail retained below the primary selector;
 - net premium cash, dividends, total strategy cash, APR, pace, and target tracking;
 - active coverage, lifecycle counts, called-away shares, and lifetime income lens;
 - daily underlying closes linked to simulated option and share events;
@@ -44,7 +44,8 @@ Required before trusting live performance:
 - dividend and earnings overlap with early-assignment diagnostics;
 - scenario grid for underlying moves, volatility shifts, time passage, and assignments;
 - campaign economics for rolls: cumulative credit, debits, fees, time extended, strike movement, and open liability;
-- explicit user intent: keep shares, neutral, or willing to exit at the strike.
+- explicit user intent by underlying or share tranche: preserve shares, neutral, acceptable exit, or intentional trim/redeployment;
+- inspectable policy bands for DTE, strike buffer, coverage, catalysts, liquidity, and acceptable effective exit price.
 
 ## P1 — measure the strategy honestly
 
@@ -86,6 +87,8 @@ Required before trusting live performance:
 5. **Workspace System:** customizable dense tables, saved layouts, accessibility controls, and exports.
 
 The default desk should not display every capability. It should summarize exceptions and primary outcomes, then let the operator open the relevant specialized workspace.
+
+The approved pre-live sequence, period simplification, plain-language metric contract, and personalized fixture direction are maintained in [the pre-Schwab operator plan](pre-schwab-operator-plan.md).
 
 ## Primary references
 

@@ -18,12 +18,13 @@ Nibwick owns exceptions. The main desk owns portfolio state. Alerts remain close
 The decision workspace should eventually combine:
 
 - uncovered share capacity and user-defined assignment willingness;
+- the underlying and share-tranche intent: preserve shares, neutral, acceptable exit, or intentional trim/redeployment;
 - underlying trend, drawdown, realized volatility, and scheduled catalysts;
 - repeatable 30-day at-the-money IV, IV percentile, term structure, and call skew;
 - candidate strike distance, delta, credit, DTE, liquidity, and annualized cash yield;
 - the user's historical outcome for comparable entries.
 
-No single score should hide these inputs. A ranking may direct attention, but its method and components must remain inspectable.
+No single score should hide these inputs. A ranking may direct attention, but its method and components must remain inspectable. The same strike or DTE can be acceptable for a deliberate CVX trim and unacceptable for an upside-preservation KTOS tranche.
 
 ## 3. Monitor open calls
 
@@ -45,7 +46,7 @@ A roll is two executions and one optional campaign relationship. The system must
 
 Assignment is an expected covered-call outcome, not automatically a failure. The lifecycle view should show share proceeds, option result, foregone upside after the call-away point, dividends retained or lost, and the next use of released capital.
 
-## 5. Close a week, month, quarter, or year
+## 5. Close a month, quarter, or year
 
 The review sequence is:
 
@@ -55,6 +56,8 @@ The review sequence is:
 - attribute stock movement, option overlay, capped upside, and assignment effects;
 - compare actual period return with a stock-only baseline and a declared covered-call benchmark;
 - study outcomes by underlying, entry rule, DTE, delta, IV regime, and lifecycle disposition.
+
+Daily cash records remain available inside every period. They represent executions, fees, and dividends on the dates they occur; model theta per day remains a separate open-liability estimate and never fills days without cash events.
 
 ## Presentation rules
 

@@ -57,6 +57,8 @@ Alert severity, facts, thresholds, and method notes come from typed application 
 
 ## Performance windows
 
+The current demo still exposes the original week control. The approved next UX revision is defined in [the pre-Schwab operator plan](product/pre-schwab-operator-plan.md): the primary selector becomes 4W, QTR, YTD, and R365 while daily source detail remains available inside each period.
+
 - Week uses the latest seven calendar days.
 - Month uses a rolling 28-day view so partial calendar months do not distort the first comparison.
 - Month is the default screen window; changing the performance control updates the combined portfolio summary and window metadata from the same state.
@@ -70,6 +72,8 @@ Alert severity, facts, thresholds, and method notes come from typed application 
 - The selected window reports transaction cash: premium received minus executed close/roll debits equals net premium cash flow; net premium cash flow plus dividends equals total strategy income.
 - Calendar-month pace is a comparison metric, not additional cash. It equals net premium cash flow divided by elapsed days and scaled to `365 / 12` days. For example, a 28-day total can differ from its normalized 30.4-day pace.
 - APR equals window cash divided by current stock market value and annualized by actual window days. It is not total return and can be distorted by short windows.
+
+Daily cash and daily theta are never interchangeable. Cash appears only on execution, fee, or dividend dates. Theta is a model sensitivity for the open option book under unchanged-input assumptions.
 
 ## Manager objective
 
