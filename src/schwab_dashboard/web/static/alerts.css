@@ -186,10 +186,23 @@ body[data-nibwick-popover-open="true"] .nibwick-stage .nibwick-obstacle { animat
 }
 .nibwick-note dl > div { display: grid; min-width: 0; align-content: start; gap: 3px; padding: 7px 9px; border-right: 1px solid var(--note-line); }
 .nibwick-note dl > div:last-child { border-right: 0; }
+.nibwick-note dl.four-up { grid-template-columns: repeat(4, 1fr); }
 .nibwick-note dt { margin: 0; overflow: hidden; color: var(--subtle); font: 600 .48rem/11px var(--mono); letter-spacing: .045em; text-overflow: ellipsis; white-space: nowrap; }
 .nibwick-note dd { display: grid; min-width: 0; gap: 1px; margin: 0; }
 .nibwick-note dd strong { color: var(--text); font: 650 .7rem/15px var(--mono); overflow-wrap: anywhere; }
 .nibwick-note dd span { color: var(--subtle); font: 600 .49rem/11px var(--mono); letter-spacing: .025em; }
+.nibwick-roll-ladder { background: #141719; }
+.nibwick-roll-ladder > header { display: flex; min-height: 28px; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 9px; border-bottom: 1px solid var(--note-line); }
+.nibwick-roll-ladder > header strong { color: var(--gold); font: 700 .5rem/11px var(--mono); letter-spacing: .045em; }
+.nibwick-roll-ladder > header span { color: var(--subtle); font: 600 .43rem/10px var(--mono); text-align: right; }
+.nibwick-roll-ladder > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.nibwick-roll-ladder article { display: grid; min-width: 0; gap: 3px; padding: 8px 9px; border-right: 1px solid var(--note-line); }
+.nibwick-roll-ladder article:last-child { border-right: 0; }
+.nibwick-roll-ladder article > span { color: var(--subtle); font: 650 .45rem/10px var(--mono); letter-spacing: .035em; }
+.nibwick-roll-ladder article > strong { color: var(--text); font: 700 .64rem/14px var(--mono); }
+.nibwick-roll-ladder article > b { color: var(--text); font: 700 .52rem/12px var(--mono); }
+.nibwick-roll-ladder article > small { color: #9ca1a4; font: 550 .46rem/11px var(--mono); }
+.nibwick-roll-ladder > footer { margin: 0; padding: 5px 9px; border-top: 1px solid var(--note-line); color: var(--subtle); font: 600 .42rem/10px var(--mono); }
 .nibwick-method-note { margin: 0; background: var(--note-bg); }
 .nibwick-method-note summary { display: flex; min-height: 25px; align-items: center; justify-content: space-between; padding: 5px 10px; color: var(--subtle); cursor: pointer; font: 650 .49rem/12px var(--mono); letter-spacing: .05em; list-style: none; }
 .nibwick-method-note summary::-webkit-details-marker { display: none; }
@@ -251,10 +264,15 @@ body[data-nibwick-popover-open="true"] .nibwick-stage .nibwick-obstacle { animat
   .nibwick-ledger-scene { display: none; }
   .nibwick-note-heading { grid-template-columns: auto minmax(0, 1fr); }
   .nibwick-note-heading b { grid-column: 1 / -1; text-align: left; }
+  .nibwick-note dl.four-up { grid-template-columns: repeat(2, 1fr); }
+  .nibwick-roll-ladder > div { grid-template-columns: 1fr; }
+  .nibwick-roll-ladder article { border-right: 0; border-bottom: 1px solid var(--note-line); }
+  .nibwick-roll-ladder article:last-child { border-bottom: 0; }
 }
 
 @media (max-width: 400px) {
   .nibwick-note dl { grid-template-columns: 1fr; }
+  .nibwick-note dl.four-up { grid-template-columns: 1fr; }
   .nibwick-note dl > div { border-right: 0; border-bottom: 1px solid var(--note-line); }
   .nibwick-note dl > div:last-child { border-bottom: 0; }
 }

@@ -87,6 +87,9 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
             ("fast_move_near_call", "check", "KTOS"),
             ("dividend_overlap", "watch", "CVX"),
         ]
+        assert payload["alerts"][0]["roll_scenarios"][0]["target_strike"] == "70"
+        assert payload["alerts"][0]["roll_scenarios"][0]["net_roll_cash"] == "25.00"
+        assert payload["alerts"][0]["roll_scenarios"][1]["added_days"] == 42
         assert len(payload["income_periods"]) == 13
         assert len(payload["campaigns"]) == 3
         assert len(payload["positions"]) == 8
@@ -124,13 +127,13 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "DIV RISK // MONITOR" not in page.text
         assert "WORTH CHECKING" in page.text
         assert "KEEP AN EYE ON THIS" in page.text
-        assert "KTOS is closing in on $65" in page.text
+        assert "Fast move; $65 call is 7.0% away" in page.text
         assert "CVX&#39;s dividend needs context" in page.text
         assert "55/100 ELEVATED" in page.text
         assert "$231.78" in page.text
         assert "nibwick-method-note" in page.text
         assert "CHECK SOON" not in page.text
-        assert "app.css?v=42" in page.text
+        assert "app.css?v=43" in page.text
         assert "DEMO CHECKED" in page.text
         assert "$4.23 / 7.0% TO STRIKE" in page.text
         assert "periods.js?v=16" in page.text
@@ -139,7 +142,7 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "chart-focus.js?v=1" in page.text
         assert "event-layout.js?v=4" in page.text
         assert "lifecycle-links.js?v=2" in page.text
-        assert "nibwick-alerts.js?v=7" in page.text
+        assert "nibwick-alerts.js?v=8" in page.text
         assert "nibwick.js?v=5" in page.text
         assert "position-details.js?v=1" in page.text
         assert page.text.count("data-position-details") == 3
@@ -198,8 +201,16 @@ def test_demo_mode_renders_complete_dashboard_without_credentials(tmp_path: Path
         assert "RANGE POSITION" in page.text
         assert "LIFETIME BASIS LENS" not in page.text
         assert "ORIGINAL CAPITAL REMAINING" not in page.text
-        assert "Records &amp; audit trail" in page.text
-        assert "Covered-call trades" in page.text
+        assert "13-week cash trend" in page.text
+        assert "AGGREGATED WEEKLY OPTION AND DIVIDEND TOTALS" in page.text
+        assert "Transaction records" in page.text
+        assert "NEAR-FLAT ROLL CHECKS" in page.text
+        assert "BTC ASK + STO BID · SIMULATED CHAIN" in page.text
+        assert "+$25 total · $2,500 more call-away room" in page.text
+        assert "data-nibwick-summary-count" in page.text
+        assert "data-nibwick-summary-detail" in page.text
+        assert "Covered-call activity" in page.text
+        assert "TRADE-BY-TRADE" in page.text
         assert "Shares and short calls" in page.text
         assert 'data-record-pane="books" hidden' in page.text
         assert 'data-record-pane="positions" hidden' in page.text

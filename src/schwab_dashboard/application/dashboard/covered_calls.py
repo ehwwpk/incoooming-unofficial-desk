@@ -58,11 +58,24 @@ class UnderlyingPerformanceWindow:
 
 
 @dataclass(frozen=True, slots=True)
+class RollQuoteCandidate:
+    """One later/higher call quote that could replace an open short call."""
+
+    expires_on: date
+    strike: Decimal
+    sell_bid_per_share: Decimal
+    quote_source: str
+
+
+@dataclass(frozen=True, slots=True)
 class OpenCallClock:
     sold_on: date
     expires_on: date
     strike: Decimal
     contracts: int
+    underlying_at_sale: Decimal
+    close_ask_per_share: Decimal
+    roll_quote_candidates: tuple[RollQuoteCandidate, ...]
     original_days_to_expiration: int
     elapsed_days: int
     elapsed_time_percent: Decimal

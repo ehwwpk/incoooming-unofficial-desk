@@ -4,7 +4,9 @@ from decimal import Decimal
 
 import pytest
 
+from schwab_dashboard.application.alerts.rolls import build_neutral_roll_scenarios
 from schwab_dashboard.application.alerts.rules.dividend import evaluate_dividend_overlap
+from schwab_dashboard.application.dashboard.covered_calls import RollQuoteCandidate
 from schwab_dashboard.application.dashboard.performance import calculate_capital_recovery
 from schwab_dashboard.infrastructure.demo.dashboard import DemoDashboardReader
 
@@ -402,16 +404,35 @@ def test_nibwick_alerts_are_specific_ranked_and_plain_english() -> None:
         ("dividend_overlap", "watch", "CVX"),
     ]
     assert snapshot.alerts[0].level_label == "WORTH CHECKING"
-    assert snapshot.alerts[0].headline == "KTOS is closing in on $65"
+    assert snapshot.alerts[0].headline == "Fast move; $65 call is 7.0% away"
     assert "rose 30.4% in five sessions" in snapshot.alerts[0].message
+    assert "$46.60 when this call was sold to $60.77 now" in snapshot.alerts[0].message
     assert "not a roll instruction" in snapshot.alerts[0].message
     assert [(fact.label, fact.value, fact.detail) for fact in snapshot.alerts[0].facts] == [
+        ("STOCK / SALE", "$60.77 NOW", "$46.60 SALE · +30.4%"),
         ("TO STRIKE", "$4.23", "7.0% BUFFER"),
         ("MARK / ENTRY CREDIT", "$3.30 / $2.45", "1.35x ENTRY"),
         ("ROLL REVIEW / TIME", "55/100 ELEVATED", "42 DTE"),
     ]
+    assert [
+        (
+            scenario.target_strike,
+            scenario.added_days,
+            scenario.net_roll_per_share,
+            scenario.net_roll_cash,
+            scenario.assignment_room_gain,
+            scenario.target_buffer_percent,
+            scenario.quote_source,
+        )
+        for scenario in snapshot.alerts[0].roll_scenarios
+    ] == [
+        (D("70"), 21, D("0.05"), D("25.00"), D("2500"), D("15.2"), "SIMULATED BID"),
+        (D("75"), 42, D("0.00"), D("0.00"), D("5000"), D("23.4"), "SIMULATED BID"),
+    ]
     assert snapshot.alerts[0].method_note is not None
     assert "NOT A PROBABILITY OR TRADE SIGNAL" in snapshot.alerts[0].method_note
+    assert "BUY-TO-CLOSE ASK" in snapshot.alerts[0].method_note
+    assert snapshot.alerts[1].roll_scenarios == ()
     assert snapshot.alerts[1].level_label == "KEEP AN EYE ON THIS"
     assert snapshot.alerts[1].headline == "CVX's dividend needs context"
     assert "pulls the stock price down, not up" in snapshot.alerts[1].message
@@ -426,6 +447,28 @@ def test_nibwick_alerts_are_specific_ranked_and_plain_english() -> None:
         "ktos-workspace",
         "cvx-workspace",
     ]
+
+
+def test_roll_checks_reject_non_later_non_higher_and_non_neutral_quotes() -> None:
+    snapshot = DemoDashboardReader().execute()
+    ktos = next(item for item in snapshot.underlyings if item.symbol == "KTOS")
+    call = next(clock for clock in ktos.open_call_clocks if clock.strike == D("65"))
+    later = call.expires_on + timedelta(days=21)
+    candidates = (
+        RollQuoteCandidate(later, D("60"), D("3.30"), "LOWER STRIKE"),
+        RollQuoteCandidate(call.expires_on, D("70"), D("3.30"), "SAME EXPIRY"),
+        RollQuoteCandidate(later, D("70"), D("3.60"), "OUTSIDE BAND"),
+        RollQuoteCandidate(later, D("70"), D("3.30"), "VALID BID"),
+    )
+
+    scenarios = build_neutral_roll_scenarios(
+        replace(call, roll_quote_candidates=candidates),
+        current_price=ktos.current_price,
+    )
+
+    assert len(scenarios) == 1
+    assert scenarios[0].quote_source == "VALID BID"
+    assert scenarios[0].net_roll_per_share == D("-0.05")
 
 
 def test_dividend_warning_escalates_only_when_the_math_supports_it() -> None:

@@ -19,6 +19,7 @@ from schwab_dashboard.infrastructure.demo.fixtures.price_paths import (
     build_price_events,
     build_share_trade_events,
 )
+from schwab_dashboard.infrastructure.demo.fixtures.roll_quotes import ROLL_QUOTE_CANDIDATES
 from schwab_dashboard.infrastructure.demo.fixtures.share_trades import SHARE_TRADES
 
 D = Decimal
@@ -237,6 +238,11 @@ def _open_call_clock(record: CallSaleRecord, current_price: Decimal, as_of: date
         expires_on=record.expires_on,
         strike=record.strike,
         contracts=record.contracts,
+        underlying_at_sale=record.underlying_at_sale,
+        close_ask_per_share=metric.ask_per_share,
+        roll_quote_candidates=ROLL_QUOTE_CANDIDATES.get(
+            (record.symbol, record.expires_on, record.strike), ()
+        ),
         original_days_to_expiration=record.days_to_expiration,
         elapsed_days=elapsed_days,
         elapsed_time_percent=elapsed_time_percent,

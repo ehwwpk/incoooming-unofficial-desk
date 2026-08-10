@@ -23,7 +23,7 @@ def test_workspace_catalog_keeps_stable_keys_separate_from_labels() -> None:
     assert len({item.window_name for item in workspaces}) == len(workspaces)
     assert get_workspace(WorkspaceKey.RISK).label == "Open Calls"
     assert get_workspace(WorkspaceKey.ATTRIBUTION).label == "Strategy Review"
-    assert get_workspace(WorkspaceKey.RECORDS).label == "Data & Records"
+    assert get_workspace(WorkspaceKey.RECORDS).label == "Data Health"
     assert get_workspace(WorkspaceKey.RISK).route == "/workspaces/risk"
     assert get_workspace(WorkspaceKey.RECORDS).window_name == "iud-source-ledger"
 

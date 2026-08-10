@@ -85,7 +85,7 @@
       <div><span>OPEN MARK P/L</span><b class="{{ desk_overview.open_mark_profit_loss | pnl_class }}">{{ desk_overview.open_mark_profit_loss | money }}</b><small>Unrealized · changes with the market</small></div>
       <div><span>DIVIDEND OVERLAP</span><b>{{ desk_overview.dividend_overlap_contracts }} CONTRACTS</b><small>Calls open across an ex-dividend date</small></div>
       {% if snapshot.alerts %}
-      <button type="button" data-nibwick-summary aria-expanded="false" aria-controls="nibwick-note-popover"><span>NIBWICK NOTES</span><b>{{ snapshot.alerts | length }} TO REVIEW</b><small>{{ snapshot.alerts[0].symbol }} · {{ snapshot.alerts[0].headline }}</small></button>
+      <button type="button" data-nibwick-summary aria-expanded="false" aria-controls="nibwick-note-popover"><span>NIBWICK NOTES</span><b data-nibwick-summary-count>{{ snapshot.alerts | length }} TO REVIEW</b><small data-nibwick-summary-detail>{{ snapshot.alerts[0].symbol }} · {{ snapshot.alerts[0].headline }}</small></button>
       {% else %}
       <div class="all-clear"><span>DESK NOTES</span><b>ALL CLEAR</b><small>No current exception needs review</small></div>
       {% endif %}

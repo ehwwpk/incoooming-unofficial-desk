@@ -43,6 +43,7 @@
 
   const renderUnreadState = () => {
     const unreadCount = notes.filter((note) => !readAlertIds.has(note.dataset.alertId)).length;
+    const nextUnreadNote = notes.find((note) => !readAlertIds.has(note.dataset.alertId));
     badge.hidden = unreadCount === 0;
     if (unreadCountElement) unreadCountElement.textContent = String(unreadCount);
     badge.setAttribute(
@@ -51,6 +52,20 @@
         ? `Open Nibwick's ${unreadCount} unread ${unreadCount === 1 ? "note" : "notes"}`
         : "All Nibwick notes reviewed",
     );
+    summaryTriggers.forEach((trigger) => {
+      const count = trigger.querySelector("[data-nibwick-summary-count]");
+      const detail = trigger.querySelector("[data-nibwick-summary-detail]");
+      if (count) count.textContent = unreadCount ? `${unreadCount} TO REVIEW` : "ALL REVIEWED";
+      if (detail) {
+        detail.textContent = nextUnreadNote
+          ? `${nextUnreadNote.dataset.alertSymbol} · ${nextUnreadNote.querySelector("h3")?.textContent || "Desk note"}`
+          : "No unread desk notes";
+      }
+      trigger.setAttribute(
+        "aria-label",
+        unreadCount ? `Open ${unreadCount} unread Nibwick ${unreadCount === 1 ? "note" : "notes"}` : "Open reviewed Nibwick notes",
+      );
+    });
     stage.dataset.notesRead = unreadCount === 0 ? "true" : "false";
     if (unreadCount === 0) {
       delete stage.dataset.attention;

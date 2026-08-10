@@ -31,6 +31,7 @@ class ReviewPressure:
 @dataclass(frozen=True, slots=True)
 class CallReviewContext:
     call: OpenCallClock
+    sale_to_current_move_percent: Decimal
     strike_distance_per_share: Decimal
     strike_distance_percent: Decimal
     covered_share_distance: Decimal
@@ -69,6 +70,11 @@ def build_call_review_context(
     mark_to_credit = (
         call.mark_per_share / call.entry_credit_per_share
         if call.entry_credit_per_share > ZERO
+        else ZERO
+    )
+    sale_move = (
+        (underlying.current_price / call.underlying_at_sale - D("1")) * HUNDRED
+        if call.underlying_at_sale > ZERO
         else ZERO
     )
 
@@ -111,6 +117,7 @@ def build_call_review_context(
 
     return CallReviewContext(
         call=call,
+        sale_to_current_move_percent=sale_move,
         strike_distance_per_share=distance,
         strike_distance_percent=distance_percent,
         covered_share_distance=abs(distance) * D(call.contracts * 100),

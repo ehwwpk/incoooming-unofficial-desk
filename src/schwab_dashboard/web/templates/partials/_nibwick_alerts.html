@@ -46,9 +46,31 @@
       <div class="nibwick-note-brief">
         <p>{{ alert.message }}</p>
       </div>
-      <dl>
+      <dl{% if alert.facts | length == 4 %} class="four-up"{% endif %}>
         {% for fact in alert.facts %}<div><dt>{{ fact.label }}</dt><dd><strong>{{ fact.value }}</strong>{% if fact.detail %}<span>{{ fact.detail }}</span>{% endif %}</dd></div>{% endfor %}
       </dl>
+      {% if alert.roll_scenarios %}
+      <section class="nibwick-roll-ladder" aria-label="Near-flat roll comparisons">
+        <header><strong>NEAR-FLAT ROLL CHECKS</strong><span>BTC ASK + STO BID · {{ 'SIMULATED CHAIN' if snapshot.is_demo else 'LIVE CHAIN' }}</span></header>
+        <div>
+          {% for scenario in alert.roll_scenarios %}
+          <article>
+            <span>+{{ scenario.strike_lift_per_share | money(0) }} STRIKE · +{{ scenario.added_days }} DAYS</span>
+            <strong>{{ scenario.target_expiration | short_date }} · ${{ '%g' | format(scenario.target_strike) }}C</strong>
+            {% if scenario.net_roll_per_share > 0 %}
+            <b class="positive">+{{ scenario.net_roll_per_share | money }} / SH CREDIT</b>
+            {% elif scenario.net_roll_per_share < 0 %}
+            <b class="negative">-{{ (-scenario.net_roll_per_share) | money }} / SH DEBIT</b>
+            {% else %}
+            <b>$0.00 / SH · NEAR FLAT</b>
+            {% endif %}
+            <small>{% if scenario.net_roll_cash > 0 %}+{{ scenario.net_roll_cash | money(0) }} total{% elif scenario.net_roll_cash < 0 %}-{{ (-scenario.net_roll_cash) | money(0) }} total{% else %}$0 total{% endif %} · {{ scenario.assignment_room_gain | money(0) }} more call-away room · {{ scenario.target_buffer_percent | percent }} above spot</small>
+          </article>
+          {% endfor %}
+        </div>
+        <footer>INDICATIVE PLANNING MATH · NOT AN ORDER TICKET · FEES EXCLUDED</footer>
+      </section>
+      {% endif %}
       {% if alert.method_note %}<details class="nibwick-method-note"><summary>METHOD / LIMITS <span aria-hidden="true">+</span></summary><p>{{ alert.method_note }}</p></details>{% endif %}
       <footer class="nibwick-note-actions">
         {% if snapshot.alerts | length > 1 %}

@@ -67,11 +67,11 @@ WORKSPACE_CATALOG = (
     ),
     WorkspaceDefinition(
         key=WorkspaceKey.RECORDS,
-        label="Data & Records",
+        label="Data Health",
         short_label="DATA",
-        eyebrow="PROVENANCE / RECORDS",
+        eyebrow="SOURCES / COVERAGE",
         description=(
-            "Positions, activity, provenance, and source readiness in one maintenance view."
+            "Broker feeds, coverage gaps, provenance, and source readiness in one maintenance view."
         ),
         route="/workspaces/records",
         template_name="workspaces/_source_ledger.html",
