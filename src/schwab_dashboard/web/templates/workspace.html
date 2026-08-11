@@ -4,8 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
-    <title>{{ workspace.label }} · Incoooming Unofficial Desk</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=55">
+    <title>{{ workspace.label }} · Incoooming</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=57">
     <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=4">
     {% if workspace.key.value == 'attribution' %}<link rel="stylesheet" href="{{ url_for('static', path='/results-cash.css') }}?v=1">{% endif %}
   </head>
@@ -13,7 +13,7 @@
     <header class="topbar workspace-topbar">
       <a class="brand" href="/" aria-label="Return to the Desk">
         <span class="brand-mark">IU</span>
-        <span><strong>INCOOOMING//UNOFFICIAL</strong><small>DESK TOOLS · READ ONLY</small></span>
+        <span><strong>INCOOOMING</strong><small>DESK TOOLS · READ ONLY</small></span>
       </a>
       {% set current_workspace_key = workspace.key.value %}
       {% include "partials/_product_nav.html" %}

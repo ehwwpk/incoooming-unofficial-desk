@@ -77,3 +77,33 @@ def test_portfolio_uses_liquidation_value_not_gross_positions() -> None:
     assert summary.gross_position_value == D("220000")
     assert summary.margin_balance == D("-45000")
     assert summary.day_profit_loss_percent == D("4.166666666666666666666666667")
+
+
+def test_short_puts_share_the_existing_underlying_group() -> None:
+    stock = _position()
+    call = _position(
+        symbol="KTOS  260918C00075000",
+        asset_type="OPTION",
+        quantity=D("-2"),
+        underlying_symbol="KTOS",
+        option_type="CALL",
+        expiration_date=date(2026, 9, 18),
+        strike=D("75"),
+    )
+    put = _position(
+        symbol="KTOS  260918P00050000",
+        asset_type="OPTION",
+        quantity=D("-1"),
+        underlying_symbol="KTOS",
+        option_type="PUT",
+        expiration_date=date(2026, 9, 18),
+        strike=D("50"),
+    )
+
+    book = build_live_position_book((stock, call, put), as_of=date(2026, 8, 10))
+
+    assert len(book.underlyings) == 1
+    assert book.open_call_contracts == 2
+    assert book.open_put_contracts == 1
+    assert book.underlyings[0].open_put_contracts == 1
+    assert book.puts[0].strike_distance_per_share == D("10")

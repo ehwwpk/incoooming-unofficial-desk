@@ -10,7 +10,11 @@ from schwab_dashboard.application.dashboard.covered_calls import (
     OpenCallClock,
     UnderlyingCallStats,
 )
-from schwab_dashboard.application.dashboard.models import DashboardSnapshot, LiveOpenCallPosition
+from schwab_dashboard.application.dashboard.models import (
+    DashboardSnapshot,
+    LiveOpenCallPosition,
+    LiveUnderlyingPosition,
+)
 
 ZERO = Decimal("0")
 
@@ -36,6 +40,7 @@ class DeskPositionRow:
     open_positions: int
     open_mark_profit_loss: Decimal
     alert_count: int
+    live_underlying: LiveUnderlyingPosition | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,12 +58,23 @@ class DeskOverview:
     dividend_overlap_contracts: int
     alert_count: int
     underlying_count: int
+    open_put_positions: int
+    open_put_contracts: int
+    daily_theta: Decimal
 
 
 def build_desk_overview(snapshot: DashboardSnapshot) -> DeskOverview:
     alert_counts = Counter(alert.symbol for alert in snapshot.alerts)
     rows: list[DeskPositionRow] = []
     all_calls: list[DeskCallFocus] = []
+    live_by_symbol = {
+        item.symbol: item
+        for item in (
+            snapshot.live_position_book.underlyings
+            if snapshot.live_position_book is not None
+            else ()
+        )
+    }
 
     for underlying in snapshot.underlyings:
         calls = tuple(underlying.open_call_clocks)
@@ -74,6 +90,7 @@ def build_desk_overview(snapshot: DashboardSnapshot) -> DeskOverview:
                     ZERO,
                 ),
                 alert_count=alert_counts[underlying.symbol],
+                live_underlying=live_by_symbol.get(underlying.symbol),
             )
         )
 
@@ -92,6 +109,9 @@ def build_desk_overview(snapshot: DashboardSnapshot) -> DeskOverview:
             dividend_overlap_contracts=0,
             alert_count=len(snapshot.alerts),
             underlying_count=len(live_book.underlyings),
+            open_put_positions=live_book.open_put_positions,
+            open_put_contracts=live_book.open_put_contracts,
+            daily_theta=snapshot.risk.daily_theta,
         )
 
     return DeskOverview(
@@ -108,6 +128,17 @@ def build_desk_overview(snapshot: DashboardSnapshot) -> DeskOverview:
         ),
         alert_count=len(snapshot.alerts),
         underlying_count=len(rows),
+        open_put_positions=(
+            snapshot.live_position_book.open_put_positions
+            if snapshot.live_position_book is not None
+            else 0
+        ),
+        open_put_contracts=(
+            snapshot.live_position_book.open_put_contracts
+            if snapshot.live_position_book is not None
+            else 0
+        ),
+        daily_theta=snapshot.risk.daily_theta,
     )
 
 

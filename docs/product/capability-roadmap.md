@@ -1,4 +1,4 @@
-# Incoooming Unofficial Desk capability roadmap
+# Incoooming capability roadmap
 
 This map separates a professional analytics destination from what should be visible in the default workspace. It is intentionally broader than the first live Schwab release.
 

@@ -1,4 +1,4 @@
-# Incoooming Unofficial Desk
+# Incoooming
 
 A private, local-first options-income desk for portfolio, covered-call, dividend, and performance analytics.
 

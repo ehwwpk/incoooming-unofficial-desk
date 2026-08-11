@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, time
+from datetime import UTC, date, datetime, time
 from decimal import Decimal
 
-from schwab_dashboard.application.dashboard.covered_calls import UnderlyingCallStats
+from schwab_dashboard.application.dashboard.covered_calls import (
+    OpenCallClock,
+    UnderlyingCallStats,
+)
 from schwab_dashboard.application.dashboard.models import DashboardSnapshot
 from schwab_dashboard.application.policy.evaluate import evaluate_policy_fit
+from schwab_dashboard.application.policy.models import CallPolicy
 from schwab_dashboard.application.volatility.calculate import analyze_volatility_history
 from schwab_dashboard.application.volatility.models import DailyVolatilityObservation
 
@@ -82,57 +86,10 @@ def build_open_book(snapshot: DashboardSnapshot) -> OpenBookProjection:
         for policy in underlying_policy.policies
     }
     rows = tuple(
-        OpenCallRow(
-            record_id=clock.record_id,
-            campaign_id=clock.campaign_id,
-            symbol=underlying.symbol,
-            contracts=clock.contracts,
-            strike=clock.strike,
-            expires_on=clock.expires_on,
-            days_to_expiration=clock.days_to_expiration,
-            obligated_shares=clock.contracts * 100,
-            strike_distance_per_share=clock.strike_distance_per_share,
-            strike_distance_percent=clock.strike_distance_percent,
-            entry_credit=clock.entry_credit,
-            current_liability=clock.current_option_value,
-            open_profit_loss=clock.open_profit_loss,
-            theta_estimate_per_day=clock.short_theta_per_day,
-            elapsed_time_percent=clock.elapsed_time_percent,
-            decay_stage=clock.decay_stage,
-            policy_label=policy_by_id[clock.policy_id].label,
-            intent_label=policy_by_id[clock.policy_id].intent.label,
-            policy_fit_summary=evaluate_policy_fit(
-                policy_by_id[clock.policy_id],
-                strike_buffer_percent=(
-                    (clock.strike / clock.underlying_at_sale - 1) * Decimal("100")
-                ),
-                days_to_expiration=clock.original_days_to_expiration,
-                effective_exit_price=clock.strike + clock.entry_credit_per_share,
-            ).summary,
-            policy_fits=evaluate_policy_fit(
-                policy_by_id[clock.policy_id],
-                strike_buffer_percent=(
-                    (clock.strike / clock.underlying_at_sale - 1) * Decimal("100")
-                ),
-                days_to_expiration=clock.original_days_to_expiration,
-                effective_exit_price=clock.strike + clock.entry_credit_per_share,
-            ).fits,
-            entry_credit_per_share=clock.entry_credit_per_share,
-            bid_per_share=clock.bid_per_share,
-            mark_per_share=clock.mark_per_share,
-            close_ask_per_share=clock.close_ask_per_share,
-            spread_per_share=clock.spread_per_share,
-            quote_status=clock.quote_status,
-            quote_observed_on=clock.quote_observed_on,
-            implied_volatility_percent=clock.implied_volatility_percent,
-            delta=clock.delta,
-            gamma=clock.gamma,
-            vega=clock.vega,
-            volume=clock.volume,
-            open_interest=clock.open_interest,
-            intrinsic_value=clock.intrinsic_value,
-            remaining_extrinsic_value=clock.remaining_extrinsic_value,
-            next_event_label=_next_event_label(underlying, clock.expires_on),
+        _open_call_row(
+            underlying,
+            clock,
+            policy=policy_by_id.get(clock.policy_id),
         )
         for underlying in snapshot.underlyings
         for clock in underlying.open_call_clocks
@@ -144,6 +101,73 @@ def build_open_book(snapshot: DashboardSnapshot) -> OpenBookProjection:
         current_liability=sum((row.current_liability for row in rows), Decimal(0)),
         open_profit_loss=sum((row.open_profit_loss for row in rows), Decimal(0)),
         theta_estimate_per_day=sum((row.theta_estimate_per_day for row in rows), Decimal(0)),
+    )
+
+
+def _open_call_row(
+    underlying: UnderlyingCallStats,
+    clock: OpenCallClock,
+    *,
+    policy: CallPolicy | None,
+) -> OpenCallRow:
+    if policy is None:
+        policy_label = "Observed position"
+        intent_label = "NO SAVED PLAN"
+        fit_summary = "Not evaluated"
+        policy_fits = True
+    else:
+        entry_buffer = (
+            (clock.strike / clock.underlying_at_sale - 1) * Decimal("100")
+            if clock.underlying_at_sale
+            else Decimal("0")
+        )
+        fit = evaluate_policy_fit(
+            policy,
+            strike_buffer_percent=entry_buffer,
+            days_to_expiration=clock.original_days_to_expiration,
+            effective_exit_price=clock.strike + clock.entry_credit_per_share,
+        )
+        policy_label = policy.label
+        intent_label = policy.intent.label
+        fit_summary = fit.summary
+        policy_fits = fit.fits
+    return OpenCallRow(
+        record_id=clock.record_id,
+        campaign_id=clock.campaign_id,
+        symbol=underlying.symbol,
+        contracts=clock.contracts,
+        strike=clock.strike,
+        expires_on=clock.expires_on,
+        days_to_expiration=clock.days_to_expiration,
+        obligated_shares=clock.contracts * 100,
+        strike_distance_per_share=clock.strike_distance_per_share,
+        strike_distance_percent=clock.strike_distance_percent,
+        entry_credit=clock.entry_credit,
+        current_liability=clock.current_option_value,
+        open_profit_loss=clock.open_profit_loss,
+        theta_estimate_per_day=clock.short_theta_per_day,
+        elapsed_time_percent=clock.elapsed_time_percent,
+        decay_stage=clock.decay_stage,
+        policy_label=policy_label,
+        intent_label=intent_label,
+        policy_fit_summary=fit_summary,
+        policy_fits=policy_fits,
+        entry_credit_per_share=clock.entry_credit_per_share,
+        bid_per_share=clock.bid_per_share,
+        mark_per_share=clock.mark_per_share,
+        close_ask_per_share=clock.close_ask_per_share,
+        spread_per_share=clock.spread_per_share,
+        quote_status=clock.quote_status,
+        quote_observed_on=clock.quote_observed_on,
+        implied_volatility_percent=clock.implied_volatility_percent,
+        delta=clock.delta,
+        gamma=clock.gamma,
+        vega=clock.vega,
+        volume=clock.volume,
+        open_interest=clock.open_interest,
+        intrinsic_value=clock.intrinsic_value,
+        remaining_extrinsic_value=clock.remaining_extrinsic_value,
+        next_event_label=_next_event_label(underlying, clock.expires_on),
     )
 
 
@@ -161,7 +185,11 @@ def build_volatility_rows(snapshot: DashboardSnapshot) -> tuple[VolatilityRow, .
             DailyVolatilityObservation(
                 source_id=f"{snapshot.mode}:{underlying.symbol}:{point.date.isoformat()}",
                 session_date=point.date,
-                observed_at=datetime.combine(point.date, time(21, 0), tzinfo=snapshot.as_of.tzinfo),
+                observed_at=datetime.combine(
+                    point.date,
+                    time(21, 0),
+                    tzinfo=snapshot.as_of.tzinfo or UTC,
+                ),
                 close=point.price,
                 normalized_implied_volatility=(
                     underlying.average_open_call_iv_percent

@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 
+from schwab_dashboard.application.alerts import build_desk_alerts
 from schwab_dashboard.application.dashboard.calculations import (
     map_positions,
     summarize_allocations,
@@ -10,8 +11,14 @@ from schwab_dashboard.application.dashboard.calculations import (
     summarize_risk,
 )
 from schwab_dashboard.application.dashboard.covered_calls import CoveredCallPortfolioSummary
+from schwab_dashboard.application.dashboard.expiration_calendar import (
+    build_expiration_calendar,
+)
 from schwab_dashboard.application.dashboard.live_performance import build_live_performance
 from schwab_dashboard.application.dashboard.live_positions import build_live_position_book
+from schwab_dashboard.application.dashboard.live_underlying_stats import (
+    build_live_underlying_stats,
+)
 from schwab_dashboard.application.dashboard.models import (
     DashboardSnapshot,
     IncomeSummary,
@@ -50,6 +57,7 @@ class ReadDashboard:
         executions = self._analytics_reader.list_executions()
         cash_movements = self._analytics_reader.list_cash_movements()
         lifecycle_events = self._analytics_reader.list_lifecycle_events()
+        daily_bars = self._analytics_reader.list_daily_bars()
 
         as_of = (
             latest_sync.completed_at
@@ -75,6 +83,16 @@ class ReadDashboard:
             covered_capital=covered_capital,
             as_of=as_of.date(),
         )
+        underlyings = build_live_underlying_stats(
+            live_book=live_book,
+            positions=positions,
+            executions=executions,
+            cash_movements=cash_movements,
+            lifecycle_events=lifecycle_events,
+            daily_bars=daily_bars,
+            as_of=as_of.date(),
+        )
+        alerts = build_desk_alerts(underlyings, as_of=as_of.date())
         has_live_records = bool(positions or executions or cash_movements or lifecycle_events)
         base_risk = summarize_risk(positions)
         risk = RiskSummary(
@@ -131,13 +149,13 @@ class ReadDashboard:
             cash_chart_series=(),
             campaigns=(),
             covered_calls=performance.covered_calls,
-            underlyings=(),
-            alerts=(),
+            underlyings=underlyings,
+            alerts=alerts,
             call_history=(),
             performance_windows=performance.performance_windows if has_live_records else (),
             monthly_performance=performance.monthly_performance if has_live_records else (),
             strategy_attribution=(),
-            expiration_calendar=(),
+            expiration_calendar=build_expiration_calendar(underlyings, as_of.date()),
             policies=(),
             quarter_history=(),
             operator_metrics=performance.operator_metrics,

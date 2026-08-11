@@ -4,15 +4,15 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
-    <title>Incoooming Unofficial Desk · Options Income</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=56">
+    <title>Incoooming · Options Income</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=57">
     <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=4">
   </head>
   <body data-workspace-key="desk" data-workspace-context='{"account":"{{ snapshot.accounts[0].account_mask if snapshot.accounts else "---" }}","symbol":"ALL","asOf":"{{ snapshot.as_of.date().isoformat() }}"}'>
     <header class="topbar desk-topbar">
       <a class="brand" href="/" aria-label="Dashboard home">
         <span class="brand-mark">IU</span>
-        <span><strong>INCOOOMING//UNOFFICIAL</strong><small>DESK · LOCAL LEDGER 01</small></span>
+        <span><strong>INCOOOMING</strong><small>OPTIONS INCOME · LOCAL LEDGER 01</small></span>
       </a>
       {% set current_workspace_key = 'desk' %}
       {% include "partials/_product_nav.html" %}
@@ -57,7 +57,7 @@
       <section class="desk-heading" id="portfolio">
         <div class="desk-title">
           <p class="eyebrow">YOUR COVERED-CALL INCOME BOOK</p>
-          <h1>Incoooming Unofficial Desk</h1>
+          <h1>Incoooming</h1>
         </div>
         <div class="desk-period-selector" data-period-controls role="tablist" aria-label="Performance window">
           <span>WINDOW</span>

@@ -116,7 +116,7 @@ class PositionSummary:
 
 
 @dataclass(frozen=True, slots=True)
-class LiveOpenCallPosition:
+class LiveOpenOptionPosition:
     account_mask: str
     option_symbol: str
     underlying_symbol: str
@@ -144,6 +144,12 @@ class LiveOpenCallPosition:
     open_interest: int | None = None
     quote_observed_at: datetime | None = None
     quote_quality: str | None = None
+    option_type: str = "CALL"
+
+
+# Compatibility name retained while the interface moves from a call-only book to
+# one instrument group per underlying. New code should use LiveOpenOptionPosition.
+LiveOpenCallPosition = LiveOpenOptionPosition
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,15 +167,21 @@ class LiveUnderlyingPosition:
     uncovered_contracts: int
     coverage_percent: Decimal
     open_mark_profit_loss: Decimal
-    calls: Sequence[LiveOpenCallPosition]
+    calls: Sequence[LiveOpenOptionPosition]
     average_open_iv_percent: Decimal | None = None
     estimated_theta_per_day: Decimal = Decimal("0")
+    puts: Sequence[LiveOpenOptionPosition] = ()
+    estimated_put_theta_per_day: Decimal = Decimal("0")
+
+    @property
+    def open_put_contracts(self) -> int:
+        return sum(put.contracts for put in self.puts)
 
 
 @dataclass(frozen=True, slots=True)
 class LivePositionBook:
     underlyings: Sequence[LiveUnderlyingPosition]
-    calls: Sequence[LiveOpenCallPosition]
+    calls: Sequence[LiveOpenOptionPosition]
     total_shares: int
     contract_capacity: int
     open_call_positions: int
@@ -178,6 +190,9 @@ class LivePositionBook:
     uncovered_contracts: int
     coverage_percent: Decimal
     open_mark_profit_loss: Decimal
+    puts: Sequence[LiveOpenOptionPosition] = ()
+    open_put_positions: int = 0
+    open_put_contracts: int = 0
 
 
 @dataclass(frozen=True, slots=True)

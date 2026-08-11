@@ -8,6 +8,7 @@ from schwab_dashboard.application.alerts.context import (
 )
 from schwab_dashboard.application.alerts.models import AlertFact, AlertLevel, DeskAlert
 from schwab_dashboard.application.dashboard.covered_calls import UnderlyingCallStats
+from schwab_dashboard.application.formatting import compact_decimal
 
 DIVIDEND_REVIEW_WINDOW_DAYS = 5
 DIVIDEND_WATCH_WINDOW_DAYS = 2
@@ -70,7 +71,8 @@ def evaluate_dividend_overlap(
         time_value_shortfall = underlying.dividend_per_share - context.extrinsic_per_share
         message = (
             f"{underlying.symbol} is ${amount_in_the_money:.2f}/share "
-            f"({percent_in_the_money:.1f}%) above the ${context.call.strike:g} call "
+            f"({percent_in_the_money:.1f}%) above the "
+            f"${compact_decimal(context.call.strike)} call "
             f"and therefore in the money, with {_days_text(days_until).lower()} "
             "until ex-dividend. Across "
             f"{exposed_contracts} contract{'s' if exposed_contracts != 1 else ''} "
@@ -82,7 +84,8 @@ def evaluate_dividend_overlap(
     else:
         message = (
             f"{underlying.symbol} is ${amount_in_the_money:.2f}/share "
-            f"({percent_in_the_money:.1f}%) above the ${context.call.strike:g} call "
+            f"({percent_in_the_money:.1f}%) above the "
+            f"${compact_decimal(context.call.strike)} call "
             f"and therefore in the money, with {_days_text(days_until).lower()} "
             "until ex-dividend. Remaining "
             f"time value (${context.extrinsic_per_share:.2f}/share) is still greater "
@@ -107,7 +110,7 @@ def evaluate_dividend_overlap(
             ),
             AlertFact(
                 "EXPOSED CALL",
-                f"{underlying.symbol} ${context.call.strike:g}C",
+                f"{underlying.symbol} ${compact_decimal(context.call.strike)}C",
                 f"{exposed_contracts} CONTRACT{'S' if exposed_contracts != 1 else ''} "
                 f"· {exposed_shares} SHARES",
             ),

@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "incoooming-unofficial-desk"
 version = "0.1.0"
-description = "Incoooming Unofficial Desk: a local-first options-income and portfolio analytics ledger"
+description = "Incoooming: a local-first options-income and portfolio analytics ledger"
 readme = "README.md"
 requires-python = ">=3.12,<3.15"
 license = { text = "Private personal project" }

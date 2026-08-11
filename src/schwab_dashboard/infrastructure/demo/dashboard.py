@@ -7,6 +7,9 @@ from schwab_dashboard.application.dashboard.cash_activity import (
     build_cash_activity_windows,
 )
 from schwab_dashboard.application.dashboard.cashflows import build_call_cash_events
+from schwab_dashboard.application.dashboard.expiration_calendar import (
+    build_expiration_calendar,
+)
 from schwab_dashboard.application.dashboard.models import (
     DashboardSnapshot,
     IncomeSummary,
@@ -21,9 +24,6 @@ from schwab_dashboard.infrastructure.demo.fixtures.call_stats import (
 from schwab_dashboard.infrastructure.demo.fixtures.campaigns import build_campaigns
 from schwab_dashboard.infrastructure.demo.fixtures.cash_events import build_dividend_cash_events
 from schwab_dashboard.infrastructure.demo.fixtures.income import build_income_periods
-from schwab_dashboard.infrastructure.demo.fixtures.obligations import (
-    build_expiration_calendar,
-)
 from schwab_dashboard.infrastructure.demo.fixtures.performance import (
     build_basis_lens,
     build_cash_chart_series,

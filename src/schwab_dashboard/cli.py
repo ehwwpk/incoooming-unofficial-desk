@@ -13,7 +13,7 @@ from schwab_dashboard.application.errors import AuthenticationRequiredError
 from schwab_dashboard.config import Settings
 from schwab_dashboard.container import Container
 
-app = typer.Typer(no_args_is_help=True, help="Incoooming Unofficial Desk local commands.")
+app = typer.Typer(no_args_is_help=True, help="Incoooming local commands.")
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 

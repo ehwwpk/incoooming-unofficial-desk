@@ -6,6 +6,7 @@ from schwab_dashboard.application.alerts.context import build_call_review_contex
 from schwab_dashboard.application.alerts.models import AlertFact, AlertLevel, DeskAlert
 from schwab_dashboard.application.alerts.rolls import build_neutral_roll_scenarios
 from schwab_dashboard.application.dashboard.covered_calls import UnderlyingCallStats
+from schwab_dashboard.application.formatting import compact_decimal
 
 D = Decimal
 
@@ -51,9 +52,13 @@ def evaluate_fast_move(underlying: UnderlyingCallStats) -> DeskAlert | None:
         level_label=level.friendly_label,
         symbol=underlying.symbol,
         target_id=f"{underlying.symbol.lower()}-workspace",
-        headline=f"Fast move; ${closest.strike:g} call is {abs(strike_gap):.1f}% away",
+        headline=(
+            f"Fast move; ${compact_decimal(closest.strike)} call is "
+            f"{abs(strike_gap):.1f}% away"
+        ),
         message=(
-            f"{underlying.symbol} moved fast after the sale. The ${closest.strike:g} call "
+            f"{underlying.symbol} moved fast after the sale. The "
+            f"${compact_decimal(closest.strike)} call "
             f"{position_message}."
         ),
         facts=(
@@ -63,7 +68,7 @@ def evaluate_fast_move(underlying: UnderlyingCallStats) -> DeskAlert | None:
                 f"{context.sale_to_current_move_percent:+.1f}% SINCE SALE",
             ),
             AlertFact(
-                f"TO ${closest.strike:g} CALL",
+                f"TO ${compact_decimal(closest.strike)} CALL",
                 f"${abs(context.strike_distance_per_share):.2f} / "
                 f"{abs(context.strike_distance_percent):.1f}%",
                 distance_detail,

@@ -1,27 +1,27 @@
 <section class="section-block" id="underlyings">
   {% set live_book = snapshot.live_position_book %}
   <div class="section-heading terminal-heading position-section-heading">
-    <h2>Covered-call positions</h2>
+    <h2>Options by underlying</h2>
     <div
       class="position-book-summary"
-      aria-label="Current covered-call position summary"
+      aria-label="Current option positions grouped by underlying"
     >
       <span><b>{{ snapshot.underlyings | length if snapshot.underlyings else (live_book.underlyings | length if live_book else 0) }}</b> STOCKS</span>
       <span><b>{{ snapshot.covered_calls.total_shares | number(0) if snapshot.underlyings else (live_book.total_shares | number(0) if live_book else 0) }}</b> SHARES</span>
-      <span><b>{{ snapshot.covered_calls.active_contracts if snapshot.underlyings else (live_book.open_call_contracts if live_book else 0) }}</b> CALL CONTRACTS</span>
+      <span><b>{{ snapshot.covered_calls.active_contracts if snapshot.underlyings else (live_book.open_call_contracts if live_book else 0) }}</b> CALLS{% if live_book and live_book.open_put_contracts %} · <b>{{ live_book.open_put_contracts }}</b> PUTS{% endif %}</span>
     </div>
   </div>
   {% if snapshot.underlyings %}
   <div class="underlying-grid">
     {% for row in desk_overview.position_rows %}
     {% set item = row.underlying %}
-    {% set active_window = item.performance_windows[1] %}
+    {% set active_window = item.performance_windows[0] %}
     <details id="{{ item.symbol | lower }}-workspace" class="underlying-card position-book {{ item.tone }}-edge" data-underlying-card="{{ item.symbol }}" data-position-details>
       <summary class="position-row-summary">
         <div class="position-identity"><strong>{{ item.symbol }}</strong><span>{{ item.company_name }}</span><small>{{ item.current_price | money }} · {{ item.market_value | money(0) }} value</small></div>
         <div><span>SHARES</span><strong>{{ item.shares }}</strong><small>{{ item.contract_capacity }} total 100-share lots</small></div>
         <div class="position-income"><span data-name-option-label>NET OPTION INCOME / 4 WEEKS</span><strong data-name-option-cash>{{ active_window.option_cash | money }}</strong><small><b data-name-dividends>{{ active_window.dividends | money }}</b> dividends</small></div>
-        <div><span>OPEN CONTRACTS</span><strong>{{ item.active_contracts }}</strong><small>{{ row.open_positions }} position{{ '' if row.open_positions == 1 else 's' }} · {{ item.coverage_percent | percent }} covered</small></div>
+        <div><span>OPEN OPTIONS</span><strong>{{ item.active_contracts + (row.live_underlying.open_put_contracts if row.live_underlying else 0) }}</strong><small>{{ item.active_contracts }} calls{% if row.live_underlying and row.live_underlying.open_put_contracts %} · {{ row.live_underlying.open_put_contracts }} puts{% endif %} · {{ item.coverage_percent | percent }} covered</small></div>
         <div class="position-nearest"><span>NEAREST STRIKE</span>{% if row.nearest_call %}<strong>${{ '%g' | format(row.nearest_call.strike) }}C</strong>{% if row.nearest_call.strike_distance_per_share >= 0 %}<small>{{ row.nearest_call.strike_distance_percent | percent }} above · {{ row.nearest_call.days_to_expiration }} DTE</small>{% else %}<small class="negative">{{ (-row.nearest_call.strike_distance_percent) | percent }} past · {{ row.nearest_call.days_to_expiration }} DTE</small>{% endif %}{% else %}<strong>NONE</strong><small>No open call</small>{% endif %}</div>
         <div><span>OPEN MARK P/L</span><strong class="{{ row.open_mark_profit_loss | pnl_class }}">{{ row.open_mark_profit_loss | money }}</strong><small>Unrealized estimate</small></div>
         <div class="position-open-control"><b><span class="position-open-label">OPEN DETAILS</span><span class="position-close-label">CLOSE DETAILS</span></b>{% if row.alert_count %}<small class="position-alert">{{ row.alert_count }} NOTE{{ '' if row.alert_count == 1 else 'S' }}</small>{% else %}<small>NO DESK NOTE</small>{% endif %}</div>
@@ -47,12 +47,13 @@
           <div><span>AVG CALL DELTA</span><b>{{ item.average_open_call_delta | number(2) }}</b></div>
           <div><span>STRIKE BUFFER</span><b>{{ item.current_strike_buffer_percent | percent }}</b></div>
           <div><span data-name-capture-label>CAPTURE / 4W</span><b data-name-capture>{{ active_window.premium_capture_percent | percent }}</b></div>
+          <div title="Theoretical one-day option value decay across this stock's open short calls, holding other inputs constant."><span>MODEL THETA / DAY</span><b class="positive">+{{ item.open_call_theta_per_day | money }}</b></div>
         </div>
 
       <div class="underlying-decision-grid" data-workspace-grid>
-        <section id="{{ item.symbol | lower }}-price-pane" class="price-map" data-chart-workspace aria-label="{{ item.symbol }} verified daily close history and simulated option events">
+        <section id="{{ item.symbol | lower }}-price-pane" class="price-map" data-chart-workspace aria-label="{{ item.symbol }} verified daily close history and normalized option events">
           <div class="price-map-heading">
-            <div class="price-map-title"><span data-chart-heading>FULL DAILY CLOSES</span><small data-chart-metadata>{{ item.price_points[0].label }}–{{ item.price_points[-1].label }} · {{ item.price_points | length }} MARKET SESSIONS <i>SIM</i></small></div>
+            <div class="price-map-title"><span data-chart-heading>FULL DAILY CLOSES</span><small data-chart-metadata>{{ item.price_points[0].label }}–{{ item.price_points[-1].label }} · {{ item.price_points | length }} MARKET SESSIONS <i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i></small></div>
             <div class="price-map-tools">
               <div class="chart-range-controls" role="group" aria-label="{{ item.symbol }} chart range">
                 <button type="button" data-chart-range="full" aria-pressed="true">FULL</button>
@@ -90,9 +91,9 @@
               {% include "partials/_chart_events.html" %}
               {% set last_point = item.price_points[-1] %}<i class="price-now-event" data-chart-now data-date="{{ last_point.date.isoformat() }}" data-price="{{ last_point.price }}" style="--event-x: {{ last_point.x_percent }}%; --event-y: {{ last_point.y_percent }}%"><b>NOW</b></i>
             </div>
-            <div class="price-date-axis"><span data-chart-date="start">{{ item.price_points[0].label }}</span><span data-chart-date="mid">{{ item.price_points[30].label }}</span><span data-chart-date="end">{{ item.price_points[-1].label }}</span></div>
+            {% set midpoint = ((item.price_points | length) / 2) | int %}<div class="price-date-axis"><span data-chart-date="start">{{ item.price_points[0].label }}</span><span data-chart-date="mid">{{ item.price_points[midpoint].label }}</span><span data-chart-date="end">{{ item.price_points[-1].label }}</span></div>
           </div>
-          <div class="price-map-legend"><span><i></i> <b data-chart-session-count>{{ item.price_points | length }}</b> MARKET SESSIONS</span><span><b class="sale">S</b> SOLD</span><span><b class="expired">X</b> EXPIRED</span><span><b class="closed">C</b> CLOSED</span><span><b class="rolled">R</b> ROLLED</span><span><b class="assigned">A</b> ASSIGNED</span><span><b class="share-trade">±</b> SHARES</span><small><b data-chart-event-count>{{ item.price_events | length + item.share_trade_events | length }}</b> VISIBLE EVENTS · YAHOO FINANCE CLOSE · FROZEN 08/07/26 · SIMULATED CALLS</small></div>
+          <div class="price-map-legend"><span><i></i> <b data-chart-session-count>{{ item.price_points | length }}</b> MARKET SESSIONS</span><span><b class="sale">S</b> SOLD</span><span><b class="expired">X</b> EXPIRED</span><span><b class="closed">C</b> CLOSED</span><span><b class="rolled">R</b> ROLLED</span><span><b class="assigned">A</b> ASSIGNED</span><span><b class="share-trade">±</b> SHARES</span><small><b data-chart-event-count>{{ item.price_events | length + item.share_trade_events | length }}</b> VISIBLE EVENTS · {{ 'FROZEN DEMO CLOSES · SIMULATED CALLS' if snapshot.is_demo else 'SCHWAB DAILY CLOSES · NORMALIZED LEDGER' }}</small></div>
           <div class="price-event-ledger" aria-label="{{ item.symbol }} numbered option event tape">
             {% for event in item.price_events %}
             <button type="button" class="{{ event.event_type }}" data-chart-ledger-event data-event-sequence="{{ event.sequence }}" data-lifecycle-id="{{ event.lifecycle_id }}" data-date="{{ event.date.isoformat() }}" aria-label="Open event {{ event.sequence }} details"><b>{{ event.sequence }}</b><span><i>{{ event.label }} · {{ event.glyph }}</i><strong>{{ event.detail }}</strong></span></button>
@@ -119,7 +120,7 @@
         <section class="call-clock-board">
           <div class="call-clock-heading">
             <div><span>OPEN OPTION STATUS</span><small>PREMIUM RECEIVED / CURRENT MARK / OPEN P&amp;L</small></div>
-            <small>MARK / THETA <i>SIM</i></small>
+            <small>MARK / THETA <i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i></small>
           </div>
           {% for call in item.open_call_clocks %}
           <article class="call-position {{ call.open_profit_loss | pnl_class }}">
@@ -154,12 +155,25 @@
               <span>TIME ELAPSED <b>{{ call.elapsed_time_percent | percent }}</b><small>{{ call.elapsed_days }} / {{ call.original_days_to_expiration }} calendar days since sale</small></span>
               <span>TIME VALUE NOW <b>{{ call.remaining_extrinsic_value | money(0) }}</b></span>
               {% if call.intrinsic_value > 0 %}<span class="negative">INTRINSIC <b>{{ call.intrinsic_value | money(0) }}</b></span>{% else %}<span>INTRINSIC <b>$0 / OTM</b></span>{% endif %}
-              <span>THETA <i>SIM</i> <b class="positive">+{{ call.short_theta_per_day | money }}/DAY</b></span>
+              <span>THETA <i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i> <b class="positive">+{{ call.short_theta_per_day | money }}/DAY</b></span>
               <span>TIME-VALUE PACE <b>~{{ call.theta_days_of_time_value | number(1) }} DAYS</b><small>at today's theta; not a forecast</small></span>
             </div>
           </article>
           {% endfor %}
+          {% if not item.open_call_clocks %}<p class="empty-state">No open short calls for this underlying.</p>{% endif %}
         </section>
+
+        {% if row.live_underlying and row.live_underlying.puts %}
+        <section class="call-clock-board put-clock-board" aria-label="{{ item.symbol }} open short puts">
+          <div class="call-clock-heading"><div><span>OPEN PUT STATUS</span><small>CASH-SECURED / MARGIN OBLIGATIONS GROUPED WITH {{ item.symbol }}</small></div><small>LIVE</small></div>
+          {% for put in row.live_underlying.puts %}
+          <article class="call-position {{ put.open_profit_loss | pnl_class }}">
+            <header><div><strong>-{{ put.contracts }} {{ put.expires_on.strftime('%b %d') | upper }} ${{ '%g' | format(put.strike) }}P</strong><span>{{ put.strike_distance_per_share | money }} / {{ put.strike_distance_percent | percent }} TO STRIKE</span></div><div><b>{{ put.days_to_expiration }}</b><span>DTE</span></div></header>
+            <div class="call-context-strip put-context-strip"><span>MARK <b>{{ put.estimated_mark_per_share | money }}</b><small>{{ put.bid_per_share | money }} bid · {{ put.ask_per_share | money }} ask</small></span><span>OPEN P/L <b class="{{ put.open_profit_loss | pnl_class }}">{{ put.open_profit_loss | money }}</b></span><span>IV / DELTA <b>{{ put.implied_volatility_percent | percent }} / {{ put.delta | number(2) }}</b></span><span>THETA / DAY <b class="positive">+{{ (-(put.theta_per_share or 0) * put.contracts * 100) | money }}</b></span></div>
+          </article>
+          {% endfor %}
+        </section>
+        {% endif %}
 
         <section class="underlying-history" aria-label="{{ item.symbol }} execution outcomes and basis">
           <div class="history-caption">QUARTERLY EXECUTION OUTCOMES</div>

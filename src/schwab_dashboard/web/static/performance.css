@@ -41,7 +41,7 @@
 .quarter-history-item i { display: flex; align-items: flex-end; justify-content: center; }
 .quarter-history-item em { width: 60%; height: var(--quarter-height); border-top: 2px solid var(--green); background: rgb(96 207 136 / 14%); }
 
-.name-analytics { display: grid; grid-template-columns: repeat(6, 1fr); border-top: 1px solid var(--line); background: #090d10; }
+.name-analytics { display: grid; grid-template-columns: repeat(7, 1fr); border-top: 1px solid var(--line); background: #090d10; }
 .name-analytics div { display: grid; gap: 4px; padding: 8px 6px; border-right: 1px solid var(--line); text-align: center; }
 .name-analytics div:last-child { border-right: 0; }
 .name-analytics span { color: var(--subtle); font: .45rem var(--mono); }

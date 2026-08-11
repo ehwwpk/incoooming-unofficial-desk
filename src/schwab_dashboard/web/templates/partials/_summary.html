@@ -55,7 +55,7 @@
         <strong>{{ desk_overview.open_contracts }}/{{ desk_overview.contract_capacity }}</strong>
         <small>{{ desk_overview.coverage_percent | percent }} covered</small>
       </div>
-      <div class="nearest-call">
+      <a class="nearest-call" {% if desk_overview.nearest_call %}href="#{{ desk_overview.nearest_call.symbol | lower }}-workspace"{% else %}aria-disabled="true"{% endif %}>
         <span>CLOSEST CALL TO STRIKE</span>
         {% if desk_overview.nearest_call %}
         <strong>{{ desk_overview.nearest_call.symbol }} ${{ '%g' | format(desk_overview.nearest_call.strike) }}C</strong>
@@ -65,16 +65,15 @@
         <small class="negative">{{ (-desk_overview.nearest_call.strike_distance_per_share) | money }} / {{ (-desk_overview.nearest_call.strike_distance_percent) | percent }} past strike</small>
         {% endif %}
         {% else %}<strong>NONE</strong><small>No open short calls</small>{% endif %}
-      </div>
+      </a>
       <div>
-        <span>NEXT EXPIRATION</span>
-        {% if desk_overview.next_expiring_call %}
-        <strong>{{ desk_overview.next_expiring_call.expires_on | short_date }}</strong>
-        <small>{{ desk_overview.next_expiring_call.symbol }} ${{ '%g' | format(desk_overview.next_expiring_call.strike) }}C · {{ desk_overview.next_expiring_call.days_to_expiration }} DTE</small>
-        {% else %}<strong>NONE</strong><small>No expiry scheduled</small>{% endif %}
+        <span>MODEL TIME DECAY / DAY</span>
+        <strong class="positive">+{{ desk_overview.daily_theta | money }}</strong>
+        <small>All open short calls · estimate, not cash</small>
       </div>
     </div>
     <footer class="live-book-footer">
+      <div><span>NEXT EXPIRATION</span>{% if desk_overview.next_expiring_call %}<b>{{ desk_overview.next_expiring_call.expires_on | short_date }}</b><small>{{ desk_overview.next_expiring_call.symbol }} ${{ '%g' | format(desk_overview.next_expiring_call.strike) }}C · {{ desk_overview.next_expiring_call.days_to_expiration }} DTE</small>{% else %}<b>NONE</b><small>No expiry scheduled</small>{% endif %}</div>
       <div><span>OPEN MARK P/L</span><b class="{{ desk_overview.open_mark_profit_loss | pnl_class }}">{{ desk_overview.open_mark_profit_loss | money }}</b><small>Unrealized · changes with the market</small></div>
       <div><span>DIVIDEND OVERLAP</span><b>{{ desk_overview.dividend_overlap_contracts }} CONTRACTS</b><small>Calls open across an ex-dividend date</small></div>
       {% if snapshot.alerts %}

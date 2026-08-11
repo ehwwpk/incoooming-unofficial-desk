@@ -119,7 +119,7 @@ def test_demo_mode_renders_operator_plan_without_credentials(tmp_path: Path) -> 
         )
 
         assert page.status_code == 200
-        assert "Incoooming Unofficial Desk" in page.text
+        assert "Incoooming" in page.text
         assert "Income &amp; pace" in page.text
         assert "Live covered calls" in page.text
         assert 'data-period="week"' not in page.text

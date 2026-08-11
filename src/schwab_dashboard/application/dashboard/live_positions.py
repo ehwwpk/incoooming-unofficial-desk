@@ -6,7 +6,7 @@ from datetime import date
 from decimal import Decimal
 
 from schwab_dashboard.application.dashboard.models import (
-    LiveOpenCallPosition,
+    LiveOpenOptionPosition,
     LivePositionBook,
     LiveUnderlyingPosition,
     PositionSummary,
@@ -30,9 +30,10 @@ def build_live_position_book(
         for position in positions
         if position.asset_type.upper() != "OPTION" and position.quantity > ZERO
     }
-    calls_by_symbol: defaultdict[str, list[LiveOpenCallPosition]] = defaultdict(list)
+    calls_by_symbol: defaultdict[str, list[LiveOpenOptionPosition]] = defaultdict(list)
+    puts_by_symbol: defaultdict[str, list[LiveOpenOptionPosition]] = defaultdict(list)
     for position in positions:
-        if not _is_short_call(position):
+        if not _is_short_option(position):
             continue
         assert position.underlying_symbol is not None
         assert position.expiration_date is not None
@@ -44,14 +45,20 @@ def build_live_position_book(
             holding.mark if holding else None
         )
         quote = option_quotes.get(_canonical(position.symbol), {})
-        distance = position.strike - underlying_price if underlying_price is not None else None
+        option_type = str(position.option_type or "").upper()
+        distance = (
+            position.strike - underlying_price
+            if option_type == "CALL" and underlying_price is not None
+            else underlying_price - position.strike
+            if underlying_price is not None
+            else None
+        )
         distance_percent = (
             distance / underlying_price * HUNDRED
             if distance is not None and underlying_price
             else None
         )
-        calls_by_symbol[position.underlying_symbol].append(
-            LiveOpenCallPosition(
+        option = LiveOpenOptionPosition(
                 account_mask=position.account_mask,
                 option_symbol=position.symbol,
                 underlying_symbol=position.underlying_symbol,
@@ -81,14 +88,24 @@ def build_live_position_book(
                 open_interest=_optional_int(quote.get("open_interest")),
                 quote_observed_at=quote.get("observed_at"),  # type: ignore[arg-type]
                 quote_quality=str(quote.get("quote_quality") or "") or None,
+                option_type=option_type,
             )
-        )
+        if option_type == "CALL":
+            calls_by_symbol[position.underlying_symbol].append(option)
+        else:
+            puts_by_symbol[position.underlying_symbol].append(option)
 
     underlyings: list[LiveUnderlyingPosition] = []
-    all_calls: list[LiveOpenCallPosition] = []
-    for symbol, calls in sorted(calls_by_symbol.items()):
+    all_calls: list[LiveOpenOptionPosition] = []
+    all_puts: list[LiveOpenOptionPosition] = []
+    symbols = sorted(set(calls_by_symbol) | set(puts_by_symbol))
+    for symbol in symbols:
+        calls = calls_by_symbol[symbol]
+        puts = puts_by_symbol[symbol]
         ordered_calls = tuple(sorted(calls, key=lambda item: (item.expires_on, item.strike)))
+        ordered_puts = tuple(sorted(puts, key=lambda item: (item.expires_on, item.strike)))
         all_calls.extend(ordered_calls)
+        all_puts.extend(ordered_puts)
         holding = holdings.get(symbol)
         shares = int(holding.quantity) if holding is not None else 0
         capacity = max(0, shares // 100)
@@ -133,6 +150,16 @@ def build_live_position_book(
                     ),
                     ZERO,
                 ),
+                puts=ordered_puts,
+                estimated_put_theta_per_day=sum(
+                    (
+                        -(put.theta_per_share or ZERO)
+                        * Decimal("100")
+                        * Decimal(put.contracts)
+                        for put in ordered_puts
+                    ),
+                    ZERO,
+                ),
             )
         )
 
@@ -152,14 +179,17 @@ def build_live_position_book(
             Decimal(covered_contracts) / Decimal(capacity) * HUNDRED if capacity else ZERO
         ),
         open_mark_profit_loss=sum((call.open_profit_loss or ZERO for call in all_calls), ZERO),
+        puts=tuple(all_puts),
+        open_put_positions=len(all_puts),
+        open_put_contracts=sum(put.contracts for put in all_puts),
     )
 
 
-def _is_short_call(position: PositionSummary) -> bool:
+def _is_short_option(position: PositionSummary) -> bool:
     return (
         position.asset_type.upper() == "OPTION"
         and position.quantity < ZERO
-        and position.option_type == "CALL"
+        and position.option_type in {"CALL", "PUT"}
         and position.underlying_symbol is not None
         and position.expiration_date is not None
         and position.strike is not None
@@ -175,4 +205,4 @@ def _optional_decimal(value: object) -> Decimal | None:
 
 
 def _optional_int(value: object) -> int | None:
-    return int(value) if value is not None else None
+    return int(str(value)) if value is not None else None

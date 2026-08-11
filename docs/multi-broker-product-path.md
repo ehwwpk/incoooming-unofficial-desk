@@ -2,7 +2,7 @@
 
 ## Objective
 
-Let a person use Incoooming Unofficial Desk without becoming a broker API developer or sharing brokerage credentials with the application.
+Let a person use Incoooming without becoming a broker API developer or sharing brokerage credentials with the application.
 
 The accounting domain must remain broker-neutral. Schwab, an aggregator, and file imports should all produce the same normalized accounts, positions, executions, option lifecycle events, dividends, and cash movements.
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Sequence
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -154,10 +155,14 @@ def _optional_decimal(value: Any) -> Decimal | None:
     return None if value is None else Decimal(str(value))
 
 
-def _optional_date(value: Any):
+def _optional_date(value: Any) -> date | None:
     if value is None:
         return None
-    return value.date() if hasattr(value, "date") else value
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    return date.fromisoformat(str(value))
 
 
 def _sum_known(values: Sequence[Decimal | None]) -> Decimal | None:

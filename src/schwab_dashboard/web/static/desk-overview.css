@@ -27,11 +27,13 @@
 .income-observed-bar small { color: var(--subtle); font: .4rem/1.3 var(--mono); }
 
 .live-book-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.live-book-grid > div { display: grid; min-height: 88px; align-content: center; gap: 6px; padding: 9px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.live-book-grid > div:last-child { border-right: 0; }
+.live-book-grid > div, .live-book-grid > a { display: grid; min-height: 88px; align-content: center; gap: 6px; padding: 9px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); color: inherit; text-decoration: none; }
+.live-book-grid > :last-child { border-right: 0; }
 .live-book-grid strong { font: 700 .85rem var(--mono); }
 .live-book-grid .nearest-call { background: #11120f; box-shadow: inset 2px 0 var(--gold); }
-.live-book-footer { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; padding: 0; }
+.live-book-grid .nearest-call:hover, .live-book-grid .nearest-call:focus-visible { background: #18170f; outline: 1px solid var(--gold); outline-offset: -1px; }
+.live-book-grid .nearest-call[aria-disabled="true"] { pointer-events: none; }
+.live-book-footer { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; padding: 0; }
 .live-book-footer > div, .live-book-footer > button { display: grid; min-height: 58px; align-content: center; gap: 4px; border: 0; border-right: 1px solid var(--line); padding: 8px 10px; background: transparent; color: var(--text); text-align: left; }
 .live-book-footer > :last-child { border-right: 0; }
 .live-book-footer b { font: 700 .61rem var(--mono); }
@@ -136,7 +138,7 @@
   .live-position-facts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 780px) {
   .position-section-heading { grid-template-columns: 1fr; }
   .position-section-heading h2 { min-height: 34px; }
   .position-book-summary { width: 100%; border-top: 1px solid var(--line); border-left: 0; }
@@ -153,7 +155,7 @@
   .position-book > summary > div:nth-child(2n) { border-right: 0; }
   .position-open-control { border-left: 0; }
   .live-book-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .live-book-grid > div:nth-child(2n) { border-right: 0; }
+  .live-book-grid > :nth-child(2n) { border-right: 0; }
   .live-book-footer { grid-template-columns: 1fr; }
   .live-book-footer > div, .live-book-footer > button { border-right: 0; border-bottom: 1px solid var(--line); }
   .live-book-footer > :last-child { border-bottom: 0; }
