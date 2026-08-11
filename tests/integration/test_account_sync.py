@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -107,3 +108,35 @@ def test_each_real_sync_creates_a_new_observation(
         assert session.scalar(select(func.count()).select_from(RawBrokerEventTable)) == 2
         assert session.scalar(select(func.count()).select_from(AccountTable)) == 1
         assert session.scalar(select(func.count()).select_from(PositionSnapshotTable)) == 2
+
+
+def test_activity_run_does_not_hide_latest_position_snapshot(
+    database_runtime: tuple[object, object, object],
+) -> None:
+    _, _, uow_factory = database_runtime
+    service = SyncAccountsAndPositions(
+        broker=FakeBrokerGateway([_record(_position())]),  # type: ignore[arg-type]
+        uow_factory=uow_factory,  # type: ignore[arg-type]
+        parser_version="test-v1",
+    )
+    service.execute()
+
+    with uow_factory() as uow:  # type: ignore[operator]
+        observed_at = datetime.now(UTC)
+        activity_run = uow.sync_runs.start(
+            source="schwab_activity",
+            started_at=observed_at,
+        )
+        uow.sync_runs.complete(
+            activity_run,
+            completed_at=observed_at,
+            account_count=1,
+            position_count=0,
+        )
+        uow.commit()
+
+    with uow_factory() as uow:  # type: ignore[operator]
+        rows = uow.positions.list_latest()
+
+    assert len(rows) == 1
+    assert rows[0]["symbol"] == "XYZ"

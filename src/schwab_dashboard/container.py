@@ -11,11 +11,14 @@ from schwab_dashboard.application.services.record_market_observations import (
     RecordMarketObservations,
 )
 from schwab_dashboard.application.services.sync_accounts import SyncAccountsAndPositions
+from schwab_dashboard.application.services.sync_market import SyncSchwabMarketData
+from schwab_dashboard.application.services.sync_transactions import SyncSchwabTransactions
 from schwab_dashboard.application.services.workspace_preferences import (
     LoadWorkspacePreferences,
     SaveWorkspacePreferences,
 )
 from schwab_dashboard.config import Settings
+from schwab_dashboard.infrastructure.database.analytics_reader import SqlLiveAnalyticsReader
 from schwab_dashboard.infrastructure.database.engine import (
     create_database_engine,
     create_session_factory,
@@ -27,10 +30,13 @@ from schwab_dashboard.infrastructure.database.uow_workspace import build_workspa
 from schwab_dashboard.infrastructure.demo.dashboard import DemoDashboardReader
 from schwab_dashboard.infrastructure.schwab.gateway import (
     SchwabBrokerGateway,
+    SchwabReadOnlyMarketDataClient,
     SchwabReadOnlyTraderClient,
 )
 from schwab_dashboard.infrastructure.schwab.mapper import SchwabAccountMapper
+from schwab_dashboard.infrastructure.schwab.market_mapper import SchwabMarketMapper
 from schwab_dashboard.infrastructure.schwab.oauth import SchwabOAuthClient
+from schwab_dashboard.infrastructure.schwab.transaction_mapper import SchwabTransactionMapper
 from schwab_dashboard.infrastructure.secrets.keyring_tokens import KeyringTokenStore
 
 
@@ -49,6 +55,7 @@ class Container:
         )
         self._oauth_http = httpx.Client(timeout=30.0, follow_redirects=False)
         self._trader_http = httpx.Client(timeout=30.0, follow_redirects=False)
+        self._market_http = httpx.Client(timeout=30.0, follow_redirects=False)
         self.oauth = self._build_oauth()
 
     def database_ready(self) -> bool:
@@ -67,6 +74,7 @@ class Container:
                 "raw_market_events",
                 "sync_runs",
                 "underlying_market_snapshots",
+                "underlying_daily_bars",
                 "workspace_preferences",
             }
             return required <= tables
@@ -78,6 +86,7 @@ class Container:
             return DemoDashboardReader()
         return ReadDashboard(
             uow_factory=self.uow_factory,
+            analytics_reader=SqlLiveAnalyticsReader(self.session_factory),
             credentials_configured=self.settings.schwab_credentials_configured,
             token_available=self.oauth.token_available() if self.oauth is not None else False,
         )
@@ -102,6 +111,37 @@ class Container:
     def record_market_observations(self) -> RecordMarketObservations:
         return RecordMarketObservations(uow_factory=self.market_uow_factory)
 
+    def sync_transactions(self) -> SyncSchwabTransactions:
+        oauth = self.require_oauth()
+        client = SchwabReadOnlyTraderClient(
+            base_url=self.settings.trader_base_url,
+            oauth=oauth,
+            http_client=self._trader_http,
+        )
+        return SyncSchwabTransactions(
+            client=client,
+            mapper=SchwabTransactionMapper(),
+            ledger=self.record_ledger_activity(),
+            uow_factory=self.uow_factory,
+            parser_version=self.settings.transaction_parser_version,
+            history_days=self.settings.transaction_history_days,
+        )
+
+    def sync_market_data(self) -> SyncSchwabMarketData:
+        oauth = self.require_oauth()
+        client = SchwabReadOnlyMarketDataClient(
+            base_url=self.settings.market_data_base_url,
+            oauth=oauth,
+            http_client=self._market_http,
+        )
+        return SyncSchwabMarketData(
+            client=client,
+            mapper=SchwabMarketMapper(),
+            recorder=self.record_market_observations(),
+            uow_factory=self.uow_factory,
+            parser_version=self.settings.market_parser_version,
+        )
+
     def save_workspace_preferences(self) -> SaveWorkspacePreferences:
         return SaveWorkspacePreferences(uow_factory=self.workspace_uow_factory)
 
@@ -118,6 +158,7 @@ class Container:
     def close(self) -> None:
         self._oauth_http.close()
         self._trader_http.close()
+        self._market_http.close()
         self.engine.dispose()
 
     def _build_oauth(self) -> SchwabOAuthClient | None:

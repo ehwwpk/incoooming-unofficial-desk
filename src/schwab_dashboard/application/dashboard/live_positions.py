@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import date
 from decimal import Decimal
 
@@ -17,8 +17,14 @@ HUNDRED = Decimal("100")
 
 
 def build_live_position_book(
-    positions: Sequence[PositionSummary], *, as_of: date
+    positions: Sequence[PositionSummary],
+    *,
+    as_of: date,
+    option_market: Sequence[Mapping[str, object]] = (),
+    underlying_market: Sequence[Mapping[str, object]] = (),
 ) -> LivePositionBook:
+    option_quotes = {_canonical(str(row["symbol"])): row for row in option_market}
+    underlying_quotes = {str(row["symbol"]): row for row in underlying_market}
     holdings = {
         position.symbol: position
         for position in positions
@@ -33,7 +39,11 @@ def build_live_position_book(
         assert position.strike is not None
         contracts = int(abs(position.quantity))
         holding = holdings.get(position.underlying_symbol)
-        underlying_price = holding.mark if holding else None
+        underlying_quote = underlying_quotes.get(position.underlying_symbol, {})
+        underlying_price = _optional_decimal(underlying_quote.get("mark")) or (
+            holding.mark if holding else None
+        )
+        quote = option_quotes.get(_canonical(position.symbol), {})
         distance = position.strike - underlying_price if underlying_price is not None else None
         distance_percent = (
             distance / underlying_price * HUNDRED
@@ -50,13 +60,27 @@ def build_live_position_book(
                 days_to_expiration=max(0, (position.expiration_date - as_of).days),
                 strike=position.strike,
                 entry_credit_per_share=position.average_price,
-                estimated_mark_per_share=position.mark,
+                estimated_mark_per_share=_optional_decimal(quote.get("mark")) or position.mark,
                 market_value=position.market_value,
                 open_profit_loss=position.open_profit_loss,
                 day_profit_loss=position.day_profit_loss,
                 underlying_price=underlying_price,
                 strike_distance_per_share=distance,
                 strike_distance_percent=distance_percent,
+                bid_per_share=_optional_decimal(quote.get("bid")),
+                ask_per_share=_optional_decimal(quote.get("ask")),
+                implied_volatility_percent=_optional_decimal(
+                    quote.get("implied_volatility")
+                ),
+                delta=_optional_decimal(quote.get("delta")),
+                gamma=_optional_decimal(quote.get("gamma")),
+                theta_per_share=_optional_decimal(quote.get("theta")),
+                vega=_optional_decimal(quote.get("vega")),
+                rho=_optional_decimal(quote.get("rho")),
+                volume=_optional_int(quote.get("volume")),
+                open_interest=_optional_int(quote.get("open_interest")),
+                quote_observed_at=quote.get("observed_at"),  # type: ignore[arg-type]
+                quote_quality=str(quote.get("quote_quality") or "") or None,
             )
         )
 
@@ -70,6 +94,11 @@ def build_live_position_book(
         capacity = max(0, shares // 100)
         open_contracts = sum(call.contracts for call in ordered_calls)
         covered_contracts = min(capacity, open_contracts)
+        iv_values = [
+            call.implied_volatility_percent
+            for call in ordered_calls
+            if call.implied_volatility_percent is not None
+        ]
         underlyings.append(
             LiveUnderlyingPosition(
                 symbol=symbol,
@@ -92,6 +121,18 @@ def build_live_position_book(
                     (call.open_profit_loss or ZERO for call in ordered_calls), ZERO
                 ),
                 calls=ordered_calls,
+                average_open_iv_percent=(
+                    sum(iv_values, ZERO) / Decimal(len(iv_values)) if iv_values else None
+                ),
+                estimated_theta_per_day=sum(
+                    (
+                        -(call.theta_per_share or ZERO)
+                        * Decimal("100")
+                        * Decimal(call.contracts)
+                        for call in ordered_calls
+                    ),
+                    ZERO,
+                ),
             )
         )
 
@@ -123,3 +164,15 @@ def _is_short_call(position: PositionSummary) -> bool:
         and position.expiration_date is not None
         and position.strike is not None
     )
+
+
+def _canonical(value: str) -> str:
+    return "".join(value.upper().split())
+
+
+def _optional_decimal(value: object) -> Decimal | None:
+    return Decimal(str(value)) if value is not None else None
+
+
+def _optional_int(value: object) -> int | None:
+    return int(value) if value is not None else None

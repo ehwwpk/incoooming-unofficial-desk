@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from schwab_dashboard.application.ports.market import (
     OptionMarketSnapshotWrite,
+    UnderlyingDailyBarWrite,
     UnderlyingMarketSnapshotWrite,
 )
 from schwab_dashboard.infrastructure.database.repositories.idempotency import (
@@ -18,6 +19,7 @@ from schwab_dashboard.infrastructure.database.repositories.idempotency import (
 from schwab_dashboard.infrastructure.database.tables.market import (
     OptionMarketSnapshotTable,
     RawMarketEventTable,
+    UnderlyingDailyBarTable,
     UnderlyingMarketSnapshotTable,
 )
 
@@ -134,6 +136,40 @@ class SqlOptionMarketSnapshotRepository:
         row = OptionMarketSnapshotTable(
             raw_event_id=item.raw_event_id,
             instrument_id=item.instrument_id,
+            **expected,
+        )
+        self._session.add(row)
+        self._session.flush()
+        return row.id
+
+
+class SqlUnderlyingDailyBarRepository:
+    def __init__(self, session: Session) -> None:
+        self._session = session
+
+    def add(self, item: UnderlyingDailyBarWrite) -> str:
+        bar = item.bar
+        expected = {
+            "open": bar.open,
+            "high": bar.high,
+            "low": bar.low,
+            "close": bar.close,
+            "volume": bar.volume,
+        }
+        row = self._session.scalar(
+            select(UnderlyingDailyBarTable).where(
+                UnderlyingDailyBarTable.raw_event_id == item.raw_event_id,
+                UnderlyingDailyBarTable.instrument_id == item.instrument_id,
+                UnderlyingDailyBarTable.trade_date == bar.trade_date,
+            )
+        )
+        if row is not None:
+            ensure_immutable_match(row, expected, identity=f"daily-bar:{row.id}")
+            return row.id
+        row = UnderlyingDailyBarTable(
+            raw_event_id=item.raw_event_id,
+            instrument_id=item.instrument_id,
+            trade_date=bar.trade_date,
             **expected,
         )
         self._session.add(row)

@@ -6,6 +6,7 @@ from schwab_dashboard.application.ports.market import (
     MarketUnitOfWork,
     MarketUnitOfWorkFactory,
     OptionMarketSnapshotWrite,
+    UnderlyingDailyBarWrite,
     UnderlyingMarketSnapshotWrite,
 )
 from schwab_dashboard.domain.market import InstrumentRef, MarketObservationBatch
@@ -54,6 +55,15 @@ class RecordMarketObservations:
                         snapshot=option_snapshot,
                     )
                 )
+            for daily_bar in batch.daily_bars:
+                instrument_id = self._instrument_id(uow, daily_bar.instrument)
+                uow.underlying_daily_bars.add(
+                    UnderlyingDailyBarWrite(
+                        raw_event_id=raw_event_id,
+                        instrument_id=instrument_id,
+                        bar=daily_bar,
+                    )
+                )
             uow.commit()
 
         return MarketObservationResult(
@@ -72,17 +82,17 @@ class RecordMarketObservations:
 
     @staticmethod
     def _validate_timestamps(batch: MarketObservationBatch) -> None:
-        mismatched_underlyings = [
+        future_underlyings = [
             snapshot.instrument.external_key
             for snapshot in batch.underlying_snapshots
-            if snapshot.observed_at != batch.observed_at
+            if snapshot.observed_at > batch.observed_at
         ]
-        mismatched_options = [
+        future_options = [
             snapshot.instrument.external_key
             for snapshot in batch.option_snapshots
-            if snapshot.observed_at != batch.observed_at
+            if snapshot.observed_at > batch.observed_at
         ]
-        mismatched = mismatched_underlyings + mismatched_options
-        if mismatched:
-            joined = ", ".join(sorted(mismatched))
-            raise ValueError(f"market snapshots do not match the raw event timestamp: {joined}")
+        future = future_underlyings + future_options
+        if future:
+            joined = ", ".join(sorted(future))
+            raise ValueError(f"market snapshots cannot postdate their raw event: {joined}")

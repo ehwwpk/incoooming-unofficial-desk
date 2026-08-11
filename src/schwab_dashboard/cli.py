@@ -89,14 +89,20 @@ def auth_clear() -> None:
 
 @app.command()
 def sync() -> None:
-    """Read current Schwab accounts and positions into the local ledger."""
+    """Refresh Schwab positions, one year of activity, quotes, Greeks, and price history."""
     container = Container()
     try:
         try:
             result = container.sync_accounts().execute()
+            activity = container.sync_transactions().execute()
+            market = container.sync_market_data().execute()
             typer.echo(
                 f"Sync {result.run_id} completed: {result.account_count} account(s), "
-                f"{result.position_count} position(s), {result.warning_count} warning(s)."
+                f"{result.position_count} position(s), "
+                f"{activity.transaction_count} transaction(s), "
+                f"{market.option_quote_count} option quote(s), "
+                f"{market.daily_bar_count} daily price bar(s), "
+                f"{result.warning_count} warning(s)."
             )
         except AuthenticationRequiredError as exc:
             _not_ready(exc)

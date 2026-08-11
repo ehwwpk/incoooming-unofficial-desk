@@ -8,6 +8,7 @@ from schwab_dashboard.application.ports.market import (
     MarketUnitOfWorkFactory,
     OptionMarketSnapshotRepository,
     RawMarketEventRepository,
+    UnderlyingDailyBarRepository,
     UnderlyingMarketSnapshotRepository,
 )
 from schwab_dashboard.infrastructure.database.engine import SessionFactory
@@ -15,6 +16,7 @@ from schwab_dashboard.infrastructure.database.repositories import (
     SqlInstrumentRepository,
     SqlOptionMarketSnapshotRepository,
     SqlRawMarketEventRepository,
+    SqlUnderlyingDailyBarRepository,
     SqlUnderlyingMarketSnapshotRepository,
 )
 
@@ -24,6 +26,7 @@ class SqlAlchemyMarketUnitOfWork:
     raw_market_events: RawMarketEventRepository
     underlying_market_snapshots: UnderlyingMarketSnapshotRepository
     option_market_snapshots: OptionMarketSnapshotRepository
+    underlying_daily_bars: UnderlyingDailyBarRepository
 
     def __init__(self, session_factory: SessionFactory) -> None:
         self._session_factory = session_factory
@@ -35,6 +38,7 @@ class SqlAlchemyMarketUnitOfWork:
         self.raw_market_events = SqlRawMarketEventRepository(self._session)
         self.underlying_market_snapshots = SqlUnderlyingMarketSnapshotRepository(self._session)
         self.option_market_snapshots = SqlOptionMarketSnapshotRepository(self._session)
+        self.underlying_daily_bars = SqlUnderlyingDailyBarRepository(self._session)
         return self
 
     def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None:

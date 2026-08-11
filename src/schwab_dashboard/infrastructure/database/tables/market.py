@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, Numeric, String, UniqueConstraint
+from sqlalchemy import JSON, Date, DateTime, ForeignKey, Integer, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from schwab_dashboard.infrastructure.database.tables.base import Base, utc_now
@@ -84,6 +84,28 @@ class OptionMarketSnapshotTable(Base):
     rho: Mapped[Decimal | None] = mapped_column(Numeric(28, 10))
     volume: Mapped[int | None] = mapped_column(Integer)
     open_interest: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+
+
+class UnderlyingDailyBarTable(Base):
+    __tablename__ = "underlying_daily_bars"
+    __table_args__ = (UniqueConstraint("raw_event_id", "instrument_id", "trade_date"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    raw_event_id: Mapped[str] = mapped_column(
+        ForeignKey("raw_market_events.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    instrument_id: Mapped[str] = mapped_column(
+        ForeignKey("instruments.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    trade_date: Mapped[date] = mapped_column(Date(), nullable=False, index=True)
+    open: Mapped[Decimal] = mapped_column(Numeric(28, 10), nullable=False)
+    high: Mapped[Decimal] = mapped_column(Numeric(28, 10), nullable=False)
+    low: Mapped[Decimal] = mapped_column(Numeric(28, 10), nullable=False)
+    close: Mapped[Decimal] = mapped_column(Numeric(28, 10), nullable=False)
+    volume: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utc_now
     )

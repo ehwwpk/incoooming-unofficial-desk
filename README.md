@@ -2,7 +2,10 @@
 
 A private, local-first options-income desk for portfolio, covered-call, dividend, and performance analytics.
 
-The first milestone is intentionally small: authenticate, read accounts and positions, preserve the raw broker response, normalize a position snapshot, and prove that the result reconciles. No trading endpoints are implemented.
+The live Schwab pipeline is read-only and auditable: it preserves raw account, transaction, quote,
+option-chain, and daily-price responses; normalizes positions, option executions, cash dividends,
+interest, expirations, assignments, and market observations; and reconciles the resulting cash
+ledger. No trading endpoints are implemented.
 
 ## Explore the dashboard while Schwab access is pending
 
@@ -14,7 +17,12 @@ The demo command serves a deterministic covered-call simulation through the same
 
 Open `http://127.0.0.1:8182`. Press `Ctrl+C` in the terminal to stop it.
 
-The main Desk keeps daily decisions in one compact operating surface: option and dividend income, monthly pace versus target, live covered-call obligations, one row per stock, and only the exceptions worth reviewing. Each stock expands on demand for its charts and contracts. A single `TOOLS` disclosure opens four secondary instruments—Open Calls, Strategy Review, Volatility Lab, and Data & Records—in the current page or an explicitly requested named window. The same stable routes and read models work in demo and live-ledger modes.
+The main Desk keeps daily decisions in one compact operating surface: option and dividend income,
+live covered-call obligations, one row per stock, and only the exceptions worth reviewing. Each
+stock expands on demand for its charts and contracts. A single `TOOLS` disclosure opens four
+secondary instruments—Open Calls, Strategy Review, Volatility Lab, and Data & Records—in the
+current page or an explicitly requested named window. The same stable routes and read models work
+in demo and live-ledger modes.
 
 All demo trades, option marks, IV, and Greeks are fictional. Underlying paths are frozen public market-session closes; they are not broker marks or trading guidance.
 
@@ -39,7 +47,8 @@ Copy-Item .env.example .env
 
 The browser may end on a non-loading local HTTPS page. Copy the entire URL from the address bar and paste it into `auth-complete`; the authorization code is in that URL.
 
-5. Read and store your current accounts and positions, then launch the local dashboard:
+5. Read and store current accounts and positions, one year of transaction history, current option
+   chains/Greeks, and one year of daily underlying prices; then launch the local dashboard:
 
 ```powershell
 .\.venv\Scripts\schwab-dashboard.exe sync
@@ -71,5 +80,6 @@ Open `http://127.0.0.1:8182`. The server binds to loopback by default.
 - [Workspace System](docs/systems/workspace-system.md)
 - [Independent workspace shell](docs/workspaces/workspace-shell.md)
 - [Broker adapter strategy](docs/integrations/broker-adapter-strategy.md)
+- [Verified Schwab live contract](docs/integrations/schwab-live-contract.md)
 - [Integrated platform plan](docs/systems/integrated-platform-plan.md)
 - [Local-first architecture decision](docs/decisions/0001-local-first-modular-monolith.md)

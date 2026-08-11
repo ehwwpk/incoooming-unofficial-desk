@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
 from typing import Any
@@ -89,6 +89,27 @@ class OptionMarketSnapshot:
 
 
 @dataclass(frozen=True, slots=True)
+class UnderlyingDailyBar:
+    instrument: InstrumentRef
+    trade_date: date
+    open: Decimal
+    high: Decimal
+    low: Decimal
+    close: Decimal
+    volume: int
+
+    def __post_init__(self) -> None:
+        for name in ("open", "high", "low", "close"):
+            require_optional_non_negative(getattr(self, name), name)
+        if self.volume < 0:
+            raise ValueError("volume must be non-negative")
+        if self.high < max(self.open, self.close, self.low):
+            raise ValueError("daily high must contain the open, close, and low")
+        if self.low > min(self.open, self.close, self.high):
+            raise ValueError("daily low must contain the open, close, and high")
+
+
+@dataclass(frozen=True, slots=True)
 class MarketObservationBatch:
     source: str
     external_event_key: str
@@ -98,6 +119,7 @@ class MarketObservationBatch:
     instruments: tuple[InstrumentRecord, ...] = ()
     underlying_snapshots: tuple[UnderlyingMarketSnapshot, ...] = ()
     option_snapshots: tuple[OptionMarketSnapshot, ...] = ()
+    daily_bars: tuple[UnderlyingDailyBar, ...] = ()
 
     def __post_init__(self) -> None:
         require_text(self.source, "source")

@@ -6,7 +6,11 @@ from datetime import datetime
 from typing import Any, Protocol
 
 from schwab_dashboard.application.ports.ledger import InstrumentRepository
-from schwab_dashboard.domain.market import OptionMarketSnapshot, UnderlyingMarketSnapshot
+from schwab_dashboard.domain.market import (
+    OptionMarketSnapshot,
+    UnderlyingDailyBar,
+    UnderlyingMarketSnapshot,
+)
 
 
 class RawMarketEventRepository(Protocol):
@@ -35,6 +39,13 @@ class OptionMarketSnapshotWrite:
     snapshot: OptionMarketSnapshot
 
 
+@dataclass(frozen=True, slots=True)
+class UnderlyingDailyBarWrite:
+    raw_event_id: str
+    instrument_id: str
+    bar: UnderlyingDailyBar
+
+
 class UnderlyingMarketSnapshotRepository(Protocol):
     def add(self, item: UnderlyingMarketSnapshotWrite) -> str: ...
 
@@ -43,11 +54,16 @@ class OptionMarketSnapshotRepository(Protocol):
     def add(self, item: OptionMarketSnapshotWrite) -> str: ...
 
 
+class UnderlyingDailyBarRepository(Protocol):
+    def add(self, item: UnderlyingDailyBarWrite) -> str: ...
+
+
 class MarketUnitOfWork(Protocol):
     instruments: InstrumentRepository
     raw_market_events: RawMarketEventRepository
     underlying_market_snapshots: UnderlyingMarketSnapshotRepository
     option_market_snapshots: OptionMarketSnapshotRepository
+    underlying_daily_bars: UnderlyingDailyBarRepository
 
     def __enter__(self) -> MarketUnitOfWork: ...
 

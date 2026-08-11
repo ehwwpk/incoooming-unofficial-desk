@@ -132,6 +132,18 @@ class LiveOpenCallPosition:
     underlying_price: Decimal | None
     strike_distance_per_share: Decimal | None
     strike_distance_percent: Decimal | None
+    bid_per_share: Decimal | None = None
+    ask_per_share: Decimal | None = None
+    implied_volatility_percent: Decimal | None = None
+    delta: Decimal | None = None
+    gamma: Decimal | None = None
+    theta_per_share: Decimal | None = None
+    vega: Decimal | None = None
+    rho: Decimal | None = None
+    volume: int | None = None
+    open_interest: int | None = None
+    quote_observed_at: datetime | None = None
+    quote_quality: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -150,6 +162,8 @@ class LiveUnderlyingPosition:
     coverage_percent: Decimal
     open_mark_profit_loss: Decimal
     calls: Sequence[LiveOpenCallPosition]
+    average_open_iv_percent: Decimal | None = None
+    estimated_theta_per_day: Decimal = Decimal("0")
 
 
 @dataclass(frozen=True, slots=True)

@@ -13,6 +13,7 @@ from schwab_dashboard.infrastructure.database.tables.ledger import (
 from schwab_dashboard.infrastructure.database.tables.market import (
     OptionMarketSnapshotTable,
     RawMarketEventTable,
+    UnderlyingDailyBarTable,
     UnderlyingMarketSnapshotTable,
 )
 from schwab_dashboard.infrastructure.database.tables.reconciliation import (
@@ -38,6 +39,7 @@ __all__ = [
     "RawMarketEventTable",
     "ReconciliationIssueTable",
     "SyncRunTable",
+    "UnderlyingDailyBarTable",
     "UnderlyingMarketSnapshotTable",
     "WorkspacePreferenceTable",
 ]

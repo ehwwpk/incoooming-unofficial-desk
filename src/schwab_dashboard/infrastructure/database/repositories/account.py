@@ -109,9 +109,10 @@ class SqlPositionSnapshotRepository:
 
     def list_latest(self) -> Sequence[dict[str, Any]]:
         latest_run_id = self._session.scalar(
-            select(SyncRunTable.id)
+            select(PositionSnapshotTable.sync_run_id)
+            .join(SyncRunTable, SyncRunTable.id == PositionSnapshotTable.sync_run_id)
             .where(SyncRunTable.status == "completed")
-            .order_by(SyncRunTable.completed_at.desc())
+            .order_by(PositionSnapshotTable.observed_at.desc())
             .limit(1)
         )
         if latest_run_id is None:
@@ -160,9 +161,10 @@ class SqlAccountBalanceSnapshotRepository:
 
     def list_latest(self) -> Sequence[dict[str, Any]]:
         latest_run_id = self._session.scalar(
-            select(SyncRunTable.id)
+            select(AccountBalanceSnapshotTable.sync_run_id)
+            .join(SyncRunTable, SyncRunTable.id == AccountBalanceSnapshotTable.sync_run_id)
             .where(SyncRunTable.status == "completed")
-            .order_by(SyncRunTable.completed_at.desc())
+            .order_by(AccountBalanceSnapshotTable.observed_at.desc())
             .limit(1)
         )
         if latest_run_id is None:

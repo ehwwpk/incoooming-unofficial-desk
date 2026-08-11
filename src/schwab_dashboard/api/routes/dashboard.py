@@ -36,6 +36,21 @@ def sync_accounts(container: ContainerDependency) -> dict[str, Any]:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
 
 
+@router.post("/api/v1/sync/full")
+def sync_full(container: ContainerDependency) -> dict[str, Any]:
+    try:
+        accounts = container.sync_accounts().execute()
+        activity = container.sync_transactions().execute()
+        market = container.sync_market_data().execute()
+        return {
+            "accounts": asdict(accounts),
+            "activity": asdict(activity),
+            "market": asdict(market),
+        }
+    except AuthenticationRequiredError as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+
+
 @router.get("/", response_class=HTMLResponse)
 def home(request: Request, container: ContainerDependency) -> HTMLResponse:
     snapshot = container.read_dashboard().execute()
@@ -53,4 +68,6 @@ def home(request: Request, container: ContainerDependency) -> HTMLResponse:
 @router.post("/sync", response_class=RedirectResponse)
 def sync_from_browser(container: ContainerDependency) -> RedirectResponse:
     container.sync_accounts().execute()
+    container.sync_transactions().execute()
+    container.sync_market_data().execute()
     return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)

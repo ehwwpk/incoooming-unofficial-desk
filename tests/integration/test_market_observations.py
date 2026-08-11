@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from dataclasses import replace
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -19,6 +20,7 @@ from schwab_dashboard.domain.market import (
     QuoteQuality,
     UnderlyingMarketSnapshot,
 )
+from schwab_dashboard.infrastructure.database.analytics_reader import SqlLiveAnalyticsReader
 from schwab_dashboard.infrastructure.database.tables import (
     InstrumentTable,
     OptionMarketSnapshotTable,
@@ -130,3 +132,24 @@ def test_same_market_event_identity_cannot_change_payload(
 
     with pytest.raises(SourceRecordConflictError, match="payload"):
         service.execute(_batch(option_mark="3.31"))
+
+
+def test_latest_reader_uses_retrieval_time_when_exchange_timestamp_is_unchanged(
+    database_runtime: tuple[object, object, object],
+) -> None:
+    _, session_factory, _ = database_runtime
+    service = RecordMarketObservations(
+        uow_factory=build_market_uow_factory(session_factory),  # type: ignore[arg-type]
+    )
+    service.execute(_batch(option_mark="3.30"))
+    later = replace(
+        _batch(option_mark="3.31"),
+        external_event_key="quotes-2026-08-09T19:46:00Z",
+        observed_at=NOW + timedelta(minutes=1),
+    )
+    service.execute(later)
+
+    rows = SqlLiveAnalyticsReader(session_factory).list_latest_option_market()  # type: ignore[arg-type]
+
+    assert len(rows) == 1
+    assert rows[0]["mark"] == Decimal("3.3100000000")

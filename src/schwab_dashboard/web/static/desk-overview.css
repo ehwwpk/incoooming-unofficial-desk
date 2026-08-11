@@ -121,7 +121,7 @@
 .live-position-facts b, .live-call-row b { color: var(--text); font: 700 .53rem var(--mono); }
 .live-position-facts small, .live-call-row small { overflow: hidden; color: var(--muted); font: .36rem/1.3 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
 .live-call-rows { display: grid; }
-.live-call-row { display: grid; grid-template-columns: 1.25fr repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
+.live-call-row { display: grid; grid-template-columns: 1.25fr repeat(5, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
 .live-call-row:last-child { border-bottom: 0; }
 .live-call-row > div:first-child strong { color: var(--gold); }
 

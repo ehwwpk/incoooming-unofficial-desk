@@ -32,9 +32,13 @@ class Settings(BaseSettings):
     token_service_name: str = "schwab-options-dashboard"
     token_account_name: str = "personal-schwab-oauth"
     trader_base_url: str = "https://api.schwabapi.com/trader/v1"
+    market_data_base_url: str = "https://api.schwabapi.com/marketdata/v1"
     oauth_authorize_url: str = "https://api.schwabapi.com/v1/oauth/authorize"
     oauth_token_url: str = "https://api.schwabapi.com/v1/oauth/token"
     parser_version: str = "schwab-accounts-v1"
+    transaction_parser_version: str = "schwab-transactions-v1"
+    market_parser_version: str = "schwab-market-v1"
+    transaction_history_days: int = Field(default=365, ge=1, le=730)
 
     @property
     def resolved_data_dir(self) -> Path:
