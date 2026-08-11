@@ -36,6 +36,12 @@
     const node = root.querySelector(selector);
     if (node) node.textContent = value;
   };
+  const setFirstFactDetail = (popover, label, value) => {
+    const node = popover.querySelector("[data-event-fact-one-detail]");
+    if (!node) return;
+    node.textContent = label && value ? `${label} ${value}` : "";
+    node.hidden = !node.textContent;
+  };
 
   const markerCard = (trigger) => trigger.closest("[data-underlying-card]");
   const markerCanvas = (trigger) => trigger.closest(".price-path-canvas");
@@ -107,6 +113,19 @@
     }
     set(popover, "[data-event-fact-one-label]", "STOCK AT SALE");
     set(popover, "[data-event-fact-one-value]", money(trigger.dataset.underlyingAtSale));
+    const resolutionLabels = {
+      Expired: "AT EXPIRATION",
+      Assigned: "AT ASSIGNMENT",
+      Closed: "AT CLOSE",
+      Rolled: "AT ROLL",
+    };
+    setFirstFactDetail(
+      popover,
+      resolutionLabels[trigger.dataset.outcome],
+      trigger.dataset.underlyingAtResolution
+        ? money(trigger.dataset.underlyingAtResolution)
+        : "",
+    );
     set(popover, "[data-event-fact-two-label]", "STRIKE BUFFER");
     set(popover, "[data-event-fact-two-value]", `${number(trigger.dataset.strikeBuffer).toFixed(1)}%`);
     set(popover, "[data-event-fact-three-label]", "ENTRY TERM");
@@ -125,6 +144,7 @@
     }
     set(popover, "[data-event-fact-one-label]", "ACTION");
     set(popover, "[data-event-fact-one-value]", action);
+    setFirstFactDetail(popover, "", "");
     set(popover, "[data-event-fact-two-label]", "PRICE");
     set(popover, "[data-event-fact-two-value]", money(trigger.dataset.price));
     set(popover, "[data-event-fact-three-label]", "DATE");

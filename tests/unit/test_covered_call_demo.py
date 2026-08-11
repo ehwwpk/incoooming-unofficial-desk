@@ -383,6 +383,15 @@ def test_price_paths_use_daily_closes_and_reconciled_option_events() -> None:
             else:
                 assert event.linked_sale_sequence is not None
                 assert event.linked_resolution_sequence is None
+            if event.outcome == "Open":
+                assert event.resolved_on is None
+                assert event.underlying_at_resolution is None
+            else:
+                assert event.resolved_on is not None
+                assert event.underlying_at_resolution is not None
+            if event.event_type != "sale":
+                assert event.resolved_on == event.date
+                assert event.underlying_at_resolution == event.price
             assert event.record_id
             assert event.campaign_id
             assert event.contracts > 0

@@ -33,6 +33,8 @@ class PriceEvent:
     vertical_offset: int
     linked_sale_sequence: int | None
     linked_resolution_sequence: int | None
+    resolved_on: Date | None
+    underlying_at_resolution: Decimal | None
     expires_on: Date
     contracts: int
     strike: Decimal

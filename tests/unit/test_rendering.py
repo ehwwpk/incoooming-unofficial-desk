@@ -57,4 +57,6 @@ def test_chart_events_render_as_accessible_buttons_with_one_popover_per_name() -
     )
     assert 'aria-haspopup="dialog"' in rendered
     assert "data-linked-resolution-sequence" in rendered
+    assert "data-underlying-at-resolution" in rendered
+    assert "data-event-fact-one-detail" in rendered
     assert "data-chart-ledger-event" in rendered

@@ -117,6 +117,14 @@ def build_price_events(
         for sequence, action in enumerate(ordered_actions, start=1)
         if action.event_type != "sale"
     }
+    resolution_prices = {
+        action.lifecycle_id: min(
+            points,
+            key=lambda item: abs((item.date - action.event_date).days),
+        ).price
+        for action in ordered_actions
+        if action.event_type != "sale"
+    }
     lanes: dict[date, int] = {}
     events: list[PriceEvent] = []
     for sequence, action in enumerate(ordered_actions, start=1):
@@ -146,6 +154,10 @@ def build_price_events(
                     if action.event_type == "sale"
                     else None
                 ),
+                resolved_on=(
+                    action.record.closed_on if action.lifecycle_id in resolution_prices else None
+                ),
+                underlying_at_resolution=resolution_prices.get(action.lifecycle_id),
                 expires_on=action.record.expires_on,
                 contracts=action.record.contracts,
                 strike=action.record.strike,

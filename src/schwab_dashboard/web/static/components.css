@@ -147,6 +147,7 @@
 .chart-event-facts > div:last-child { border-right: 0; }
 .chart-event-facts span { overflow: hidden; color: var(--subtle); font: .34rem var(--mono); text-overflow: ellipsis; white-space: nowrap; }
 .chart-event-facts b { overflow: hidden; font: 650 .48rem var(--mono); text-overflow: ellipsis; white-space: nowrap; }
+.chart-event-facts small { color: var(--gold); font: 550 .31rem var(--mono); white-space: nowrap; }
 .chart-event-popover > footer { min-height: 25px; padding: 6px 8px; border-top: 1px solid var(--line); color: var(--subtle); font: 500 .37rem/1.3 var(--mono); }
 .price-event-ledger { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--line); }
 .price-event-ledger > button { display: grid; min-width: 0; grid-template-columns: 22px minmax(0, 1fr); gap: 7px; padding: 6px 8px; border: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: transparent; color: inherit; cursor: pointer; text-align: left; }

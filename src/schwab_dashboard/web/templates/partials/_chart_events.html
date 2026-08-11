@@ -24,6 +24,8 @@
   data-outcome="{{ event.outcome }}"
   {% if event.linked_sale_sequence %}data-linked-sale-sequence="{{ event.linked_sale_sequence }}"{% endif %}
   {% if event.linked_resolution_sequence %}data-linked-resolution-sequence="{{ event.linked_resolution_sequence }}"{% endif %}
+  {% if event.resolved_on %}data-resolved-on="{{ event.resolved_on.isoformat() }}"{% endif %}
+  {% if event.underlying_at_resolution is not none %}data-underlying-at-resolution="{{ event.underlying_at_resolution }}"{% endif %}
   style="--event-x: {{ event.x_percent }}%; --event-y: {{ event.y_percent }}%; --event-offset: {{ event.vertical_offset }}px"
   aria-label="Event {{ event.sequence }}: {{ event.label }} {{ event.detail }}{% if event.linked_sale_sequence %}; resolves sale event {{ event.linked_sale_sequence }}{% endif %}"
   aria-haspopup="dialog"
@@ -57,7 +59,7 @@
   <header><span data-event-popover-heading></span><button type="button" data-chart-event-close aria-label="Close event details">×</button></header>
   <div class="chart-event-contract"><strong data-event-popover-contract></strong><span data-event-popover-cash></span></div>
   <div class="chart-event-facts">
-    <div><span data-event-fact-one-label></span><b data-event-fact-one-value></b></div>
+    <div><span data-event-fact-one-label></span><b data-event-fact-one-value></b><small data-event-fact-one-detail hidden></small></div>
     <div><span data-event-fact-two-label></span><b data-event-fact-two-value></b></div>
     <div><span data-event-fact-three-label></span><b data-event-fact-three-value></b></div>
   </div>

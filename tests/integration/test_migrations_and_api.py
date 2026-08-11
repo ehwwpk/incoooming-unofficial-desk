@@ -92,6 +92,15 @@ def test_demo_mode_renders_operator_plan_without_credentials(tmp_path: Path) -> 
         assert payload["operator_metrics"]["median_completed_month"] == "2395"
         assert "objective" not in payload
         assert "monthly_target" not in payload["income"]
+        price_events = [
+            event for underlying in payload["underlyings"] for event in underlying["price_events"]
+        ]
+        assert sum(event["underlying_at_resolution"] is not None for event in price_events) == 22
+        assert all(
+            event["underlying_at_resolution"] is None
+            for event in price_events
+            if event["outcome"] == "Open"
+        )
 
         assert page.status_code == 200
         assert "Incoooming Unofficial Desk" in page.text
@@ -111,6 +120,7 @@ def test_demo_mode_renders_operator_plan_without_credentials(tmp_path: Path) -> 
         assert page.text.count("data-chart-point") == 174
         assert page.text.count("data-chart-event-trigger") == 32
         assert page.text.count("data-chart-event-popover") == 3
+        assert page.text.count("data-underlying-at-resolution") == 22
         assert page.text.count("data-cash-grain") == 1
         assert page.text.count("data-series-grain") == 4
         assert page.text.count("data-workspace-splitter") == 3
