@@ -56,13 +56,21 @@
 ><b aria-hidden="true">{{ event.glyph }}</b></button>
 {% endfor %}
 
-<aside class="chart-event-popover" id="{{ item.symbol | lower }}-event-popover" data-chart-event-popover role="dialog" aria-modal="false" aria-label="{{ item.symbol }} chart event details" hidden>
+<aside class="chart-event-popover" id="{{ item.symbol | lower }}-event-popover" data-chart-event-popover data-as-of="{{ snapshot.as_of.date().isoformat() }}" role="dialog" aria-modal="false" aria-label="{{ item.symbol }} chart event details" hidden>
   <header><span data-event-popover-heading></span><button type="button" data-chart-event-close aria-label="Close event details">×</button></header>
   <div class="chart-event-contract"><strong data-event-popover-contract></strong><span data-event-popover-cash></span></div>
   <div class="chart-event-facts">
     <div><span data-event-fact-one-label></span><b data-event-fact-one-value></b><small data-event-fact-one-detail hidden></small></div>
     <div><span data-event-fact-two-label></span><b data-event-fact-two-value></b></div>
     <div><span data-event-fact-three-label></span><b data-event-fact-three-value></b></div>
+  </div>
+  <div class="option-term-meter chart-event-term" data-event-term hidden>
+    <div class="option-term-labels">
+      <span data-event-term-start></span>
+      <strong data-event-term-status></strong>
+      <span data-event-term-end></span>
+    </div>
+    <div class="option-term-track" data-event-term-track role="progressbar" aria-label="Option term elapsed" aria-valuemin="0" aria-valuemax="100"><span></span><i></i></div>
   </div>
   <footer data-event-popover-link></footer>
 </aside>

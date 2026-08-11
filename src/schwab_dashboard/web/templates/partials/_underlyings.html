@@ -151,8 +151,15 @@
                 <div><span>OPTION VALUE NOW</span><strong>{{ call.current_option_value | money(0) }}</strong><small>{{ call.mark_per_share | money }}/share current mark</small></div>
               </div>
             </div>
+            <div class="option-term-meter call-term-meter" style="--term-progress: {{ call.elapsed_time_percent | number(1) }}%">
+              <div class="option-term-labels">
+                <span>SOLD {{ call.sold_on.strftime('%b %d') | upper }}</span>
+                <strong>{{ call.elapsed_time_percent | percent }} TERM USED</strong>
+                <span>EXP {{ call.expires_on.strftime('%b %d') | upper }} &middot; {{ call.days_to_expiration }} DTE</span>
+              </div>
+              <div class="option-term-track" role="progressbar" aria-label="{{ item.symbol }} ${{ '%g' | format(call.strike) }} call term elapsed" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ call.elapsed_time_percent | number(1) }}"><span></span><i></i></div>
+            </div>
             <div class="call-context-strip">
-              <span>TIME ELAPSED <b>{{ call.elapsed_time_percent | percent }}</b><small>{{ call.elapsed_days }} / {{ call.original_days_to_expiration }} calendar days since sale</small></span>
               <span>TIME VALUE NOW <b>{{ call.remaining_extrinsic_value | money(0) }}</b></span>
               {% if call.intrinsic_value > 0 %}<span class="negative">INTRINSIC <b>{{ call.intrinsic_value | money(0) }}</b></span>{% else %}<span>INTRINSIC <b>$0 / OTM</b></span>{% endif %}
               <span>THETA <i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i> <b class="positive">+{{ call.short_theta_per_day | money }}/DAY</b></span>

@@ -36,6 +36,22 @@
     const [year, month, day] = value.split("-").map(Number);
     return dates.format(new Date(year, month - 1, day));
   };
+  const parseDay = (value) => {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day);
+  };
+  const dateKey = (value) => {
+    const year = value.getFullYear();
+    const month = `${value.getMonth() + 1}`.padStart(2, "0");
+    const day = `${value.getDate()}`.padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+  const moveDays = (value, amount) => {
+    const result = new Date(value);
+    result.setDate(result.getDate() + amount);
+    return result;
+  };
+  const daysBetween = (start, end) => Math.round((end - start) / 86400000);
   const set = (root, selector, value) => {
     const node = root.querySelector(selector);
     if (node) node.textContent = value;
@@ -45,6 +61,45 @@
     if (!node) return;
     node.textContent = label && value ? `${label} ${value}` : "";
     node.hidden = !node.textContent;
+  };
+  const hideTerm = (popover) => {
+    const term = popover.querySelector("[data-event-term]");
+    if (term) term.hidden = true;
+  };
+  const populateTerm = (popover, trigger) => {
+    const term = popover.querySelector("[data-event-term]");
+    const track = popover.querySelector("[data-event-term-track]");
+    const entryDte = Math.max(0, Math.round(number(trigger.dataset.entryDte)));
+    if (!term || !track || !trigger.dataset.expiresOn || entryDte === 0) {
+      hideTerm(popover);
+      return;
+    }
+
+    const expiresOn = parseDay(trigger.dataset.expiresOn);
+    const soldOn = moveDays(expiresOn, -entryDte);
+    const resolutionTypes = new Set(["closed", "expired", "assigned"]);
+    const resolvedOn = trigger.dataset.resolvedOn
+      || (resolutionTypes.has(trigger.dataset.eventType) ? trigger.dataset.date : "");
+    const checkpoint = parseDay(resolvedOn || popover.dataset.asOf);
+    const elapsedDays = Math.min(entryDte, Math.max(0, daysBetween(soldOn, checkpoint)));
+    const daysLeft = Math.max(0, daysBetween(checkpoint, expiresOn));
+    const progress = Math.min(100, Math.max(0, elapsedDays / entryDte * 100));
+    const outcome = (trigger.dataset.outcome || trigger.dataset.eventType).toUpperCase();
+
+    term.hidden = false;
+    term.style.setProperty("--term-progress", `${progress}%`);
+    track.setAttribute("aria-valuenow", `${Math.round(progress)}`);
+    set(term, "[data-event-term-start]", `SOLD ${shortDate(dateKey(soldOn)).toUpperCase()}`);
+    set(
+      term,
+      "[data-event-term-status]",
+      resolvedOn ? `${outcome} AT ${Math.round(progress)}%` : `${Math.round(progress)}% TERM USED`,
+    );
+    set(
+      term,
+      "[data-event-term-end]",
+      `EXP ${shortDate(trigger.dataset.expiresOn).toUpperCase()} · ${daysLeft}D ${resolvedOn ? "REMAINED" : "LEFT"}`,
+    );
   };
 
   const markerCard = (trigger) => trigger.closest("[data-underlying-card]");
@@ -134,6 +189,7 @@
     set(popover, "[data-event-fact-two-value]", `${number(trigger.dataset.strikeBuffer).toFixed(1)}%`);
     set(popover, "[data-event-fact-three-label]", "ENTRY TERM");
     set(popover, "[data-event-fact-three-value]", `${trigger.dataset.entryDte} DTE`);
+    populateTerm(popover, trigger);
     set(popover, "[data-event-popover-link]", footer);
   };
 
@@ -153,6 +209,7 @@
     set(popover, "[data-event-fact-two-value]", money(trigger.dataset.price));
     set(popover, "[data-event-fact-three-label]", "DATE");
     set(popover, "[data-event-fact-three-value]", shortDate(trigger.dataset.date));
+    hideTerm(popover);
     set(popover, "[data-event-popover-link]", "UNDERLYING INVENTORY EVENT");
   };
 

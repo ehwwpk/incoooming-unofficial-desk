@@ -1,5 +1,5 @@
 @import url("./base.css?v=24");
-@import url("./components.css?v=27");
+@import url("./components.css?v=28");
 @import url("./alerts.css?v=22");
 @import url("./performance.css?v=25");
 @import url("./dashboard.css?v=24");
@@ -121,7 +121,8 @@
   .call-context-strip { grid-template-columns: repeat(2, 1fr); }
   .call-context-strip > span { border-bottom: 1px solid var(--line); }
   .call-context-strip > span:nth-child(2n) { border-right: 0; }
-  .call-context-strip > span:last-child { grid-column: 1 / -1; border-right: 0; border-bottom: 0; }
+  .call-context-strip > span:nth-child(n + 3) { border-bottom: 0; }
+  .call-context-strip > span:last-child { border-right: 0; }
   .option-mark-metrics { grid-template-columns: 1fr; }
   .price-context-strip { grid-template-columns: 1fr 1fr; }
   .price-context-strip > div:first-child { grid-column: 1 / -1; border-right: 0; border-bottom: 1px solid var(--line); }

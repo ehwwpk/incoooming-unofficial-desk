@@ -157,6 +157,18 @@
 .chart-event-facts span { overflow: hidden; color: var(--subtle); font: .34rem var(--mono); text-overflow: ellipsis; white-space: nowrap; }
 .chart-event-facts b { overflow: hidden; font: 650 .48rem var(--mono); text-overflow: ellipsis; white-space: nowrap; }
 .chart-event-facts small { color: var(--gold); font: 550 .31rem var(--mono); white-space: nowrap; }
+.option-term-meter { --term-progress: 0%; display: grid; gap: 5px; padding: 7px 9px; border-top: 1px solid var(--line); background: #101316; }
+.option-term-labels { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: baseline; gap: 8px; color: var(--subtle); font: 600 .34rem var(--mono); letter-spacing: .025em; }
+.option-term-labels strong { color: var(--text); font: 700 .36rem var(--mono); text-align: center; }
+.option-term-labels span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.option-term-labels span:last-child { text-align: right; }
+.option-term-track { position: relative; height: 4px; overflow: hidden; border-inline: 1px solid var(--line-strong); background: #252b30; }
+.option-term-track > span { position: absolute; inset: 0 auto 0 0; width: min(var(--term-progress), 100%); background: var(--gold); }
+.option-term-track > i { position: absolute; top: -2px; bottom: -2px; left: min(var(--term-progress), calc(100% - 1px)); width: 1px; background: #f3dc8e; box-shadow: 0 0 0 1px #111416; }
+.chart-event-term { padding-block: 6px; }
+.call-term-meter { padding: 6px 10px 7px; border-top: 1px solid var(--line); background: #0f1214; }
+.call-term-meter .option-term-labels { font-size: .36rem; }
+.call-term-meter .option-term-labels strong { color: var(--gold); font-size: .38rem; }
 .chart-event-popover > footer { min-height: 25px; padding: 6px 8px; border-top: 1px solid var(--line); color: var(--subtle); font: 500 .37rem/1.3 var(--mono); }
 .price-event-ledger { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--line); }
 .price-event-ledger > button { display: grid; min-width: 0; grid-template-columns: 22px minmax(0, 1fr); gap: 7px; padding: 6px 8px; border: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: transparent; color: inherit; cursor: pointer; text-align: left; }
@@ -226,7 +238,7 @@
 .option-mark-metrics small { color: var(--muted); font: .4rem var(--mono); }
 .call-position.negative { box-shadow: inset 3px 0 var(--red); }
 .call-position.positive { box-shadow: inset 3px 0 var(--green); }
-.call-context-strip { display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--line); background: var(--surface); }
+.call-context-strip { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); background: var(--surface); }
 .call-context-strip > span { display: grid; gap: 3px; padding: 6px 8px; border-right: 1px solid var(--line); color: var(--subtle); font: .39rem var(--mono); }
 .call-context-strip > span:last-child { border-right: 0; }
 .call-context-strip b { color: var(--text); font-size: .46rem; }
