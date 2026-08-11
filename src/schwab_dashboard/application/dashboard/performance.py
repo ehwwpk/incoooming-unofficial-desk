@@ -60,10 +60,14 @@ class MonthlyPerformanceSummary:
 @dataclass(frozen=True, slots=True)
 class CashChartPoint:
     label: str
+    premium_received: Decimal
+    executed_debits: Decimal
     option_cash: Decimal
     dividends: Decimal
     total_cash: Decimal
     bar_percent: int
+    credit_bar_percent: int
+    debit_bar_percent: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,6 +76,31 @@ class CashChartSeries:
     label: str
     grain: str
     points: Sequence[CashChartPoint]
+
+
+@dataclass(frozen=True, slots=True)
+class CashActivityItem:
+    event_id: str
+    occurred_on: date
+    symbol: str
+    action_label: str
+    amount: Decimal
+    contracts: int
+    tone: str
+    anchor_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class CashActivityWindow:
+    key: str
+    label: str
+    range_label: str
+    premium_received: Decimal
+    executed_debits: Decimal
+    dividends: Decimal
+    net_option_cash: Decimal
+    total_strategy_cash: Decimal
+    events: Sequence[CashActivityItem]
 
 
 @dataclass(frozen=True, slots=True)

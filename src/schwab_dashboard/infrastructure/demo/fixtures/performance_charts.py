@@ -65,14 +65,27 @@ def _dated_cash_series(
     call_events: Sequence[CashEvent],
     dividend_events: Sequence[CashEvent],
 ) -> CashChartSeries:
-    raw: list[tuple[str, Decimal, Decimal]] = []
+    raw: list[tuple[str, Decimal, Decimal, Decimal]] = []
     cursor = start
     while cursor <= end:
         bucket_end = min(end, cursor + timedelta(days=bucket_days - 1))
+        premium_received = cash_total(
+            call_events,
+            start=cursor,
+            end=bucket_end,
+            event_types=frozenset({"OPENING CREDIT"}),
+        )
+        executed_debits = -cash_total(
+            call_events,
+            start=cursor,
+            end=bucket_end,
+            event_types=frozenset({"CLOSING DEBIT", "FEES"}),
+        )
         raw.append(
             (
                 f"{bucket_end:%b %d}",
-                cash_total(call_events, start=cursor, end=bucket_end),
+                premium_received,
+                executed_debits,
                 cash_total(dividend_events, start=cursor, end=bucket_end),
             )
         )
@@ -85,7 +98,15 @@ def _monthly_cash_series(
     label: str,
     monthly: Sequence[MonthlyPerformanceSummary],
 ) -> CashChartSeries:
-    rows = [(item.label, item.option_cash, item.dividends) for item in monthly]
+    rows = [
+        (
+            item.label,
+            item.gross_premium,
+            item.closing_debits + item.fees,
+            item.dividends,
+        )
+        for item in monthly
+    ]
     return CashChartSeries(key=key, label=label, grain="MONTHLY CASH", points=_chart_points(rows))
 
 
@@ -93,12 +114,20 @@ def _rolling_cash_series(
     monthly: Sequence[MonthlyPerformanceSummary],
 ) -> CashChartSeries:
     prior = (
-        ("SEP", D("3395"), D("0")),
-        ("OCT", D("2600"), D("0")),
-        ("NOV", D("2100"), D("0")),
-        ("DEC", D("1700"), D("1590")),
+        ("SEP", D("4400"), D("1005"), D("0")),
+        ("OCT", D("3900"), D("1300"), D("0")),
+        ("NOV", D("3100"), D("1000"), D("0")),
+        ("DEC", D("2700"), D("1000"), D("1590")),
     )
-    current = [(item.label, item.option_cash, item.dividends) for item in monthly]
+    current = [
+        (
+            item.label,
+            item.gross_premium,
+            item.closing_debits + item.fees,
+            item.dividends,
+        )
+        for item in monthly
+    ]
     return CashChartSeries(
         key="r365",
         label="ROLLING 365",
@@ -108,18 +137,33 @@ def _rolling_cash_series(
 
 
 def _chart_points(
-    rows: Sequence[tuple[str, Decimal, Decimal]],
+    rows: Sequence[tuple[str, Decimal, Decimal, Decimal]],
 ) -> tuple[CashChartPoint, ...]:
-    maximum = max((abs(option + dividend) for _, option, dividend in rows), default=D("1"))
+    maximum = max(
+        (
+            max(premium, executed_debits, abs(premium - executed_debits + dividends))
+            for _, premium, executed_debits, dividends in rows
+        ),
+        default=D("1"),
+    )
     return tuple(
         CashChartPoint(
             label=label.upper(),
-            option_cash=option,
+            premium_received=premium,
+            executed_debits=executed_debits,
+            option_cash=premium - executed_debits,
             dividends=dividend,
-            total_cash=option + dividend,
-            bar_percent=max(4, int(abs(option + dividend) / maximum * 100))
-            if option + dividend
+            total_cash=premium - executed_debits + dividend,
+            bar_percent=max(
+                4,
+                int(abs(premium - executed_debits + dividend) / maximum * 100),
+            )
+            if premium - executed_debits + dividend
+            else 0,
+            credit_bar_percent=max(4, int(premium / maximum * 100)) if premium else 0,
+            debit_bar_percent=max(4, int(executed_debits / maximum * 100))
+            if executed_debits
             else 0,
         )
-        for label, option, dividend in rows
+        for label, premium, executed_debits, dividend in rows
     )

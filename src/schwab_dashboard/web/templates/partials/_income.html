@@ -1,26 +1,37 @@
-<section class="panel income-panel" id="income">
-  <div class="section-heading terminal-heading">
-    <div><h2>Cash timeline</h2><span data-cash-grain>WEEKLY CASH · 4 WEEKS</span></div>
-    <div class="legend" aria-label="Chart legend">
-      <span><i class="option-key"></i>Option cash kept</span>
-      <span><i class="dividend-key"></i>Dividends</span>
-      <span><i class="debit-key"></i>Net debit</span>
+<section class="cash-activity-panel" id="income" aria-labelledby="cash-activity-title">
+  <header class="cash-activity-heading">
+    <div>
+      <h2 id="cash-activity-title">Cash activity</h2>
+      <span data-cash-activity-label>4 WEEKS · LATEST EXECUTIONS</span>
     </div>
-  </div>
+    <a href="/workspaces/attribution">RESULTS →</a>
+  </header>
 
-  {% for series in snapshot.cash_chart_series %}
-  <div class="income-scroll" data-cash-series="{{ series.key }}" data-series-grain="{{ series.grain }}"{% if series.key != 'month' %} hidden{% endif %}>
-    <div class="income-chart" aria-label="{{ series.label }} cash chart" style="--cash-columns: {{ series.points | length }}">
-      {% for point in series.points %}
-      <div class="bar-column {{ 'debit' if point.total_cash < 0 else '' }}">
-        <div class="bar-value {{ point.total_cash | pnl_class }}">{{ point.total_cash | money(0) }}</div>
-        <div class="bar-track"><div class="income-bar" style="--bar-height: {{ point.bar_percent }}%">{% if point.dividends > 0 %}<span class="dividend-cap"></span>{% endif %}</div></div>
-        <span>{{ point.label }}</span>
-      </div>
+  {% for window in snapshot.cash_activity_windows %}
+  <div class="cash-activity-window" data-cash-activity-window="{{ window.key }}"{% if window.key != 'month' %} hidden{% endif %}>
+    <div class="cash-activity-equation" aria-label="{{ window.premium_received | money }} premium received minus {{ window.executed_debits | money }} executed close and roll debits equals {{ window.net_option_cash | money }} net option cash, plus {{ window.dividends | money }} dividends">
+      <span><small>PREMIUM RECEIVED</small><b>{{ window.premium_received | money }}</b></span>
+      <i aria-hidden="true">−</i>
+      <span><small>EXECUTED CLOSE / ROLL DEBITS</small><b class="negative">{{ window.executed_debits | money }}</b></span>
+      <i aria-hidden="true">=</i>
+      <span class="cash-activity-net"><small>NET OPTION CASH</small><b class="{{ window.net_option_cash | pnl_class }}">{{ window.net_option_cash | money }}</b></span>
+      <span class="cash-activity-dividend"><small>DIVIDENDS RECEIVED</small><b>{{ window.dividends | money }}</b></span>
+    </div>
+
+    <ol class="cash-activity-events" aria-label="Latest nonzero cash events in {{ window.label }}">
+      {% for event in window.events %}
+      <li class="{{ event.tone }}">
+        <time datetime="{{ event.occurred_on.isoformat() }}">{{ event.occurred_on.strftime('%b %d') | upper }}</time>
+        <a href="#{{ event.anchor_id }}" data-cash-event-target="{{ event.anchor_id }}">{{ event.symbol }}</a>
+        <span>{{ event.action_label }}{% if event.contracts %} · {{ event.contracts }}C{% endif %}</span>
+        <strong class="{{ event.amount | pnl_class }}">{{ event.amount | money }}</strong>
+      </li>
+      {% else %}
+      <li class="cash-activity-empty"><span>No executed cash events in this window.</span></li>
       {% endfor %}
-    </div>
+    </ol>
   </div>
+  {% else %}
+  <p class="cash-activity-empty">Connect a broker or import activity to build the cash ledger.</p>
   {% endfor %}
-
-  <footer class="income-panel-footer"><span data-cash-footer>EXECUTED OPTION CASH BY WEEK · MODEL THETA EXCLUDED</span><a href="/workspaces/attribution">MONTHLY RESULTS →</a></footer>
 </section>

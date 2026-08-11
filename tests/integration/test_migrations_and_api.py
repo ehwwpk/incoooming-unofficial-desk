@@ -41,6 +41,8 @@ def test_initial_migration_supports_local_api(tmp_path: Path) -> None:
         payload = dashboard.json()
         assert payload["mode"] == "live"
         assert payload["positions"] == []
+        assert payload["cash_events"] == []
+        assert payload["cash_activity_windows"] == []
         assert payload["cash_chart_series"] == []
         assert payload["policies"] == []
         assert page.status_code == 200
@@ -81,6 +83,20 @@ def test_demo_mode_renders_operator_plan_without_credentials(tmp_path: Path) -> 
             "ytd",
             "r365",
         ]
+        assert [window["key"] for window in payload["cash_activity_windows"]] == [
+            "month",
+            "quarter",
+            "ytd",
+            "r365",
+        ]
+        assert len(payload["cash_events"]) == 25
+        assert all(event["amount"] != "0" for event in payload["cash_events"])
+        assert len(payload["cash_activity_windows"][0]["events"]) == 3
+        assert all(
+            event["amount"] != "0"
+            for window in payload["cash_activity_windows"]
+            for event in window["events"]
+        )
         assert len(payload["expiration_calendar"]) == 5
         assert payload["expiration_calendar"][0]["days_to_expiration"] == 7
         assert len(payload["policies"]) == 3
@@ -111,8 +127,9 @@ def test_demo_mode_renders_operator_plan_without_credentials(tmp_path: Path) -> 
         assert 'data-period="quarter"' in page.text
         assert 'data-period="ytd"' in page.text
         assert 'data-period="r365"' in page.text
-        assert "Cash timeline" in page.text
-        assert "MODEL THETA EXCLUDED" in page.text
+        assert "Cash activity" in page.text
+        assert "Cash timeline" not in page.text
+        assert "EXECUTED CLOSE / ROLL DEBITS" in page.text
         assert "Transaction records" not in page.text
         assert "OPEN CALLS" in page.text
         assert "RESULTS" in page.text
@@ -121,8 +138,8 @@ def test_demo_mode_renders_operator_plan_without_credentials(tmp_path: Path) -> 
         assert page.text.count("data-chart-event-trigger") == 32
         assert page.text.count("data-chart-event-popover") == 3
         assert page.text.count("data-underlying-at-resolution") == 22
-        assert page.text.count("data-cash-grain") == 1
-        assert page.text.count("data-series-grain") == 4
+        assert page.text.count("data-cash-activity-window") == 4
+        assert page.text.count("data-cash-event-target") == 12
         assert page.text.count("data-workspace-splitter") == 3
         assert page.text.count("data-nibwick-note") == 0
         assert "MONTHLY OPTION INCOME TARGET" not in page.text

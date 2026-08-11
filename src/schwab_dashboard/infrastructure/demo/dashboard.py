@@ -2,6 +2,11 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from schwab_dashboard.application.alerts import build_desk_alerts
+from schwab_dashboard.application.dashboard.cash_activity import (
+    build_cash_activity_items,
+    build_cash_activity_windows,
+)
+from schwab_dashboard.application.dashboard.cashflows import build_call_cash_events
 from schwab_dashboard.application.dashboard.models import (
     DashboardSnapshot,
     IncomeSummary,
@@ -14,6 +19,7 @@ from schwab_dashboard.infrastructure.demo.fixtures.call_stats import (
     build_underlying_stats,
 )
 from schwab_dashboard.infrastructure.demo.fixtures.campaigns import build_campaigns
+from schwab_dashboard.infrastructure.demo.fixtures.cash_events import build_dividend_cash_events
 from schwab_dashboard.infrastructure.demo.fixtures.income import build_income_periods
 from schwab_dashboard.infrastructure.demo.fixtures.obligations import (
     build_expiration_calendar,
@@ -71,6 +77,16 @@ class DemoDashboardReader:
         performance_windows = build_performance_windows(
             call_history, stock_value, as_of, monthly_performance
         )
+        cash_events = build_cash_activity_items(
+            call_history,
+            build_call_cash_events(call_history),
+            build_dividend_cash_events(),
+        )
+        cash_activity_windows = build_cash_activity_windows(
+            cash_events,
+            performance_windows,
+            as_of,
+        )
         policies = build_policies()
         campaigns = build_campaigns(call_history, underlyings, policies, as_of)
         windows_by_key = {window.key: window for window in performance_windows}
@@ -107,6 +123,8 @@ class DemoDashboardReader:
                 annualized_yield=covered_calls.annualized_option_yield,
             ),
             income_periods=build_income_periods(call_history),
+            cash_events=cash_events,
+            cash_activity_windows=cash_activity_windows,
             cash_chart_series=build_cash_chart_series(call_history, monthly_performance, as_of),
             campaigns=campaigns,
             covered_calls=covered_calls,

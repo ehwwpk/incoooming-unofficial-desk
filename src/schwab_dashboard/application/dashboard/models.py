@@ -14,6 +14,8 @@ from schwab_dashboard.application.dashboard.covered_calls import (
 )
 from schwab_dashboard.application.dashboard.performance import (
     BasisLensSummary,
+    CashActivityItem,
+    CashActivityWindow,
     CashChartSeries,
     ExpirationBucket,
     MonthlyPerformanceSummary,
@@ -130,6 +132,8 @@ class DashboardSnapshot:
     portfolio: PortfolioSummary
     income: IncomeSummary
     income_periods: Sequence[IncomePeriod]
+    cash_events: Sequence[CashActivityItem]
+    cash_activity_windows: Sequence[CashActivityWindow]
     cash_chart_series: Sequence[CashChartSeries]
     campaigns: Sequence[CampaignSummary]
     covered_calls: CoveredCallPortfolioSummary

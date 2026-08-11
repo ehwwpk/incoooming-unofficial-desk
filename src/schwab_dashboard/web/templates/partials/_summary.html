@@ -5,12 +5,12 @@
 >
   <article class="pulse-panel income-pulse">
     <header>
-      <div><h2>Income &amp; pace</h2><small>CASH KEPT · DIVIDENDS · CAPITAL YIELD</small></div>
+      <div><h2>Income &amp; pace</h2><small>NET OPTION CASH · DIVIDENDS · CAPITAL YIELD</small></div>
       <a href="/workspaces/attribution">RESULTS <span aria-hidden="true">→</span></a>
     </header>
     <div class="pulse-income-grid">
       <div class="pulse-primary">
-        <span data-active-option-label>OPTION CASH KEPT / {{ active.label if active else 'WINDOW' }}</span>
+        <span data-active-option-label>NET OPTION CASH / {{ active.label if active else 'WINDOW' }}</span>
         <strong class="{{ active.option_cash | pnl_class if active else '' }}" data-active-option-cash>{{ active.option_cash | money if active else snapshot.covered_calls.net_option_cash | money }}</strong>
         <small data-active-option-meta>{% if active %}{{ active.annualized_option_yield | percent }} annualized · after executed closing debits{% else %}Waiting for normalized option cash{% endif %}</small>
         <small class="pulse-average" data-active-option-average hidden></small>
@@ -21,7 +21,7 @@
         <small>Cash dividends received</small>
       </div>
       <div>
-        <span data-active-total-label>TOTAL CASH RECEIVED / {{ active.label if active else 'WINDOW' }}</span>
+        <span data-active-total-label>TOTAL STRATEGY CASH / {{ active.label if active else 'WINDOW' }}</span>
         <strong class="{{ active.total_cash | pnl_class if active else '' }}" data-active-total-cash>{{ active.total_cash | money if active else snapshot.covered_calls.total_cash_income | money }}</strong>
         <small data-active-total-meta>Option income plus dividends</small>
         <small class="pulse-average" data-active-total-average hidden></small>

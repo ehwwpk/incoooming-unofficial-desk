@@ -26,12 +26,12 @@ const setupPeriodConsole = () => {
     const key = sheet.dataset.periodSheet;
     setText("[data-active-window]", windowCodes[key] || sheet.dataset.windowLabel);
     setText("[data-active-range]", sheet.dataset.rangeLabel);
-    setText("[data-active-option-label]", `OPTION CASH KEPT / ${sheet.dataset.windowLabel}`);
+    setText("[data-active-option-label]", `NET OPTION CASH / ${sheet.dataset.windowLabel}`);
     setText("[data-active-option-cash]", sheet.dataset.optionCash);
     setText("[data-active-option-meta]", `${sheet.dataset.optionApr} annualized · after executed closing debits`);
     setText("[data-active-window-label]", sheet.dataset.windowLabel);
     setText("[data-active-dividend-cash]", sheet.dataset.dividends);
-    setText("[data-active-total-label]", `TOTAL CASH RECEIVED / ${sheet.dataset.windowLabel}`);
+    setText("[data-active-total-label]", `TOTAL STRATEGY CASH / ${sheet.dataset.windowLabel}`);
     setText("[data-active-total-cash]", sheet.dataset.totalCash);
     setText("[data-active-total-meta]", `Option income plus dividends · ${sheet.dataset.totalApr} APR`);
     setText("[data-active-monthly-pace]", sheet.dataset.monthlyTotalAverage);
@@ -51,13 +51,13 @@ const setupPeriodConsole = () => {
     setText("[data-active-capture-label]", `PREMIUM CAPTURE / ${sheet.dataset.windowLabel}`);
     setText("[data-active-capture-value]", sheet.dataset.capture);
     setText("[data-active-capture-meta]", `${sheet.dataset.buybackDrag} executed-debit drag`);
-    document.querySelectorAll("[data-cash-series]").forEach((series) => {
-      series.hidden = series.dataset.cashSeries !== key;
+    document.querySelectorAll("[data-cash-activity-window]").forEach((window) => {
+      window.hidden = window.dataset.cashActivityWindow !== key;
     });
-    const activeSeries = document.querySelector(`[data-cash-series="${key}"]`);
-    const grain = activeSeries?.dataset.seriesGrain || "CASH";
-    setText("[data-cash-grain]", `${grain} · ${sheet.dataset.windowLabel}`);
-    setText("[data-cash-footer]", `${grain} · EXECUTED CASH ONLY · MODEL THETA EXCLUDED`);
+    setText(
+      "[data-cash-activity-label]",
+      `${sheet.dataset.windowLabel} · LATEST EXECUTIONS`,
+    );
   };
 
   const updateUnderlyingCards = (activeSheetKey, windowLabel) => {

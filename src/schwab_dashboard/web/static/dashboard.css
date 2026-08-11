@@ -1,28 +1,8 @@
 .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(390px, .85fr); gap: 8px; margin-top: 10px; }
 .dashboard-grid > *, .side-stack { min-width: 0; }
 .side-stack { display: grid; gap: 10px; }
-.income-panel { border-top-color: var(--green-muted); background: var(--surface); }
 .lifecycle-panel { border-top-color: var(--gold-soft); background: var(--surface); }
 .risk-panel { border-top-color: var(--line-strong); background: var(--surface); }
-.legend { display: flex; flex-wrap: wrap; gap: 11px; color: var(--subtle); font: .49rem var(--mono); }
-.legend span { display: flex; align-items: center; gap: 5px; }
-.legend i { width: 6px; height: 6px; }
-.option-key { background: var(--green); }
-.dividend-key { background: var(--olive); }
-.debit-key { background: var(--red); }
-
-.income-scroll { width: 100%; max-width: 100%; margin-top: 17px; overflow-x: auto; scrollbar-color: var(--line-strong) transparent; }
-.income-chart { display: grid; grid-template-columns: repeat(13, 1fr); height: 168px; gap: 4px; }
-.bar-column { display: grid; grid-template-rows: 18px 1fr 21px; gap: 4px; min-width: 0; text-align: center; }
-.bar-column > span, .bar-value { overflow: hidden; color: var(--subtle); font: .47rem var(--mono); white-space: nowrap; }
-.bar-track { position: relative; display: flex; align-items: flex-end; overflow: hidden; background: linear-gradient(90deg, transparent, rgb(255 255 255 / 2.5%), transparent); }
-.bar-track::before { position: absolute; inset: 50% 0 auto; border-top: 1px dashed rgb(255 255 255 / 7%); content: ""; }
-.income-bar { position: relative; width: 100%; height: var(--bar-height); min-height: 3px; border-top: 2px solid var(--green); background: rgb(96 207 136 / 16%); }
-.bar-column.debit .income-bar { border-color: var(--red); background: rgb(255 100 116 / 16%); }
-.dividend-cap { position: absolute; inset: 0 0 auto; height: 18%; min-height: 5px; background: var(--olive); }
-.cash-reconcile { display: flex; justify-content: space-between; gap: 10px; padding-top: 11px; color: var(--subtle); font: .48rem var(--mono); }
-.cash-reconcile b { display: block; margin-top: 4px; color: var(--text); font-size: .58rem; }
-
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: .66rem; }
 th, td { padding: 10px 9px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }

@@ -3,7 +3,7 @@
 @import url("./alerts.css?v=22");
 @import url("./performance.css?v=24");
 @import url("./dashboard.css?v=24");
-@import url("./desk-overview.css?v=4");
+@import url("./desk-overview.css?v=5");
 
 @media (max-width: 1240px) {
   .portfolio-console { grid-template-columns: repeat(3, 1fr); }
@@ -64,7 +64,6 @@
   .console-cell:nth-child(2n) { border-right: 0; }
   .console-cell:nth-last-child(-n + 2) { border-bottom: 0; }
   .side-stack { grid-template-columns: 1fr; }
-  .income-chart { min-width: 670px; }
   .cash-reconcile { display: grid; grid-template-columns: 1fr 1fr; }
   .period-controls, .annual-controls { justify-self: stretch; }
   .period-controls button, .annual-controls button { flex: 1; }
@@ -154,7 +153,3 @@
 .desk-exit-links a:last-child { border-right: 0; }
 .desk-exit-links a:hover { background: rgba(231, 188, 80, .05); }
 .desk-exit-links span { color: var(--muted); font-size: 11px; }
-.income-chart {
-  grid-template-columns: repeat(var(--cash-columns, 13), minmax(32px, 1fr));
-  min-width: max(100%, calc(var(--cash-columns, 13) * 42px));
-}

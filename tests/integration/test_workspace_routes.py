@@ -56,6 +56,12 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "Call campaigns" in review.text
         assert "MONTH BY MONTH" in review.text
         assert "THROUGH AUG 07" in review.text
+        assert "Credits and executed debits" in review.text
+        assert review.text.count("data-results-cash-series") == 3
+        assert 'data-results-cash-period="quarter"' in review.text
+        assert 'data-results-cash-period="ytd"' in review.text
+        assert 'data-results-cash-period="r365"' in review.text
+        assert "DAILY CASH" not in review.text
 
         assert volatility.status_code == 200
         assert "Historical IV is not yet collected" in volatility.text
@@ -65,6 +71,9 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "Broker portability without fake parity" in records.text
         assert "Multi-broker aggregator" in records.text
         assert "CONDITIONAL" in records.text
+        assert "Cash events" in records.text
+        assert "EXACT POSTING DATES" in records.text
+        assert "Inactive calendar dates are intentionally omitted" in records.text
     finally:
         container.close()
 

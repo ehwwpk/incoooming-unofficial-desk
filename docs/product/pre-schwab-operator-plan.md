@@ -6,7 +6,7 @@ Status: fixture-backed operator phase implemented and verified on August 10, 202
 
 The first screen must answer four questions without requiring interpretation:
 
-1. How much option and dividend cash did I actually keep?
+1. How much net option cash and dividend cash did the strategy generate?
 2. What shares are currently committed to open calls?
 3. Which position deserves attention now, and why?
 4. Did active management improve the result versus simply holding the shares?
@@ -29,11 +29,11 @@ The primary selector will use **4W, QTR, YTD, and R365**. The standalone 1W top-
 
 Daily data is preserved; it is not confused with a separate daily performance window:
 
-- 4W cash defaults to daily cash-event bars.
-- QTR cash defaults to weekly totals with daily detail available in focus or drill-through.
-- YTD and R365 default to monthly totals with daily source records available in drill-through.
+- The Desk uses a compact activity tape with only the latest nonzero executions in the selected window.
+- QTR comparison defaults to weekly totals with exact dated events available in Records.
+- YTD and R365 comparison defaults to monthly totals with exact dated events available in Records.
 - Underlying price paths continue to use real daily market sessions.
-- A day without an execution or dividend has zero transaction cash.
+- Days without an execution or dividend remain valid ledger dates but are not rendered as empty activity.
 - Model theta per day is an option-price sensitivity estimate, not daily income and not a cash forecast.
 
 The current 1W fixture and calculations may remain internally available for tests and record queries, but they will not occupy primary navigation.
@@ -98,9 +98,9 @@ Exact contract quantities, sale dates, premiums, and current marks must not be i
 
 ## Plain-language metric contract
 
-- **Option cash kept:** opening credits minus executed closing debits and fees for the selected period.
+- **Net option cash:** opening credits minus executed closing debits and fees for the selected period.
 - **Dividends received:** cash dividends actually posted in the selected period.
-- **Total cash received:** option cash kept plus dividends received.
+- **Total strategy cash:** net option cash plus dividends received.
 - **Estimated close value:** current market estimate for closing an open call; it is not a realized cost.
 - **Open option gain/loss:** opening credit minus estimated close value; it remains unrealized while the call is open.
 - **Model time decay/day:** theoretical one-day option-value change if other inputs do not change; it is not income.
@@ -139,7 +139,7 @@ The verified pre-Schwab build now includes:
 
 - a three-surface operator flow: Desk, Open Calls, and Results;
 - exact 4W, QTR, YTD, and R365 cash windows derived from one execution ledger;
-- 28 daily cash buckets for the 4W view, with zero-cash days preserved;
+- a compact nonzero-event Desk tape, weekly quarterly comparison, monthly YTD/R365 comparison, and exact dated cash ledger in Records;
 - the 700 CVX, 800 KTOS, and 500 URNM fictional inventory with personalized fictional call tranches;
 - roll-linked campaigns, a month-by-month cash ledger, an expiration calendar, and current-inventory attribution;
 - expandable open-call rows with obligation, quote, mark, liquidity, Greek, event, policy, and lifecycle fields;

@@ -16,6 +16,12 @@ def test_cash_windows_and_charts_share_one_execution_ledger() -> None:
         assert sum((point.option_cash for point in series[key].points), D("0")) == (
             windows[key].option_cash
         )
+        assert sum((point.premium_received for point in series[key].points), D("0")) == (
+            windows[key].gross_premium
+        )
+        assert sum((point.executed_debits for point in series[key].points), D("0")) == (
+            windows[key].buyback_cost
+        )
         assert sum((point.dividends for point in series[key].points), D("0")) == (
             windows[key].dividends
         )
@@ -23,6 +29,32 @@ def test_cash_windows_and_charts_share_one_execution_ledger() -> None:
     assert windows["month"].buyback_cost == D("2435")
     assert windows["month"].option_cash == D("1805")
     assert len(series["month"].points) == 28
+
+
+def test_cash_activity_omits_zero_days_and_preserves_window_math() -> None:
+    snapshot = DemoDashboardReader().execute()
+    windows = {item.key: item for item in snapshot.performance_windows}
+    activity = {item.key: item for item in snapshot.cash_activity_windows}
+
+    assert tuple(activity) == ("month", "quarter", "ytd", "r365")
+    for key, view in activity.items():
+        window = windows[key]
+        assert view.premium_received - view.executed_debits == view.net_option_cash
+        assert view.net_option_cash + view.dividends == view.total_strategy_cash
+        assert view.premium_received == window.gross_premium
+        assert view.executed_debits == window.buyback_cost
+        assert all(event.amount for event in view.events)
+        assert len(view.events) <= 3
+        assert tuple(event.occurred_on for event in view.events) == tuple(
+            sorted((event.occurred_on for event in view.events), reverse=True)
+        )
+
+    recent = activity["month"].events
+    assert [(event.symbol, event.action_label, event.amount) for event in recent] == [
+        ("URNM", "CALL SOLD", D("500")),
+        ("KTOS", "CALL ROLLED", D("-825")),
+        ("URNM", "CALL ROLLED", D("-80")),
+    ]
 
 
 def test_open_campaigns_reconcile_roll_chains_and_marks() -> None:

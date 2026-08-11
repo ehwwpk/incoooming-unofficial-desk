@@ -1,16 +1,53 @@
 {% if snapshot.performance_windows %}
 <section class="workspace-metric-strip operator-strip" aria-label="Results summary">
-  <div><span>LAST 4 WEEKS</span><strong class="{{ snapshot.performance_windows[0].option_cash | pnl_class }}">{{ snapshot.performance_windows[0].option_cash | money }}</strong><small>Option cash kept</small></div>
+  <div><span>LAST 4 WEEKS</span><strong class="{{ snapshot.performance_windows[0].option_cash | pnl_class }}">{{ snapshot.performance_windows[0].option_cash | money }}</strong><small>Net option cash</small></div>
   <div><span>ROLLING-YEAR MONTH AVG</span><strong>{{ snapshot.operator_metrics.rolling_year_monthly_average | money }}</strong><small>Option cash monthly equivalent</small></div>
   <div><span>MEDIAN FULL MONTH</span><strong>{{ snapshot.operator_metrics.median_completed_month | money }}</strong><small>{{ snapshot.operator_metrics.completed_months }} completed months</small></div>
   <div><span>FULL-MONTH RANGE</span><strong>{{ snapshot.operator_metrics.worst_completed_month | money }}–{{ snapshot.operator_metrics.best_completed_month | money }}</strong><small>Observed option cash</small></div>
+</section>
+
+<section class="workspace-panel results-cash-panel" data-results-cash>
+  <header class="workspace-panel-heading results-cash-heading">
+    <div><p class="eyebrow">CASH CADENCE</p><h2>Credits and executed debits</h2></div>
+    <div class="results-cash-controls" role="tablist" aria-label="Cash cadence window">
+      <button type="button" role="tab" data-results-cash-period="quarter" aria-selected="false">QTR · WEEKS</button>
+      <button type="button" role="tab" data-results-cash-period="ytd" aria-selected="true">YTD · MONTHS</button>
+      <button type="button" role="tab" data-results-cash-period="r365" aria-selected="false">R365 · MONTHS</button>
+    </div>
+  </header>
+  <div class="results-cash-readout">
+    <span class="received">PREMIUM RECEIVED ↑</span>
+    <span>NET CASH IS LABELLED ABOVE EACH PERIOD</span>
+    <span class="debited">EXECUTED CLOSE / ROLL DEBITS ↓</span>
+  </div>
+  {% for series in snapshot.cash_chart_series %}
+  {% if series.key != 'month' %}
+  <div class="results-cash-series" data-results-cash-series="{{ series.key }}" data-results-cash-grain="{{ series.grain }}"{% if series.key != 'ytd' %} hidden{% endif %}>
+    <div class="results-cash-columns" style="--results-cash-columns: {{ series.points | length }}" role="img" aria-label="{{ series.label }} {{ series.grain | lower }} showing premium received above the baseline and executed close and roll debits below">
+      {% for point in series.points %}
+      <article class="results-cash-column" aria-label="{{ point.label }}: {{ point.premium_received | money }} premium received, {{ point.executed_debits | money }} executed debits, {{ point.dividends | money }} dividends, {{ point.total_cash | money }} total cash">
+        <strong class="{{ point.total_cash | pnl_class }}">{{ point.total_cash | money(0) }}</strong>
+        <div class="results-cash-bars">
+          <i class="cash-credit-bar" style="--cash-credit-height: {{ point.credit_bar_percent }}%"></i>
+          <b aria-hidden="true"></b>
+          <i class="cash-debit-bar" style="--cash-debit-height: {{ point.debit_bar_percent }}%"></i>
+        </div>
+        <span>{{ point.label }}</span>
+        {% if point.dividends %}<em>DIV {{ point.dividends | money(0) }}</em>{% endif %}
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  {% endfor %}
+  <footer class="results-cash-footer"><span data-results-cash-grain-label>MONTHLY CASH · CALENDAR YTD</span><b>EXECUTED CASH ONLY · OPEN MARKS AND MODEL THETA EXCLUDED</b></footer>
 </section>
 
 <section class="workspace-panel">
   <header class="workspace-panel-heading"><div><p class="eyebrow">CASH WINDOWS</p><h2>What the strategy paid</h2></div><span>EXECUTED CASH · NO MODEL THETA</span></header>
   <div class="workspace-table-wrap">
     <table class="workspace-table review-table">
-      <thead><tr><th>Window</th><th>Range</th><th class="numeric">Option cash kept</th><th class="numeric">Dividends</th><th class="numeric">Total cash</th><th class="numeric">One-month pace</th><th class="numeric">Annualized</th><th class="numeric">Premium kept</th></tr></thead>
+      <thead><tr><th>Window</th><th>Range</th><th class="numeric">Net option cash</th><th class="numeric">Dividends</th><th class="numeric">Total strategy cash</th><th class="numeric">One-month pace</th><th class="numeric">Annualized</th><th class="numeric">Premium capture</th></tr></thead>
       <tbody>{% for window in snapshot.performance_windows %}<tr>
         <td><strong>{{ window.label }}</strong><small>{{ window.days }} DAYS</small></td><td>{{ window.range_label }}</td>
         <td class="numeric {{ window.option_cash | pnl_class }}">{{ window.option_cash | money }}</td><td class="numeric">{{ window.dividends | money }}</td>
@@ -40,7 +77,7 @@
 <details class="workspace-panel monthly-performance" open data-monthly-performance>
   <summary><span><b>MONTH BY MONTH</b><small>CALENDAR {{ snapshot.monthly_performance[-1].year }} · ACTUAL CASH</small></span><span><strong>{{ snapshot.monthly_performance | length }} MONTHS</strong><i aria-hidden="true"></i></span></summary>
   <div class="workspace-table-wrap"><table class="workspace-table monthly-performance-table">
-    <thead><tr><th>Month</th><th class="numeric">Premium received</th><th class="numeric">Closing debits</th><th class="numeric">Option cash kept</th><th class="numeric">Dividends</th><th class="numeric">Total cash</th><th class="numeric">Called away</th></tr></thead>
+    <thead><tr><th>Month</th><th class="numeric">Premium received</th><th class="numeric">Closing debits</th><th class="numeric">Net option cash</th><th class="numeric">Dividends</th><th class="numeric">Total strategy cash</th><th class="numeric">Called away</th></tr></thead>
     <tbody>{% for month in snapshot.monthly_performance %}<tr{% if month.is_partial %} class="partial"{% endif %}>
       <td><strong>{{ month.label }}</strong><small>{{ month.year }}{% if month.is_partial %} · THROUGH {{ snapshot.as_of.strftime('%b %d') | upper }}{% endif %}</small></td>
       <td class="numeric">{{ month.gross_premium | money }}</td><td class="numeric negative">{{ month.closing_debits | money }}</td>

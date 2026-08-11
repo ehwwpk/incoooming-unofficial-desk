@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <title>Incoooming Unofficial Desk · Options Income</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=53">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=54">
     <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=4">
   </head>
   <body data-workspace-key="desk" data-workspace-context='{"account":"{{ snapshot.accounts[0].account_mask if snapshot.accounts else "---" }}","symbol":"ALL","asOf":"{{ snapshot.as_of.date().isoformat() }}"}'>
@@ -96,7 +96,8 @@
       </footer>
       </main>
     </div>
-    <script src="{{ url_for('static', path='/periods.js') }}?v=18" defer></script>
+    <script src="{{ url_for('static', path='/periods.js') }}?v=19" defer></script>
+    <script src="{{ url_for('static', path='/cash-activity.js') }}?v=1" defer></script>
     <script src="{{ url_for('static', path='/workspace-splitter.js') }}?v=1" defer></script>
     <script src="{{ url_for('static', path='/chart-viewport.js') }}?v=1" defer></script>
     <script src="{{ url_for('static', path='/chart-focus.js') }}?v=1" defer></script>

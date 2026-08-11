@@ -1,0 +1,28 @@
+<section class="workspace-panel cash-event-ledger" id="cash-event-log">
+  <header class="workspace-panel-heading">
+    <div><p class="eyebrow">DATED CASH LEDGER</p><h2>Cash events</h2></div>
+    <span>{{ snapshot.cash_events | length }} NONZERO EVENTS · EXACT POSTING DATES</span>
+  </header>
+  {% if snapshot.cash_events %}
+  <div class="workspace-table-wrap">
+    <table class="workspace-table">
+      <thead><tr><th>Date</th><th>Stock</th><th>Activity</th><th class="numeric">Contracts</th><th class="numeric">Cash amount</th><th>Source event</th></tr></thead>
+      <tbody>
+        {% for event in snapshot.cash_events %}
+        <tr>
+          <td>{{ event.occurred_on | short_date }}</td>
+          <td><strong>{{ event.symbol }}</strong></td>
+          <td>{{ event.action_label }}</td>
+          <td class="numeric">{{ event.contracts if event.contracts else '—' }}</td>
+          <td class="numeric {{ event.amount | pnl_class }}"><strong>{{ event.amount | money }}</strong></td>
+          <td><small>{{ event.event_id }}</small></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="workspace-footnote">Opening credits, executed closing or roll debits, fees, and dividends stay separate. Inactive calendar dates are intentionally omitted.</p>
+  {% else %}
+  <p class="empty-state">No normalized cash events are available yet.</p>
+  {% endif %}
+</section>

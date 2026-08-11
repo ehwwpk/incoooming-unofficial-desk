@@ -56,6 +56,8 @@ class ReadDashboard:
                 annualized_yield=ZERO,
             ),
             income_periods=(),
+            cash_events=(),
+            cash_activity_windows=(),
             cash_chart_series=(),
             campaigns=(),
             covered_calls=_empty_covered_calls(),

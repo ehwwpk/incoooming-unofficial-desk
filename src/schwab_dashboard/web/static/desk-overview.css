@@ -76,12 +76,35 @@
 .position-detail { border-top: 1px solid var(--line-strong); }
 .position-detail > .name-analytics { border-top: 0; }
 
-.income-panel { margin-top: 10px; }
 .records-workspace > summary { min-height: 46px; }
-.income-panel-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px -14px -14px; padding: 8px 12px; border-top: 1px solid var(--line); background: #0a0b0c; }
-.income-panel-footer span, .income-panel-footer a { color: var(--subtle); font: .43rem var(--mono); }
-.income-panel-footer a { color: var(--gold); }
-.income-panel-footer a:hover, .income-panel-footer a:focus-visible { color: var(--text); text-decoration: underline; outline: 0; }
+
+.cash-activity-panel { margin-top: 10px; overflow: hidden; border: 1px solid var(--line-strong); border-top-color: var(--gold-soft); background: var(--surface); }
+.cash-activity-heading { display: flex; min-height: 38px; align-items: center; justify-content: space-between; gap: 14px; padding: 6px 10px; border-bottom: 1px solid var(--line); background: #0a0c0e; }
+.cash-activity-heading > div { display: flex; min-width: 0; align-items: baseline; gap: 10px; }
+.cash-activity-heading h2 { margin: 0; font-size: .73rem; font-weight: 680; }
+.cash-activity-heading span { overflow: hidden; color: var(--subtle); font: 650 .42rem var(--mono); letter-spacing: .04em; text-overflow: ellipsis; white-space: nowrap; }
+.cash-activity-heading a { border-left: 1px solid var(--line); padding: 4px 0 4px 10px; color: var(--gold); font: 750 .43rem var(--mono); white-space: nowrap; }
+.cash-activity-heading a:hover, .cash-activity-heading a:focus-visible { color: var(--text); text-decoration: underline; outline: 0; }
+.cash-activity-equation { display: grid; grid-template-columns: minmax(150px, .8fr) auto minmax(190px, 1.15fr) auto minmax(150px, .9fr) minmax(130px, .72fr); min-height: 54px; align-items: stretch; border-bottom: 1px solid var(--line); }
+.cash-activity-equation > span { display: grid; align-content: center; gap: 4px; min-width: 0; padding: 7px 10px; }
+.cash-activity-equation > i { display: grid; width: 26px; place-items: center; border-inline: 1px solid var(--line); color: var(--gold); font: 700 .7rem var(--mono); font-style: normal; }
+.cash-activity-equation small { overflow: hidden; color: var(--subtle); font: 650 .4rem var(--mono); letter-spacing: .035em; text-overflow: ellipsis; white-space: nowrap; }
+.cash-activity-equation b { font: 750 .68rem var(--mono); }
+.cash-activity-net { background: #0e1410; }
+.cash-activity-dividend { border-left: 1px solid var(--line); }
+.cash-activity-events { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; padding: 0; list-style: none; background: #090b0d; }
+.cash-activity-events li { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; min-width: 0; align-items: center; gap: 7px; min-height: 38px; padding: 6px 10px; border-right: 1px solid var(--line); box-shadow: inset 2px 0 var(--line-strong); }
+.cash-activity-events li:last-child { border-right: 0; }
+.cash-activity-events li.credit { box-shadow: inset 2px 0 var(--green-muted); }
+.cash-activity-events li.debit { box-shadow: inset 2px 0 #883f3c; }
+.cash-activity-events li.dividend { box-shadow: inset 2px 0 var(--olive); }
+.cash-activity-events time, .cash-activity-events span { color: var(--subtle); font: 650 .4rem var(--mono); white-space: nowrap; }
+.cash-activity-events a { color: var(--gold); font: 800 .47rem var(--mono); }
+.cash-activity-events a:hover, .cash-activity-events a:focus-visible { color: var(--text); text-decoration: underline; outline: 0; }
+.cash-activity-events span { overflow: hidden; text-overflow: ellipsis; }
+.cash-activity-events strong { font: 750 .5rem var(--mono); white-space: nowrap; }
+.cash-activity-events .cash-activity-empty { grid-column: 1 / -1; box-shadow: none; }
+.cash-activity-empty { margin: 0; padding: 12px; color: var(--subtle); font: .48rem var(--mono); }
 
 @media (max-width: 1180px) {
   .desk-pulse { grid-template-columns: 1fr; }
@@ -90,6 +113,7 @@
   .position-book > summary > div:nth-child(4) { grid-area: calls; border-top: 1px solid var(--line); }
   .position-book > summary > div:nth-child(6) { grid-area: mark; border-top: 1px solid var(--line); }
   .position-open-control { border-left: 1px solid var(--line); }
+  .cash-activity-equation { grid-template-columns: minmax(130px, .8fr) auto minmax(170px, 1.15fr) auto minmax(130px, .9fr) minmax(120px, .72fr); }
 }
 
 @media (max-width: 720px) {
@@ -113,5 +137,13 @@
   .live-book-footer { grid-template-columns: 1fr; }
   .live-book-footer > div, .live-book-footer > button { border-right: 0; border-bottom: 1px solid var(--line); }
   .live-book-footer > :last-child { border-bottom: 0; }
-  .income-panel-footer { align-items: flex-start; flex-direction: column; }
+  .cash-activity-equation { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cash-activity-equation > span { min-height: 50px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .cash-activity-equation > span:nth-of-type(2n) { border-right: 0; }
+  .cash-activity-equation > span:nth-last-of-type(-n + 2) { border-bottom: 0; }
+  .cash-activity-equation > i { display: none; }
+  .cash-activity-dividend { border-left: 0; }
+  .cash-activity-events { grid-template-columns: 1fr; }
+  .cash-activity-events li { border-right: 0; border-bottom: 1px solid var(--line); }
+  .cash-activity-events li:last-child { border-bottom: 0; }
 }
