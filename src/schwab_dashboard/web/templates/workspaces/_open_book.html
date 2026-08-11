@@ -7,8 +7,11 @@
   <div title="Theoretical one-day option value decay, holding other pricing inputs constant. Not cash income."><span>MODEL TIME DECAY / DAY</span><strong class="positive">+{{ open_book.theta_estimate_per_day | money }}</strong><small>Estimate, not cash received</small></div>
 </section>
 
-<section class="workspace-panel obligation-calendar">
-  <header class="workspace-panel-heading"><div><p class="eyebrow">OBLIGATION CALENDAR</p><h2>Next expirations</h2></div><span>EXPIRY · SHARES · EVENTS</span></header>
+<details class="workspace-panel obligation-calendar open-book-section" data-open-book-section="calendar">
+  <summary class="workspace-panel-heading">
+    <div><p class="eyebrow">OBLIGATION CALENDAR</p><h2>Next expirations</h2></div>
+    <div class="open-book-section-control"><span>EXPIRY · SHARES · EVENTS</span><i aria-hidden="true"></i></div>
+  </summary>
   <div class="expiration-buckets">
     {% for bucket in snapshot.expiration_calendar %}
     <article>
@@ -18,10 +21,13 @@
     </article>
     {% endfor %}
   </div>
-</section>
+</details>
 
-<section class="workspace-panel">
-  <header class="workspace-panel-heading"><div><p class="eyebrow">LIVE CONTRACTS</p><h2>Open calls</h2></div><span>{{ open_book.groups | length }} STOCKS · {{ open_book.rows | length }} POSITIONS</span></header>
+<details class="workspace-panel open-book-section" data-open-book-section="contracts">
+  <summary class="workspace-panel-heading">
+    <div><p class="eyebrow">LIVE CONTRACTS</p><h2>Open calls</h2></div>
+    <div class="open-book-section-control"><span>{{ open_book.groups | length }} STOCKS · {{ open_book.rows | length }} POSITIONS</span><i aria-hidden="true"></i></div>
+  </summary>
   <div class="open-call-register">
     {% for group in open_book.groups %}
     <section class="open-call-group" data-context-symbol-row="{{ group.symbol }}">
@@ -41,4 +47,4 @@
     </section>
     {% else %}<p class="empty-state">No normalized open calls are available.</p>{% endfor %}
   </div>
-</section>
+</details>

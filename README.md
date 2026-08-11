@@ -1,15 +1,30 @@
 # Incoooming
 
-A private, local-first options-income desk for portfolio, covered-call, dividend, and performance analytics.
+**Premium in. Noise out.**
 
-The live Schwab pipeline is read-only and auditable: it preserves raw account, transaction, quote,
-option-chain, and daily-price responses; normalizes positions, option executions, cash dividends,
-interest, expirations, assignments, and market observations; and reconciles the resulting cash
-ledger. No trading endpoints are implemented.
+Incoooming is a private, local-first desk for people who sell options, collect dividends, and want
+to understand the whole book without wrestling a brokerage statement. The extra `oo` is deliberate:
+it is the little desk yell when another credit hits the ledger.
 
-## Explore the dashboard while Schwab access is pending
+It answers a few practical questions quickly:
 
-The demo command serves a deterministic covered-call simulation through the same application contract used by live data. It models 700 CVX, 800 KTOS, and 500 URNM shares, including weekly, monthly, quarterly (rolling 13-week), calendar-YTD, and rolling-365 performance; per-name APR/IV and call statistics; an editable monthly objective; lifetime income-adjusted-basis analytics; rolls, closes, expirations, active coverage; and a full execution ledger. It never writes fake records to the real ledger.
+- How much option and dividend cash actually arrived?
+- What is open now, how close is it to the strike, and how many days remain?
+- How much of each contract's original time and premium value remains?
+- Which expirations, assignments, dividends, or fast-moving names deserve a look?
+- Which broker records support every number on screen?
+
+The Schwab connection is read-only and auditable. Incoooming preserves raw account, transaction,
+quote, option-chain, and daily-price responses; normalizes positions, executions, dividends,
+interest, expirations, assignments, and market observations; and reconciles the cash ledger. It is
+an analytics desk, not a broker or trading bot. No trading endpoints are implemented.
+
+## Take the demo desk for a spin
+
+The demo uses the same application path as live data with an isolated fictional book: 700 CVX,
+800 KTOS, and 500 URNM shares. It includes rolling 4-week, quarterly, YTD, and rolling-365 cash;
+per-stock APR, IV, calls, assignments, rolls, expirations, charts, and lifetime capital-recovery
+context. Demo option trades, marks, IV, and Greeks are fictional and never enter the live ledger.
 
 ```powershell
 .\scripts\run-demo.cmd
@@ -17,14 +32,14 @@ The demo command serves a deterministic covered-call simulation through the same
 
 Open `http://127.0.0.1:8182`. Press `Ctrl+C` in the terminal to stop it.
 
-The main Desk keeps daily decisions in one compact operating surface: option and dividend income,
-live covered-call obligations, one row per stock, and only the exceptions worth reviewing. Each
-stock expands on demand for its charts and contracts. A single `TOOLS` disclosure opens four
-secondary instruments—Open Calls, Strategy Review, Volatility Lab, and Data & Records—in the
-current page or an explicitly requested named window. The same stable routes and read models work
-in demo and live-ledger modes.
+The main Desk keeps the daily job compact: realized option and dividend cash, live obligations, one
+row per stock, and only the exceptions worth reviewing. Stocks open on demand for charts and
+contracts. The Calls workspace keeps portfolio totals visible while expiration and contract
+sections stay folded until their headers are clicked. Results, Volatility Lab, and Data Health live
+behind `TOOLS` and can open in the current page or their own window.
 
-All demo trades, option marks, IV, and Greeks are fictional. Underlying paths are frozen public market-session closes; they are not broker marks or trading guidance.
+Underlying demo paths use frozen public market-session closes. They are not broker marks or trading
+guidance.
 
 ## Quick start on Windows
 
@@ -45,24 +60,25 @@ Copy-Item .env.example .env
 .\.venv\Scripts\schwab-dashboard.exe auth-complete
 ```
 
-The browser may end on a non-loading local HTTPS page. Copy the entire URL from the address bar and paste it into `auth-complete`; the authorization code is in that URL.
+The browser may end on a non-loading local HTTPS page. Copy the entire URL from the address bar and
+paste it into `auth-complete`; the authorization code is inside that URL.
 
 5. Read and store current accounts and positions, one year of transaction history, current option
-   chains/Greeks, and one year of daily underlying prices; then launch the local dashboard:
+   chains and Greeks, and one year of daily underlying prices; then launch the local dashboard:
 
 ```powershell
 .\.venv\Scripts\schwab-dashboard.exe sync
 .\scripts\run-local.cmd
 ```
 
-Open `http://127.0.0.1:8182`. The server binds to loopback by default.
+Open `http://127.0.0.1:8182`. The server binds to your own computer by default.
 
 ## Safety
 
 - Never commit `.env`, `var/`, tokens, exports, or account data.
-- OAuth tokens are stored in Windows Credential Manager through `keyring`, not in the repository.
-- The Schwab trading adapter only exposes read operations. OAuth token exchange is isolated in a separate client.
-- This project is performance-accounting software, not tax or investment advice.
+- OAuth tokens live in Windows Credential Manager through `keyring`, not in the repository.
+- The Schwab adapter exposes read operations only. Token exchange is isolated in a separate client.
+- Incoooming is performance-accounting software, not tax or investment advice.
 
 ## Project guides
 

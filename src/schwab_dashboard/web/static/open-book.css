@@ -5,6 +5,35 @@
   --call-label: #7e858e;
 }
 
+.open-book-section > summary {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.open-book-section > summary::-webkit-details-marker { display: none; }
+.open-book-section:not([open]) > summary { border-bottom: 0; }
+.open-book-section > summary:hover { background: #14150f; }
+.open-book-section > summary:focus-visible {
+  outline: 1px solid var(--gold);
+  outline-offset: -2px;
+  background: #17170f;
+}
+.open-book-section-control { display: flex; align-items: center; gap: 14px; }
+.open-book-section-control > span {
+  color: var(--subtle);
+  font: .48rem var(--mono);
+}
+.open-book-section-control > i {
+  min-width: 48px;
+  color: var(--gold);
+  font: 750 .44rem/1 var(--mono);
+  font-style: normal;
+  letter-spacing: .05em;
+  text-align: right;
+}
+.open-book-section-control > i::before { content: "+ OPEN"; }
+.open-book-section[open] .open-book-section-control > i::before { content: "− CLOSE"; }
+
 .expiration-buckets { display: grid; }
 .expiration-buckets article {
   display: grid;

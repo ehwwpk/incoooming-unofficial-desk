@@ -8,9 +8,9 @@ The Desk remains the primary daily operating surface. Its F1-F4 rail navigates D
 | --- | --- | --- | --- |
 | `desk` | Desk | `/` | What matters across the whole book right now? |
 | `risk` | Open Calls | `/workspaces/risk` | What do the open calls obligate and how are they marked? |
-| `attribution` | Strategy Review | `/workspaces/attribution` | Where did results come from and is the pace repeatable? |
+| `attribution` | Results | `/workspaces/attribution` | Where did results come from and is the pace repeatable? |
 | `volatility` | Volatility Lab | `/workspaces/volatility` | How does observed movement compare with option pricing? |
-| `records` | Data & Records | `/workspaces/records` | Which records and sources support the displayed answer? |
+| `records` | Data Health | `/workspaces/records` | Which records and sources support the displayed answer? |
 
 Labels are catalog data. Keys are permanent identities used by routes, stored preferences, tests, and future layouts. Renaming a window must never require a data migration.
 
@@ -18,6 +18,12 @@ The Desk itself is intentionally shallow: one income panel, one live-call panel,
 stock, a weekly income history, and a closed audit trail. Opening a stock reveals its full chart and
 contract book; opening a secondary tool reveals portfolio-wide specialist analysis. This is
 progressive disclosure, not a second tab hierarchy.
+
+Open Calls uses nested disclosure without hiding the portfolio pulse. Its four summary numbers remain
+visible. `Next expirations` and `Open calls` start folded and open when their full headers are clicked;
+individual contracts then open for exact DTE, time used, option value versus premium, quote, Greeks,
+value mix, and liquidity. Native `details` and `summary` elements preserve keyboard operation when
+JavaScript is unavailable.
 
 ## Window behavior
 
@@ -30,7 +36,9 @@ progressive disclosure, not a second tab hierarchy.
 
 ## Read-model boundary
 
-Every tool currently reads the same `DashboardSnapshot`. Open Calls and Volatility Lab add deterministic projections over that snapshot. When live data arrives, the route and template contracts remain unchanged; the live reader replaces the demo reader behind the existing application port.
+Every tool reads the same `DashboardSnapshot`. Open Calls and Volatility Lab add deterministic
+projections over that snapshot. The live Schwab reader and isolated demo reader sit behind the same
+application port, so route and template contracts do not depend on the source.
 
 ## Accessibility and density
 

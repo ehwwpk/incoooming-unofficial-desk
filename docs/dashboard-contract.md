@@ -2,7 +2,8 @@
 
 ## Purpose
 
-The browser and JSON API consume one typed dashboard snapshot regardless of data source. This lets the UX evolve during Schwab approval without coupling templates to mock fixtures or Schwab response shapes.
+The browser and JSON API consume one typed dashboard snapshot regardless of data source. This keeps
+the interface independent from demo fixtures and Schwab response shapes while the live ledger grows.
 
 ## Source modes
 
@@ -34,7 +35,10 @@ The browser and JSON API consume one typed dashboard snapshot regardless of data
 6. Call ledger: sale date, expiry, DTE, quantity, sale-time spot, strike, gap, premium, executed close debit, net cash, outcome, and sale signal.
 7. Positions and risk: reconciled inventory, buying-power use, delta, theta, concentration, and next expiration.
 
-The default workspace keeps decision surfaces visible and moves verbose records into one collapsed detail area. “Active books,” “Call history,” and “Positions” are tabs inside that area; only one record view renders visibly at a time.
+The default Desk keeps the operating answer visible and folds stock detail until the operator asks
+for it. The Calls workspace follows the same rule: portfolio totals remain visible, while the
+expiration calendar and grouped contract register start closed and open from their full headers.
+Contract rows provide a second disclosure level for clocks, quotes, Greeks, value mix, and liquidity.
 
 The primary workspace does not reserve a generic news or telemetry rail. A derived exception earns visible space only when it is actionable and can be placed next to the affected security or contract.
 
@@ -57,12 +61,12 @@ Alert severity, facts, thresholds, and method notes come from typed application 
 
 ## Performance windows
 
-The current demo still exposes the original week control. The approved next UX revision is defined in [the pre-Schwab operator plan](product/pre-schwab-operator-plan.md): the primary selector becomes 4W, QTR, YTD, and R365 while daily source detail remains available inside each period.
-
-- Week uses the latest seven calendar days.
-- Month uses a rolling 28-day view so partial calendar months do not distort the first comparison.
-- Month is the default screen window; changing the performance control updates the combined portfolio summary and window metadata from the same state.
-- The week/month/quarter/year control lives in the top operating header because it governs the full desk context. The accounting sheet below explains the selected window instead of owning the control.
+- The primary selector is 4W, QTR, YTD, and R365. Daily source detail remains available inside each
+  period without turning every day into a top-level performance window.
+- 4W uses a rolling 28-day view so partial calendar months do not distort the first comparison and is
+  the default operating window.
+- The control lives in the top Desk header because it governs the full operating context. Supporting
+  accounting explains the selected window instead of owning the control.
 - Per-name windows reconcile option cash, dividends, gross premium, and executed buy-to-close debits back to the selected portfolio window. Static inventory, live-risk fields, and the quarterly price/execution tape do not pretend to change with that selection.
 - Quarterly uses the current rolling 13-week detailed ledger window.
 - Calendar YTD runs from January 1 through the snapshot date.
@@ -75,11 +79,13 @@ The current demo still exposes the original week control. The approved next UX r
 
 Daily cash and daily theta are never interchangeable. Cash appears only on execution, fee, or dividend dates. Theta is a model sensitivity for the open option book under unchanged-input assumptions.
 
-## Manager objective
+## Performance without a target gauge
 
-- The default target is $3,000 per month of net premium cash; dividends are shown separately and do not count toward target attainment.
-- The target is editable from $100 to $1,000,000 and persists in local browser storage for this private installation. Changing it recalculates window pace, rolling-year progress, target gap, and historical months hit.
-- The objective view reports rolling 4-week cash, quarterly monthly run-rate, YTD monthly run-rate, and rolling-365 monthly average together.
+- The default Desk reports realized results and normalized pace without grading them against a
+  user-entered monthly target.
+- Rolling 4-week cash, quarterly pace, YTD pace, and rolling-365 monthly average remain available as
+  observations. They are not promises, quotas, or encouragement to sell another option.
+- Risk and obligation context earns space before motivational progress graphics.
 - “Entry-rule fit” means only that a mock ticket fits the current personal rules: 15–40% above sale-time spot and 21–56 DTE. It is a discipline measure, not a risk score, safety claim, or probability of profit.
 - Coverage, concentration, strike buffer, average DTE, premium capture, and executed-debit drag remain separate inputs so the UI does not hide risk inside one opaque rating.
 
