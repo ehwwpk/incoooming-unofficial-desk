@@ -37,8 +37,9 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "function-rail" in desk.text
 
         assert risk.status_code == 200
-        assert "What comes due next" in risk.text
-        assert "OPEN A ROW FOR QUOTE, GREEKS, AND POLICY" in risk.text
+        assert "Next expirations" in risk.text
+        assert "CALENDAR CLOCK" in risk.text
+        assert "STOCKS ·" in risk.text
         assert "MODEL TIME DECAY / DAY" in risk.text
         assert "EARNINGS DATE UNAVAILABLE" in risk.text
         assert "OPEN OWN WINDOW" in risk.text

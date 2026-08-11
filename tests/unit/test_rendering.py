@@ -2,6 +2,7 @@ from dataclasses import replace
 from decimal import Decimal
 
 from schwab_dashboard.application.dashboard.overview import build_desk_overview
+from schwab_dashboard.application.workspaces.projections import build_open_book
 from schwab_dashboard.infrastructure.demo.dashboard import DemoDashboardReader
 from schwab_dashboard.web.rendering import money, number, percent, pnl_class, templates
 
@@ -78,3 +79,20 @@ def test_live_summary_deep_links_to_the_exact_nearest_contract() -> None:
     assert f'href="#{overview.nearest_call.anchor_id}"' in rendered
     assert "Live options" in rendered
     assert "All open short options" in rendered
+
+
+def test_open_call_workspace_keeps_exact_dte_in_expanded_contract_context() -> None:
+    snapshot = DemoDashboardReader().execute()
+    open_book = build_open_book(snapshot)
+
+    rendered = templates.env.get_template("workspaces/_open_book.html").render(
+        snapshot=snapshot,
+        open_book=open_book,
+    )
+
+    assert rendered.count('class="open-call-group"') == len(open_book.groups)
+    assert "CALENDAR CLOCK" in rendered
+    assert "OPTION VALUE / PREMIUM" in rendered
+    assert "OBSERVED POSITION / NOT EVALUATED" not in rendered.upper()
+    for row in open_book.rows:
+        assert rendered.count(f"{row.days_to_expiration} DTE") >= 2

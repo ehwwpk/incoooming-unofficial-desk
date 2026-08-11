@@ -6,7 +6,8 @@
     <meta name="color-scheme" content="dark">
     <title>{{ workspace.label }} · Incoooming</title>
     <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=59">
-    <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=4">
+    <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=5">
+    {% if workspace.key.value == 'risk' %}<link rel="stylesheet" href="{{ url_for('static', path='/open-book.css') }}?v=1">{% endif %}
     {% if workspace.key.value == 'attribution' %}<link rel="stylesheet" href="{{ url_for('static', path='/results-cash.css') }}?v=1">{% endif %}
   </head>
   <body class="workspace-page" data-workspace-key="{{ workspace.key.value }}" data-workspace-context='{"account":"{{ snapshot.accounts[0].account_mask if snapshot.accounts else "---" }}","symbol":"ALL","asOf":"{{ snapshot.as_of.date().isoformat() }}"}'>

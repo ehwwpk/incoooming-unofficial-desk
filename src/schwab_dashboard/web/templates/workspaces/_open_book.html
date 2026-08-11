@@ -1,3 +1,5 @@
+{% from "partials/_open_call_row.html" import open_call_row %}
+
 <section class="workspace-metric-strip operator-strip" aria-label="Open call summary">
   <div><span>OPEN OBLIGATIONS</span><strong>{{ open_book.rows | length }} <small>POSITIONS</small></strong><small>{{ open_book.obligated_shares }} shares committed</small></div>
   <div><span>PREMIUM RECEIVED</span><strong>{{ open_book.entry_credit | money }}</strong><small>Opening cash on live calls</small></div>
@@ -6,7 +8,7 @@
 </section>
 
 <section class="workspace-panel obligation-calendar">
-  <header class="workspace-panel-heading"><div><p class="eyebrow">OBLIGATION CALENDAR</p><h2>What comes due next</h2></div><span>EXPIRY · SHARES · EVENTS</span></header>
+  <header class="workspace-panel-heading"><div><p class="eyebrow">OBLIGATION CALENDAR</p><h2>Next expirations</h2></div><span>EXPIRY · SHARES · EVENTS</span></header>
   <div class="expiration-buckets">
     {% for bucket in snapshot.expiration_calendar %}
     <article>
@@ -19,27 +21,24 @@
 </section>
 
 <section class="workspace-panel">
-  <header class="workspace-panel-heading"><div><p class="eyebrow">LIVE CONTRACTS</p><h2>Open calls</h2></div><span>OPEN A ROW FOR QUOTE, GREEKS, AND POLICY</span></header>
+  <header class="workspace-panel-heading"><div><p class="eyebrow">LIVE CONTRACTS</p><h2>Open calls</h2></div><span>{{ open_book.groups | length }} STOCKS · {{ open_book.rows | length }} POSITIONS</span></header>
   <div class="open-call-register">
-    {% for row in open_book.rows %}
-    <details class="open-call-row" data-context-symbol-row="{{ row.symbol }}">
-      <summary>
-        <span><button class="symbol-focus" type="button" data-set-symbol="{{ row.symbol }}">{{ row.symbol }}</button><b>{{ row.contracts }}x ${{ row.strike | number(2) }}C</b></span>
-        <span><small>EXPIRY</small><b>{{ row.expires_on | short_date }}</b><em>{{ row.days_to_expiration }} DTE</em></span>
-        <span><small>TO STRIKE</small><b class="{{ row.strike_distance_per_share | pnl_class }}">{{ row.strike_distance_per_share | money }}</b><em>{{ row.strike_distance_percent | percent }}</em></span>
-        <span><small>PREMIUM / VALUE NOW</small><b>{{ row.entry_credit | money }} / {{ row.current_liability | money }}</b><em class="{{ row.open_profit_loss | pnl_class }}">{{ row.open_profit_loss | money }} open P/L</em></span>
-        <span><small>PLAN</small><b>{{ row.policy_label }}</b><em class="{{ 'positive' if row.policy_fits else 'negative' }}">{{ row.policy_fit_summary }}</em></span>
-        <i aria-hidden="true"></i>
-      </summary>
-      <div class="open-call-detail">
-        <div><span>QUOTE / SHARE</span><b>{{ row.bid_per_share | money }} BID · {{ row.mark_per_share | money }} MARK · {{ row.close_ask_per_share | money }} ASK</b><small>{{ row.quote_status }} {{ row.quote_observed_on | short_date if row.quote_observed_on else '—' }} · {{ row.spread_per_share | money }} spread</small></div>
-        <div><span>VALUE MIX</span><b>{{ row.intrinsic_value | money }} intrinsic · {{ row.remaining_extrinsic_value | money }} time value</b><small>{{ row.entry_credit_per_share | money }}/share originally received</small></div>
-        <div><span>IV / DELTA</span><b>{{ row.implied_volatility_percent | percent if row.implied_volatility_percent is not none else '—' }} / {{ row.delta | number(2) if row.delta is not none else '—' }}</b><small>Gamma {{ row.gamma | number(3) if row.gamma is not none else '—' }} · Vega {{ row.vega | number(3) if row.vega is not none else '—' }}</small></div>
-        <div><span>LIQUIDITY</span><b>{{ row.volume if row.volume is not none else '—' }} volume · {{ row.open_interest if row.open_interest is not none else '—' }} open interest</b><small>{{ row.next_event_label }}</small></div>
-        <div><span>TIME</span><b>{{ row.elapsed_time_percent | percent }} elapsed · {{ row.theta_estimate_per_day | money }}/day model decay</b><small>{{ row.decay_stage }} · model estimate, not cash</small></div>
-        <div><span>DECLARED INTENT</span><b>{{ row.intent_label }}</b><small>Policy checked against entry DTE, entry strike buffer, and declared exit floor.</small></div>
+    {% for group in open_book.groups %}
+    <section class="open-call-group" data-context-symbol-row="{{ group.symbol }}">
+      <header>
+        <div class="open-call-group-title">
+          <button class="symbol-focus" type="button" data-set-symbol="{{ group.symbol }}">{{ group.symbol }}</button>
+          <span>{{ group.position_count }} POSITION{{ '' if group.position_count == 1 else 'S' }} · {{ group.contract_count }} CONTRACT{{ '' if group.contract_count == 1 else 'S' }}</span>
+        </div>
+        <div><span>NEAREST BUFFER</span><b class="{{ group.nearest_buffer_percent | pnl_class }}">{{ group.nearest_buffer_percent | percent }}</b></div>
+        <div><span>NEXT EXPIRY</span><b>{{ group.next_expiration_dte }} DTE</b><small>{{ group.next_expiration | short_date }}</small></div>
+        <div><span>OPEN P/L</span><b class="{{ group.open_profit_loss | pnl_class }}">{{ group.open_profit_loss | money }}</b></div>
+        <div><span>MODEL DECAY / DAY</span><b class="positive">+{{ group.theta_estimate_per_day | money }}</b></div>
+      </header>
+      <div class="open-call-group-rows">
+        {% for row in group.rows %}{{ open_call_row(row) }}{% endfor %}
       </div>
-    </details>
+    </section>
     {% else %}<p class="empty-state">No normalized open calls are available.</p>{% endfor %}
   </div>
 </section>

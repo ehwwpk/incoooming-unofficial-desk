@@ -43,6 +43,32 @@ def test_open_book_projection_reconciles_to_dashboard_open_mark() -> None:
     assert projection.open_profit_loss == snapshot.covered_calls.open_mark_profit_loss
     assert projection.theta_estimate_per_day == snapshot.risk.daily_theta
     assert projection.obligated_shares == snapshot.covered_calls.active_contracts * 100
+    assert tuple(row for group in projection.groups for row in group.rows) == projection.rows
+    assert {group.symbol for group in projection.groups} == {
+        item.symbol for item in snapshot.underlyings if item.open_call_clocks
+    }
+
+
+def test_open_book_exposes_exact_contract_clocks_and_bounded_value_track() -> None:
+    snapshot = DemoDashboardReader().execute()
+    projection = build_open_book(snapshot)
+
+    assert projection.rows
+    for row in projection.rows:
+        assert row.original_days_to_expiration >= row.days_to_expiration
+        assert row.sold_on <= row.expires_on
+        assert Decimal(0) <= row.option_value_track_percent <= Decimal(100)
+        assert row.option_value_overrun_percent == max(
+            Decimal(0), row.option_value_vs_credit_percent - Decimal(100)
+        )
+    for group in projection.groups:
+        assert group.contract_count == sum(row.contracts for row in group.rows)
+        assert group.next_expiration_dte == min(
+            row.days_to_expiration for row in group.rows
+        )
+        assert abs(group.nearest_buffer_percent) == min(
+            abs(row.strike_distance_percent) for row in group.rows
+        )
 
 
 def test_desk_overview_prioritizes_the_nearest_live_call_without_losing_totals() -> None:

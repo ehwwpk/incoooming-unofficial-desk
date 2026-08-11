@@ -22,7 +22,9 @@ class OpenCallRow:
     symbol: str
     contracts: int
     strike: Decimal
+    sold_on: date
     expires_on: date
+    original_days_to_expiration: int
     days_to_expiration: int
     obligated_shares: int
     strike_distance_per_share: Decimal
@@ -32,6 +34,11 @@ class OpenCallRow:
     open_profit_loss: Decimal
     theta_estimate_per_day: Decimal
     elapsed_time_percent: Decimal
+    time_remaining_percent: Decimal
+    credit_capture_percent: Decimal
+    option_value_vs_credit_percent: Decimal
+    option_value_track_percent: Decimal
+    option_value_overrun_percent: Decimal
     decay_stage: str
     policy_label: str
     intent_label: str
@@ -56,8 +63,22 @@ class OpenCallRow:
 
 
 @dataclass(frozen=True, slots=True)
+class OpenCallGroup:
+    symbol: str
+    rows: tuple[OpenCallRow, ...]
+    position_count: int
+    contract_count: int
+    nearest_buffer_percent: Decimal
+    next_expiration: date
+    next_expiration_dte: int
+    open_profit_loss: Decimal
+    theta_estimate_per_day: Decimal
+
+
+@dataclass(frozen=True, slots=True)
 class OpenBookProjection:
     rows: tuple[OpenCallRow, ...]
+    groups: tuple[OpenCallGroup, ...]
     obligated_shares: int
     entry_credit: Decimal
     current_liability: Decimal
@@ -85,22 +106,53 @@ def build_open_book(snapshot: DashboardSnapshot) -> OpenBookProjection:
         for underlying_policy in snapshot.policies
         for policy in underlying_policy.policies
     }
-    rows = tuple(
-        _open_call_row(
-            underlying,
-            clock,
-            policy=policy_by_id.get(clock.policy_id),
+    groups: list[OpenCallGroup] = []
+    for underlying in snapshot.underlyings:
+        underlying_rows = tuple(
+            sorted(
+                (
+                    _open_call_row(
+                        underlying,
+                        clock,
+                        policy=policy_by_id.get(clock.policy_id),
+                    )
+                    for clock in underlying.open_call_clocks
+                ),
+                key=lambda row: (row.expires_on, row.strike),
+            )
         )
-        for underlying in snapshot.underlyings
-        for clock in underlying.open_call_clocks
-    )
+        if not underlying_rows:
+            continue
+        nearest = min(underlying_rows, key=lambda row: abs(row.strike_distance_percent))
+        next_expiring = min(underlying_rows, key=lambda row: row.expires_on)
+        groups.append(
+            OpenCallGroup(
+                symbol=underlying.symbol,
+                rows=underlying_rows,
+                position_count=len(underlying_rows),
+                contract_count=sum((row.contracts for row in underlying_rows), 0),
+                nearest_buffer_percent=nearest.strike_distance_percent,
+                next_expiration=next_expiring.expires_on,
+                next_expiration_dte=next_expiring.days_to_expiration,
+                open_profit_loss=sum(
+                    (row.open_profit_loss for row in underlying_rows), Decimal(0)
+                ),
+                theta_estimate_per_day=sum(
+                    (row.theta_estimate_per_day for row in underlying_rows), Decimal(0)
+                ),
+            )
+        )
+    grouped_rows = tuple(row for group in groups for row in group.rows)
     return OpenBookProjection(
-        rows=rows,
-        obligated_shares=sum((row.obligated_shares for row in rows), 0),
-        entry_credit=sum((row.entry_credit for row in rows), Decimal(0)),
-        current_liability=sum((row.current_liability for row in rows), Decimal(0)),
-        open_profit_loss=sum((row.open_profit_loss for row in rows), Decimal(0)),
-        theta_estimate_per_day=sum((row.theta_estimate_per_day for row in rows), Decimal(0)),
+        rows=grouped_rows,
+        groups=tuple(groups),
+        obligated_shares=sum((row.obligated_shares for row in grouped_rows), 0),
+        entry_credit=sum((row.entry_credit for row in grouped_rows), Decimal(0)),
+        current_liability=sum((row.current_liability for row in grouped_rows), Decimal(0)),
+        open_profit_loss=sum((row.open_profit_loss for row in grouped_rows), Decimal(0)),
+        theta_estimate_per_day=sum(
+            (row.theta_estimate_per_day for row in grouped_rows), Decimal(0)
+        ),
     )
 
 
@@ -131,13 +183,21 @@ def _open_call_row(
         intent_label = policy.intent.label
         fit_summary = fit.summary
         policy_fits = fit.fits
+    option_value_track_percent = min(
+        Decimal("100"), max(Decimal(0), clock.option_value_vs_credit_percent)
+    )
+    option_value_overrun_percent = max(
+        Decimal(0), clock.option_value_vs_credit_percent - Decimal("100")
+    )
     return OpenCallRow(
         record_id=clock.record_id,
         campaign_id=clock.campaign_id,
         symbol=underlying.symbol,
         contracts=clock.contracts,
         strike=clock.strike,
+        sold_on=clock.sold_on,
         expires_on=clock.expires_on,
+        original_days_to_expiration=clock.original_days_to_expiration,
         days_to_expiration=clock.days_to_expiration,
         obligated_shares=clock.contracts * 100,
         strike_distance_per_share=clock.strike_distance_per_share,
@@ -147,6 +207,11 @@ def _open_call_row(
         open_profit_loss=clock.open_profit_loss,
         theta_estimate_per_day=clock.short_theta_per_day,
         elapsed_time_percent=clock.elapsed_time_percent,
+        time_remaining_percent=clock.time_remaining_percent,
+        credit_capture_percent=clock.credit_capture_percent,
+        option_value_vs_credit_percent=clock.option_value_vs_credit_percent,
+        option_value_track_percent=option_value_track_percent,
+        option_value_overrun_percent=option_value_overrun_percent,
         decay_stage=clock.decay_stage,
         policy_label=policy_label,
         intent_label=intent_label,
