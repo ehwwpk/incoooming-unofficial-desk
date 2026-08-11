@@ -123,3 +123,5 @@ def test_short_puts_share_the_existing_underlying_group() -> None:
     assert book.open_put_contracts == 1
     assert book.underlyings[0].open_put_contracts == 1
     assert book.puts[0].strike_distance_per_share == D("10")
+    assert book.total_open_mark_profit_loss == D("0")
+    assert book.estimated_put_theta_per_day == D("0")

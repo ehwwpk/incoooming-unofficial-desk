@@ -1,3 +1,9 @@
+from dataclasses import replace
+from datetime import date
+from decimal import Decimal
+
+from schwab_dashboard.application.dashboard.live_positions import build_live_position_book
+from schwab_dashboard.application.dashboard.models import PositionSummary
 from schwab_dashboard.application.dashboard.overview import build_desk_overview
 from schwab_dashboard.application.ports.brokerage_data import (
     BrokerageSourceProfile,
@@ -49,10 +55,46 @@ def test_desk_overview_prioritizes_the_nearest_live_call_without_losing_totals()
     assert overview.nearest_call is not None
     assert overview.nearest_call.symbol == "CVX"
     assert overview.nearest_call.strike == 195
-    assert overview.next_expiring_call is not None
-    assert overview.next_expiring_call.days_to_expiration == 7
+    assert overview.next_expiring_option is not None
+    assert overview.next_expiring_option.days_to_expiration == 7
+    assert overview.nearest_call.anchor_id.startswith("option-")
     assert len(overview.position_rows) == len(snapshot.underlyings)
     assert sum(row.open_positions for row in overview.position_rows) == overview.open_positions
+
+
+def test_desk_overview_includes_short_puts_without_corrupting_call_coverage() -> None:
+    snapshot = DemoDashboardReader().execute()
+    put = PositionSummary(
+        account_mask="...1234",
+        symbol="URNM  260918P00050000",
+        description="URNM SEP 18 2026 50 Put",
+        asset_type="OPTION",
+        quantity=Decimal("-1"),
+        average_price=Decimal("1.20"),
+        mark=Decimal("1.70"),
+        market_value=Decimal("-170"),
+        day_profit_loss=Decimal("-20"),
+        day_profit_loss_percent=None,
+        strategy="Short put",
+        underlying_symbol="URNM",
+        option_type="PUT",
+        expiration_date=date(2026, 9, 18),
+        strike=Decimal("50"),
+        open_profit_loss=Decimal("-50"),
+    )
+    live_book = build_live_position_book(
+        (*snapshot.positions, put),
+        as_of=snapshot.as_of.date(),
+    )
+    overview = build_desk_overview(replace(snapshot, live_position_book=live_book))
+
+    assert overview.open_put_positions == 1
+    assert overview.open_put_contracts == 1
+    assert overview.open_positions == 7
+    assert overview.open_contracts == snapshot.covered_calls.active_contracts + 1
+    assert overview.open_call_contracts == snapshot.covered_calls.active_contracts
+    assert overview.coverage_percent == snapshot.covered_calls.coverage_percent
+    assert overview.open_mark_profit_loss == snapshot.covered_calls.open_mark_profit_loss - 50
 
 
 def test_volatility_projection_uses_daily_closes_and_refuses_to_invent_iv_rank() -> None:

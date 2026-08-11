@@ -7,6 +7,8 @@ from typing import Any
 
 from fastapi.templating import Jinja2Templates
 
+from schwab_dashboard.application.dashboard.anchors import option_contract_anchor
+
 WEB_ROOT = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=WEB_ROOT / "templates")
 
@@ -59,3 +61,4 @@ templates.env.filters.update(
         "pnl_class": pnl_class,
     }
 )
+templates.env.filters["option_anchor"] = option_contract_anchor

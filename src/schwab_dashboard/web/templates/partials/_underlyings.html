@@ -124,7 +124,7 @@
             <small>MARK / THETA <i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i></small>
           </div>
           {% for call in item.open_call_clocks %}
-          <article class="call-position {{ call.open_profit_loss | pnl_class }}">
+          <article id="{{ call.record_id | option_anchor }}" class="call-position {{ call.open_profit_loss | pnl_class }}" tabindex="-1" data-option-contract="{{ call.record_id }}">
             <header>
               <div>
                 <strong>-{{ call.contracts }} {{ call.expires_on.strftime('%b %d') | upper }} ${{ '%g' | format(call.strike) }}C</strong>
@@ -175,7 +175,7 @@
         <section class="call-clock-board put-clock-board" aria-label="{{ item.symbol }} open short puts">
           <div class="call-clock-heading"><div><span>OPEN PUT STATUS</span><small>CASH-SECURED / MARGIN OBLIGATIONS GROUPED WITH {{ item.symbol }}</small></div><small>LIVE</small></div>
           {% for put in row.live_underlying.puts %}
-          <article class="call-position {{ put.open_profit_loss | pnl_class }}">
+          <article id="{{ put.option_symbol | option_anchor }}" class="call-position {{ put.open_profit_loss | pnl_class }}" tabindex="-1" data-option-contract="{{ put.option_symbol }}">
             <header><div><strong>-{{ put.contracts }} {{ put.expires_on.strftime('%b %d') | upper }} ${{ '%g' | format(put.strike) }}P</strong><span>{{ put.strike_distance_per_share | money }} / {{ put.strike_distance_percent | percent }} TO STRIKE</span></div><div><b>{{ put.days_to_expiration }}</b><span>DTE</span></div></header>
             <div class="call-context-strip put-context-strip"><span>MARK <b>{{ put.estimated_mark_per_share | money }}</b><small>{{ put.bid_per_share | money }} bid · {{ put.ask_per_share | money }} ask</small></span><span>OPEN P/L <b class="{{ put.open_profit_loss | pnl_class }}">{{ put.open_profit_loss | money }}</b></span><span>IV / DELTA <b>{{ put.implied_volatility_percent | percent }} / {{ put.delta | number(2) }}</b></span><span>THETA / DAY <b class="positive">+{{ (-(put.theta_per_share or 0) * put.contracts * 100) | money }}</b></span></div>
           </article>

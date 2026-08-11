@@ -233,7 +233,13 @@
 .execution-stats b { color: var(--text); }
 .call-clock-board { min-width: 0; background: var(--surface); }
 .call-clock-heading i, .call-context-strip i { color: var(--gold); font-style: normal; }
-.call-position { border-bottom: 1px solid var(--line-strong); background: var(--surface); }
+.call-position { scroll-margin-block: 120px; border-bottom: 1px solid var(--line-strong); background: var(--surface); }
+.call-position:focus { outline: 0; }
+.call-position[data-option-arrival="true"] { animation: option-contract-arrival 2400ms ease-out; }
+@keyframes option-contract-arrival {
+  0%, 16% { outline: 1px solid var(--gold); outline-offset: -1px; background: #1a180d; }
+  100% { outline: 1px solid transparent; outline-offset: -1px; background: var(--surface); }
+}
 .call-position:last-child { border-bottom: 0; }
 .call-position > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 10px; border-bottom: 1px solid var(--line); background: var(--surface-raised); }
 .call-position > header > div:first-child { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }

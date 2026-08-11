@@ -22,16 +22,54 @@
     });
   });
 
-  const openHashTarget = () => {
-    if (!window.location.hash) return;
-    const target = document.querySelector(window.location.hash);
-    if (!(target instanceof HTMLDetailsElement) || !target.matches("[data-position-details]")) {
-      return;
+  const targetFromHash = (hash = window.location.hash) => {
+    if (!hash.startsWith("#") || hash.length < 2) return null;
+    try {
+      return document.getElementById(decodeURIComponent(hash.slice(1)));
+    } catch {
+      return null;
     }
-    target.open = true;
-    target.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const revealTarget = (target, behavior = "smooth") => {
+    if (!(target instanceof HTMLElement)) return false;
+    const book = target.matches("[data-position-details]")
+      ? target
+      : target.closest("[data-position-details]");
+    if (!(book instanceof HTMLDetailsElement)) return false;
+
+    book.open = true;
+    if (target !== book) {
+      target.dataset.optionArrival = "true";
+      window.setTimeout(() => delete target.dataset.optionArrival, 2400);
+    }
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        target.scrollIntoView({ behavior, block: target === book ? "start" : "center" });
+        if (target !== book) target.focus({ preventScroll: true });
+      });
+    });
+    return true;
+  };
+
+  const openHashTarget = (behavior = "smooth") => {
+    revealTarget(targetFromHash(), behavior);
   };
 
   window.addEventListener("hashchange", openHashTarget);
-  openHashTarget();
+  window.addEventListener("popstate", () => openHashTarget("auto"));
+  document.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) return;
+    const link = event.target.closest('a[href^="#"]');
+    if (!(link instanceof HTMLAnchorElement)) return;
+    const target = targetFromHash(link.hash);
+    if (!target || !revealTarget(target)) return;
+    event.preventDefault();
+    if (window.location.hash === link.hash) {
+      window.history.replaceState(null, "", link.hash);
+    } else {
+      window.history.pushState(null, "", link.hash);
+    }
+  });
+  openHashTarget("auto");
 })();

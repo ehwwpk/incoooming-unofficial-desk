@@ -45,10 +45,11 @@ def test_basis_lens_renders_positive_surplus_after_full_capital_recovery() -> No
 
 def test_chart_events_render_as_accessible_buttons_with_one_popover_per_name() -> None:
     snapshot = DemoDashboardReader().execute()
+    overview = build_desk_overview(snapshot)
 
     rendered = templates.env.get_template("partials/_underlyings.html").render(
         snapshot=snapshot,
-        desk_overview=build_desk_overview(snapshot),
+        desk_overview=overview,
     )
 
     assert rendered.count("data-chart-event-popover") == len(snapshot.underlyings)
@@ -60,3 +61,20 @@ def test_chart_events_render_as_accessible_buttons_with_one_popover_per_name() -
     assert "data-underlying-at-resolution" in rendered
     assert "data-event-fact-one-detail" in rendered
     assert "data-chart-ledger-event" in rendered
+    assert overview.nearest_call is not None
+    assert f'id="{overview.nearest_call.anchor_id}"' in rendered
+
+
+def test_live_summary_deep_links_to_the_exact_nearest_contract() -> None:
+    snapshot = DemoDashboardReader().execute()
+    overview = build_desk_overview(snapshot)
+
+    rendered = templates.env.get_template("partials/_summary.html").render(
+        snapshot=snapshot,
+        desk_overview=overview,
+    )
+
+    assert overview.nearest_call is not None
+    assert f'href="#{overview.nearest_call.anchor_id}"' in rendered
+    assert "Live options" in rendered
+    assert "All open short options" in rendered

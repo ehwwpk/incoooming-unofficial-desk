@@ -107,17 +107,21 @@ class ReadDashboard:
             portfolio_delta=Decimal(live_book.total_shares)
             + sum(
                 (
-                    -(call.delta or ZERO) * Decimal("100") * Decimal(call.contracts)
-                    for call in live_book.calls
+                    -(option.delta or ZERO)
+                    * Decimal("100")
+                    * Decimal(option.contracts)
+                    for option in (*live_book.calls, *live_book.puts)
                 ),
                 ZERO,
             ),
             daily_theta=sum(
-                (item.estimated_theta_per_day for item in live_book.underlyings), ZERO
+                (item.estimated_option_theta_per_day for item in live_book.underlyings),
+                ZERO,
             ),
-            short_contracts=live_book.open_call_contracts,
+            short_contracts=live_book.open_call_contracts + live_book.open_put_contracts,
             next_expiration=min(
-                (call.expires_on for call in live_book.calls), default=None
+                (option.expires_on for option in (*live_book.calls, *live_book.puts)),
+                default=None,
             ),
             largest_position_percent=base_risk.largest_position_percent,
             open_campaigns=0,

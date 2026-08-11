@@ -121,7 +121,7 @@ def test_demo_mode_renders_operator_plan_without_credentials(tmp_path: Path) -> 
         assert page.status_code == 200
         assert "Incoooming" in page.text
         assert "Income &amp; pace" in page.text
-        assert "Live covered calls" in page.text
+        assert "Live options" in page.text
         assert 'data-period="week"' not in page.text
         assert 'data-period="month"' in page.text
         assert 'data-period="quarter"' in page.text
@@ -131,7 +131,7 @@ def test_demo_mode_renders_operator_plan_without_credentials(tmp_path: Path) -> 
         assert "Cash timeline" not in page.text
         assert "EXECUTED CLOSE / ROLL DEBITS" in page.text
         assert "Transaction records" not in page.text
-        assert "OPEN CALLS" in page.text
+        assert "OPEN OPTIONS" in page.text
         assert "RESULTS" in page.text
         assert "2,000</b> SHARES" in page.text
         assert page.text.count("data-chart-point") == 174

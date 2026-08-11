@@ -177,6 +177,17 @@ class LiveUnderlyingPosition:
     def open_put_contracts(self) -> int:
         return sum(put.contracts for put in self.puts)
 
+    @property
+    def total_open_mark_profit_loss(self) -> Decimal:
+        return self.open_mark_profit_loss + sum(
+            (put.open_profit_loss or Decimal("0") for put in self.puts),
+            Decimal("0"),
+        )
+
+    @property
+    def estimated_option_theta_per_day(self) -> Decimal:
+        return self.estimated_theta_per_day + self.estimated_put_theta_per_day
+
 
 @dataclass(frozen=True, slots=True)
 class LivePositionBook:
@@ -193,6 +204,25 @@ class LivePositionBook:
     puts: Sequence[LiveOpenOptionPosition] = ()
     open_put_positions: int = 0
     open_put_contracts: int = 0
+
+    @property
+    def total_open_mark_profit_loss(self) -> Decimal:
+        return self.open_mark_profit_loss + sum(
+            (put.open_profit_loss or Decimal("0") for put in self.puts),
+            Decimal("0"),
+        )
+
+    @property
+    def estimated_put_theta_per_day(self) -> Decimal:
+        return sum(
+            (
+                -(put.theta_per_share or Decimal("0"))
+                * Decimal("100")
+                * Decimal(put.contracts)
+                for put in self.puts
+            ),
+            Decimal("0"),
+        )
 
 
 @dataclass(frozen=True, slots=True)

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <title>Incoooming · Options Income</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=59">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=60">
     <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=4">
   </head>
   <body data-workspace-key="desk" data-workspace-context='{"account":"{{ snapshot.accounts[0].account_mask if snapshot.accounts else "---" }}","symbol":"ALL","asOf":"{{ snapshot.as_of.date().isoformat() }}"}'>
@@ -91,7 +91,7 @@
 
       {% include "partials/_income.html" %}
       <section class="desk-exit-links" aria-label="Detailed workspaces">
-        <a href="/workspaces/risk"><b>OPEN CALLS</b><span>Contracts, expirations, policy fit, and quote detail →</span></a>
+        <a href="/workspaces/risk"><b>OPEN OPTIONS</b><span>Contracts, expirations, policy fit, and quote detail →</span></a>
         <a href="/workspaces/attribution"><b>RESULTS</b><span>Monthly cash, campaigns, and strategy comparison →</span></a>
       </section>
 
@@ -111,7 +111,7 @@
     <script src="{{ url_for('static', path='/chart-events.js') }}?v=4" defer></script>
     <script src="{{ url_for('static', path='/nibwick-alerts.js') }}?v=10" defer></script>
     <script src="{{ url_for('static', path='/nibwick.js') }}?v=5" defer></script>
-    <script src="{{ url_for('static', path='/position-details.js') }}?v=1" defer></script>
+    <script src="{{ url_for('static', path='/position-details.js') }}?v=2" defer></script>
     <script src="{{ url_for('static', path='/workspace-navigation.js') }}?v=2" defer></script>
     <script src="{{ url_for('static', path='/workspace-channel.js') }}?v=1" defer></script>
   </body>

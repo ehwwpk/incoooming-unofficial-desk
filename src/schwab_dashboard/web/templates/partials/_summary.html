@@ -1,7 +1,7 @@
 {% set active = snapshot.performance_windows[0] if snapshot.performance_windows else none %}
 <section
   class="desk-pulse"
-  aria-label="Covered-call income and live option summary"
+  aria-label="Option income and live option summary"
 >
   <article class="pulse-panel income-pulse">
     <header>
@@ -41,21 +41,21 @@
 
   <article class="pulse-panel live-book-pulse">
     <header>
-      <div><h2>Live covered calls</h2><small>DISTANCE TO STRIKE · EXPIRATIONS · DIVIDEND TIMING</small></div>
-      <a href="/workspaces/risk">OPEN CALLS <span aria-hidden="true">→</span></a>
+      <div><h2>Live options</h2><small>SHORT CALLS · SHORT PUTS · EXPIRATIONS</small></div>
+      <a href="/workspaces/risk">OPEN BOOK <span aria-hidden="true">→</span></a>
     </header>
     <div class="live-book-grid">
       <div>
         <span>OPEN OPTION POSITIONS</span>
         <strong>{{ desk_overview.open_positions }}</strong>
-        <small>{{ desk_overview.open_contracts }} contracts across {{ desk_overview.underlying_count }} stocks</small>
+        <small>{{ desk_overview.open_call_contracts }} calls{% if desk_overview.open_put_contracts %} · {{ desk_overview.open_put_contracts }} puts{% endif %} across {{ desk_overview.underlying_count }} stocks</small>
       </div>
       <div>
         <span>SHARE LOTS COVERED</span>
-        <strong>{{ desk_overview.open_contracts }}/{{ desk_overview.contract_capacity }}</strong>
-        <small>{{ desk_overview.coverage_percent | percent }} covered</small>
+        <strong>{{ desk_overview.open_call_contracts }}/{{ desk_overview.contract_capacity }}</strong>
+        <small>{{ desk_overview.coverage_percent | percent }} covered by short calls</small>
       </div>
-      <a class="nearest-call" {% if desk_overview.nearest_call %}href="#{{ desk_overview.nearest_call.symbol | lower }}-workspace"{% else %}aria-disabled="true"{% endif %}>
+      <a class="nearest-call" {% if desk_overview.nearest_call %}href="#{{ desk_overview.nearest_call.anchor_id }}"{% else %}aria-disabled="true"{% endif %}>
         <span>CLOSEST CALL TO STRIKE</span>
         {% if desk_overview.nearest_call %}
         <strong>{{ desk_overview.nearest_call.symbol }} ${{ '%g' | format(desk_overview.nearest_call.strike) }}C</strong>
@@ -69,11 +69,11 @@
       <div>
         <span>MODEL TIME DECAY / DAY</span>
         <strong class="positive">+{{ desk_overview.daily_theta | money }}</strong>
-        <small>All open short calls · estimate, not cash</small>
+        <small>All open short options · estimate, not cash</small>
       </div>
     </div>
     <footer class="live-book-footer">
-      <div><span>NEXT EXPIRATION</span>{% if desk_overview.next_expiring_call %}<b>{{ desk_overview.next_expiring_call.expires_on | short_date }}</b><small>{{ desk_overview.next_expiring_call.symbol }} ${{ '%g' | format(desk_overview.next_expiring_call.strike) }}C · {{ desk_overview.next_expiring_call.days_to_expiration }} DTE</small>{% else %}<b>NONE</b><small>No expiry scheduled</small>{% endif %}</div>
+      <div><span>NEXT EXPIRATION</span>{% if desk_overview.next_expiring_option %}<b>{{ desk_overview.next_expiring_option.expires_on | short_date }}</b><small>{{ desk_overview.next_expiring_option.symbol }} ${{ '%g' | format(desk_overview.next_expiring_option.strike) }}{{ desk_overview.next_expiring_option.option_type[0] }} · {{ desk_overview.next_expiring_option.days_to_expiration }} DTE</small>{% else %}<b>NONE</b><small>No expiry scheduled</small>{% endif %}</div>
       <div><span>OPEN MARK P/L</span><b class="{{ desk_overview.open_mark_profit_loss | pnl_class }}">{{ desk_overview.open_mark_profit_loss | money }}</b><small>Unrealized · changes with the market</small></div>
       <div><span>DIVIDEND OVERLAP</span><b>{{ desk_overview.dividend_overlap_contracts }} CONTRACTS</b><small>Calls open across an ex-dividend date</small></div>
       {% if snapshot.alerts %}
