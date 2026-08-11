@@ -53,6 +53,7 @@ def build_live_underlying_stats(
     cash_movements: Sequence[Mapping[str, object]],
     lifecycle_events: Sequence[Mapping[str, object]],
     daily_bars: Sequence[Mapping[str, object]],
+    option_market: Sequence[Mapping[str, object]] = (),
     as_of: date,
 ) -> tuple[UnderlyingCallStats, ...]:
     dividends = _attribute_dividends(cash_movements, live_book.underlyings)
@@ -69,6 +70,7 @@ def build_live_underlying_stats(
             dividends=dividends.get(item.symbol, ()),
             lifecycle_events=lifecycle_events,
             daily_bars=daily_bars,
+            option_market=option_market,
             as_of=as_of,
             tone=TONE_CYCLE[index % len(TONE_CYCLE)],
         )
@@ -84,6 +86,7 @@ def _underlying_stats(
     dividends: Sequence[Mapping[str, object]],
     lifecycle_events: Sequence[Mapping[str, object]],
     daily_bars: Sequence[Mapping[str, object]],
+    option_market: Sequence[Mapping[str, object]],
     as_of: date,
     tone: str,
 ) -> UnderlyingCallStats:
@@ -111,6 +114,7 @@ def _underlying_stats(
         item.calls,
         executions=call_executions,
         daily_bars=daily_bars,
+        option_market=option_market,
         as_of=as_of,
     )
     current_price = item.current_price or _first_underlying_price(item) or price_points[-1].price

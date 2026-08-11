@@ -90,6 +90,7 @@ class ReadDashboard:
             cash_movements=cash_movements,
             lifecycle_events=lifecycle_events,
             daily_bars=daily_bars,
+            option_market=option_market,
             as_of=as_of.date(),
         )
         alerts = build_desk_alerts(underlyings, as_of=as_of.date())

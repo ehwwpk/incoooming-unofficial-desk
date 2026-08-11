@@ -10,9 +10,10 @@
   data-date="{{ event.date.isoformat() }}"
   data-price="{{ event.price }}"
   data-lifecycle-id="{{ event.lifecycle_id }}"
+  data-lifecycle-slot="{{ (event.lifecycle_id - 1) % 6 }}"
   data-event-type="{{ event.event_type }}"
   data-contracts="{{ event.contracts }}"
-  data-strike="{{ event.strike }}"
+  data-strike="{{ '%g' | format(event.strike) }}"
   data-expires-on="{{ event.expires_on.isoformat() }}"
   data-underlying-at-sale="{{ event.underlying_at_sale }}"
   data-strike-buffer="{{ event.strike_upside_percent }}"
@@ -32,7 +33,7 @@
   aria-expanded="false"
   aria-controls="{{ item.symbol | lower }}-event-popover"
   aria-describedby="{{ item.symbol | lower }}-event-tip-{{ event.sequence }}"
-><b aria-hidden="true">{{ event.sequence }}{% if event.linked_sale_sequence %}<small>←{{ event.linked_sale_sequence }}</small>{% endif %}</b><span class="chart-event-quick" role="tooltip" id="{{ item.symbol | lower }}-event-tip-{{ event.sequence }}">#{{ event.sequence }} · {{ event.detail }}{% if event.event_type == 'sale' %} · +{{ event.gross_premium | money }}{% endif %}</span></button>
+><b aria-hidden="true">{{ event.sequence }}{% if event.linked_sale_sequence %}<small>←{{ event.linked_sale_sequence }}</small>{% endif %}</b><span class="chart-event-quick" role="tooltip" id="{{ item.symbol | lower }}-event-tip-{{ event.sequence }}">#{{ event.sequence }}{% if event.linked_sale_sequence %} RESOLVES #{{ event.linked_sale_sequence }}{% endif %} · {{ event.detail }}{% if event.event_type == 'sale' %} · +{{ event.gross_premium | money }}{% endif %}</span></button>
 {% endfor %}
 {% for event in item.share_trade_events %}
 <button

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 from schwab_dashboard.application.ports.repositories import UnitOfWorkFactory
 from schwab_dashboard.application.services.record_market_observations import (
@@ -80,7 +80,7 @@ class SyncSchwabMarketData:
             chain = self._client.get_option_chain(
                 underlying,
                 from_date=min(expirations),
-                to_date=max(expirations),
+                to_date=max(expirations) + timedelta(days=56),
             )
             chain_received_at = datetime.now(UTC)
             chain_result = self._recorder.execute(
@@ -88,7 +88,6 @@ class SyncSchwabMarketData:
                     chain,
                     observed_at=chain_received_at,
                     parser_version=self._parser_version,
-                    open_option_symbols=[str(row["symbol"]) for row in rows],
                 )
             )
             option_count += chain_result.option_snapshot_count

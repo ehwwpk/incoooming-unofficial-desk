@@ -53,10 +53,10 @@
       <div class="underlying-decision-grid" data-workspace-grid>
         <section id="{{ item.symbol | lower }}-price-pane" class="price-map" data-chart-workspace aria-label="{{ item.symbol }} verified daily close history and normalized option events">
           <div class="price-map-heading">
-            <div class="price-map-title"><span data-chart-heading>FULL DAILY CLOSES</span><small data-chart-metadata>{{ item.price_points[0].label }}–{{ item.price_points[-1].label }} · {{ item.price_points | length }} MARKET SESSIONS <i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i></small></div>
+            <div class="price-map-title"><span data-chart-heading>16W DAILY CLOSES</span><small data-chart-metadata>{{ item.price_points[0].label }}–{{ item.price_points[-1].label }} · {{ item.price_points | length }} MARKET SESSIONS <i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i></small></div>
             <div class="price-map-tools">
               <div class="chart-range-controls" role="group" aria-label="{{ item.symbol }} chart range">
-                <button type="button" data-chart-range="full" aria-pressed="true">FULL</button>
+                <button type="button" data-chart-range="16w" aria-pressed="true">16W</button>
                 <button type="button" data-chart-range="8w" aria-pressed="false">8W</button>
                 <button type="button" data-chart-range="4w" aria-pressed="false">4W</button>
               </div>
@@ -96,7 +96,7 @@
           <div class="price-map-legend"><span><i></i> <b data-chart-session-count>{{ item.price_points | length }}</b> MARKET SESSIONS</span><span><b class="sale">S</b> SOLD</span><span><b class="expired">X</b> EXPIRED</span><span><b class="closed">C</b> CLOSED</span><span><b class="rolled">R</b> ROLLED</span><span><b class="assigned">A</b> ASSIGNED</span><span><b class="share-trade">±</b> SHARES</span><small><b data-chart-event-count>{{ item.price_events | length + item.share_trade_events | length }}</b> VISIBLE EVENTS · {{ 'FROZEN DEMO CLOSES · SIMULATED CALLS' if snapshot.is_demo else 'SCHWAB DAILY CLOSES · NORMALIZED LEDGER' }}</small></div>
           <div class="price-event-ledger" aria-label="{{ item.symbol }} numbered option event tape">
             {% for event in item.price_events %}
-            <button type="button" class="{{ event.event_type }}" data-chart-ledger-event data-event-sequence="{{ event.sequence }}" data-lifecycle-id="{{ event.lifecycle_id }}" data-date="{{ event.date.isoformat() }}" aria-label="Open event {{ event.sequence }} details"><b>{{ event.sequence }}</b><span><i>{{ event.label }} · {{ event.glyph }}</i><strong>{{ event.detail }}</strong></span></button>
+            <button type="button" class="{{ event.event_type }}" data-chart-ledger-event data-event-sequence="{{ event.sequence }}" data-lifecycle-id="{{ event.lifecycle_id }}" data-lifecycle-slot="{{ (event.lifecycle_id - 1) % 6 }}" data-date="{{ event.date.isoformat() }}" aria-label="Open event {{ event.sequence }} details"><b>{{ event.sequence }}</b><span><i>{{ event.label }} · {{ event.glyph }}{% if event.linked_sale_sequence %} · RESOLVES #{{ event.linked_sale_sequence }}{% endif %}</i><strong>{{ event.detail }}</strong></span></button>
             {% endfor %}
           </div>
         </section>

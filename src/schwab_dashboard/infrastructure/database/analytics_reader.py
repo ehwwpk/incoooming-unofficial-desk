@@ -134,7 +134,7 @@ class SqlLiveAnalyticsReader:
             ).all()
         return tuple(
             {
-                "symbol": instrument.symbol,
+                **_instrument_values(instrument),
                 "observed_at": snapshot.observed_at,
                 "quote_quality": snapshot.quote_quality,
                 "mark_method": snapshot.mark_method,

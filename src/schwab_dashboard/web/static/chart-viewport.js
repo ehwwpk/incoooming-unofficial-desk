@@ -1,7 +1,7 @@
 (() => {
   const DAY = 86_400_000;
   const RANGES = {
-    full: { label: "FULL", days: null },
+    "16w": { label: "16W", days: 112 },
     "8w": { label: "8W", days: 56 },
     "4w": { label: "4W", days: 28 },
   };
@@ -64,8 +64,8 @@
     const latestDate = points.at(-1).date;
 
     const applyRange = (key) => {
-      const range = RANGES[key] || RANGES.full;
-      const cutoff = range.days === null ? points[0].date : latestDate - range.days * DAY;
+      const range = RANGES[key] || RANGES["16w"];
+      const cutoff = latestDate - range.days * DAY;
       const visible = points.filter((point) => point.date >= cutoff);
       const startDate = visible[0].date;
       const endDate = visible.at(-1).date;
@@ -162,7 +162,7 @@
     for (const button of buttons) {
       button.addEventListener("click", () => applyRange(button.dataset.chartRange));
     }
-    applyRange("full");
+    applyRange("16w");
   };
 
   for (const workspace of document.querySelectorAll("[data-chart-workspace]")) {

@@ -70,7 +70,9 @@
 .price-series { z-index: 1; }
 .price-line { fill: none; stroke: var(--text); stroke-width: 1.3; vector-effect: non-scaling-stroke; }
 .price-area { display: none; }
-.event-leaders, .lifecycle-links { z-index: 2; pointer-events: none; }
+.event-leaders, .lifecycle-links { pointer-events: none; }
+.event-leaders { z-index: 2; }
+.lifecycle-links { z-index: 3; }
 .event-leader { stroke: var(--subtle); stroke-width: 1; opacity: .62; vector-effect: non-scaling-stroke; }
 .event-leader.sale, .event-leader.rolled { stroke: var(--gold); }
 .event-leader.expired { stroke: var(--green); }
@@ -80,31 +82,38 @@
 .event-leader.share-sell { stroke: var(--red); }
 .lifecycle-link-halo, .lifecycle-link { fill: none; transition: opacity 120ms ease, stroke-width 120ms ease; vector-effect: non-scaling-stroke; }
 .lifecycle-link-halo { stroke: var(--bg); stroke-width: 4; opacity: .9; }
-.lifecycle-link { stroke-width: 1.25; opacity: .86; }
-.lifecycle-link.expired { stroke: var(--green); stroke-dasharray: 2 2; }
-.lifecycle-link.closed { stroke: #84908a; stroke-dasharray: 1 3; }
-.lifecycle-link.rolled { stroke: var(--gold); stroke-dasharray: 6 2; }
-.lifecycle-link.assigned { stroke: var(--red); }
+.lifecycle-link { stroke: var(--lifecycle-tone, var(--gold)); stroke-width: 1.35; opacity: .9; }
+.lifecycle-link.expired { stroke-dasharray: 2 2; }
+.lifecycle-link.closed { stroke-dasharray: 1 3; }
+.lifecycle-link.rolled { stroke-dasharray: 6 2; }
+.lifecycle-link.assigned { stroke-dasharray: none; }
+[data-lifecycle-slot="0"] { --lifecycle-tone: #e3bd58; }
+[data-lifecycle-slot="1"] { --lifecycle-tone: #70c78e; }
+[data-lifecycle-slot="2"] { --lifecycle-tone: #ce8c58; }
+[data-lifecycle-slot="3"] { --lifecycle-tone: #a7b86a; }
+[data-lifecycle-slot="4"] { --lifecycle-tone: #cf777a; }
+[data-lifecycle-slot="5"] { --lifecycle-tone: #b7a080; }
 .friday-guide { position: absolute; z-index: 1; top: 0; bottom: 0; left: var(--event-x); width: 1px; background: rgb(255 255 255 / 10%); transform: translateX(-50%); }
-.daily-point { position: absolute; z-index: 3; left: var(--event-x); top: var(--event-y); width: 3px; height: 3px; border: 1px solid var(--text); border-radius: 50%; background: var(--bg); transform: translate(-50%, -50%); font-style: normal; }
+.daily-point { position: absolute; z-index: 2; left: var(--event-x); top: var(--event-y); width: 3px; height: 3px; border: 1px solid var(--text); border-radius: 50%; background: var(--bg); transform: translate(-50%, -50%); font-style: normal; }
 .price-axis { position: absolute; z-index: 2; right: 0; width: 39px; color: var(--subtle); font: .39rem var(--mono); text-align: right; }
 .price-axis.high { top: 8px; }
 .price-axis.mid { top: 50%; transform: translateY(-50%); }
 .price-axis.low { bottom: 21px; }
 .price-event, .share-event, .price-now-event { position: absolute; z-index: 4; left: var(--event-x); top: var(--event-y); display: grid; place-items: center; transform: translate(-50%, calc(-50% - var(--event-offset, 0px))); font-style: normal; }
 .price-event, .share-event { width: 28px; height: 28px; appearance: none; border: 0; padding: 0; background: transparent; color: inherit; cursor: pointer; transition: opacity 120ms ease; transform: translate(calc(-50% + var(--collision-x, 0px)), calc(-50% - var(--event-offset, 0px) + var(--collision-y, 0px))); }
+.price-event:hover, .price-event:focus-visible, .share-event:hover, .share-event:focus-visible { z-index: 20; }
 .price-event:focus-visible, .share-event:focus-visible { outline: 1px solid var(--gold); outline-offset: 1px; }
 .price-event { --event-tone: var(--line-strong); }
 .price-event.sale, .price-event.rolled { --event-tone: var(--gold); }
 .price-event.expired { --event-tone: var(--green); }
 .price-event.closed { --event-tone: #84908a; }
 .price-event.assigned { --event-tone: var(--red); }
-.price-event b { position: relative; display: grid; min-width: 17px; height: 17px; padding: 0 3px; place-items: center; border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); font: 850 .4rem var(--mono); box-shadow: 0 0 0 2px var(--bg); pointer-events: none; }
+.price-event b { position: relative; display: grid; min-width: 17px; height: 17px; padding: 0 3px; place-items: center; border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); font: 850 .4rem var(--mono); box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--lifecycle-tone, var(--line-strong)); pointer-events: none; }
 .price-event b small { position: absolute; top: 50%; right: calc(100% + 3px); padding: 2px 3px; border: 1px solid var(--event-tone); background: var(--bg); color: var(--event-tone); font: 800 .32rem/1 var(--mono); white-space: nowrap; transform: translateY(-50%); }
-.price-event.sale b { border-color: var(--gold); background: var(--gold); color: var(--bg); box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--green-muted); }
+.price-event.sale b { border-color: var(--gold); background: var(--gold); color: var(--bg); box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--lifecycle-tone, var(--gold)); }
 .price-event.expired b { border-color: var(--green); border-radius: 50%; background: #0d1711; color: var(--green); }
 .price-event.closed b { border-color: #84908a; background: #111416; color: #a9b1ad; }
-.price-event.rolled b { border-color: var(--gold); background: #17140c; color: var(--gold); box-shadow: 0 0 0 2px var(--bg), inset 0 0 0 1px #5e4b1f; }
+.price-event.rolled b { border-color: var(--gold); background: #17140c; color: var(--gold); box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--lifecycle-tone, var(--gold)), inset 0 0 0 1px #5e4b1f; }
 .price-event.assigned b { border-color: #7a3537; background: #211011; color: var(--red); }
 .share-event { z-index: 3; --event-offset: 0px; }
 .share-event b { display: grid; width: 10px; height: 10px; place-items: center; border: 1px solid currentcolor; border-radius: 50%; background: var(--bg); font: 900 .34rem/1 var(--mono); box-shadow: 0 0 0 2px var(--bg); pointer-events: none; }
@@ -124,7 +133,7 @@
 .price-map-legend span > b.assigned { border-color: #7a3537; color: var(--red); }
 .price-map-legend span > b.share-trade { border: 0; border-radius: 50%; background: transparent; color: var(--green); box-shadow: 0 0 0 1px var(--green-muted); }
 .price-map-legend small { margin-left: auto; color: #46515a; font: .39rem var(--mono); }
-.chart-event-quick { position: absolute; z-index: 16; bottom: calc(100% + 3px); left: 50%; display: none; max-width: 220px; padding: 4px 6px; border: 1px solid var(--line-strong); background: var(--surface-raised); color: var(--muted); box-shadow: 0 5px 16px rgb(0 0 0 / 38%); font: 500 .4rem/1.35 var(--mono); pointer-events: none; text-align: left; transform: translateX(-50%); white-space: nowrap; }
+.chart-event-quick { position: absolute; z-index: 24; bottom: calc(100% + 5px); left: 50%; display: none; max-width: 260px; padding: 5px 7px; border: 1px solid var(--lifecycle-tone, var(--line-strong)); background: #15191d; color: var(--text); box-shadow: 0 7px 18px rgb(0 0 0 / 58%); font: 600 .4rem/1.35 var(--mono); pointer-events: none; text-align: left; transform: translateX(-50%); white-space: nowrap; }
 .price-event:hover .chart-event-quick, .price-event:focus-visible .chart-event-quick { display: block; }
 .price-event[aria-expanded="true"] .chart-event-quick, .price-event[data-tooltip-dismissed="true"] .chart-event-quick { display: none; }
 .price-path-canvas[data-event-focus] .price-event, .price-path-canvas[data-event-focus] .share-event { opacity: .28; }

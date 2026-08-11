@@ -37,7 +37,7 @@ def test_maps_underlying_quote_with_source_timestamp() -> None:
     assert snapshot.observed_at <= batch.observed_at
 
 
-def test_maps_only_requested_open_call_with_greeks() -> None:
+def test_maps_open_call_and_replacement_chain_quotes_with_greeks() -> None:
     symbol = "KTOS  260918C00075000"
     batch = SchwabMarketMapper().map_chain(
         {
@@ -74,10 +74,9 @@ def test_maps_only_requested_open_call_with_greeks() -> None:
         },
         observed_at=NOW,
         parser_version="test",
-        open_option_symbols=[symbol],
     )
 
-    assert len(batch.option_snapshots) == 1
+    assert len(batch.option_snapshots) == 2
     snapshot = batch.option_snapshots[0]
     assert snapshot.implied_volatility == Decimal("58.6")
     assert snapshot.delta == Decimal("0.25")

@@ -90,16 +90,14 @@ class SchwabMarketMapper:
         *,
         observed_at: datetime,
         parser_version: str,
-        open_option_symbols: Sequence[str],
     ) -> MarketObservationBatch:
-        requested = {_canonical_symbol(symbol) for symbol in open_option_symbols}
         underlying_symbol = str(payload.get("symbol") or "").strip()
         underlying_price = _market_decimal(payload.get("underlyingPrice"))
         instruments: list[InstrumentRecord] = []
         snapshots: list[OptionMarketSnapshot] = []
         for contract in _chain_contracts(payload.get("callExpDateMap")):
             symbol = _optional_text(contract.get("symbol"))
-            if not symbol or _canonical_symbol(symbol) not in requested:
+            if not symbol:
                 continue
             parsed = parse_occ_option_symbol(symbol)
             if parsed is None:

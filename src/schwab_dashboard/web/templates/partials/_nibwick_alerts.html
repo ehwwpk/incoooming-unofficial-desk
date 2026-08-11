@@ -56,13 +56,13 @@
       {% if alert.roll_scenarios %}
       <section class="nibwick-roll-ladder" aria-label="Indicative roll preview">
         <header>
-          <strong>ROLL PREVIEW</strong>
+          <strong>NEAR-FLAT ROLL PREVIEW</strong>
           <span>{{ 'SIMULATED' if snapshot.is_demo else 'LIVE' }} · BTC ASK / STO BID</span>
         </header>
         <div class="nibwick-roll-preview">
           {% for scenario in alert.roll_scenarios %}
           <article class="nibwick-roll-row">
-            <div><b>${{ '%g' | format(scenario.target_strike) }}C · {{ scenario.target_expiration | short_date }}</b><small>+{{ scenario.strike_lift_per_share | money(0) }} STRIKE · +{{ scenario.added_days }} DAYS</small></div>
+            <div><b>${{ '%g' | format(scenario.target_strike) }}C · {{ scenario.target_expiration | short_date }}</b><small>+${{ '%g' | format(scenario.strike_lift_per_share) }} STRIKE · +{{ scenario.added_days }} DAYS</small></div>
             <div><b>+{{ scenario.assignment_room_gain | money(0) }} ROOM</b><small>{{ scenario.target_buffer_percent | percent }} ABOVE SPOT</small></div>
             <div class="nibwick-roll-cash">
             {% if scenario.net_roll_per_share > 0 %}

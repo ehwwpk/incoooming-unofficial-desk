@@ -8,6 +8,10 @@
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+  const strikes = new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
   const dates = new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit" });
   const eventTitles = {
     sale: "PREMIUM COLLECTED",
@@ -85,7 +89,7 @@
     const buybackCost = number(trigger.dataset.buybackCost);
     const netCash = number(trigger.dataset.netCash);
     const heading = `#${trigger.dataset.eventSequence} · ${eventTitles[type] || type.toUpperCase()} · ${shortDate(trigger.dataset.date)}`;
-    const contract = `${contracts}× ${symbol} ${money(trigger.dataset.strike)}C · EXP ${shortDate(trigger.dataset.expiresOn)}`;
+    const contract = `${contracts}× ${symbol} $${strikes.format(number(trigger.dataset.strike))}C · EXP ${shortDate(trigger.dataset.expiresOn)}`;
     let cashText = `${signedMoney(grossPremium)} received · ${money(trigger.dataset.premiumPerShare)}/sh`;
     let cashClass = "positive";
     let footer = "OPEN PREMIUM EVENT";

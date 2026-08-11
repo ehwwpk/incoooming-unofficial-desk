@@ -80,14 +80,16 @@ def build_option_events(
     _replace_link_indexes_with_sequences(rows)
     for row in rows:
         event_date = _date(row["date"])
+        event_sequence = _int(row["sequence"])
+        linked_sale_sequence = _optional_int(row.get("linked_sale_sequence"))
         option_symbol = str(row["option_symbol"])
         outcome = str(row["outcome"])
         if row["event_type"] in {"sale", "rolled"} and option_symbol in current_option_symbols:
             outcome = "OPEN"
         events.append(
             PriceEvent(
-                sequence=_int(row["sequence"]),
-                lifecycle_id=_int(row["sequence"]),
+                sequence=event_sequence,
+                lifecycle_id=linked_sale_sequence or event_sequence,
                 record_id=str(row["stable_key"]),
                 campaign_id=str(row.get("order_key") or row["stable_key"]),
                 date=event_date,
@@ -99,7 +101,7 @@ def build_option_events(
                 x_percent=_decimal(row["x_percent"]),
                 y_percent=_decimal(row["y_percent"]),
                 vertical_offset=_int(row["vertical_offset"]),
-                linked_sale_sequence=_optional_int(row.get("linked_sale_sequence")),
+                linked_sale_sequence=linked_sale_sequence,
                 linked_resolution_sequence=_optional_int(
                     row.get("linked_resolution_sequence")
                 ),
@@ -132,7 +134,9 @@ def build_share_trade_events(
     if not points:
         return ()
     start, end = points[0].date, points[-1].date
-    events: list[ShareTradeEvent] = []
+    grouped: defaultdict[tuple[date, str], tuple[int, Decimal]] = defaultdict(
+        lambda: (0, ZERO)
+    )
     for row in executions:
         occurred_on = _row_date(row)
         if not (
@@ -142,16 +146,28 @@ def build_share_trade_events(
             and str(row.get("side")) in {"buy", "sell"}
         ):
             continue
-        price = _decimal(row.get("price"))
-        x, y = _coordinates(occurred_on, price, points)
         action = str(row.get("side"))
+        shares = abs(int(_decimal(row.get("quantity"))))
+        price = _decimal(row.get("price"))
+        if not shares or price <= ZERO:
+            continue
+        prior_shares, prior_notional = grouped[(occurred_on, action)]
+        grouped[(occurred_on, action)] = (
+            prior_shares + shares,
+            prior_notional + price * Decimal(shares),
+        )
+
+    events: list[ShareTradeEvent] = []
+    for (occurred_on, action), (shares, notional) in sorted(grouped.items()):
+        price = notional / Decimal(shares)
+        x, y = _coordinates(occurred_on, price, points)
         events.append(
             ShareTradeEvent(
                 date=occurred_on,
                 label=occurred_on.strftime("%m/%d"),
                 action=action,
                 glyph="+" if action == "buy" else "-",
-                shares=int(_decimal(row.get("quantity"))),
+                shares=shares,
                 price=price,
                 x_percent=x,
                 y_percent=y,

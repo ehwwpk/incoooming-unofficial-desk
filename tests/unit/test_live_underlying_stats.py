@@ -40,7 +40,18 @@ def test_live_underlying_projection_restores_chart_clocks_and_theta() -> None:
         "observed_at": datetime(2026, 8, 10, 20, tzinfo=UTC),
         "quote_quality": "live",
     }
-    book = build_live_position_book((stock, call), as_of=as_of, option_market=(quote,))
+    replacement_quote = {
+        "symbol": "KTOS  260925C00070000",
+        "underlying_symbol": "KTOS",
+        "option_side": "call",
+        "expiration_date": date(2026, 9, 25),
+        "strike": D("70"),
+        "bid": D("2.55"),
+        "ask": D("2.75"),
+        "quote_quality": "complete",
+    }
+    option_market = (quote, replacement_quote)
+    book = build_live_position_book((stock, call), as_of=as_of, option_market=option_market)
     sold_at = datetime(2026, 8, 5, 15, tzinfo=UTC)
     executions = (
         {
@@ -91,6 +102,7 @@ def test_live_underlying_projection_restores_chart_clocks_and_theta() -> None:
         cash_movements=(),
         lifecycle_events=(),
         daily_bars=bars,
+        option_market=option_market,
         as_of=as_of,
     )
 
@@ -99,6 +111,7 @@ def test_live_underlying_projection_restores_chart_clocks_and_theta() -> None:
     assert len(underlying.price_points) == 6
     assert len(underlying.open_call_clocks) == 1
     assert underlying.open_call_clocks[0].sold_on == sold_at.date()
+    assert underlying.open_call_clocks[0].roll_quote_candidates[0].strike == D("70")
     assert underlying.open_call_theta_per_day == D("20.00")
     assert [event.event_type for event in underlying.price_events] == ["sale"]
     assert len(underlying.share_trade_events) == 1
