@@ -10,6 +10,7 @@ from schwab_dashboard.application.dashboard.calculations import (
     summarize_risk,
 )
 from schwab_dashboard.application.dashboard.covered_calls import CoveredCallPortfolioSummary
+from schwab_dashboard.application.dashboard.live_positions import build_live_position_book
 from schwab_dashboard.application.dashboard.models import DashboardSnapshot, IncomeSummary
 from schwab_dashboard.application.dashboard.performance import OperatorMetricsSummary
 from schwab_dashboard.application.ports.repositories import UnitOfWorkFactory
@@ -34,19 +35,22 @@ class ReadDashboard:
             latest_sync = uow.sync_runs.latest()
             accounts = uow.accounts.list_summaries()
             positions = map_positions(uow.positions.list_latest())
+            balances = uow.balances.list_latest()
+
+        as_of = (
+            latest_sync.completed_at
+            if latest_sync is not None and latest_sync.completed_at is not None
+            else datetime.now(UTC)
+        )
 
         return DashboardSnapshot(
             mode="live",
-            as_of=(
-                latest_sync.completed_at
-                if latest_sync is not None and latest_sync.completed_at is not None
-                else datetime.now(UTC)
-            ),
+            as_of=as_of,
             credentials_configured=self._credentials_configured,
             token_available=self._token_available,
             latest_sync=latest_sync,
             accounts=accounts,
-            portfolio=summarize_portfolio(positions),
+            portfolio=summarize_portfolio(positions, balances),
             income=IncomeSummary(
                 week=ZERO,
                 month=ZERO,
@@ -75,6 +79,7 @@ class ReadDashboard:
             positions=positions,
             allocations=summarize_allocations(positions),
             risk=summarize_risk(positions),
+            live_position_book=build_live_position_book(positions, as_of=as_of.date()),
         )
 
 

@@ -1,0 +1,29 @@
+<div class="live-position-grid" aria-label="Live Schwab covered-call positions">
+  {% for item in live_book.underlyings %}
+  <article class="live-position-card">
+    <header>
+      <div><strong>{{ item.symbol }}</strong><span>{{ item.description }}</span></div>
+      <div><b>{{ item.current_price | money if item.current_price is not none else '—' }}</b><small>{{ item.market_value | money(0) if item.market_value is not none else 'No share value' }}</small></div>
+    </header>
+    <div class="live-position-facts">
+      <div><span>SHARES</span><b>{{ item.shares }}</b><small>{{ item.contract_capacity }} available lots</small></div>
+      <div><span>AVG SHARE COST</span><b>{{ item.average_price | money if item.average_price is not none else '—' }}</b><small>Schwab position average</small></div>
+      <div><span>OPEN CALLS</span><b>{{ item.open_call_contracts }}</b><small>{{ item.coverage_percent | percent }} of lots covered</small></div>
+      <div><span>OPEN OPTION P/L</span><b class="{{ item.open_mark_profit_loss | pnl_class }}">{{ item.open_mark_profit_loss | money }}</b><small>Schwab open-position P/L</small></div>
+      <div><span>STOCK DAY P/L</span><b class="{{ item.day_profit_loss | pnl_class }}">{{ item.day_profit_loss | money if item.day_profit_loss is not none else '—' }}</b><small>Current session</small></div>
+      <div><span>COVERAGE CHECK</span><b class="{{ 'negative' if item.uncovered_contracts else 'positive' }}">{{ item.covered_contracts }}/{{ item.open_call_contracts }}</b><small>{{ item.uncovered_contracts }} uncovered calls</small></div>
+    </div>
+    <div class="live-call-rows">
+      {% for call in item.calls %}
+      <div class="live-call-row">
+        <div><strong>-{{ call.contracts }} &nbsp;{{ call.expires_on | short_date }} &nbsp;${{ '%g' | format(call.strike) }}C</strong><small>{{ call.days_to_expiration }} DTE</small></div>
+        <div><span>TO STRIKE</span>{% if call.strike_distance_per_share is not none %}<b class="{{ call.strike_distance_per_share | pnl_class }}">{{ call.strike_distance_per_share | money }} / {{ call.strike_distance_percent | percent }}</b>{% else %}<b>—</b>{% endif %}<small>From current underlying mark</small></div>
+        <div><span>AVG CREDIT</span><b>{{ call.entry_credit_per_share | money if call.entry_credit_per_share is not none else '—' }}</b><small>Per share · Schwab average</small></div>
+        <div><span>EST. MARK</span><b>{{ call.estimated_mark_per_share | money if call.estimated_mark_per_share is not none else '—' }}</b><small>Derived from position market value</small></div>
+        <div><span>OPEN P/L</span><b class="{{ call.open_profit_loss | pnl_class }}">{{ call.open_profit_loss | money if call.open_profit_loss is not none else '—' }}</b><small>Schwab open-position P/L</small></div>
+      </div>
+      {% endfor %}
+    </div>
+  </article>
+  {% endfor %}
+</div>

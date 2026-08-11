@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
 from schwab_dashboard.application.errors import SyncValidationError
 from schwab_dashboard.application.ports.broker import BrokerAccountRecord, BrokerGateway
 from schwab_dashboard.application.ports.repositories import (
+    AccountBalanceSnapshotWrite,
     PositionSnapshotWrite,
     UnitOfWorkFactory,
 )
@@ -112,6 +113,16 @@ class SyncAccountsAndPositions:
         with self._uow_factory() as uow:
             for record in records:
                 account_id = uow.accounts.upsert(record.account, observed_at=observed_at)
+                if record.balances is not None:
+                    uow.balances.add(
+                        AccountBalanceSnapshotWrite(
+                            account_id=account_id,
+                            sync_run_id=run_id,
+                            raw_event_id=raw_event_ids[record.account.external_key],
+                            observed_at=observed_at,
+                            **asdict(record.balances),
+                        )
+                    )
                 for position in record.positions:
                     uow.positions.add(
                         PositionSnapshotWrite(
@@ -128,6 +139,17 @@ class SyncAccountsAndPositions:
                             market_value=position.market_value,
                             day_profit_loss=position.day_profit_loss,
                             day_profit_loss_percent=position.day_profit_loss_percent,
+                            description=position.description,
+                            underlying_symbol=position.underlying_symbol,
+                            option_type=position.option_type,
+                            expiration_date=(
+                                datetime.combine(position.expiration_date, datetime.min.time())
+                                if position.expiration_date is not None
+                                else None
+                            ),
+                            strike=position.strike,
+                            long_open_profit_loss=position.long_open_profit_loss,
+                            short_open_profit_loss=position.short_open_profit_loss,
                         )
                     )
                     position_count += 1

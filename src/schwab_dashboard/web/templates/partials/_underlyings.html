@@ -1,13 +1,14 @@
 <section class="section-block" id="underlyings">
+  {% set live_book = snapshot.live_position_book %}
   <div class="section-heading terminal-heading position-section-heading">
     <h2>Covered-call positions</h2>
     <div
       class="position-book-summary"
-      aria-label="{{ snapshot.underlyings | length }} stocks, {{ snapshot.covered_calls.total_shares }} shares, {{ snapshot.covered_calls.active_contracts }} open call contracts"
+      aria-label="Current covered-call position summary"
     >
-      <span><b>{{ snapshot.underlyings | length }}</b> STOCKS</span>
-      <span><b>{{ snapshot.covered_calls.total_shares | number(0) }}</b> SHARES</span>
-      <span><b>{{ snapshot.covered_calls.active_contracts }}</b> CALL CONTRACTS</span>
+      <span><b>{{ snapshot.underlyings | length if snapshot.underlyings else (live_book.underlyings | length if live_book else 0) }}</b> STOCKS</span>
+      <span><b>{{ snapshot.covered_calls.total_shares | number(0) if snapshot.underlyings else (live_book.total_shares | number(0) if live_book else 0) }}</b> SHARES</span>
+      <span><b>{{ snapshot.covered_calls.active_contracts if snapshot.underlyings else (live_book.open_call_contracts if live_book else 0) }}</b> CALL CONTRACTS</span>
     </div>
   </div>
   {% if snapshot.underlyings %}
@@ -187,6 +188,8 @@
     </details>
     {% endfor %}
   </div>
+  {% elif live_book and live_book.underlyings %}
+  {% include "partials/_live_position_book.html" %}
   {% else %}
   <div class="panel empty-state">Per-symbol call attribution appears after transaction ingestion.</div>
   {% endif %}

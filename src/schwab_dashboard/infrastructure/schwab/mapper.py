@@ -6,7 +6,12 @@ from typing import Any
 
 from schwab_dashboard.application.errors import BrokerPayloadError
 from schwab_dashboard.application.ports.broker import BrokerAccountRecord
-from schwab_dashboard.domain.broker import BrokerAccount, BrokerPosition
+from schwab_dashboard.domain.broker import (
+    BrokerAccount,
+    BrokerAccountBalances,
+    BrokerPosition,
+)
+from schwab_dashboard.infrastructure.schwab.option_symbol import parse_occ_option_symbol
 
 
 class SchwabAccountMapper:
@@ -46,6 +51,7 @@ class SchwabAccountMapper:
                     ),
                     positions=positions,
                     raw_payload=dict(wrapper),
+                    balances=self._map_balances(securities_account),
                 )
             )
 
@@ -61,19 +67,63 @@ class SchwabAccountMapper:
         symbol = self._required_text(instrument, "symbol").strip()
         instrument_key = str(instrument.get("cusip") or symbol).strip()
         asset_type = str(instrument.get("assetType") or "UNKNOWN").strip()
+        parsed_option = parse_occ_option_symbol(symbol) if asset_type.upper() == "OPTION" else None
+        long_quantity = self._decimal(payload.get("longQuantity"), default=Decimal("0"))
+        short_quantity = self._decimal(payload.get("shortQuantity"), default=Decimal("0"))
+        average_price_value = (
+            payload.get("averageShortPrice")
+            if short_quantity > 0
+            else payload.get("averageLongPrice")
+        )
+        if average_price_value is None:
+            average_price_value = payload.get("averagePrice")
 
         return BrokerPosition(
             instrument_key=instrument_key,
             symbol=symbol,
             asset_type=asset_type,
-            long_quantity=self._decimal(payload.get("longQuantity"), default=Decimal("0")),
-            short_quantity=self._decimal(payload.get("shortQuantity"), default=Decimal("0")),
-            average_price=self._optional_decimal(payload.get("averagePrice")),
+            long_quantity=long_quantity,
+            short_quantity=short_quantity,
+            average_price=self._optional_decimal(average_price_value),
             market_value=self._optional_decimal(payload.get("marketValue")),
             day_profit_loss=self._optional_decimal(payload.get("currentDayProfitLoss")),
             day_profit_loss_percent=self._optional_decimal(
                 payload.get("currentDayProfitLossPercentage")
             ),
+            description=str(instrument.get("description") or "").strip(),
+            underlying_symbol=(
+                str(instrument.get("underlyingSymbol") or "").strip()
+                or (parsed_option.underlying_symbol if parsed_option else None)
+            ),
+            option_type=(
+                str(instrument.get("putCall") or "").strip().upper()
+                or (parsed_option.option_type if parsed_option else None)
+            ),
+            expiration_date=parsed_option.expiration_date if parsed_option else None,
+            strike=parsed_option.strike if parsed_option else None,
+            long_open_profit_loss=self._optional_decimal(payload.get("longOpenProfitLoss")),
+            short_open_profit_loss=self._optional_decimal(payload.get("shortOpenProfitLoss")),
+        )
+
+    def _map_balances(self, account: Mapping[str, Any]) -> BrokerAccountBalances:
+        current = account.get("currentBalances") or {}
+        if not isinstance(current, Mapping):
+            raise BrokerPayloadError("Schwab currentBalances payload is not an object.")
+        return BrokerAccountBalances(
+            liquidation_value=self._optional_decimal(current.get("liquidationValue")),
+            equity=self._optional_decimal(current.get("equity")),
+            cash_balance=self._optional_decimal(current.get("cashBalance")),
+            money_market_fund=self._optional_decimal(current.get("moneyMarketFund")),
+            margin_balance=self._optional_decimal(current.get("marginBalance")),
+            buying_power=self._optional_decimal(current.get("buyingPower")),
+            available_funds=self._optional_decimal(current.get("availableFunds")),
+            maintenance_requirement=self._optional_decimal(current.get("maintenanceRequirement")),
+            long_market_value=self._optional_decimal(current.get("longMarketValue")),
+            short_market_value=self._optional_decimal(current.get("shortMarketValue")),
+            long_option_market_value=self._optional_decimal(current.get("longOptionMarketValue")),
+            short_option_market_value=self._optional_decimal(current.get("shortOptionMarketValue")),
+            is_portfolio_margin=bool(account.get("isPortfolioMargin")),
+            is_intraday_margin=bool(account.get("isIntradayMargin")),
         )
 
     @staticmethod

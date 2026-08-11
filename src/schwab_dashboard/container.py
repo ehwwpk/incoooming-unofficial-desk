@@ -56,6 +56,7 @@ class Container:
             tables = set(inspect(self.engine).get_table_names())
             required = {
                 "accounts",
+                "account_balance_snapshots",
                 "alembic_version",
                 "cash_movements",
                 "executions",

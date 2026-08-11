@@ -1,4 +1,5 @@
 from schwab_dashboard.infrastructure.database.repositories.account import (
+    SqlAccountBalanceSnapshotRepository,
     SqlAccountRepository,
     SqlPositionSnapshotRepository,
 )
@@ -23,6 +24,7 @@ from schwab_dashboard.infrastructure.database.repositories.sync import (
 from schwab_dashboard.infrastructure.database.repositories.workspace import SqlWorkspaceRepository
 
 __all__ = [
+    "SqlAccountBalanceSnapshotRepository",
     "SqlAccountRepository",
     "SqlCashMovementRepository",
     "SqlExecutionRepository",

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <title>Incoooming Unofficial Desk · Options Income</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=54">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=55">
     <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=4">
   </head>
   <body data-workspace-key="desk" data-workspace-context='{"account":"{{ snapshot.accounts[0].account_mask if snapshot.accounts else "---" }}","symbol":"ALL","asOf":"{{ snapshot.as_of.date().isoformat() }}"}'>
@@ -69,9 +69,14 @@
           </div>
         </div>
         <div class="desk-meta">
+          {% if snapshot.is_demo %}
           <span>PORTFOLIO <b>{{ snapshot.portfolio.total_value | money }}</b></span>
+          {% else %}
+          <span>NET LIQ <b>{{ snapshot.portfolio.total_value | money }}</b></span>
+          <span>GROSS POS <b>{{ snapshot.portfolio.gross_position_value | money }}</b></span>
+          {% endif %}
           <span>TODAY <b class="{{ snapshot.portfolio.day_profit_loss | pnl_class }}">{{ snapshot.portfolio.day_profit_loss | money }} / {{ snapshot.portfolio.day_profit_loss_percent | percent(2) }}</b></span>
-          <span>RANGE <b data-active-range>{{ snapshot.performance_windows[0].range_label if snapshot.performance_windows else '—' }}</b></span>
+          {% if snapshot.performance_windows %}<span>RANGE <b data-active-range>{{ snapshot.performance_windows[0].range_label }}</b></span>{% endif %}
           <span>AS OF <b>{{ snapshot.as_of | short_date }}</b></span>
           <span>STATUS <b class="{{ 'muted' if snapshot.is_demo else 'positive' }}">{{ 'SIMULATION' if snapshot.is_demo else 'LIVE LEDGER' }}</b></span>
         </div>

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 
 
@@ -18,6 +19,26 @@ class BrokerAccount:
 
 
 @dataclass(frozen=True, slots=True)
+class BrokerAccountBalances:
+    """Point-in-time account values returned by Schwab's account endpoint."""
+
+    liquidation_value: Decimal | None = None
+    equity: Decimal | None = None
+    cash_balance: Decimal | None = None
+    money_market_fund: Decimal | None = None
+    margin_balance: Decimal | None = None
+    buying_power: Decimal | None = None
+    available_funds: Decimal | None = None
+    maintenance_requirement: Decimal | None = None
+    long_market_value: Decimal | None = None
+    short_market_value: Decimal | None = None
+    long_option_market_value: Decimal | None = None
+    short_option_market_value: Decimal | None = None
+    is_portfolio_margin: bool = False
+    is_intraday_margin: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class BrokerPosition:
     instrument_key: str
     symbol: str
@@ -28,6 +49,13 @@ class BrokerPosition:
     market_value: Decimal | None = None
     day_profit_loss: Decimal | None = None
     day_profit_loss_percent: Decimal | None = None
+    description: str = ""
+    underlying_symbol: str | None = None
+    option_type: str | None = None
+    expiration_date: date | None = None
+    strike: Decimal | None = None
+    long_open_profit_loss: Decimal | None = None
+    short_open_profit_loss: Decimal | None = None
 
     def __post_init__(self) -> None:
         if not self.instrument_key.strip():

@@ -1,4 +1,5 @@
 from schwab_dashboard.infrastructure.database.tables.account import (
+    AccountBalanceSnapshotTable,
     AccountTable,
     PositionSnapshotTable,
 )
@@ -24,6 +25,7 @@ from schwab_dashboard.infrastructure.database.tables.sync import (
 from schwab_dashboard.infrastructure.database.tables.workspace import WorkspacePreferenceTable
 
 __all__ = [
+    "AccountBalanceSnapshotTable",
     "AccountTable",
     "Base",
     "CashMovementTable",

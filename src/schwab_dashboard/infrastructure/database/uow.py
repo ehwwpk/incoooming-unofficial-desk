@@ -3,6 +3,7 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from schwab_dashboard.application.ports.repositories import (
+    AccountBalanceSnapshotRepository,
     AccountRepository,
     PositionSnapshotRepository,
     RawEventRepository,
@@ -13,6 +14,7 @@ from schwab_dashboard.application.ports.repositories import (
 )
 from schwab_dashboard.infrastructure.database.engine import SessionFactory
 from schwab_dashboard.infrastructure.database.repositories import (
+    SqlAccountBalanceSnapshotRepository,
     SqlAccountRepository,
     SqlPositionSnapshotRepository,
     SqlRawEventRepository,
@@ -25,6 +27,7 @@ class SqlAlchemyUnitOfWork:
     sync_runs: SyncRunRepository
     raw_events: RawEventRepository
     accounts: AccountRepository
+    balances: AccountBalanceSnapshotRepository
     positions: PositionSnapshotRepository
     reconciliation: ReconciliationRepository
 
@@ -37,6 +40,7 @@ class SqlAlchemyUnitOfWork:
         self.sync_runs = SqlSyncRunRepository(self._session)
         self.raw_events = SqlRawEventRepository(self._session)
         self.accounts = SqlAccountRepository(self._session)
+        self.balances = SqlAccountBalanceSnapshotRepository(self._session)
         self.positions = SqlPositionSnapshotRepository(self._session)
         self.reconciliation = SqlReconciliationRepository(self._session)
         return self

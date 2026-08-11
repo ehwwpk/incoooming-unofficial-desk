@@ -37,6 +37,14 @@ class PortfolioSummary:
     option_value: Decimal
     day_profit_loss: Decimal
     day_profit_loss_percent: Decimal
+    gross_position_value: Decimal = Decimal("0")
+    net_position_value: Decimal = Decimal("0")
+    liquidation_value: Decimal | None = None
+    equity: Decimal | None = None
+    margin_balance: Decimal | None = None
+    buying_power: Decimal | None = None
+    available_funds: Decimal | None = None
+    maintenance_requirement: Decimal | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,6 +108,62 @@ class PositionSummary:
     day_profit_loss: Decimal | None
     day_profit_loss_percent: Decimal | None
     strategy: str | None
+    underlying_symbol: str | None = None
+    option_type: str | None = None
+    expiration_date: date | None = None
+    strike: Decimal | None = None
+    open_profit_loss: Decimal | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class LiveOpenCallPosition:
+    account_mask: str
+    option_symbol: str
+    underlying_symbol: str
+    contracts: int
+    expires_on: date
+    days_to_expiration: int
+    strike: Decimal
+    entry_credit_per_share: Decimal | None
+    estimated_mark_per_share: Decimal | None
+    market_value: Decimal | None
+    open_profit_loss: Decimal | None
+    day_profit_loss: Decimal | None
+    underlying_price: Decimal | None
+    strike_distance_per_share: Decimal | None
+    strike_distance_percent: Decimal | None
+
+
+@dataclass(frozen=True, slots=True)
+class LiveUnderlyingPosition:
+    symbol: str
+    description: str
+    shares: int
+    average_price: Decimal | None
+    current_price: Decimal | None
+    market_value: Decimal | None
+    day_profit_loss: Decimal | None
+    contract_capacity: int
+    open_call_contracts: int
+    covered_contracts: int
+    uncovered_contracts: int
+    coverage_percent: Decimal
+    open_mark_profit_loss: Decimal
+    calls: Sequence[LiveOpenCallPosition]
+
+
+@dataclass(frozen=True, slots=True)
+class LivePositionBook:
+    underlyings: Sequence[LiveUnderlyingPosition]
+    calls: Sequence[LiveOpenCallPosition]
+    total_shares: int
+    contract_capacity: int
+    open_call_positions: int
+    open_call_contracts: int
+    covered_contracts: int
+    uncovered_contracts: int
+    coverage_percent: Decimal
+    open_mark_profit_loss: Decimal
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,6 +215,7 @@ class DashboardSnapshot:
     positions: Sequence[PositionSummary]
     allocations: Sequence[AllocationSlice]
     risk: RiskSummary
+    live_position_book: LivePositionBook | None = None
 
     @property
     def is_demo(self) -> bool:

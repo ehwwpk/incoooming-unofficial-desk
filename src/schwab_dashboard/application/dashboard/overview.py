@@ -10,7 +10,7 @@ from schwab_dashboard.application.dashboard.covered_calls import (
     OpenCallClock,
     UnderlyingCallStats,
 )
-from schwab_dashboard.application.dashboard.models import DashboardSnapshot
+from schwab_dashboard.application.dashboard.models import DashboardSnapshot, LiveOpenCallPosition
 
 ZERO = Decimal("0")
 
@@ -52,6 +52,7 @@ class DeskOverview:
     next_expiring_call: DeskCallFocus | None
     dividend_overlap_contracts: int
     alert_count: int
+    underlying_count: int
 
 
 def build_desk_overview(snapshot: DashboardSnapshot) -> DeskOverview:
@@ -76,6 +77,23 @@ def build_desk_overview(snapshot: DashboardSnapshot) -> DeskOverview:
             )
         )
 
+    if not all_calls and snapshot.live_position_book is not None:
+        all_calls.extend(_live_call_focus(call) for call in snapshot.live_position_book.calls)
+        live_book = snapshot.live_position_book
+        return DeskOverview(
+            position_rows=(),
+            open_positions=live_book.open_call_positions,
+            open_contracts=live_book.open_call_contracts,
+            contract_capacity=live_book.contract_capacity,
+            coverage_percent=live_book.coverage_percent,
+            open_mark_profit_loss=live_book.open_mark_profit_loss,
+            nearest_call=_nearest_call(all_calls),
+            next_expiring_call=min(all_calls, key=lambda call: call.expires_on, default=None),
+            dividend_overlap_contracts=0,
+            alert_count=len(snapshot.alerts),
+            underlying_count=len(live_book.underlyings),
+        )
+
     return DeskOverview(
         position_rows=tuple(rows),
         open_positions=len(all_calls),
@@ -89,6 +107,7 @@ def build_desk_overview(snapshot: DashboardSnapshot) -> DeskOverview:
             underlying.dividend_overlap_contracts for underlying in snapshot.underlyings
         ),
         alert_count=len(snapshot.alerts),
+        underlying_count=len(rows),
     )
 
 
@@ -98,6 +117,17 @@ def _call_focus(symbol: str, call: OpenCallClock) -> DeskCallFocus:
         strike=call.strike,
         strike_distance_per_share=call.strike_distance_per_share,
         strike_distance_percent=call.strike_distance_percent,
+        days_to_expiration=call.days_to_expiration,
+        expires_on=call.expires_on,
+    )
+
+
+def _live_call_focus(call: LiveOpenCallPosition) -> DeskCallFocus:
+    return DeskCallFocus(
+        symbol=call.underlying_symbol,
+        strike=call.strike,
+        strike_distance_per_share=call.strike_distance_per_share or ZERO,
+        strike_distance_percent=call.strike_distance_percent or ZERO,
         days_to_expiration=call.days_to_expiration,
         expires_on=call.expires_on,
     )

@@ -25,6 +25,35 @@ class PositionSnapshotWrite:
     market_value: Decimal | None
     day_profit_loss: Decimal | None
     day_profit_loss_percent: Decimal | None
+    description: str = ""
+    underlying_symbol: str | None = None
+    option_type: str | None = None
+    expiration_date: datetime | None = None
+    strike: Decimal | None = None
+    long_open_profit_loss: Decimal | None = None
+    short_open_profit_loss: Decimal | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class AccountBalanceSnapshotWrite:
+    account_id: str
+    sync_run_id: str
+    raw_event_id: str
+    observed_at: datetime
+    liquidation_value: Decimal | None = None
+    equity: Decimal | None = None
+    cash_balance: Decimal | None = None
+    money_market_fund: Decimal | None = None
+    margin_balance: Decimal | None = None
+    buying_power: Decimal | None = None
+    available_funds: Decimal | None = None
+    maintenance_requirement: Decimal | None = None
+    long_market_value: Decimal | None = None
+    short_market_value: Decimal | None = None
+    long_option_market_value: Decimal | None = None
+    short_option_market_value: Decimal | None = None
+    is_portfolio_margin: bool = False
+    is_intraday_margin: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,6 +113,12 @@ class PositionSnapshotRepository(Protocol):
     def list_latest(self) -> Sequence[dict[str, Any]]: ...
 
 
+class AccountBalanceSnapshotRepository(Protocol):
+    def add(self, snapshot: AccountBalanceSnapshotWrite) -> str: ...
+
+    def list_latest(self) -> Sequence[dict[str, Any]]: ...
+
+
 class ReconciliationRepository(Protocol):
     def add_many(self, sync_run_id: str, issues: Sequence[ReconciliationIssue]) -> None: ...
 
@@ -93,6 +128,7 @@ class UnitOfWork(Protocol):
     raw_events: RawEventRepository
     accounts: AccountRepository
     positions: PositionSnapshotRepository
+    balances: AccountBalanceSnapshotRepository
     reconciliation: ReconciliationRepository
 
     def __enter__(self) -> UnitOfWork: ...
