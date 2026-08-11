@@ -28,8 +28,6 @@ class PerformanceWindowSummary:
     annualized_total_yield: Decimal
     monthly_option_run_rate: Decimal
     monthly_total_run_rate: Decimal
-    target_cash_for_window: Decimal
-    target_progress_percent: Decimal
     premium_capture_percent: Decimal
     buyback_drag_percent: Decimal
 
@@ -56,7 +54,6 @@ class MonthlyPerformanceSummary:
     assigned_contracts: int
     called_away_shares: int
     average_covered_capital: Decimal
-    target_progress_percent: Decimal
     is_partial: bool
 
 
@@ -110,16 +107,16 @@ class ExpirationBucket:
 
 
 @dataclass(frozen=True, slots=True)
-class ManagementObjectiveSummary:
-    monthly_option_target: Decimal
+class OperatorMetricsSummary:
     rolling_four_week_option_cash: Decimal
     quarter_monthly_run_rate: Decimal
     year_to_date_monthly_run_rate: Decimal
     rolling_year_monthly_average: Decimal
-    rolling_year_target_gap: Decimal
-    rolling_year_target_progress_percent: Decimal
-    target_months_hit: int
-    observed_months: int
+    rolling_three_month_average: Decimal
+    median_completed_month: Decimal
+    best_completed_month: Decimal
+    worst_completed_month: Decimal
+    completed_months: int
     compliant_call_tickets: int
     total_call_tickets: int
     safe_ticket_pace_monthly: Decimal
@@ -129,7 +126,6 @@ class ManagementObjectiveSummary:
     average_strike_gap_percent: Decimal
     average_days_to_expiration: Decimal
     uncovered_contract_capacity: int
-    monthly_option_results: Sequence[Decimal]
 
 
 @dataclass(frozen=True, slots=True)

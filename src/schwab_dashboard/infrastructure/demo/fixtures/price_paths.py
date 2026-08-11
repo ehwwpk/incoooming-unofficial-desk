@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
@@ -15,6 +16,16 @@ from schwab_dashboard.infrastructure.demo.fixtures.share_trades import ShareTrad
 D = Decimal
 TENTH = D("0.1")
 HUNDRED = D("100")
+
+
+@dataclass(frozen=True, slots=True)
+class _PriceAction:
+    event_date: date
+    lifecycle_id: int
+    event_type: str
+    glyph: str
+    detail: str
+    record: CallSaleRecord
 
 
 def build_daily_price_points(
@@ -57,19 +68,20 @@ def build_price_events(
     if not points:
         return ()
     start, end = points[0].date, points[-1].date
-    actions: list[tuple[date, int, str, str, str]] = []
+    actions: list[_PriceAction] = []
     for lifecycle_id, record in enumerate(records, start=1):
         if start <= record.sold_on <= end:
             actions.append(
-                (
-                    record.sold_on,
-                    lifecycle_id,
-                    "sale",
-                    "S",
-                    (
+                _PriceAction(
+                    event_date=record.sold_on,
+                    lifecycle_id=lifecycle_id,
+                    event_type="sale",
+                    glyph="S",
+                    detail=(
                         f"Sold {record.contracts}x ${record.strike:g}C / "
                         f"{record.days_to_expiration} DTE"
                     ),
+                    record=record,
                 )
             )
         if (
@@ -84,45 +96,67 @@ def build_price_events(
                 "Assigned": ("assigned", "A", "Assigned"),
             }[record.outcome]
             actions.append(
-                (
-                    record.closed_on,
-                    lifecycle_id,
-                    event_type,
-                    glyph,
-                    f"{verb} {record.contracts}x ${record.strike:g}C",
+                _PriceAction(
+                    event_date=record.closed_on,
+                    lifecycle_id=lifecycle_id,
+                    event_type=event_type,
+                    glyph=glyph,
+                    detail=f"{verb} {record.contracts}x ${record.strike:g}C",
+                    record=record,
                 )
             )
 
-    ordered_actions = sorted(actions, key=lambda row: row[0])
+    ordered_actions = sorted(actions, key=lambda action: action.event_date)
     sale_sequences = {
-        lifecycle_id: sequence
-        for sequence, (_, lifecycle_id, event_type, _, _) in enumerate(ordered_actions, start=1)
-        if event_type == "sale"
+        action.lifecycle_id: sequence
+        for sequence, action in enumerate(ordered_actions, start=1)
+        if action.event_type == "sale"
+    }
+    resolution_sequences = {
+        action.lifecycle_id: sequence
+        for sequence, action in enumerate(ordered_actions, start=1)
+        if action.event_type != "sale"
     }
     lanes: dict[date, int] = {}
     events: list[PriceEvent] = []
-    for sequence, (event_date, lifecycle_id, event_type, glyph, detail) in enumerate(
-        ordered_actions, start=1
-    ):
-        point = min(points, key=lambda item: abs((item.date - event_date).days))
-        lane = lanes.get(event_date, 0)
-        lanes[event_date] = lane + 1
+    for sequence, action in enumerate(ordered_actions, start=1):
+        point = min(points, key=lambda item: abs((item.date - action.event_date).days))
+        lane = lanes.get(action.event_date, 0)
+        lanes[action.event_date] = lane + 1
         events.append(
             PriceEvent(
                 sequence=sequence,
-                lifecycle_id=lifecycle_id,
-                date=event_date,
-                label=event_date.strftime("%m/%d"),
-                event_type=event_type,
-                glyph=glyph,
-                detail=detail,
+                lifecycle_id=action.lifecycle_id,
+                record_id=action.record.record_id,
+                campaign_id=action.record.campaign_id,
+                date=action.event_date,
+                label=action.event_date.strftime("%m/%d"),
+                event_type=action.event_type,
+                glyph=action.glyph,
+                detail=action.detail,
                 price=point.price,
                 x_percent=point.x_percent,
                 y_percent=point.y_percent,
                 vertical_offset=lane * 14,
                 linked_sale_sequence=(
-                    None if event_type == "sale" else sale_sequences.get(lifecycle_id)
+                    None if action.event_type == "sale" else sale_sequences.get(action.lifecycle_id)
                 ),
+                linked_resolution_sequence=(
+                    resolution_sequences.get(action.lifecycle_id)
+                    if action.event_type == "sale"
+                    else None
+                ),
+                expires_on=action.record.expires_on,
+                contracts=action.record.contracts,
+                strike=action.record.strike,
+                underlying_at_sale=action.record.underlying_at_sale,
+                strike_upside_percent=action.record.strike_upside_percent,
+                entry_days_to_expiration=action.record.days_to_expiration,
+                premium_per_share=action.record.premium_per_share,
+                gross_premium=action.record.gross_premium,
+                buyback_cost=action.record.buyback_cost,
+                net_cash=action.record.net_cash,
+                outcome=action.record.outcome,
             )
         )
     return tuple(events)

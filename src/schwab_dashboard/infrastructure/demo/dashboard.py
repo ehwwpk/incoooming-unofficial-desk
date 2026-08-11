@@ -22,7 +22,7 @@ from schwab_dashboard.infrastructure.demo.fixtures.performance import (
     build_basis_lens,
     build_cash_chart_series,
     build_monthly_performance,
-    build_objective_summary,
+    build_operator_metrics,
     build_performance_windows,
     build_quarter_history,
     build_strategy_attribution,
@@ -105,8 +105,6 @@ class DemoDashboardReader:
                 year_to_date=windows_by_key["ytd"].total_cash,
                 win_rate=covered_calls.win_rate,
                 annualized_yield=covered_calls.annualized_option_yield,
-                monthly_target=D("3000.00"),
-                target_progress_percent=windows_by_key["month"].target_progress_percent,
             ),
             income_periods=build_income_periods(call_history),
             cash_chart_series=build_cash_chart_series(call_history, monthly_performance, as_of),
@@ -123,8 +121,12 @@ class DemoDashboardReader:
             expiration_calendar=build_expiration_calendar(underlyings, as_of),
             policies=policies,
             quarter_history=build_quarter_history(),
-            objective=build_objective_summary(
-                call_history, covered_calls, performance_windows, policies
+            operator_metrics=build_operator_metrics(
+                call_history,
+                covered_calls,
+                performance_windows,
+                policies,
+                monthly_performance,
             ),
             basis_lens=build_basis_lens(underlyings),
             positions=positions,

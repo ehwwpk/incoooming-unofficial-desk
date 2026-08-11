@@ -10,7 +10,7 @@ into an unreadable wall of equally weighted boxes.
 
 One primary Desk and four bounded secondary tools share a consistent shell:
 
-- Desk: option income, dividends, target pace, live covered-call inventory, and exceptions.
+- Desk: option income, dividends, observed pace, live covered-call inventory, and exceptions.
 - Open Calls: cross-portfolio obligations, strike pressure, marks, and time decay.
 - Strategy Review: cash reconciliation, capture, lifecycle economics, outcomes, and basis.
 - Volatility: surfaces, histories, regimes, and research studies.

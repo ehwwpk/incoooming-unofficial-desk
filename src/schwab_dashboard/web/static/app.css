@@ -1,5 +1,5 @@
 @import url("./base.css?v=24");
-@import url("./components.css?v=24");
+@import url("./components.css?v=25");
 @import url("./alerts.css?v=22");
 @import url("./performance.css?v=24");
 @import url("./dashboard.css?v=24");
@@ -10,7 +10,6 @@
   .console-cell:nth-child(3) { border-right: 0; }
   .console-cell:nth-child(-n + 3) { border-bottom: 1px solid var(--line); }
   .campaign-grid { grid-template-columns: 1fr; }
-  .manager-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 1100px) {
@@ -92,7 +91,6 @@
   .name-analytics div:nth-child(3n) { border-right: 0; }
   .name-analytics div:nth-child(-n + 3) { border-bottom: 1px solid var(--line); }
   .section-heading { align-items: flex-start; flex-direction: column; }
-  .target-editor { width: 100%; }
   .legend { margin-top: 3px; }
   .price-map-legend { flex-wrap: wrap; }
   .price-map-legend small { width: 100%; margin-left: 0; }
@@ -116,13 +114,6 @@
   .open-book-reconcile { grid-template-columns: 1fr; }
   .open-book-reconcile > div { border-right: 0; border-bottom: 1px solid var(--line); }
   .open-book-reconcile p { grid-column: auto; border-top: 0; }
-  .objective-hero { grid-template-columns: repeat(2, 1fr); }
-  .objective-hero > div:first-child { border-right: 0; border-bottom: 1px solid var(--line); }
-  .discipline-grid { grid-template-columns: repeat(2, 1fr); }
-  .discipline-grid div:nth-child(3n) { border-right: 1px solid var(--line); }
-  .discipline-grid div:nth-child(2n) { border-right: 0; }
-  .basis-list > div { grid-template-columns: .5fr 1fr; }
-  .basis-list em { text-align: left; }
   .basis-chip { align-items: flex-start; flex-direction: column; }
   .dividend-alert { grid-template-columns: 1fr; }
   .dividend-alert > b { grid-row: auto; justify-self: start; }

@@ -88,6 +88,10 @@ def test_demo_mode_renders_operator_plan_without_credentials(tmp_path: Path) -> 
         assert payload["monthly_performance"][-1]["option_cash"] == "-930"
         assert payload["strategy_attribution"][0]["status"] == "CURRENT-INVENTORY PROXY"
         assert payload["strategy_attribution"][-1]["actual_result"] is None
+        assert payload["operator_metrics"]["completed_months"] == 7
+        assert payload["operator_metrics"]["median_completed_month"] == "2395"
+        assert "objective" not in payload
+        assert "monthly_target" not in payload["income"]
 
         assert page.status_code == 200
         assert "Incoooming Unofficial Desk" in page.text
@@ -105,8 +109,13 @@ def test_demo_mode_renders_operator_plan_without_credentials(tmp_path: Path) -> 
         assert "RESULTS" in page.text
         assert "2,000</b> SHARES" in page.text
         assert page.text.count("data-chart-point") == 174
+        assert page.text.count("data-chart-event-trigger") == 32
+        assert page.text.count("data-chart-event-popover") == 3
+        assert page.text.count("data-cash-grain") == 1
+        assert page.text.count("data-series-grain") == 4
         assert page.text.count("data-workspace-splitter") == 3
         assert page.text.count("data-nibwick-note") == 0
+        assert "MONTHLY OPTION INCOME TARGET" not in page.text
     finally:
         container.close()
 

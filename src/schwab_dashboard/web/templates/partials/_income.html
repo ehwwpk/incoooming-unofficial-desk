@@ -9,7 +9,7 @@
   </div>
 
   {% for series in snapshot.cash_chart_series %}
-  <div class="income-scroll" data-cash-series="{{ series.key }}"{% if series.key != 'month' %} hidden{% endif %}>
+  <div class="income-scroll" data-cash-series="{{ series.key }}" data-series-grain="{{ series.grain }}"{% if series.key != 'month' %} hidden{% endif %}>
     <div class="income-chart" aria-label="{{ series.label }} cash chart" style="--cash-columns: {{ series.points | length }}">
       {% for point in series.points %}
       <div class="bar-column {{ 'debit' if point.total_cash < 0 else '' }}">

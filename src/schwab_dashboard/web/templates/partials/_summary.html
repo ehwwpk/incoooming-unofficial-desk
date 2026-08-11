@@ -2,15 +2,11 @@
 <section
   class="desk-pulse"
   aria-label="Covered-call income and live option summary"
-  data-objective-console
-  data-default-target="{{ snapshot.objective.monthly_option_target }}"
-  data-rolling-average="{{ snapshot.objective.rolling_year_monthly_average }}"
-  data-monthly-results="{{ snapshot.objective.monthly_option_results | join(',') }}"
 >
   <article class="pulse-panel income-pulse">
     <header>
-      <div><h2>Income &amp; pace</h2><small>CASH EARNED · DIVIDENDS · MONTHLY GOAL</small></div>
-      <a href="/workspaces/attribution">STRATEGY REVIEW <span aria-hidden="true">→</span></a>
+      <div><h2>Income &amp; pace</h2><small>CASH KEPT · DIVIDENDS · CAPITAL YIELD</small></div>
+      <a href="/workspaces/attribution">RESULTS <span aria-hidden="true">→</span></a>
     </header>
     <div class="pulse-income-grid">
       <div class="pulse-primary">
@@ -31,18 +27,15 @@
         <small class="pulse-average" data-active-total-average hidden></small>
       </div>
       <div>
-        <span>ONE-MONTH CASH PACE</span>
+        <span>MONTHLY CASH EQUIVALENT</span>
         <strong class="{{ active.monthly_total_run_rate | pnl_class if active else '' }}" data-active-monthly-pace>{{ active.monthly_total_run_rate | money if active else '$0.00' }}</strong>
         <small>Selected cash normalized to one month</small>
       </div>
     </div>
-    <footer class="income-target-bar">
-      <label for="monthly-target">MONTHLY OPTION INCOME TARGET <span>$</span><input id="monthly-target" data-target-input type="number" inputmode="numeric" min="100" max="1000000" step="100" value="{{ snapshot.objective.monthly_option_target }}"></label>
-      <button type="button" data-target-reset>RESET</button>
-      <div class="target-readout">
-        <span><b data-desk-target-progress>{{ active.target_progress_percent | percent if active else '0.0%' }}</b> OF OPTION TARGET</span>
-        <i><em data-desk-target-progress-bar style="--desk-target-progress: {{ active.target_progress_percent if active else 0 }}%"></em></i>
-      </div>
+    <footer class="income-observed-bar" aria-label="Observed monthly option cash statistics">
+      <div><span>ROLLING 365 MONTH AVG</span><b>{{ snapshot.operator_metrics.rolling_year_monthly_average | money }}</b><small>Monthly equivalent</small></div>
+      <div><span>LATEST 3 FULL MONTHS</span><b>{{ snapshot.operator_metrics.rolling_three_month_average | money }}</b><small>May–Jul average</small></div>
+      <div><span>MEDIAN FULL MONTH</span><b>{{ snapshot.operator_metrics.median_completed_month | money }}</b><small>{{ snapshot.operator_metrics.completed_months }} completed months</small></div>
     </footer>
   </article>
 

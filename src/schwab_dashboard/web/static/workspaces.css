@@ -85,10 +85,6 @@
 .monthly-performance[open] > summary { border-bottom: 1px solid var(--line); }
 .monthly-performance[open] > summary i::before { content: "− COLLAPSE"; }
 .monthly-performance-table tr.partial { background: #14140e; box-shadow: inset 2px 0 var(--gold); }
-.monthly-target-meter { display: grid; grid-template-columns: minmax(90px, 1fr) 44px; align-items: center; gap: 8px; }
-.monthly-target-meter > span { display: block; height: 4px; overflow: hidden; background: #25282a; }
-.monthly-target-meter i { display: block; width: min(var(--month-progress), 100%); height: 100%; background: var(--green); }
-.monthly-target-meter b { color: var(--muted); font: 650 .46rem var(--mono); text-align: right; }
 .symbol-focus, .volatility-card header button { border: 0; padding: 0; background: transparent; color: var(--gold); font: 800 .62rem var(--mono); }
 .symbol-focus:hover, .symbol-focus:focus-visible, .volatility-card header button:hover, .volatility-card header button:focus-visible { text-decoration: underline; outline: 0; }
 .workspace-state { display: inline-block; border: 1px solid var(--gold-soft); padding: 3px 5px; color: var(--gold); font: 700 .43rem var(--mono); }

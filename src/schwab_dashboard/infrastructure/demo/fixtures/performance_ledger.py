@@ -8,8 +8,6 @@ from schwab_dashboard.application.dashboard.performance import (
 )
 
 D = Decimal
-MONTHLY_TARGET = D("3000")
-TENTH = D("0.1")
 
 
 def build_quarter_history() -> tuple[QuarterPerformanceSummary, ...]:
@@ -67,6 +65,5 @@ def _monthly_summary(row: tuple[object, ...]) -> MonthlyPerformanceSummary:
         assigned_contracts=int(str(row[6])),
         called_away_shares=int(str(row[7])),
         average_covered_capital=D(str(row[8])),
-        target_progress_percent=(option_cash / MONTHLY_TARGET * 100).quantize(TENTH),
         is_partial=bool(row[9]),
     )

@@ -24,7 +24,6 @@ MONEY = D("0.01")
 TENTH = D("0.1")
 YEAR_DAYS = D("365")
 MONTH_DAYS = YEAR_DAYS / D("12")
-MONTHLY_TARGET = D("3000")
 
 
 def build_performance_windows(
@@ -175,8 +174,6 @@ def _window(
         annualized_total_yield=(total_cash / stock_value * annual_factor * 100).quantize(TENTH),
         monthly_option_run_rate=monthly_run_rate,
         monthly_total_run_rate=monthly_total_run_rate,
-        target_cash_for_window=(MONTHLY_TARGET * D(days) / MONTH_DAYS).quantize(MONEY),
-        target_progress_percent=max(ZERO, monthly_run_rate / MONTHLY_TARGET * 100).quantize(TENTH),
         premium_capture_percent=(option_cash / gross_premium * 100).quantize(TENTH)
         if gross_premium
         else ZERO,

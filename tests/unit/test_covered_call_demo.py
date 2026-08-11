@@ -120,7 +120,7 @@ def test_portfolio_value_reconciles_with_personalized_inventory() -> None:
     )
 
 
-def test_every_performance_window_reconciles_cash_and_goal_math() -> None:
+def test_every_performance_window_reconciles_cash_and_rate_math() -> None:
     snapshot = DemoDashboardReader().execute()
     windows = {window.key: window for window in snapshot.performance_windows}
 
@@ -128,8 +128,6 @@ def test_every_performance_window_reconciles_cash_and_goal_math() -> None:
     for window in windows.values():
         assert window.gross_premium - window.buyback_cost == window.option_cash
         assert window.option_cash + window.dividends == window.total_cash
-        assert window.target_cash_for_window >= D("0")
-        assert window.target_progress_percent >= D("0")
         expected_capture = (
             (window.option_cash / window.gross_premium * 100).quantize(D("0.1"))
             if window.gross_premium
@@ -146,11 +144,9 @@ def test_every_performance_window_reconciles_cash_and_goal_math() -> None:
 
     assert windows["quarter"].option_cash == snapshot.covered_calls.net_option_cash
     assert windows["quarter"].dividends == snapshot.covered_calls.dividends
-    assert windows["r365"].target_cash_for_window == D("36000.00")
     assert windows["r365"].monthly_option_run_rate == D("2177.92")
     assert windows["r365"].monthly_total_run_rate == D("2514.00")
-    assert windows["ytd"].monthly_option_run_rate < D("3000")
-    assert windows["r365"].monthly_option_run_rate < D("3000")
+    assert windows["ytd"].monthly_option_run_rate == D("2269.44")
 
 
 def test_monthly_performance_reconciles_to_calendar_ytd() -> None:
@@ -180,25 +176,20 @@ def test_monthly_performance_reconciles_to_calendar_ytd() -> None:
     assert snapshot.monthly_performance[-1].is_partial
 
 
-def test_management_objective_exposes_inputs_instead_of_a_single_risk_score() -> None:
+def test_operator_metrics_report_observed_results_without_a_cash_target() -> None:
     snapshot = DemoDashboardReader().execute()
-    objective = snapshot.objective
+    metrics = snapshot.operator_metrics
 
-    assert objective.monthly_option_target == D("3000")
-    assert objective.rolling_year_target_gap == (
-        objective.monthly_option_target - objective.rolling_year_monthly_average
-    )
-    assert objective.premium_capture_percent + objective.buyback_drag_percent == D("100.0")
-    assert objective.compliant_call_tickets == 15
-    assert objective.total_call_tickets == 17
-    assert objective.target_months_hit <= objective.observed_months
-    assert sum(objective.monthly_option_results, D("0")) == D("26135")
-    assert objective.target_months_hit == sum(
-        1
-        for result in objective.monthly_option_results
-        if result >= objective.monthly_option_target
-    )
-    assert objective.uncovered_contract_capacity == (
+    assert metrics.rolling_year_monthly_average == D("2177.92")
+    assert metrics.rolling_three_month_average == D("2423.33")
+    assert metrics.median_completed_month == D("2395")
+    assert metrics.best_completed_month == D("3300")
+    assert metrics.worst_completed_month == D("1700")
+    assert metrics.completed_months == 7
+    assert metrics.premium_capture_percent + metrics.buyback_drag_percent == D("100.0")
+    assert metrics.compliant_call_tickets == 15
+    assert metrics.total_call_tickets == 17
+    assert metrics.uncovered_contract_capacity == (
         snapshot.covered_calls.contract_capacity - snapshot.covered_calls.active_contracts
     )
 
@@ -385,8 +376,17 @@ def test_price_paths_use_daily_closes_and_reconciled_option_events() -> None:
             lifecycle_groups.setdefault(event.lifecycle_id, []).append(event)
             if event.event_type == "sale":
                 assert event.linked_sale_sequence is None
+                if event.outcome == "Open":
+                    assert event.linked_resolution_sequence is None
+                else:
+                    assert event.linked_resolution_sequence is not None
             else:
                 assert event.linked_sale_sequence is not None
+                assert event.linked_resolution_sequence is None
+            assert event.record_id
+            assert event.campaign_id
+            assert event.contracts > 0
+            assert event.gross_premium > D("0")
         assert all(len(group) <= 2 for group in lifecycle_groups.values())
 
         prices_by_date = {point.date: point.price for point in item.price_points}

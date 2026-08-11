@@ -16,8 +16,8 @@ from schwab_dashboard.application.dashboard.performance import (
     BasisLensSummary,
     CashChartSeries,
     ExpirationBucket,
-    ManagementObjectiveSummary,
     MonthlyPerformanceSummary,
+    OperatorMetricsSummary,
     PerformanceWindowSummary,
     QuarterPerformanceSummary,
     StrategyAttributionSummary,
@@ -45,8 +45,6 @@ class IncomeSummary:
     year_to_date: Decimal
     win_rate: Decimal
     annualized_yield: Decimal
-    monthly_target: Decimal
-    target_progress_percent: Decimal
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,7 +142,7 @@ class DashboardSnapshot:
     expiration_calendar: Sequence[ExpirationBucket]
     policies: Sequence[UnderlyingPolicy]
     quarter_history: Sequence[QuarterPerformanceSummary]
-    objective: ManagementObjectiveSummary
+    operator_metrics: OperatorMetricsSummary
     basis_lens: Sequence[BasisLensSummary]
     positions: Sequence[PositionSummary]
     allocations: Sequence[AllocationSlice]

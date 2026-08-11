@@ -1,0 +1,65 @@
+{% for event in item.price_events %}
+<button
+  type="button"
+  class="price-event {{ event.event_type }}"
+  data-nibwick-react="audit"
+  data-chart-event
+  data-chart-event-trigger
+  data-event-kind="option"
+  data-event-sequence="{{ event.sequence }}"
+  data-date="{{ event.date.isoformat() }}"
+  data-price="{{ event.price }}"
+  data-lifecycle-id="{{ event.lifecycle_id }}"
+  data-event-type="{{ event.event_type }}"
+  data-contracts="{{ event.contracts }}"
+  data-strike="{{ event.strike }}"
+  data-expires-on="{{ event.expires_on.isoformat() }}"
+  data-underlying-at-sale="{{ event.underlying_at_sale }}"
+  data-strike-buffer="{{ event.strike_upside_percent }}"
+  data-entry-dte="{{ event.entry_days_to_expiration }}"
+  data-premium-per-share="{{ event.premium_per_share }}"
+  data-gross-premium="{{ event.gross_premium }}"
+  data-buyback-cost="{{ event.buyback_cost }}"
+  data-net-cash="{{ event.net_cash }}"
+  data-outcome="{{ event.outcome }}"
+  {% if event.linked_sale_sequence %}data-linked-sale-sequence="{{ event.linked_sale_sequence }}"{% endif %}
+  {% if event.linked_resolution_sequence %}data-linked-resolution-sequence="{{ event.linked_resolution_sequence }}"{% endif %}
+  style="--event-x: {{ event.x_percent }}%; --event-y: {{ event.y_percent }}%; --event-offset: {{ event.vertical_offset }}px"
+  aria-label="Event {{ event.sequence }}: {{ event.label }} {{ event.detail }}{% if event.linked_sale_sequence %}; resolves sale event {{ event.linked_sale_sequence }}{% endif %}"
+  aria-haspopup="dialog"
+  aria-expanded="false"
+  aria-controls="{{ item.symbol | lower }}-event-popover"
+  aria-describedby="{{ item.symbol | lower }}-event-tip-{{ event.sequence }}"
+><b aria-hidden="true">{{ event.sequence }}{% if event.linked_sale_sequence %}<small>←{{ event.linked_sale_sequence }}</small>{% endif %}</b><span class="chart-event-quick" role="tooltip" id="{{ item.symbol | lower }}-event-tip-{{ event.sequence }}">#{{ event.sequence }} · {{ event.detail }}{% if event.event_type == 'sale' %} · +{{ event.gross_premium | money }}{% endif %}</span></button>
+{% endfor %}
+{% for event in item.share_trade_events %}
+<button
+  type="button"
+  class="share-event {{ event.action }}"
+  data-nibwick-react="shares"
+  data-chart-event
+  data-chart-event-trigger
+  data-event-kind="share"
+  data-date="{{ event.date.isoformat() }}"
+  data-price="{{ event.price }}"
+  data-shares="{{ event.shares }}"
+  data-share-trade="{{ event.action }}"
+  data-event-type="share-{{ event.action }}"
+  style="--event-x: {{ event.x_percent }}%; --event-y: {{ event.y_percent }}%"
+  aria-label="{{ event.label }}: {{ event.action }} {{ event.shares }} shares at {{ event.price | money }}"
+  aria-haspopup="dialog"
+  aria-expanded="false"
+  aria-controls="{{ item.symbol | lower }}-event-popover"
+><b aria-hidden="true">{{ event.glyph }}</b></button>
+{% endfor %}
+
+<aside class="chart-event-popover" id="{{ item.symbol | lower }}-event-popover" data-chart-event-popover role="dialog" aria-modal="false" aria-label="{{ item.symbol }} chart event details" hidden>
+  <header><span data-event-popover-heading></span><button type="button" data-chart-event-close aria-label="Close event details">×</button></header>
+  <div class="chart-event-contract"><strong data-event-popover-contract></strong><span data-event-popover-cash></span></div>
+  <div class="chart-event-facts">
+    <div><span data-event-fact-one-label></span><b data-event-fact-one-value></b></div>
+    <div><span data-event-fact-two-label></span><b data-event-fact-two-value></b></div>
+    <div><span data-event-fact-three-label></span><b data-event-fact-three-value></b></div>
+  </div>
+  <footer data-event-popover-link></footer>
+</aside>

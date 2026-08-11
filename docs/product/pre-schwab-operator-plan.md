@@ -17,7 +17,7 @@ The desk serves a covered-call seller and dividend collector. It is not a generi
 
 Only three surfaces are primary:
 
-- **Desk:** selected-period cash, target pace, live obligations, per-name state, and one actionable exception.
+- **Desk:** selected-period cash, observed pace, live obligations, per-name state, and one actionable exception.
 - **Open Calls:** the contract register and expandable obligation, market, economics, event, and campaign detail.
 - **Results:** monthly ledger, campaign outcomes, assignments, capital recovery, and stock-only attribution.
 
@@ -79,7 +79,7 @@ Exact contract quantities, sale dates, premiums, and current marks must not be i
 
 - Link opening sales, closing buys, rolls, expirations, and assignments into campaigns.
 - Preserve execution truth while showing cumulative campaign economics.
-- Add a month-by-month ledger for option cash, dividends, total cash, target result, fees, assignments, and covered capital.
+- Add a month-by-month ledger for option cash, dividends, total cash, fees, assignments, and covered capital.
 - Add an expiration and committed-share calendar with earnings and dividend overlays when available.
 
 ### Batch C — honest strategy attribution

@@ -4,10 +4,11 @@
 
   if (!canvases.length) return;
 
-  const makePath = (className, pathData) => {
+  const makePath = (className, pathData, lifecycleId) => {
     const path = document.createElementNS(SVG_NAMESPACE, "path");
     path.setAttribute("class", className);
     path.setAttribute("d", pathData);
+    path.dataset.lifecycleId = lifecycleId;
     return path;
   };
 
@@ -57,8 +58,12 @@
       ].join(" ");
 
       overlay.append(
-        makePath("lifecycle-link-halo", pathData),
-        makePath(`lifecycle-link ${outcome.dataset.eventType}`, pathData),
+        makePath("lifecycle-link-halo", pathData, outcome.dataset.lifecycleId),
+        makePath(
+          `lifecycle-link ${outcome.dataset.eventType}`,
+          pathData,
+          outcome.dataset.lifecycleId,
+        ),
       );
     }
   };

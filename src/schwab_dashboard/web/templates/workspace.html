@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <title>{{ workspace.label }} · Incoooming Unofficial Desk</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=52">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=53">
     <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=4">
   </head>
   <body class="workspace-page" data-workspace-key="{{ workspace.key.value }}" data-workspace-context='{"account":"{{ snapshot.accounts[0].account_mask if snapshot.accounts else "---" }}","symbol":"ALL","asOf":"{{ snapshot.as_of.date().isoformat() }}"}'>
@@ -68,6 +68,5 @@
 
     <script src="{{ url_for('static', path='/workspace-navigation.js') }}?v=2" defer></script>
     <script src="{{ url_for('static', path='/workspace-channel.js') }}?v=1" defer></script>
-    <script src="{{ url_for('static', path='/monthly-performance.js') }}?v=1" defer></script>
   </body>
 </html>

@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date
+from datetime import date as Date
 from decimal import Decimal
 
 
 @dataclass(frozen=True, slots=True)
 class PricePoint:
-    date: date
+    date: Date
     label: str
     price: Decimal
     x_percent: Decimal
@@ -20,7 +20,9 @@ class PricePoint:
 class PriceEvent:
     sequence: int
     lifecycle_id: int
-    date: date
+    record_id: str
+    campaign_id: str
+    date: Date
     label: str
     event_type: str
     glyph: str
@@ -30,11 +32,23 @@ class PriceEvent:
     y_percent: Decimal
     vertical_offset: int
     linked_sale_sequence: int | None
+    linked_resolution_sequence: int | None
+    expires_on: Date
+    contracts: int
+    strike: Decimal
+    underlying_at_sale: Decimal
+    strike_upside_percent: Decimal
+    entry_days_to_expiration: int
+    premium_per_share: Decimal
+    gross_premium: Decimal
+    buyback_cost: Decimal
+    net_cash: Decimal
+    outcome: str
 
 
 @dataclass(frozen=True, slots=True)
 class ShareTradeEvent:
-    date: date
+    date: Date
     label: str
     action: str
     glyph: str
@@ -61,7 +75,7 @@ class UnderlyingPerformanceWindow:
 class RollQuoteCandidate:
     """One later/higher call quote that could replace an open short call."""
 
-    expires_on: date
+    expires_on: Date
     strike: Decimal
     sell_bid_per_share: Decimal
     quote_source: str
@@ -72,8 +86,8 @@ class OpenCallClock:
     record_id: str
     campaign_id: str
     policy_id: str
-    sold_on: date
-    expires_on: date
+    sold_on: Date
+    expires_on: Date
     strike: Decimal
     contracts: int
     underlying_at_sale: Decimal
@@ -81,7 +95,7 @@ class OpenCallClock:
     bid_per_share: Decimal
     spread_per_share: Decimal
     spread_percent_of_mark: Decimal
-    quote_observed_on: date | None
+    quote_observed_on: Date | None
     quote_status: str
     implied_volatility_percent: Decimal | None
     delta: Decimal | None
@@ -120,8 +134,8 @@ class CallSaleRecord:
     parent_record_id: str | None
     policy_id: str
     symbol: str
-    sold_on: date
-    expires_on: date
+    sold_on: Date
+    expires_on: Date
     contracts: int
     underlying_at_sale: Decimal
     strike: Decimal
@@ -133,7 +147,7 @@ class CallSaleRecord:
     net_cash: Decimal
     outcome: str
     sale_signal: str
-    closed_on: date | None
+    closed_on: Date | None
     fees: Decimal
 
 
@@ -168,7 +182,7 @@ class UnderlyingCallStats:
     average_open_call_iv_percent: Decimal
     average_open_call_delta: Decimal
     current_strike_buffer_percent: Decimal
-    next_ex_dividend_date: date | None
+    next_ex_dividend_date: Date | None
     dividend_per_share: Decimal
     dividend_overlap_contracts: int
     premium_capture_percent: Decimal

@@ -11,7 +11,7 @@ from schwab_dashboard.application.dashboard.calculations import (
 )
 from schwab_dashboard.application.dashboard.covered_calls import CoveredCallPortfolioSummary
 from schwab_dashboard.application.dashboard.models import DashboardSnapshot, IncomeSummary
-from schwab_dashboard.application.dashboard.performance import ManagementObjectiveSummary
+from schwab_dashboard.application.dashboard.performance import OperatorMetricsSummary
 from schwab_dashboard.application.ports.repositories import UnitOfWorkFactory
 
 ZERO = Decimal("0")
@@ -54,8 +54,6 @@ class ReadDashboard:
                 year_to_date=ZERO,
                 win_rate=ZERO,
                 annualized_yield=ZERO,
-                monthly_target=ZERO,
-                target_progress_percent=ZERO,
             ),
             income_periods=(),
             cash_chart_series=(),
@@ -70,7 +68,7 @@ class ReadDashboard:
             expiration_calendar=(),
             policies=(),
             quarter_history=(),
-            objective=_empty_objective(),
+            operator_metrics=_empty_operator_metrics(),
             basis_lens=(),
             positions=positions,
             allocations=summarize_allocations(positions),
@@ -107,17 +105,17 @@ def _empty_covered_calls() -> CoveredCallPortfolioSummary:
     )
 
 
-def _empty_objective() -> ManagementObjectiveSummary:
-    return ManagementObjectiveSummary(
-        monthly_option_target=ZERO,
+def _empty_operator_metrics() -> OperatorMetricsSummary:
+    return OperatorMetricsSummary(
         rolling_four_week_option_cash=ZERO,
         quarter_monthly_run_rate=ZERO,
         year_to_date_monthly_run_rate=ZERO,
         rolling_year_monthly_average=ZERO,
-        rolling_year_target_gap=ZERO,
-        rolling_year_target_progress_percent=ZERO,
-        target_months_hit=0,
-        observed_months=0,
+        rolling_three_month_average=ZERO,
+        median_completed_month=ZERO,
+        best_completed_month=ZERO,
+        worst_completed_month=ZERO,
+        completed_months=0,
         compliant_call_tickets=0,
         total_call_tickets=0,
         safe_ticket_pace_monthly=ZERO,
@@ -127,5 +125,4 @@ def _empty_objective() -> ManagementObjectiveSummary:
         average_strike_gap_percent=ZERO,
         average_days_to_expiration=ZERO,
         uncovered_contract_capacity=0,
-        monthly_option_results=(),
     )

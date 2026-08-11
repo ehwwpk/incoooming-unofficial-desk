@@ -10,7 +10,8 @@ from schwab_dashboard.application.dashboard.covered_calls import (
 )
 from schwab_dashboard.application.dashboard.performance import (
     BasisLensSummary,
-    ManagementObjectiveSummary,
+    MonthlyPerformanceSummary,
+    OperatorMetricsSummary,
     PerformanceWindowSummary,
     calculate_capital_recovery,
 )
@@ -20,17 +21,17 @@ from schwab_dashboard.application.policy.models import UnderlyingPolicy
 D = Decimal
 ZERO = D("0")
 TENTH = D("0.1")
-YEAR_DAYS = D("365")
-MONTH_DAYS = YEAR_DAYS / D("12")
-MONTHLY_TARGET = D("3000")
+MONTH_DAYS = D("365") / D("12")
+MONEY = D("0.01")
 
 
-def build_objective_summary(
+def build_operator_metrics(
     records: Sequence[CallSaleRecord],
     covered_calls: CoveredCallPortfolioSummary,
     windows: Sequence[PerformanceWindowSummary],
     policies: Sequence[UnderlyingPolicy],
-) -> ManagementObjectiveSummary:
+    monthly: Sequence[MonthlyPerformanceSummary],
+) -> OperatorMetricsSummary:
     by_key = {window.key: window for window in windows}
     total_contracts = sum(record.contracts for record in records)
     policy_by_id = {
@@ -54,36 +55,21 @@ def build_objective_summary(
     weighted_dte = (
         D(sum(record.days_to_expiration * record.contracts for record in records)) / total_contracts
     )
-    rolling_average = by_key["r365"].monthly_option_run_rate
-    monthly_results = tuple(
-        D(value)
-        for value in (
-            "3395",
-            "2600",
-            "2100",
-            "1700",
-            "2100",
-            "1700",
-            "3300",
-            "2900",
-            "2395",
-            "1750",
-            "3125",
-            "-930",
-        )
-    )
-    return ManagementObjectiveSummary(
-        monthly_option_target=MONTHLY_TARGET,
+    completed_results = [item.option_cash for item in monthly if not item.is_partial]
+    ordered_results = sorted(completed_results)
+    recent_results = completed_results[-3:]
+    return OperatorMetricsSummary(
         rolling_four_week_option_cash=by_key["month"].option_cash,
         quarter_monthly_run_rate=by_key["quarter"].monthly_option_run_rate,
         year_to_date_monthly_run_rate=by_key["ytd"].monthly_option_run_rate,
-        rolling_year_monthly_average=rolling_average,
-        rolling_year_target_gap=MONTHLY_TARGET - rolling_average,
-        rolling_year_target_progress_percent=(rolling_average / MONTHLY_TARGET * 100).quantize(
-            TENTH
+        rolling_year_monthly_average=by_key["r365"].monthly_option_run_rate,
+        rolling_three_month_average=(sum(recent_results, ZERO) / D(len(recent_results))).quantize(
+            MONEY
         ),
-        target_months_hit=sum(1 for result in monthly_results if result >= MONTHLY_TARGET),
-        observed_months=len(monthly_results),
+        median_completed_month=ordered_results[len(ordered_results) // 2],
+        best_completed_month=max(completed_results),
+        worst_completed_month=min(completed_results),
+        completed_months=len(completed_results),
         compliant_call_tickets=compliant,
         total_call_tickets=len(records),
         safe_ticket_pace_monthly=(D(len(records)) * MONTH_DAYS / D("85")).quantize(TENTH),
@@ -99,7 +85,6 @@ def build_objective_summary(
         uncovered_contract_capacity=(
             covered_calls.contract_capacity - covered_calls.active_contracts
         ),
-        monthly_option_results=monthly_results,
     )
 
 
