@@ -150,6 +150,11 @@ def _underlying_stats(
     current_range = current_price - low
     range_width = high - low
     current_symbols = {call.option_symbol for call in item.calls}
+    current_marks = {
+        call.option_symbol: call.estimated_mark_per_share
+        for call in item.calls
+        if call.estimated_mark_per_share is not None
+    }
     basis_total = average_cost * Decimal(item.shares)
     total_attributed_income = net_option_cash + dividend_cash
     return UnderlyingCallStats(
@@ -238,6 +243,7 @@ def _underlying_stats(
             lifecycle_events=symbol_lifecycle,
             points=price_points,
             current_option_symbols=current_symbols,
+            current_option_marks=current_marks,
         ),
         share_trade_events=build_share_trade_events(
             symbol,

@@ -73,6 +73,13 @@ def summarize_portfolio(
     gross_position_value = sum((abs(position.market_value or ZERO) for position in positions), ZERO)
     liquidation_values = [_optional_decimal(row.get("liquidation_value")) for row in balances]
     liquidation_value = _sum_known(liquidation_values)
+    day_balance_pairs = [
+        (
+            _optional_decimal(row.get("liquidation_value")),
+            _optional_decimal(row.get("initial_liquidation_value")),
+        )
+        for row in balances
+    ]
     equity = _sum_known([_optional_decimal(row.get("equity")) for row in balances])
     cash_value = _sum_known([_optional_decimal(row.get("cash_balance")) for row in balances])
     margin_balance = _sum_known([_optional_decimal(row.get("margin_balance")) for row in balances])
@@ -84,8 +91,22 @@ def summarize_portfolio(
         [_optional_decimal(row.get("maintenance_requirement")) for row in balances]
     )
     total_value = liquidation_value if liquidation_value is not None else net_position_value
-    day_profit_loss = sum(((position.day_profit_loss or ZERO) for position in positions), ZERO)
-    prior_value = total_value - day_profit_loss
+    if day_balance_pairs and all(
+        current is not None and initial is not None
+        for current, initial in day_balance_pairs
+    ):
+        current_day_value = sum(
+            (current for current, _ in day_balance_pairs if current is not None), ZERO
+        )
+        prior_value = sum(
+            (initial for _, initial in day_balance_pairs if initial is not None), ZERO
+        )
+        day_profit_loss = current_day_value - prior_value
+    else:
+        day_profit_loss = sum(
+            ((position.day_profit_loss or ZERO) for position in positions), ZERO
+        )
+        prior_value = total_value - day_profit_loss
     day_percent = day_profit_loss / prior_value * 100 if prior_value else ZERO
     return PortfolioSummary(
         total_value=total_value,

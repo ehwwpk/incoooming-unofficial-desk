@@ -79,6 +79,22 @@ def test_portfolio_uses_liquidation_value_not_gross_positions() -> None:
     assert summary.day_profit_loss_percent == D("4.166666666666666666666666667")
 
 
+def test_portfolio_prefers_account_day_change_over_contradictory_position_pl() -> None:
+    stock = _position(market_value=D("62420"), day_profit_loss=D("-10904.37"))
+    summary = summarize_portfolio(
+        (stock,),
+        (
+            {
+                "liquidation_value": D("103689.97"),
+                "initial_liquidation_value": D("103853.77"),
+            },
+        ),
+    )
+
+    assert summary.day_profit_loss == D("-163.80")
+    assert summary.day_profit_loss_percent == D("-163.80") / D("103853.77") * D("100")
+
+
 def test_short_puts_share_the_existing_underlying_group() -> None:
     stock = _position()
     call = _position(

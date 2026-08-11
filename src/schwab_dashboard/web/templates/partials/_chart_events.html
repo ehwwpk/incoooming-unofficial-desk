@@ -23,6 +23,8 @@
   data-buyback-cost="{{ event.buyback_cost }}"
   data-net-cash="{{ event.net_cash }}"
   data-outcome="{{ event.outcome }}"
+  {% if event.option_value_per_share is not none %}data-option-value-per-share="{{ event.option_value_per_share }}"{% endif %}
+  {% if event.option_value_vs_credit_percent is not none %}data-option-value-percent="{{ event.option_value_vs_credit_percent }}"{% endif %}
   {% if event.linked_sale_sequence %}data-linked-sale-sequence="{{ event.linked_sale_sequence }}"{% endif %}
   {% if event.linked_resolution_sequence %}data-linked-resolution-sequence="{{ event.linked_resolution_sequence }}"{% endif %}
   {% if event.resolved_on %}data-resolved-on="{{ event.resolved_on.isoformat() }}"{% endif %}
@@ -71,6 +73,15 @@
       <span data-event-term-end></span>
     </div>
     <div class="option-term-track" data-event-term-track role="progressbar" aria-label="Option term elapsed" aria-valuemin="0" aria-valuemax="100"><span></span><i></i></div>
+  </div>
+  <div class="option-value-meter chart-event-value" data-event-value role="group" hidden>
+    <div class="option-value-labels">
+      <span>OPTION VALUE / CREDIT</span>
+      <strong data-event-value-percent></strong>
+      <em data-event-value-overrun></em>
+    </div>
+    <div class="option-value-track" aria-hidden="true"><span></span><i></i></div>
+    <small data-event-value-detail></small>
   </div>
   <footer data-event-popover-link></footer>
 </aside>

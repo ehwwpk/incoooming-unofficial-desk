@@ -66,6 +66,48 @@
     const term = popover.querySelector("[data-event-term]");
     if (term) term.hidden = true;
   };
+  const hideValue = (popover) => {
+    const value = popover.querySelector("[data-event-value]");
+    if (value) value.hidden = true;
+  };
+  const populateValue = (popover, trigger) => {
+    const meter = popover.querySelector("[data-event-value]");
+    const ratio = number(trigger.dataset.optionValuePercent);
+    const optionValue = number(trigger.dataset.optionValuePerShare);
+    const entryCredit = number(trigger.dataset.premiumPerShare);
+    if (!meter || !trigger.dataset.optionValuePercent || entryCredit <= 0) {
+      hideValue(popover);
+      return;
+    }
+
+    const outcome = (trigger.dataset.outcome || "").toUpperCase();
+    const checkpoints = {
+      OPEN: "NOW",
+      EXPIRED: "AT EXPIRY",
+      CLOSED: "CLOSE COST",
+      ROLLED: "ROLL COST",
+    };
+    const checkpoint = checkpoints[outcome] || "AT RESOLUTION";
+    meter.hidden = false;
+    meter.classList.toggle("is-over-entry", ratio > 100);
+    meter.classList.toggle("is-under-entry", ratio <= 100);
+    meter.style.setProperty("--value-progress", `${ratio}%`);
+    meter.setAttribute(
+      "aria-label",
+      `Option value was ${ratio.toFixed(1)} percent of premium received: ${money(optionValue)} per share ${checkpoint.toLowerCase()}, compared with ${money(entryCredit)} per share received`,
+    );
+    set(meter, "[data-event-value-percent]", `${ratio.toFixed(1)}%`);
+    set(
+      meter,
+      "[data-event-value-overrun]",
+      ratio > 100 ? `+${(ratio - 100).toFixed(1)}% OVER` : "ENTRY 100%",
+    );
+    set(
+      meter,
+      "[data-event-value-detail]",
+      `${money(optionValue)}/SH ${checkpoint} · ${money(entryCredit)}/SH RECEIVED`,
+    );
+  };
   const populateTerm = (popover, trigger) => {
     const term = popover.querySelector("[data-event-term]");
     const track = popover.querySelector("[data-event-term-track]");
@@ -139,6 +181,8 @@
 
   const populateOption = (popover, trigger, symbol) => {
     const type = trigger.dataset.eventType;
+    const outcome = (trigger.dataset.outcome || type).toUpperCase();
+    const isOpenRoll = type === "rolled" && outcome === "OPEN";
     const contracts = number(trigger.dataset.contracts);
     const grossPremium = number(trigger.dataset.grossPremium);
     const buybackCost = number(trigger.dataset.buybackCost);
@@ -152,13 +196,16 @@
     if (type === "expired") {
       cashText = `${money(grossPremium)} kept · no close debit`;
       footer = `RESOLVES PREMIUM EVENT #${trigger.dataset.linkedSaleSequence} · ${signedMoney(netCash)} NET OPTION CASH`;
-    } else if (type === "closed" || type === "rolled") {
+    } else if (type === "closed" || (type === "rolled" && !isOpenRoll)) {
       cashText = `${signedMoney(-buybackCost)} close · ${signedMoney(netCash)} leg net`;
       cashClass = buybackCost > 0 ? "negative" : "positive";
       footer = `RESOLVES PREMIUM EVENT #${trigger.dataset.linkedSaleSequence} · ${trigger.dataset.outcome.toUpperCase()}`;
     } else if (type === "assigned") {
       cashText = `${money(grossPremium)} kept · ${contracts * 100} shares called away`;
       footer = `RESOLVES PREMIUM EVENT #${trigger.dataset.linkedSaleSequence} · ASSIGNED`;
+    } else if (isOpenRoll) {
+      cashText = `${signedMoney(grossPremium)} received · ${money(trigger.dataset.premiumPerShare)}/sh`;
+      footer = "OPEN ROLL LEG";
     } else if (trigger.dataset.linkedResolutionSequence) {
       footer = `LATER RESOLVED → #${trigger.dataset.linkedResolutionSequence} ${trigger.dataset.outcome.toUpperCase()}`;
     }
@@ -190,6 +237,7 @@
     set(popover, "[data-event-fact-three-label]", "ENTRY TERM");
     set(popover, "[data-event-fact-three-value]", `${trigger.dataset.entryDte} DTE`);
     populateTerm(popover, trigger);
+    populateValue(popover, trigger);
     set(popover, "[data-event-popover-link]", footer);
   };
 
@@ -210,6 +258,7 @@
     set(popover, "[data-event-fact-three-label]", "DATE");
     set(popover, "[data-event-fact-three-value]", shortDate(trigger.dataset.date));
     hideTerm(popover);
+    hideValue(popover);
     set(popover, "[data-event-popover-link]", "UNDERLYING INVENTORY EVENT");
   };
 

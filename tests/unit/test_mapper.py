@@ -62,6 +62,7 @@ def test_maps_balances_and_short_call_identity() -> None:
                         "marginBalance": -25000,
                         "buyingPower": 50000,
                     },
+                    "initialBalances": {"liquidationValue": 124000},
                     "positions": [
                         {
                             "longQuantity": 0,
@@ -85,6 +86,7 @@ def test_maps_balances_and_short_call_identity() -> None:
 
     assert records[0].balances is not None
     assert records[0].balances.liquidation_value == Decimal("125000")
+    assert records[0].balances.initial_liquidation_value == Decimal("124000")
     assert records[0].balances.is_portfolio_margin is True
     position = records[0].positions[0]
     assert position.average_price == Decimal("2.45")

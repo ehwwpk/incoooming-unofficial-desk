@@ -41,6 +41,7 @@ class AccountBalanceSnapshotWrite:
     raw_event_id: str
     observed_at: datetime
     liquidation_value: Decimal | None = None
+    initial_liquidation_value: Decimal | None = None
     equity: Decimal | None = None
     cash_balance: Decimal | None = None
     money_market_fund: Decimal | None = None

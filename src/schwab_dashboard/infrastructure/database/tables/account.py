@@ -78,6 +78,7 @@ class AccountBalanceSnapshotTable(Base):
     )
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     liquidation_value: Mapped[Decimal | None] = mapped_column(Numeric(28, 10))
+    initial_liquidation_value: Mapped[Decimal | None] = mapped_column(Numeric(28, 10))
     equity: Mapped[Decimal | None] = mapped_column(Numeric(28, 10))
     cash_balance: Mapped[Decimal | None] = mapped_column(Numeric(28, 10))
     money_market_fund: Mapped[Decimal | None] = mapped_column(Numeric(28, 10))

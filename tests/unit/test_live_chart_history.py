@@ -39,6 +39,33 @@ def test_resolution_uses_originating_sale_lifecycle() -> None:
     assert events[0].lifecycle_id == events[1].lifecycle_id == events[0].sequence
     assert events[0].linked_resolution_sequence == events[1].sequence
     assert events[1].linked_sale_sequence == events[0].sequence
+    assert events[0].option_value_per_share == D("0.5")
+    assert events[0].option_value_vs_credit_percent == D("25.00")
+    assert events[1].option_value_vs_credit_percent == D("25.00")
+
+
+def test_open_event_compares_current_mark_with_original_credit() -> None:
+    points = build_price_points("KTOS", _bars())
+    sale = _option_execution(
+        key="sale",
+        occurred_at=datetime(2026, 8, 5, 15, tzinfo=UTC),
+        side="sell",
+        position_effect="opening",
+        net_cash=D("200"),
+    )
+
+    events = build_option_events(
+        "KTOS",
+        executions=(sale,),
+        lifecycle_events=(),
+        points=points,
+        current_option_symbols={"KTOS  260918C00065000"},
+        current_option_marks={"KTOS  260918C00065000": D("3")},
+    )
+
+    assert events[0].outcome == "OPEN"
+    assert events[0].option_value_per_share == D("3")
+    assert events[0].option_value_vs_credit_percent == D("150.0")
 
 
 def test_share_fills_aggregate_to_one_marker_per_side_per_day() -> None:

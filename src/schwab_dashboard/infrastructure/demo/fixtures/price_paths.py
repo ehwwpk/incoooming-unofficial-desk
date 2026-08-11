@@ -131,6 +131,7 @@ def build_price_events(
         point = min(points, key=lambda item: abs((item.date - action.event_date).days))
         lane = lanes.get(action.event_date, 0)
         lanes[action.event_date] = lane + 1
+        option_value_per_share = _checkpoint_option_value(action.record)
         events.append(
             PriceEvent(
                 sequence=sequence,
@@ -169,9 +170,25 @@ def build_price_events(
                 buyback_cost=action.record.buyback_cost,
                 net_cash=action.record.net_cash,
                 outcome=action.record.outcome,
+                option_value_per_share=option_value_per_share,
+                option_value_vs_credit_percent=(
+                    option_value_per_share / action.record.premium_per_share * D("100")
+                    if option_value_per_share is not None
+                    and action.record.premium_per_share
+                    else None
+                ),
             )
         )
     return tuple(events)
+
+
+def _checkpoint_option_value(record: CallSaleRecord) -> Decimal | None:
+    outcome = record.outcome.lower()
+    if outcome == "expired":
+        return D("0")
+    if outcome in {"closed", "rolled"} and record.contracts:
+        return record.buyback_cost / D(str(record.contracts * 100))
+    return None
 
 
 def build_share_trade_events(

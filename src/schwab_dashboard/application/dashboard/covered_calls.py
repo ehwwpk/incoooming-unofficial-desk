@@ -46,6 +46,8 @@ class PriceEvent:
     buyback_cost: Decimal
     net_cash: Decimal
     outcome: str
+    option_value_per_share: Decimal | None
+    option_value_vs_credit_percent: Decimal | None
 
 
 @dataclass(frozen=True, slots=True)

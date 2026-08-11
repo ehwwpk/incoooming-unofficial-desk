@@ -1,0 +1,24 @@
+{% macro option_value_meter(value_percent, value_per_share, credit_per_share, checkpoint='NOW') -%}
+{% if credit_per_share > 0 %}
+<div
+  class="option-value-meter {{ 'is-over-entry' if value_percent > 100 else 'is-under-entry' }}"
+  style="--value-progress: {{ value_percent | number(1) }}%"
+  role="group"
+  aria-label="Option value is {{ value_percent | percent }} of premium received: {{ value_per_share | money }} per share {{ checkpoint | lower }}, compared with {{ credit_per_share | money }} per share received"
+>
+  <div class="option-value-labels">
+    <span>OPTION VALUE / CREDIT</span>
+    <strong>{{ value_percent | percent }}</strong>
+    {% if value_percent > 100 %}<em>+{{ (value_percent - 100) | percent }} OVER</em>{% else %}<em>ENTRY 100%</em>{% endif %}
+  </div>
+  <div class="option-value-track" aria-hidden="true"><span></span><i></i></div>
+  <small>{{ value_per_share | money }}/SH {{ checkpoint }} &middot; {{ credit_per_share | money }}/SH RECEIVED</small>
+</div>
+{% else %}
+<div class="option-value-meter is-unavailable" role="group" aria-label="Option value comparison unavailable">
+  <div class="option-value-labels"><span>OPTION VALUE / CREDIT</span><strong>—</strong><em>NO ENTRY CREDIT</em></div>
+  <div class="option-value-track" aria-hidden="true"><span></span><i></i></div>
+  <small>Opening credit was not available from the broker record</small>
+</div>
+{% endif %}
+{%- endmacro %}

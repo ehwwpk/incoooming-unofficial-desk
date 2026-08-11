@@ -1,3 +1,4 @@
+{% from "partials/_option_value_meter.html" import option_value_meter %}
 <section class="section-block" id="underlyings">
   {% set live_book = snapshot.live_position_book %}
   <div class="section-heading terminal-heading position-section-heading">
@@ -140,24 +141,24 @@
               <div class="call-open-result">
                 <span>OPEN P/L AT CURRENT MARK</span>
                 <strong class="{{ call.open_profit_loss | pnl_class }}">{{ call.open_profit_loss | money }}</strong>
-                {% if call.open_profit_loss >= 0 %}
-                <small>{{ call.credit_capture_percent | percent }} of premium currently earned</small>
-                {% else %}
-                <small>Option value is {{ call.option_value_vs_credit_percent | percent }} of premium received</small>
-                {% endif %}
+                <small>Unrealized &middot; latest Schwab mark</small>
               </div>
               <div class="option-mark-metrics">
                 <div><span>PREMIUM RECEIVED</span><strong>{{ call.entry_credit | money(0) }}</strong><small>{{ call.entry_credit_per_share | money }}/share</small></div>
                 <div><span>OPTION VALUE NOW</span><strong>{{ call.current_option_value | money(0) }}</strong><small>{{ call.mark_per_share | money }}/share current mark</small></div>
               </div>
             </div>
-            <div class="option-term-meter call-term-meter" style="--term-progress: {{ call.elapsed_time_percent | number(1) }}%">
-              <div class="option-term-labels">
-                <span>SOLD {{ call.sold_on.strftime('%b %d') | upper }}</span>
-                <strong>{{ call.elapsed_time_percent | percent }} TERM USED</strong>
-                <span>EXP {{ call.expires_on.strftime('%b %d') | upper }} &middot; {{ call.days_to_expiration }} DTE</span>
+            <div class="option-meter-pair">
+              <div class="option-term-meter call-term-meter" style="--term-progress: {{ call.elapsed_time_percent | number(1) }}%">
+                <div class="option-term-labels">
+                  <span>SOLD {{ call.sold_on.strftime('%b %d') | upper }}</span>
+                  <strong>{{ call.elapsed_time_percent | percent }} TERM USED</strong>
+                  <span>EXP {{ call.expires_on.strftime('%b %d') | upper }} &middot; {{ call.days_to_expiration }} DTE</span>
+                </div>
+                <div class="option-term-track" role="progressbar" aria-label="{{ item.symbol }} ${{ '%g' | format(call.strike) }} call term elapsed" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ call.elapsed_time_percent | number(1) }}"><span></span><i></i></div>
+                <small class="option-meter-caption">CALENDAR TIME SINCE SALE</small>
               </div>
-              <div class="option-term-track" role="progressbar" aria-label="{{ item.symbol }} ${{ '%g' | format(call.strike) }} call term elapsed" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ call.elapsed_time_percent | number(1) }}"><span></span><i></i></div>
+              {{ option_value_meter(call.option_value_vs_credit_percent, call.mark_per_share, call.entry_credit_per_share) }}
             </div>
             <div class="call-context-strip">
               <span>TIME VALUE NOW <b>{{ call.remaining_extrinsic_value | money(0) }}</b></span>

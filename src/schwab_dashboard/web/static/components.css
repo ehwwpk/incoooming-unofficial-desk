@@ -165,7 +165,25 @@
 .option-term-track { position: relative; height: 4px; overflow: hidden; border-inline: 1px solid var(--line-strong); background: #252b30; }
 .option-term-track > span { position: absolute; inset: 0 auto 0 0; width: min(var(--term-progress), 100%); background: var(--gold); }
 .option-term-track > i { position: absolute; top: -2px; bottom: -2px; left: min(var(--term-progress), calc(100% - 1px)); width: 1px; background: #f3dc8e; box-shadow: 0 0 0 1px #111416; }
+.option-meter-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); border-top: 1px solid var(--line); background: #0f1214; }
+.option-meter-pair > * { border-top: 0; }
+.option-meter-pair > * + * { border-left: 1px solid var(--line); }
+.option-meter-caption, .option-value-meter > small { overflow: hidden; color: var(--subtle); font: 550 .31rem var(--mono); text-overflow: ellipsis; white-space: nowrap; }
+.option-value-meter { --value-progress: 0%; display: grid; min-width: 0; gap: 5px; padding: 6px 10px 7px; border-top: 1px solid var(--line); background: #101316; }
+.option-value-labels { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: baseline; gap: 8px; color: var(--subtle); font: 600 .36rem var(--mono); letter-spacing: .025em; }
+.option-value-labels span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.option-value-labels strong { color: var(--text); font: 750 .4rem var(--mono); }
+.option-value-labels em { color: var(--subtle); font: 650 .32rem var(--mono); font-style: normal; white-space: nowrap; }
+.option-value-track { position: relative; height: 4px; overflow: hidden; border-left: 1px solid var(--line-strong); background: #252b30; }
+.option-value-track > span { position: absolute; inset: 0 auto 0 0; width: min(var(--value-progress), 100%); background: var(--green); }
+.option-value-track > i { position: absolute; inset: -2px 0 -2px auto; width: 1px; background: var(--gold); box-shadow: 0 0 0 1px #111416; }
+.option-value-meter.is-over-entry .option-value-track > span { background: var(--red); }
+.option-value-meter.is-over-entry .option-value-labels strong, .option-value-meter.is-over-entry .option-value-labels em { color: var(--red); }
+.option-value-meter.is-under-entry .option-value-labels strong { color: var(--green); }
+.option-value-meter.is-unavailable { opacity: .64; }
+.option-value-meter.is-unavailable .option-value-track > span { width: 0; }
 .chart-event-term { padding-block: 6px; }
+.chart-event-value { padding-block: 6px; }
 .call-term-meter { padding: 6px 10px 7px; border-top: 1px solid var(--line); background: #0f1214; }
 .call-term-meter .option-term-labels { font-size: .36rem; }
 .call-term-meter .option-term-labels strong { color: var(--gold); font-size: .38rem; }
@@ -201,6 +219,8 @@
   .price-map-tools > b { margin-left: auto; }
   .underlying-card[data-chart-focus="true"] .price-path-chart { height: 260px; }
   .underlying-card[data-chart-focus="true"] .price-event-ledger { grid-template-columns: 1fr; }
+  .option-meter-pair { grid-template-columns: 1fr; }
+  .option-meter-pair > * + * { border-top: 1px solid var(--line); border-left: 0; }
 }
 
 .underlying-lifecycle { display: grid; grid-template-columns: repeat(6, 1fr); }

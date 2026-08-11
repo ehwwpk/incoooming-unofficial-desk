@@ -23,6 +23,7 @@ class BrokerAccountBalances:
     """Point-in-time account values returned by Schwab's account endpoint."""
 
     liquidation_value: Decimal | None = None
+    initial_liquidation_value: Decimal | None = None
     equity: Decimal | None = None
     cash_balance: Decimal | None = None
     money_market_fund: Decimal | None = None

@@ -109,8 +109,14 @@ class SchwabAccountMapper:
         current = account.get("currentBalances") or {}
         if not isinstance(current, Mapping):
             raise BrokerPayloadError("Schwab currentBalances payload is not an object.")
+        initial = account.get("initialBalances") or {}
+        if not isinstance(initial, Mapping):
+            raise BrokerPayloadError("Schwab initialBalances payload is not an object.")
         return BrokerAccountBalances(
             liquidation_value=self._optional_decimal(current.get("liquidationValue")),
+            initial_liquidation_value=self._optional_decimal(
+                initial.get("liquidationValue")
+            ),
             equity=self._optional_decimal(current.get("equity")),
             cash_balance=self._optional_decimal(current.get("cashBalance")),
             money_market_fund=self._optional_decimal(current.get("moneyMarketFund")),

@@ -179,6 +179,7 @@ class SqlAccountBalanceSnapshotRepository:
             {
                 "account_mask": account.account_mask,
                 "liquidation_value": row.liquidation_value,
+                "initial_liquidation_value": row.initial_liquidation_value,
                 "equity": row.equity,
                 "cash_balance": row.cash_balance,
                 "money_market_fund": row.money_market_fund,

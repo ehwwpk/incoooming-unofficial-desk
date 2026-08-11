@@ -54,6 +54,7 @@ def build_option_events(
     lifecycle_events: Sequence[Mapping[str, object]],
     points: Sequence[PricePoint],
     current_option_symbols: set[str],
+    current_option_marks: Mapping[str, Decimal] | None = None,
 ) -> tuple[PriceEvent, ...]:
     if not points:
         return ()
@@ -75,6 +76,7 @@ def build_option_events(
     _assign_collision_offsets(rows)
 
     events: list[PriceEvent] = []
+    marks = current_option_marks or {}
     for sequence, row in enumerate(rows, 1):
         row["sequence"] = sequence
     _replace_link_indexes_with_sequences(rows)
@@ -86,6 +88,12 @@ def build_option_events(
         outcome = str(row["outcome"])
         if row["event_type"] in {"sale", "rolled"} and option_symbol in current_option_symbols:
             outcome = "OPEN"
+        option_value_per_share, value_percent = _option_value_checkpoint(
+            row,
+            outcome=outcome,
+            option_symbol=option_symbol,
+            current_option_marks=marks,
+        )
         events.append(
             PriceEvent(
                 sequence=event_sequence,
@@ -120,6 +128,8 @@ def build_option_events(
                 buyback_cost=_decimal(row["buyback_cost"]),
                 net_cash=_decimal(row["net_cash"]),
                 outcome=outcome,
+                option_value_per_share=option_value_per_share,
+                option_value_vs_credit_percent=value_percent,
             )
         )
     return tuple(events)
@@ -305,6 +315,7 @@ def _link_contract_lifecycles(rows: list[dict[str, object]]) -> None:
         sale["linked_resolution_index"] = index
         sale["resolved_on"] = row["date"]
         sale["underlying_at_resolution"] = row["price"]
+        sale["resolution_buyback_cost"] = row["buyback_cost"]
         sale["outcome"] = str(row["outcome"])
         row["underlying_at_sale"] = sale["underlying_at_sale"]
         row["strike_upside_percent"] = sale["strike_upside_percent"]
@@ -312,6 +323,32 @@ def _link_contract_lifecycles(rows: list[dict[str, object]]) -> None:
         row["premium_per_share"] = sale["premium_per_share"]
         row["gross_premium"] = sale["gross_premium"]
         row["underlying_at_resolution"] = row["price"]
+
+
+def _option_value_checkpoint(
+    row: Mapping[str, object],
+    *,
+    outcome: str,
+    option_symbol: str,
+    current_option_marks: Mapping[str, Decimal],
+) -> tuple[Decimal | None, Decimal | None]:
+    contracts = Decimal(max(1, _int(row["contracts"])))
+    premium_per_share = _decimal(row["premium_per_share"])
+    normalized_outcome = outcome.upper()
+    if normalized_outcome == "ASSIGNED" or premium_per_share <= ZERO:
+        return None, None
+    if normalized_outcome == "OPEN" and option_symbol in current_option_marks:
+        value_per_share = current_option_marks[option_symbol]
+    elif normalized_outcome == "EXPIRED":
+        value_per_share = ZERO
+    elif normalized_outcome in {"CLOSED", "ROLLED"}:
+        buyback = _decimal(
+            row.get("resolution_buyback_cost", row.get("buyback_cost"))
+        )
+        value_per_share = buyback / contracts / Decimal("100")
+    else:
+        return None, None
+    return value_per_share, value_per_share / premium_per_share * HUNDRED
 
 
 def _replace_link_indexes_with_sequences(rows: list[dict[str, object]]) -> None:
