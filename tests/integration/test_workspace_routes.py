@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
+from datetime import date
+from decimal import Decimal
 from pathlib import Path
 
 import httpx
@@ -10,6 +13,8 @@ from schwab_dashboard.app import create_app
 from schwab_dashboard.cli import _alembic_config
 from schwab_dashboard.config import Settings
 from schwab_dashboard.container import Container
+from schwab_dashboard.domain.opportunity import RadarMode
+from schwab_dashboard.infrastructure.demo.opportunity import DemoOpportunityMarketGateway
 
 
 def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Path) -> None:
@@ -18,7 +23,7 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
     container = Container(settings)
 
     try:
-        catalog, desk, risk, review, volatility, records = asyncio.run(
+        catalog, desk, risk, review, radar, volatility, records = asyncio.run(
             _request_workspaces(container)
         )
         assert catalog.status_code == 200
@@ -26,10 +31,11 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
             "desk",
             "risk",
             "attribution",
+            "radar",
             "volatility",
             "records",
         ]
-        assert len({item["window_name"] for item in catalog.json()}) == 5
+        assert len({item["window_name"] for item in catalog.json()}) == 6
 
         assert desk.status_code == 200
         assert desk.text.count("data-tools-toggle") == 1
@@ -41,6 +47,7 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "CALENDAR CLOCK" in risk.text
         assert "STOCKS ·" in risk.text
         assert risk.text.count("data-open-book-section=") == 2
+        assert 'data-open-book-section="calendar" open' in risk.text
         assert "MODEL TIME DECAY / DAY" in risk.text
         assert "EARNINGS DATE UNAVAILABLE" in risk.text
         assert "OPEN OWN WINDOW" in risk.text
@@ -65,6 +72,27 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert 'data-results-cash-period="r365"' in review.text
         assert "DAILY CASH" not in review.text
 
+        assert radar.status_code == 200
+        assert "ON-DEMAND CHAIN" in radar.text
+        assert "SEPARATE FROM ACCOUNT SYNC" in radar.text
+        assert "COVERED CALL" in radar.text
+        assert "CASH-SECURED PUT" in radar.text
+        assert "EXPIRATION MAP" in radar.text
+        assert "Price, time, and the assignment line" in radar.text
+        assert "EXPAND MAP" in radar.text
+        assert "PREMIUM / TIME" in radar.text
+        assert "Selected contract market detail" in radar.text
+        assert "NO FUTURE PRICE FORECAST" in radar.text
+        assert "RSI 14" in radar.text
+        assert "MACD 12/26/9" in radar.text
+        assert "premium-radar-indicators.js" in radar.text
+        assert "premium-radar-map.js" in radar.text
+        assert "data-radar-roll-handoff" in radar.text
+        assert 'value="CVX" data-radar-symbol' in radar.text
+        assert 'data-radar-symbol-chip="CVX"' in radar.text
+        assert 'data-radar-symbol-chip="KTOS"' in radar.text
+        assert 'data-radar-symbol-chip="URNM"' in radar.text
+
         assert volatility.status_code == 200
         assert "Historical IV is not yet collected" in volatility.text
         assert "WAITING FOR IV HISTORY" in volatility.text
@@ -80,6 +108,166 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         container.close()
 
 
+def test_demo_radar_roll_handoff_reprices_a_verified_open_call(tmp_path: Path) -> None:
+    settings = Settings(_env_file=None, data_dir=tmp_path, demo_mode=True)
+    command.upgrade(_alembic_config(settings), "head")
+    container = Container(settings)
+
+    try:
+        snapshot = container.read_dashboard("demo").execute()
+        underlying = next(item for item in snapshot.underlyings if item.symbol == "KTOS")
+        source = underlying.open_call_clocks[0]
+        bundle = DemoOpportunityMarketGateway().fetch(
+            symbol=underlying.symbol,
+            mode=RadarMode.COVERED_CALL,
+            from_date=snapshot.as_of.date(),
+            to_date=snapshot.as_of.date(),
+        )
+        target = next(
+            contract
+            for contract in bundle.contracts
+            if contract.option_side is RadarMode.COVERED_CALL.option_side
+            and contract.expiration_date > source.expires_on
+            and contract.strike > source.strike
+        )
+        response = asyncio.run(
+            _post_radar_roll(
+                container,
+                symbol=underlying.symbol,
+                source=source.record_id,
+                target_expiration=str(target.expiration_date),
+                target_strike=str(target.strike),
+            )
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        review = payload["roll_review"]
+        assert payload["verdict"] == "ROLL REVIEW"
+        assert len(payload["candidates"]) <= 9
+        assert all(
+            Decimal(candidate["strike"]) > source.strike
+            and date.fromisoformat(candidate["expiration_date"]) > source.expires_on
+            for candidate in payload["candidates"]
+        )
+        assert all(candidate["label"] is not None for candidate in payload["candidates"])
+        assert review["source_option_symbol"] == source.record_id
+        assert review["target_expiration_date"] == str(target.expiration_date)
+        assert review["target_strike"] == str(target.strike)
+        assert review["status"] == "matched"
+        assert review["source_quote_status"] == "desk_snapshot"
+        assert len(review["comparisons"]) == len(payload["candidates"])
+        candidates_by_symbol = {
+            candidate["option_symbol"]: candidate for candidate in payload["candidates"]
+        }
+        for comparison in review["comparisons"]:
+            candidate = candidates_by_symbol[comparison["option_symbol"]]
+            expected_net = Decimal(candidate["bid"]) - Decimal(
+                review["source_close_ask_per_share"]
+            )
+            assert Decimal(comparison["net_roll_per_share"]) == expected_net
+            assert Decimal(comparison["net_roll_cash"]) == expected_net * Decimal(
+                source.contracts * 100
+            )
+        target_comparison = next(
+            comparison
+            for comparison in review["comparisons"]
+            if comparison["option_symbol"] == target.option_symbol
+        )
+        assert target_comparison["bid_per_share"] == str(target.bid)
+        assert target_comparison["net_roll_per_share"] == review["net_roll_per_share"]
+        assert target_comparison["net_roll_cash"] == review["net_roll_cash"]
+        assert target_comparison["strike_change_per_share"] == str(
+            target.strike - source.strike
+        )
+        assert target_comparison["added_days"] == (
+            target.expiration_date - source.expires_on
+        ).days
+        assert any(
+            candidate["strike"] == str(target.strike)
+            and candidate["expiration_date"] == str(target.expiration_date)
+            for candidate in payload["candidates"]
+        )
+
+        refreshed_source = replace(
+            target,
+            option_symbol=source.record_id,
+            expiration_date=source.expires_on,
+            strike=source.strike,
+            ask=Decimal("1.23"),
+        )
+        container.premium_radar()._market = _StaticOpportunityMarket(
+            replace(bundle, contracts=(refreshed_source, *bundle.contracts))
+        )
+        refreshed = asyncio.run(
+            _post_radar_roll(
+                container,
+                symbol=underlying.symbol,
+                source=source.record_id,
+                target_expiration=str(target.expiration_date),
+                target_strike=str(target.strike),
+            )
+        )
+        assert refreshed.status_code == 200
+        refreshed_review = refreshed.json()["roll_review"]
+        assert refreshed_review["source_quote_status"] == "fresh_chain"
+        assert refreshed_review["source_close_ask_per_share"] == "1.23"
+
+        stale = asyncio.run(
+            _post_radar_roll(
+                container,
+                symbol=underlying.symbol,
+                source="not-an-open-call",
+                target_expiration=str(target.expiration_date),
+                target_strike=str(target.strike),
+            )
+        )
+        assert stale.status_code == 422
+        assert "no longer open" in stale.json()["detail"]["message"]
+    finally:
+        container.close()
+
+
+def test_radar_policy_endpoint_accepts_a_leaps_window(tmp_path: Path) -> None:
+    settings = Settings(_env_file=None, data_dir=tmp_path, demo_mode=True)
+    command.upgrade(_alembic_config(settings), "head")
+    container = Container(settings)
+
+    async def save_policy() -> httpx.Response:
+        transport = httpx.ASGITransport(app=create_app(container))
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://test",
+            cookies={"incoooming_source": "demo"},
+        ) as client:
+            return await client.put(
+                "/api/v1/radar/policies/SPY",
+                json={
+                    "mode": "covered_call",
+                    "minimum_dte": 0,
+                    "maximum_dte": 1095,
+                    "minimum_annualized_rate_percent": "0",
+                },
+            )
+
+    try:
+        response = asyncio.run(save_policy())
+        assert response.status_code == 200
+        assert response.json()["minimum_dte"] == 0
+        assert response.json()["maximum_dte"] == 1095
+        assert Decimal(response.json()["minimum_annualized_rate_percent"]) == Decimal("0")
+    finally:
+        container.close()
+
+
+class _StaticOpportunityMarket:
+    def __init__(self, bundle: object) -> None:
+        self._bundle = bundle
+
+    def fetch(self, **_: object) -> object:
+        return self._bundle
+
+
 def test_empty_live_ledger_keeps_workspaces_available_before_broker_auth(tmp_path: Path) -> None:
     settings = Settings(_env_file=None, data_dir=tmp_path)
     command.upgrade(_alembic_config(settings), "head")
@@ -88,7 +276,7 @@ def test_empty_live_ledger_keeps_workspaces_available_before_broker_auth(tmp_pat
     try:
         risk, results, volatility = asyncio.run(_request_pre_auth_workspaces(container))
         assert risk.status_code == 200
-        assert "No normalized open calls are available" in risk.text
+        assert "No normalized open short options are available" in risk.text
         assert 'data-workspace-key="risk"' in risk.text
         assert results.status_code == 200
         assert "No performance ledger is available yet" in results.text
@@ -109,25 +297,66 @@ async def _request_workspaces(
     httpx.Response,
     httpx.Response,
     httpx.Response,
+    httpx.Response,
 ]:
     transport = httpx.ASGITransport(app=create_app(container))
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        cookies={"incoooming_source": "demo"},
+    ) as client:
         responses = await asyncio.gather(
             client.get("/api/v1/workspaces"),
             client.get("/"),
             client.get("/workspaces/risk"),
             client.get("/workspaces/attribution"),
+            client.get(
+                "/workspaces/radar?symbol=CVX&mode=covered_call&review=roll"
+                "&source=cvx-0724-195&targetExpiration=2026-09-03&targetStrike=215"
+            ),
             client.get("/workspaces/volatility"),
             client.get("/workspaces/records"),
         )
     return tuple(responses)  # type: ignore[return-value]
 
 
+async def _post_radar_roll(
+    container: Container,
+    *,
+    symbol: str,
+    source: str,
+    target_expiration: str,
+    target_strike: str,
+) -> httpx.Response:
+    transport = httpx.ASGITransport(app=create_app(container))
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        cookies={"incoooming_source": "demo"},
+    ) as client:
+        return await client.post(
+            "/api/v1/radar/lookups",
+            json={
+                "symbol": symbol,
+                "mode": "covered_call",
+                "roll": {
+                    "source_option_symbol": source,
+                    "target_expiration": target_expiration,
+                    "target_strike": target_strike,
+                },
+            },
+        )
+
+
 async def _request_pre_auth_workspaces(
     container: Container,
 ) -> tuple[httpx.Response, httpx.Response, httpx.Response]:
     transport = httpx.ASGITransport(app=create_app(container))
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        cookies={"incoooming_source": "schwab"},
+    ) as client:
         risk, results, volatility = await asyncio.gather(
             client.get("/workspaces/risk"),
             client.get("/workspaces/attribution"),

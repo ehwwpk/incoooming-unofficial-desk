@@ -44,7 +44,7 @@
 
 .position-section-heading { display: grid; min-height: 34px !important; grid-template-columns: minmax(240px, .8fr) minmax(420px, 1.2fr); align-items: stretch; gap: 0; padding-left: 10px; background: #090b0d; }
 .position-section-heading h2 { display: flex; align-items: center; padding-right: 14px; }
-.position-book-summary { display: grid; min-height: 34px; grid-template-columns: repeat(3, minmax(0, 1fr)); border-left: 1px solid var(--line); background: #0a0c0e; }
+.position-book-summary { display: grid; min-height: 34px; grid-template-columns: repeat(4, minmax(0, 1fr)); border-left: 1px solid var(--line); background: #0a0c0e; }
 .position-book-summary span { display: flex; align-items: center; justify-content: center; gap: 5px; padding: 5px 11px; border-right: 1px solid var(--line); color: var(--subtle); font: 650 .43rem var(--mono); letter-spacing: .045em; white-space: nowrap; }
 .position-book-summary b { color: var(--text); font: 750 .56rem var(--mono); letter-spacing: 0; }
 .underlying-grid { gap: 6px; }

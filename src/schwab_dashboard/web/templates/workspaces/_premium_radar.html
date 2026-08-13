@@ -1,0 +1,130 @@
+<section class="radar-console" data-radar-console>
+  <header class="radar-query-bar">
+    <form class="radar-query" data-radar-form>
+      <label for="radar-symbol">TICKER</label>
+      <input id="radar-symbol" name="symbol" type="text" maxlength="16" autocomplete="off" spellcheck="false" placeholder="TYPE A SYMBOL" value="{{ request.query_params.get('symbol', '') }}" data-radar-symbol required>
+      <fieldset class="radar-mode" aria-label="Premium strategy">
+        <label><input type="radio" name="mode" value="covered_call" checked><span>COVERED CALL</span></label>
+        <label><input type="radio" name="mode" value="cash_secured_put"><span>CASH-SECURED PUT</span></label>
+      </fieldset>
+      <button type="submit" data-radar-run>SCAN CHAIN <span aria-hidden="true">→</span></button>
+    </form>
+    <div class="radar-query-status">
+      <span><i></i> ON-DEMAND LOOKUP</span>
+      <b>SEPARATE FROM ACCOUNT SYNC</b>
+    </div>
+  </header>
+
+  <div class="radar-symbol-shelf">
+    <div><span>IN YOUR BOOK</span>{% for symbol in radar_held_symbols %}<button type="button" data-radar-symbol-chip="{{ symbol }}">{{ symbol }}</button>{% else %}<small>NO NORMALIZED HOLDINGS</small>{% endfor %}</div>
+    <div><span>SAVED LOOKUPS</span><div data-radar-saved-list>{% for symbol in radar_saved_symbols %}<button type="button" data-radar-symbol-chip="{{ symbol }}">{{ symbol }}</button>{% else %}<small>NONE YET</small>{% endfor %}</div></div>
+    <button type="button" class="radar-rules-toggle" data-radar-rules-toggle aria-expanded="false" aria-controls="radar-rules">SELLER RULES <span>+</span></button>
+  </div>
+
+  <aside class="radar-roll-handoff" data-radar-roll-handoff hidden aria-live="polite">
+    <header><span>NIBWICK &rarr; RADAR</span><strong data-radar-roll-status>VERIFYING OPEN CALL</strong><button type="button" data-radar-roll-clear>CLEAR</button></header>
+    <div>
+      <section><span>CALL YOU HAVE</span><b data-radar-roll-source>VERIFYING&hellip;</b><small data-radar-roll-source-quote>Current buy-to-close ask</small></section>
+      <section><span>CALL TO CHECK</span><b data-radar-roll-target>&mdash;</b><small data-radar-roll-target-quote>Refreshed-chain sell-to-open bid</small></section>
+      <section><span data-radar-roll-math-label>TWO-LEG CHECK</span><b data-radar-roll-net>WAITING FOR CHAIN</b><small data-radar-roll-net-detail>One spread: close old, open new</small></section>
+      <p data-radar-roll-note>Radar is checking the exact replacement Nibwick showed you. Nothing here can place an order.</p>
+    </div>
+  </aside>
+
+  <aside class="radar-rules" id="radar-rules" data-radar-rules hidden>
+    <header><div><p class="eyebrow">SYMBOL POLICY</p><h2>What must be true before a contract appears</h2></div><p>Saved per ticker and strategy. Five to 60 days and 5% APR are your defaults, not engine limits. Raise the term for 90-day or LEAPS research.</p></header>
+    <form data-radar-policy-form>
+      <label>MIN DTE<input name="minimum_dte" type="number" min="0" value="5"></label>
+      <label>MAX DTE<input name="maximum_dte" type="number" min="0" value="60"></label>
+      <label>MIN PREMIUM APR %<input name="minimum_annualized_rate_percent" type="number" min="0" step="0.1" value="5"></label>
+      <label>MIN STRIKE<input name="minimum_strike" type="number" min="0" step="0.01" placeholder="NO FLOOR"></label>
+      <label><span data-radar-room-rule-label>MIN ROOM %</span><input name="minimum_strike_distance_percent" type="number" min="0" step="0.1" value="0"></label>
+      <label>MAX SPREAD %<input name="maximum_spread_percent" type="number" min="0" step="0.1" value="25"></label>
+      <label>MIN OPEN INT<input name="minimum_open_interest" type="number" min="0" value="0"></label>
+      <label>MIN VOLUME<input name="minimum_volume" type="number" min="0" value="0"></label>
+      <label>MAX 5D RISE %<input name="maximum_five_day_move_percent" type="number" min="0" step="0.1" value="20"></label>
+      <label>CONTRACTS<input name="allowed_contracts" type="number" min="0" max="1000" value="1"></label>
+      <label data-put-rule hidden>MAX EFFECTIVE BUY<input name="maximum_effective_entry" type="number" min="0" step="0.01" placeholder="REQUIRED FOR PUTS"></label>
+      <label data-put-rule hidden>CASH RESERVED<input name="reserved_cash" type="number" min="0" step="100" value="0"></label>
+      <input name="maximum_quote_age_seconds" type="hidden" value="86400">
+      <button type="submit">SAVE RULES &amp; SCAN</button>
+    </form>
+  </aside>
+
+  <section class="radar-idle" data-radar-idle>
+    <div><p class="eyebrow">ON-DEMAND CHAIN</p><h2>Enter one ticker.</h2><p>Radar checks its calls or puts against your saved rules. It cannot place an order or change the ledger.</p></div>
+    <ol aria-label="Radar lookup sequence"><li><b>01</b><span>CHAIN</span></li><li><b>02</b><span>RULES</span></li><li><b>03</b><span>TRADE-OFFS</span></li></ol>
+  </section>
+
+  <section class="radar-loading" data-radar-loading hidden aria-live="polite">
+    <span></span><div><b>READING THE REQUESTED CHAIN</b><small>Quotes, movement, eligibility, and seller rules are being checked.</small></div>
+  </section>
+
+  <section class="radar-result" data-radar-result hidden aria-live="polite">
+    <header class="radar-verdict">
+      <div class="radar-verdict-code"><span data-radar-verdict>—</span><small data-radar-state>IDLE</small></div>
+      <div class="radar-verdict-copy"><p class="eyebrow" data-radar-kicker>PREMIUM RADAR</p><h2 data-radar-headline>Waiting for a lookup</h2><p data-radar-reasons></p></div>
+      <div class="radar-verdict-actions"><button type="button" data-radar-save>☆ SAVE TICKER</button><span data-radar-observed>—</span></div>
+    </header>
+    <div class="radar-context-strip">
+      <div><span>STOCK</span><strong data-radar-spot>—</strong><small data-radar-symbol-label>—</small></div>
+      <div><span>5-SESSION MOVE</span><strong data-radar-five-day>—</strong><small>RECENT ACCELERATION</small></div>
+      <div><span>20-SESSION MOVE</span><strong data-radar-twenty-day>—</strong><small>SHORT-TERM PATH</small></div>
+      <div><span>RANGE POSITION</span><strong data-radar-range>—</strong><small>OBSERVED DAILY CLOSES</small></div>
+      <div><span>AVAILABLE SIZE</span><strong data-radar-size>—</strong><small data-radar-size-note>POLICY / ACCOUNT</small></div>
+      <div><span>FILTERED OUT</span><strong data-radar-rejected>—</strong><small>QUOTE OR HARD RULE FAILED</small></div>
+    </div>
+    <div class="radar-warning" data-radar-warning hidden></div>
+    <section class="radar-map-panel" data-radar-map-panel hidden>
+      <header>
+        <div><p class="eyebrow">EXPIRATION MAP</p><h2 id="radar-map-title">Price, time, and the assignment line</h2></div>
+        <div class="radar-map-controls">
+          <span>RECENT CLOSES · NO FUTURE PRICE FORECAST</span>
+          <div class="radar-indicator-controls" role="group" aria-label="Technical indicator panes">
+            <button type="button" data-radar-indicator="rsi" aria-pressed="false">RSI 14</button>
+            <button type="button" data-radar-indicator="macd" aria-pressed="false">MACD 12/26/9</button>
+          </div>
+          <div class="radar-map-stepper" aria-label="Selected contract">
+            <button type="button" data-radar-map-previous aria-label="Select previous contract">←</button>
+            <b data-radar-map-position>— / —</b>
+            <button type="button" data-radar-map-next aria-label="Select next contract">→</button>
+          </div>
+          <button type="button" class="radar-map-expand" data-radar-map-expand aria-expanded="false" aria-controls="radar-map-body">EXPAND MAP ↗</button>
+        </div>
+      </header>
+      <div class="radar-map-layout" id="radar-map-body">
+        <div class="radar-map-visuals">
+          <div class="radar-map-stage" data-radar-map-stage></div>
+          <div class="radar-indicator-stack" data-radar-indicator-stack hidden></div>
+        </div>
+        <aside class="radar-map-readout" data-radar-map-readout>
+          <div class="radar-map-selection"><span>SELECTED COMPARISON</span><strong data-radar-map-selection>—</strong><small>Choose any numbered contract below.</small></div>
+          <div><span>PREMIUM / TIME</span><strong data-radar-map-premium>—</strong><small data-radar-map-premium-note>—</small></div>
+          <div data-radar-map-roll-row hidden><span data-radar-map-roll-label>ROLL NET</span><strong data-radar-map-roll-net>—</strong><small data-radar-map-roll-detail>—</small></div>
+          <div><span>ITM BOUNDARY</span><strong data-radar-map-boundary>—</strong><small data-radar-map-outcome>—</small></div>
+          <div><span>ROOM TODAY</span><strong data-radar-map-room>—</strong><small data-radar-map-room-note>—</small></div>
+          <div><span>EXPECTED-MOVE REFERENCE</span><strong data-radar-map-move>—</strong><small data-radar-map-move-note>Volatility scale, not a forecast.</small></div>
+          <dl class="radar-map-decision-tape" aria-label="Selected contract market detail">
+            <div><dt data-radar-map-economic-label>ECONOMIC PRICE</dt><dd data-radar-map-economic>—</dd></div>
+            <div><dt>DELTA / IV</dt><dd data-radar-map-volatility>—</dd></div>
+            <div><dt>BID / ASK</dt><dd data-radar-map-market>—</dd></div>
+            <div><dt>OPEN INT / VOL</dt><dd data-radar-map-liquidity>—</dd></div>
+          </dl>
+        </aside>
+      </div>
+      <footer>
+        <p data-radar-map-summary>Expiration boundary context will appear after a lookup.</p>
+        <span>AMERICAN-STYLE OPTIONS CAN BE ASSIGNED BEFORE EXPIRATION</span>
+      </footer>
+    </section>
+    <section class="radar-candidate-panel">
+      <header><div><p class="eyebrow" data-radar-comparison-kicker>CHAIN COMPARISONS</p><h2 data-radar-comparison-title>Up to nine contracts worth comparing</h2></div><span data-radar-policy-summary>YOUR SAVED TERM · YOUR APR FLOOR · NO FILLER</span></header>
+      <div class="radar-candidates" data-radar-candidates></div>
+      <div class="radar-empty-result" data-radar-empty-result hidden></div>
+    </section>
+    <details class="radar-method">
+      <summary><span><b>EVIDENCE / METHOD</b><small>See exactly what passed, failed, or could not be verified.</small></span><i></i></summary>
+      <div data-radar-method-body></div>
+    </details>
+  </section>
+</section>

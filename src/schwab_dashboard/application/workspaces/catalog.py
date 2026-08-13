@@ -34,13 +34,15 @@ WORKSPACE_CATALOG = (
     ),
     WorkspaceDefinition(
         key=WorkspaceKey.RISK,
-        label="Open Calls",
-        short_label="CALLS",
+        label="Open Options",
+        short_label="OPTIONS",
         eyebrow="LIVE OBLIGATIONS",
-        description="Cross-portfolio obligations, strike pressure, marks, and time decay.",
+        description=(
+            "Short calls and puts, upcoming expirations, strike pressure, marks, and time decay."
+        ),
         route="/workspaces/risk",
         template_name="workspaces/_open_book.html",
-        window_name="iud-open-book",
+        window_name="incoooming-open-options",
         function_key="F2",
     ),
     WorkspaceDefinition(
@@ -57,6 +59,20 @@ WORKSPACE_CATALOG = (
         function_key="F3",
     ),
     WorkspaceDefinition(
+        key=WorkspaceKey.RADAR,
+        label="Premium Radar",
+        short_label="RADAR",
+        eyebrow="FORWARD PREMIUM RESEARCH",
+        description=(
+            "Type a ticker, apply your seller rules, and compare auditable "
+            "call or put trade-offs."
+        ),
+        route="/workspaces/radar",
+        template_name="workspaces/_premium_radar.html",
+        window_name="incoooming-premium-radar",
+        function_key="F4",
+    ),
+    WorkspaceDefinition(
         key=WorkspaceKey.VOLATILITY,
         label="Volatility Lab",
         short_label="VOL",
@@ -65,7 +81,7 @@ WORKSPACE_CATALOG = (
         route="/workspaces/volatility",
         template_name="workspaces/_volatility_lab.html",
         window_name="iud-volatility-lab",
-        function_key="F4",
+        function_key="F5",
     ),
     WorkspaceDefinition(
         key=WorkspaceKey.RECORDS,
@@ -78,7 +94,7 @@ WORKSPACE_CATALOG = (
         route="/workspaces/records",
         template_name="workspaces/_source_ledger.html",
         window_name="iud-source-ledger",
-        function_key="F5",
+        function_key="F6",
     ),
 )
 

@@ -16,6 +16,14 @@ amounts.
 The clients expose GET operations only. There is no order-entry, replacement, cancellation, or
 preview method in the adapter.
 
+## Refresh contract
+
+The live local server schedules a full read-only refresh after startup and every 15 minutes by
+default. Manual CLI and browser refreshes use the same coordinator and cannot overlap an active
+run. A full refresh is considered current only after accounts/positions, transaction history, and
+market observations all finish; failed full runs are persisted separately from the last successful
+snapshot and surfaced as an attention state. Closing the local server stops the schedule.
+
 ## Observed transaction contract
 
 Transactions expose an activity identity, source timestamps, transaction type, signed net cash,

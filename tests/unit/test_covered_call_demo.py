@@ -457,10 +457,12 @@ def test_price_paths_use_daily_closes_and_reconciled_option_events() -> None:
     }
 
 
-def test_nibwick_stays_quiet_when_no_call_crosses_an_alert_threshold() -> None:
+def test_nibwick_flags_a_near_expiration_call_without_inventing_dividend_risk() -> None:
     snapshot = DemoDashboardReader().execute()
 
-    assert snapshot.alerts == ()
+    assert [(alert.symbol, alert.reason_code, alert.level) for alert in snapshot.alerts] == [
+        ("CVX", "call_expiration_proximity", "watch")
+    ]
     ktos = next(item for item in snapshot.underlyings if item.symbol == "KTOS")
     assert min(call.strike_distance_percent for call in ktos.open_call_clocks) == D("23.4")
 
@@ -485,6 +487,10 @@ def test_roll_checks_reject_non_later_non_higher_and_non_neutral_quotes() -> Non
     assert len(scenarios) == 1
     assert scenarios[0].quote_source == "VALID BID"
     assert scenarios[0].net_roll_per_share == D("-0.05")
+    assert scenarios[0].source_option_symbol == call.record_id
+    assert scenarios[0].source_expiration == call.expires_on
+    assert scenarios[0].source_strike == call.strike
+    assert scenarios[0].source_contracts == call.contracts
 
 
 def test_dividend_warning_escalates_only_when_the_math_supports_it() -> None:
@@ -510,11 +516,11 @@ def test_dividend_warning_escalates_only_when_the_math_supports_it() -> None:
     assert alert is not None
     assert alert.level == "attention"
     assert alert.level_label == "NEEDS ATTENTION"
-    assert alert.headline == "CVX call may be assigned before the dividend"
-    assert "in the money" in alert.message
-    assert "$0.78/share greater than remaining time value" in alert.message
-    assert "raises early-assignment sensitivity" in alert.message
-    assert "cannot be predicted" in alert.message
+    assert alert.headline == "CVX's $235 call has early-assignment pressure"
+    assert "through your $235 call" in alert.message
+    assert "exceeds remaining time value by $0.78/share" in alert.message
+    assert "classic early-assignment pressure setup" in alert.message
+    assert "not a prediction" in alert.message
     assert [(fact.label, fact.value, fact.detail) for fact in alert.facts] == [
         ("EX-DIVIDEND", "AUG 09", "2 DAYS"),
         ("EXPOSED CALL", "CVX $235C", "3 CONTRACTS · 300 SHARES"),
@@ -530,7 +536,7 @@ def test_dividend_warning_escalates_only_when_the_math_supports_it() -> None:
     )
     assert check is not None
     assert check.level == "check"
-    assert check.headline == "CVX call needs a dividend check"
+    assert check.headline == "CVX's $235 call has early-assignment pressure"
     assert (
         evaluate_dividend_overlap(
             replace(at_risk, next_ex_dividend_date=as_of + timedelta(days=6)), as_of=as_of
@@ -546,5 +552,6 @@ def test_dividend_warning_escalates_only_when_the_math_supports_it() -> None:
     )
     assert watch is not None
     assert watch.level == "watch"
-    assert watch.headline == "CVX call is in the dividend window"
-    assert "time value ($2.00/share) is still greater" in watch.message
+    assert watch.headline == "CVX's dividend arrives before your $235 call expires"
+    assert "Remaining time value is $2.00/share" in watch.message
+    assert "weakens the early-exercise incentive" in watch.message

@@ -11,7 +11,7 @@ into an unreadable wall of equally weighted boxes.
 One primary Desk and four bounded secondary tools share a consistent shell:
 
 - Desk: option income, dividends, observed pace, live covered-call inventory, and exceptions.
-- Open Calls: cross-portfolio obligations, strike pressure, marks, and time decay.
+- Open Options: cross-portfolio call and put obligations, strike pressure, marks, and time decay.
 - Results: cash reconciliation, capture, lifecycle economics, outcomes, and basis.
 - Volatility: surfaces, histories, regimes, and research studies.
 - Data Health: executions, cash, positions, lifecycle events, source readiness, and provenance.
@@ -34,7 +34,7 @@ answer four questions without opening another panel:
 The inventory uses one compact row per stock. Charts, event maps, individual contracts, Greeks, and
 lifetime basis calculations remain available inside a single-stock disclosure, with only one stock
 open at a time. The Desk may summarize specialist calculations, but their canonical detail lives in
-Open Calls, Results, Volatility Lab, or Data Health. This prevents repeated values from
+Open Options, Results, Volatility Lab, or Data Health. This prevents repeated values from
 competing with the two daily jobs: monitoring live obligations and measuring realized income.
 
 ## Layout model

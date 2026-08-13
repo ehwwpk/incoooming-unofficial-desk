@@ -1,4 +1,4 @@
-{% from "partials/_option_value_meter.html" import option_value_meter %}
+{% from "partials/_underlying_option_cards.html" import underlying_call_card, underlying_put_card %}
 <section class="section-block" id="underlyings">
   {% set live_book = snapshot.live_position_book %}
   <div class="section-heading terminal-heading position-section-heading">
@@ -9,7 +9,8 @@
     >
       <span><b>{{ snapshot.underlyings | length if snapshot.underlyings else (live_book.underlyings | length if live_book else 0) }}</b> STOCKS</span>
       <span><b>{{ snapshot.covered_calls.total_shares | number(0) if snapshot.underlyings else (live_book.total_shares | number(0) if live_book else 0) }}</b> SHARES</span>
-      <span><b>{{ snapshot.covered_calls.active_contracts if snapshot.underlyings else (live_book.open_call_contracts if live_book else 0) }}</b> CALLS{% if live_book and live_book.open_put_contracts %} · <b>{{ live_book.open_put_contracts }}</b> PUTS{% endif %}</span>
+      <span><b>{{ desk_overview.open_positions }}</b> OPTION LINES</span>
+      <span><b>{{ desk_overview.open_contracts }}</b> CONTRACTS</span>
     </div>
   </div>
   {% if snapshot.underlyings %}
@@ -22,7 +23,7 @@
         <div class="position-identity"><strong>{{ item.symbol }}</strong><span>{{ item.company_name }}</span><small>{{ item.current_price | money }} · {{ item.market_value | money(0) }} value</small></div>
         <div><span>SHARES</span><strong>{{ item.shares }}</strong><small>{{ item.contract_capacity }} total 100-share lots</small></div>
         <div class="position-income"><span data-name-option-label>NET OPTION INCOME / 4 WEEKS</span><strong data-name-option-cash>{{ active_window.option_cash | money }}</strong><small><b data-name-dividends>{{ active_window.dividends | money }}</b> dividends</small></div>
-        <div><span>OPEN OPTIONS</span><strong>{{ item.active_contracts + (row.live_underlying.open_put_contracts if row.live_underlying else 0) }}</strong><small>{{ item.active_contracts }} calls{% if row.live_underlying and row.live_underlying.open_put_contracts %} · {{ row.live_underlying.open_put_contracts }} puts{% endif %} · {{ item.coverage_percent | percent }} covered</small></div>
+        <div><span>OPEN OPTION LINES</span><strong>{{ row.open_positions }}</strong><small>{{ item.active_contracts }} call contracts{% if row.live_underlying and row.live_underlying.open_put_contracts %} · {{ row.live_underlying.open_put_contracts }} put contracts{% endif %} · {{ item.coverage_percent | percent }} covered</small></div>
         <div class="position-nearest"><span>NEAREST STRIKE</span>{% if row.nearest_call %}<strong>${{ '%g' | format(row.nearest_call.strike) }}C</strong>{% if row.nearest_call.strike_distance_per_share >= 0 %}<small>{{ row.nearest_call.strike_distance_percent | percent }} above · {{ row.nearest_call.days_to_expiration }} DTE</small>{% else %}<small class="negative">{{ (-row.nearest_call.strike_distance_percent) | percent }} past · {{ row.nearest_call.days_to_expiration }} DTE</small>{% endif %}{% else %}<strong>NONE</strong><small>No open call</small>{% endif %}</div>
         <div><span>OPEN MARK P/L</span><strong class="{{ row.open_mark_profit_loss | pnl_class }}">{{ row.open_mark_profit_loss | money }}</strong><small>Unrealized estimate</small></div>
         <div class="position-open-control"><b><span class="position-open-label">OPEN DETAILS</span><span class="position-close-label">CLOSE DETAILS</span></b>{% if row.alert_count %}<small class="position-alert">{{ row.alert_count }} NOTE{{ '' if row.alert_count == 1 else 'S' }}</small>{% else %}<small>NO DESK NOTE</small>{% endif %}</div>
@@ -118,70 +119,33 @@
         ><i aria-hidden="true"></i></div>
 
         <div id="{{ item.symbol | lower }}-call-pane" class="underlying-call-lane">
-        <section class="call-clock-board">
-          <div class="call-clock-heading">
-            <div><span>OPEN OPTION STATUS</span><small>PREMIUM RECEIVED / CURRENT MARK / OPEN P&amp;L</small></div>
-            <small>MARK / THETA <i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i></small>
-          </div>
-          {% for call in item.open_call_clocks %}
-          <article id="{{ call.record_id | option_anchor }}" class="call-position {{ call.open_profit_loss | pnl_class }}" tabindex="-1" data-option-contract="{{ call.record_id }}">
-            <header>
-              <div>
-                <strong>-{{ call.contracts }} {{ call.expires_on.strftime('%b %d') | upper }} ${{ '%g' | format(call.strike) }}C</strong>
-                <span>{{ call.decay_stage }}</span>
-                {% if call.strike_distance_per_share >= 0 %}
-                <span class="call-strike-distance positive">{{ call.strike_distance_per_share | money }} / {{ call.strike_distance_percent | percent }} TO STRIKE</span>
-                {% else %}
-                <span class="call-strike-distance negative">{{ (-call.strike_distance_per_share) | money }} / {{ (-call.strike_distance_percent) | percent }} PAST STRIKE</span>
-                {% endif %}
-              </div>
-              <div><b>{{ call.days_to_expiration }}</b><span>DTE</span></div>
-            </header>
-            <div class="call-economics">
-              <div class="call-open-result">
-                <span>OPEN P/L AT CURRENT MARK</span>
-                <strong class="{{ call.open_profit_loss | pnl_class }}">{{ call.open_profit_loss | money }}</strong>
-                <small>Unrealized &middot; latest Schwab mark</small>
-              </div>
-              <div class="option-mark-metrics">
-                <div><span>PREMIUM RECEIVED</span><strong>{{ call.entry_credit | money(0) }}</strong><small>{{ call.entry_credit_per_share | money }}/share</small></div>
-                <div><span>OPTION VALUE NOW</span><strong>{{ call.current_option_value | money(0) }}</strong><small>{{ call.mark_per_share | money }}/share current mark</small></div>
-              </div>
+          <section class="call-clock-board" aria-label="{{ item.symbol }} nearest open options">
+            <div class="call-clock-heading">
+              <div><span>OPEN OPTION STATUS</span><small>FIRST 3 BY EXPIRATION</small></div>
+              <small>MARK / THETA <i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i></small>
             </div>
-            <div class="option-meter-pair">
-              <div class="option-term-meter call-term-meter" style="--term-progress: {{ call.elapsed_time_percent | number(1) }}%">
-                <div class="option-term-labels">
-                  <span>SOLD {{ call.sold_on.strftime('%b %d') | upper }}</span>
-                  <strong>{{ call.elapsed_time_percent | percent }} TERM USED</strong>
-                  <span>EXP {{ call.expires_on.strftime('%b %d') | upper }} &middot; {{ call.days_to_expiration }} DTE</span>
-                </div>
-                <div class="option-term-track" role="progressbar" aria-label="{{ item.symbol }} ${{ '%g' | format(call.strike) }} call term elapsed" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ call.elapsed_time_percent | number(1) }}"><span></span><i></i></div>
-                <small class="option-meter-caption">CALENDAR TIME SINCE SALE</small>
-              </div>
-              {{ option_value_meter(call.option_value_vs_credit_percent, call.mark_per_share, call.entry_credit_per_share) }}
+            <div class="underlying-priority-options">
+              {% for call in item.open_call_clocks[:3] %}{{ underlying_call_card(call, item, snapshot) }}{% endfor %}
+              {% if not item.open_call_clocks and not (row.live_underlying and row.live_underlying.puts) %}<p class="empty-state">No open short options for this underlying.</p>{% endif %}
             </div>
-            <div class="call-context-strip">
-              <span>TIME VALUE NOW <b>{{ call.remaining_extrinsic_value | money(0) }}</b></span>
-              {% if call.intrinsic_value > 0 %}<span class="negative">INTRINSIC <b>{{ call.intrinsic_value | money(0) }}</b></span>{% else %}<span>INTRINSIC <b>$0 / OTM</b></span>{% endif %}
-              <span>THETA <i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i> <b class="positive">+{{ call.short_theta_per_day | money }}/DAY</b></span>
-              <span>TIME-VALUE PACE <b>~{{ call.theta_days_of_time_value | number(1) }} DAYS</b><small>at today's theta; not a forecast</small></span>
-            </div>
-          </article>
-          {% endfor %}
-          {% if not item.open_call_clocks %}<p class="empty-state">No open short calls for this underlying.</p>{% endif %}
-        </section>
+          </section>
+        </div>
+      </div>
 
-        {% if row.live_underlying and row.live_underlying.puts %}
-        <section class="call-clock-board put-clock-board" aria-label="{{ item.symbol }} open short puts">
-          <div class="call-clock-heading"><div><span>OPEN PUT STATUS</span><small>CASH-SECURED / MARGIN OBLIGATIONS GROUPED WITH {{ item.symbol }}</small></div><small>LIVE</small></div>
-          {% for put in row.live_underlying.puts %}
-          <article id="{{ put.option_symbol | option_anchor }}" class="call-position {{ put.open_profit_loss | pnl_class }}" tabindex="-1" data-option-contract="{{ put.option_symbol }}">
-            <header><div><strong>-{{ put.contracts }} {{ put.expires_on.strftime('%b %d') | upper }} ${{ '%g' | format(put.strike) }}P</strong><span>{{ put.strike_distance_per_share | money }} / {{ put.strike_distance_percent | percent }} TO STRIKE</span></div><div><b>{{ put.days_to_expiration }}</b><span>DTE</span></div></header>
-            <div class="call-context-strip put-context-strip"><span>MARK <b>{{ put.estimated_mark_per_share | money }}</b><small>{{ put.bid_per_share | money }} bid · {{ put.ask_per_share | money }} ask</small></span><span>OPEN P/L <b class="{{ put.open_profit_loss | pnl_class }}">{{ put.open_profit_loss | money }}</b></span><span>IV / DELTA <b>{{ put.implied_volatility_percent | percent }} / {{ put.delta | number(2) }}</b></span><span>THETA / DAY <b class="positive">+{{ (-(put.theta_per_share or 0) * put.contracts * 100) | money }}</b></span></div>
-          </article>
-          {% endfor %}
-        </section>
-        {% endif %}
+      {% set overflow_calls = item.open_call_clocks[3:] %}
+      {% set open_puts = row.live_underlying.puts if row.live_underlying else () %}
+      {% if overflow_calls or open_puts %}
+      <section class="underlying-contract-shelf" aria-label="{{ item.symbol }} remaining open options">
+        <div class="contract-shelf-heading">
+          <span>MORE OPEN OPTIONS</span>
+          <small>{{ overflow_calls | length }} CALL LINE{{ '' if overflow_calls | length == 1 else 'S' }}{% if open_puts %} &middot; {{ open_puts | length }} PUT LINE{{ '' if open_puts | length == 1 else 'S' }}{% endif %}</small>
+        </div>
+        <div class="underlying-contract-grid">
+          {% for call in overflow_calls %}{{ underlying_call_card(call, item, snapshot) }}{% endfor %}
+          {% for put in open_puts %}{{ underlying_put_card(put, item) }}{% endfor %}
+        </div>
+      </section>
+      {% endif %}
 
         <section class="underlying-history" aria-label="{{ item.symbol }} execution outcomes and basis">
           <div class="history-caption">QUARTERLY EXECUTION OUTCOMES</div>
@@ -205,8 +169,6 @@
           </div>
         </section>
         </div>
-      </div>
-      </div>
     </details>
     {% endfor %}
   </div>

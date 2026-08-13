@@ -1,0 +1,152 @@
+/*
+ * One-shot login-page character beat. Nibwick occupies the otherwise blank
+ * top-bar runway, waves once, and exits; it carries no navigation meaning.
+ */
+
+.gateway-promenade {
+  --gateway-hero-settle: 7.75s;
+  position: relative;
+  align-self: stretch;
+  flex: 1 1 360px;
+  min-width: 190px;
+  overflow: hidden;
+  color: #c1a04f;
+  pointer-events: none;
+}
+
+.gateway-promenade-rail {
+  position: absolute;
+  right: 18px;
+  bottom: 17px;
+  left: 18px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(236, 234, 228, .18) 8%, rgba(236, 234, 228, .18) 92%, transparent);
+}
+
+.gateway-promenade-rail::before,
+.gateway-promenade-rail::after {
+  position: absolute;
+  top: -2px;
+  width: 5px;
+  height: 5px;
+  border: 1px solid rgba(230, 185, 79, .34);
+  background: #121316;
+  content: "";
+  transform: rotate(45deg);
+}
+
+.gateway-promenade-rail::before { left: 31%; }
+.gateway-promenade-rail::after { right: 13%; }
+
+.gateway-promenade-character {
+  position: absolute;
+  z-index: 2;
+  top: 3px;
+  left: -62px;
+  width: 58px;
+  height: 35px;
+  opacity: 0;
+  will-change: left, opacity;
+}
+
+.gateway-promenade-walk,
+.gateway-promenade-wave {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 100%;
+}
+
+.gateway-promenade-wave { opacity: 0; }
+
+.gateway-promenade-frame {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  color: inherit;
+  font: 700 4.5px/.98 var(--mono);
+  letter-spacing: 0;
+  text-align: center;
+  white-space: pre;
+  opacity: 0;
+}
+
+.gateway-promenade-walk .frame-a { opacity: 1; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .gateway-promenade-character {
+    animation: nibwick-promenade 9.6s var(--gateway-hero-settle) linear both;
+  }
+
+  .gateway-promenade-walk {
+    animation:
+      nibwick-promenade-bob 520ms steps(2, end) infinite,
+      nibwick-promenade-walk-visibility 9.6s var(--gateway-hero-settle) linear both;
+  }
+
+  .gateway-promenade-wave {
+    animation: nibwick-promenade-wave-visibility 9.6s var(--gateway-hero-settle) linear both;
+  }
+
+  .gateway-promenade-walk .gateway-promenade-frame {
+    animation-duration: 720ms;
+    animation-iteration-count: infinite;
+    animation-timing-function: step-end;
+  }
+
+  .gateway-promenade-walk .frame-a { animation-name: nibwick-promenade-frame-a; }
+  .gateway-promenade-walk .frame-b { animation-name: nibwick-promenade-frame-b; }
+  .gateway-promenade-walk .frame-c { animation-name: nibwick-promenade-frame-c; }
+  .gateway-promenade-walk .frame-d { animation-name: nibwick-promenade-frame-d; }
+  .gateway-promenade-wave .wave-a { animation: nibwick-promenade-wave-a 640ms step-end infinite; }
+  .gateway-promenade-wave .wave-b { animation: nibwick-promenade-wave-b 640ms step-end infinite; }
+}
+
+@keyframes nibwick-promenade {
+  0% { left: -62px; opacity: 0; }
+  3% { opacity: 1; }
+  36% { left: 43%; opacity: 1; }
+  53% { left: 43%; opacity: 1; }
+  90% { left: 91%; opacity: 1; }
+  100% { left: calc(100% + 62px); opacity: 0; }
+}
+
+@keyframes nibwick-promenade-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1px); }
+}
+
+@keyframes nibwick-promenade-walk-visibility {
+  0%, 35.9% { opacity: 1; }
+  36%, 53% { opacity: 0; }
+  53.1%, 100% { opacity: 1; }
+}
+
+@keyframes nibwick-promenade-wave-visibility {
+  0%, 35.9% { opacity: 0; }
+  36%, 53% { opacity: 1; }
+  53.1%, 100% { opacity: 0; }
+}
+
+@keyframes nibwick-promenade-frame-a { 0%, 24% { opacity: 1; } 25%, 100% { opacity: 0; } }
+@keyframes nibwick-promenade-frame-b { 0%, 24% { opacity: 0; } 25%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+@keyframes nibwick-promenade-frame-c { 0%, 49% { opacity: 0; } 50%, 74% { opacity: 1; } 75%, 100% { opacity: 0; } }
+@keyframes nibwick-promenade-frame-d { 0%, 74% { opacity: 0; } 75%, 99% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes nibwick-promenade-wave-a { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+@keyframes nibwick-promenade-wave-b { 0%, 49% { opacity: 0; } 50%, 100% { opacity: 1; } }
+
+@media (max-width: 760px) {
+  .gateway-promenade { min-width: 150px; }
+  .gateway-promenade-character { width: 52px; }
+  .gateway-promenade-frame { font-size: 4.1px; }
+}
+
+@media (max-width: 520px) {
+  .gateway-promenade { min-width: 76px; flex-basis: 76px; }
+  .gateway-promenade-rail { inset-inline: 7px; }
+  .gateway-promenade-rail::before { left: 18%; }
+  .gateway-promenade-rail::after { right: 7%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gateway-promenade-character { display: none; }
+}

@@ -18,7 +18,7 @@ The desk serves a covered-call seller and dividend collector. It is not a generi
 Only three surfaces are primary:
 
 - **Desk:** selected-period cash, observed pace, live obligations, per-name state, and one actionable exception.
-- **Open Calls:** the contract register and expandable obligation, market, economics, event, and campaign detail.
+- **Open Options:** the call and put register with expandable obligation, market, economics, event, and campaign detail.
 - **Results:** monthly ledger, campaign outcomes, assignments, capital recovery, and stock-only attribution.
 
 Volatility research, the complete activity ledger, imports, and Data Health remain tools. Data Health is maintenance reached from source status or the Tools menu; it is not a daily peer of the operator surfaces.
@@ -137,7 +137,7 @@ Missing live fields remain unavailable. Demo values never silently fill a live a
 
 The verified pre-Schwab build now includes:
 
-- a three-surface operator flow: Desk, Open Calls, and Results;
+- a three-surface operator flow: Desk, Open Options, and Results;
 - exact 4W, QTR, YTD, and R365 cash windows derived from one execution ledger;
 - a compact nonzero-event Desk tape, weekly quarterly comparison, monthly YTD/R365 comparison, and exact dated cash ledger in Records;
 - the 700 CVX, 800 KTOS, and 500 URNM fictional inventory with personalized fictional call tranches;

@@ -55,6 +55,8 @@ class MonthlyPerformanceSummary:
     called_away_shares: int
     average_covered_capital: Decimal
     is_partial: bool
+    coverage_status: str = "observed"
+    coverage_note: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -133,6 +135,8 @@ class ExpirationBucket:
     estimated_close_value: Decimal
     nearest_strike_buffer_percent: Decimal
     event_labels: tuple[str, ...]
+    call_contracts: int = 0
+    put_contracts: int = 0
 
 
 @dataclass(frozen=True, slots=True)

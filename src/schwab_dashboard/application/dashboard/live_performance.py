@@ -8,6 +8,9 @@ from decimal import Decimal
 from statistics import median
 
 from schwab_dashboard.application.dashboard.covered_calls import CoveredCallPortfolioSummary
+from schwab_dashboard.application.dashboard.live_cash_series import (
+    build_live_cash_chart_series,
+)
 from schwab_dashboard.application.dashboard.models import (
     IncomePeriod,
     IncomeSummary,
@@ -16,6 +19,7 @@ from schwab_dashboard.application.dashboard.models import (
 from schwab_dashboard.application.dashboard.performance import (
     CashActivityItem,
     CashActivityWindow,
+    CashChartSeries,
     MonthlyPerformanceSummary,
     OperatorMetricsSummary,
     PerformanceWindowSummary,
@@ -34,6 +38,7 @@ class LivePerformanceProjection:
     monthly_performance: tuple[MonthlyPerformanceSummary, ...]
     cash_events: tuple[CashActivityItem, ...]
     cash_activity_windows: tuple[CashActivityWindow, ...]
+    cash_chart_series: tuple[CashChartSeries, ...]
     covered_calls: CoveredCallPortfolioSummary
     operator_metrics: OperatorMetricsSummary
 
@@ -111,6 +116,11 @@ def build_live_performance(
         r365=windows[-1],
     )
     operator = _operator_metrics(monthly, windows, covered_calls)
+    cash_chart_series = build_live_cash_chart_series(
+        executions=option_executions,
+        dividends=dividends,
+        as_of=as_of,
+    )
     return LivePerformanceProjection(
         income=IncomeSummary(
             week=windows[0].option_cash,
@@ -134,6 +144,7 @@ def build_live_performance(
         monthly_performance=monthly,
         cash_events=cash_events,
         cash_activity_windows=cash_windows,
+        cash_chart_series=cash_chart_series,
         covered_calls=covered_calls,
         operator_metrics=operator,
     )
@@ -200,9 +211,23 @@ def _monthly_performance(
     covered_capital: Decimal,
     as_of: date,
 ) -> tuple[MonthlyPerformanceSummary, ...]:
+    dated_rows = (*executions, *dividends, *assignments)
+    if not dated_rows:
+        return ()
+    first_observed = min(_row_date(row) for row in dated_rows)
+    observed_start_month = date(first_observed.year, first_observed.month, 1)
+    first_month = observed_start_month
+    rolling_year_start = _month_shift(date(as_of.year, as_of.month, 1), 11)
+    first_month = max(first_month, rolling_year_start)
+    starts_mid_month = (
+        first_month == observed_start_month and first_observed.day > 1
+    )
+    month_count = (
+        (as_of.year - first_month.year) * 12 + as_of.month - first_month.month + 1
+    )
     months = [
         _month_shift(date(as_of.year, as_of.month, 1), offset)
-        for offset in range(11, -1, -1)
+        for offset in range(month_count - 1, -1, -1)
     ]
     result: list[MonthlyPerformanceSummary] = []
     for month in months:
@@ -235,6 +260,18 @@ def _monthly_performance(
                 ),
                 average_covered_capital=covered_capital,
                 is_partial=month.year == as_of.year and month.month == as_of.month,
+                coverage_status=(
+                    "coverage_start"
+                    if month == first_month and starts_mid_month
+                    else "partial"
+                    if month.year == as_of.year and month.month == as_of.month
+                    else "observed"
+                ),
+                coverage_note=(
+                    f"First normalized cash event {first_observed:%b %d}"
+                    if month == first_month and starts_mid_month
+                    else ""
+                ),
             )
         )
     return tuple(result)
@@ -342,14 +379,22 @@ def _operator_metrics(
     windows: Sequence[PerformanceWindowSummary],
     covered: CoveredCallPortfolioSummary,
 ) -> OperatorMetricsSummary:
-    full = [item for item in monthly if not item.is_partial]
+    full = [
+        item
+        for item in monthly
+        if not item.is_partial and item.coverage_status != "coverage_start"
+    ]
     option_values = [item.option_cash for item in full]
     latest_three = option_values[-3:]
     return OperatorMetricsSummary(
         rolling_four_week_option_cash=windows[0].option_cash,
         quarter_monthly_run_rate=windows[1].monthly_option_run_rate,
         year_to_date_monthly_run_rate=windows[2].monthly_option_run_rate,
-        rolling_year_monthly_average=windows[3].option_cash / Decimal("12"),
+        rolling_year_monthly_average=(
+            sum(option_values, ZERO) / Decimal(len(option_values))
+            if option_values
+            else ZERO
+        ),
         rolling_three_month_average=(
             sum(latest_three, ZERO) / Decimal(len(latest_three)) if latest_three else ZERO
         ),

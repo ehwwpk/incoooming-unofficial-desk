@@ -58,21 +58,49 @@ code { color: var(--gold); font-family: var(--mono); }
   color: var(--gold);
   font: 800 .62rem var(--mono);
 }
+
+.brand-nibwick-mark {
+  overflow: hidden;
+  width: 46px;
+  height: 40px;
+  padding: 1px;
+  background: #090b09;
+}
+.brand-nibwick-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
 .command-jump { display: flex; min-width: 0; align-items: center; gap: 9px; align-self: stretch; padding: 7px 11px; border-right: 1px solid var(--line); color: var(--gold); font: 700 .54rem var(--mono); }
 .command-jump input { min-width: 0; flex: 1; border: 1px solid var(--line); padding: 6px 9px; outline: 0; background: var(--surface-raised); color: var(--text); font: .58rem var(--mono); }
 .command-jump input::placeholder { color: var(--subtle); }
 .command-jump input:focus { border-color: var(--gold); background: var(--surface-soft); }
 .command-jump input[aria-invalid="true"] { border-color: var(--red); }
 kbd { border: 1px solid var(--line-strong); padding: 2px 3px; background: var(--surface-raised); color: var(--subtle); font: 700 .46rem/1 var(--mono); }
-.session-state { display: grid; min-width: 170px; align-content: center; padding: 5px 13px; text-align: right; }
+.session-state { display: grid; min-width: 190px; max-width: 300px; align-content: center; gap: 3px; padding: 4px 10px; text-align: right; }
 .session-state b { font: 700 .52rem var(--mono); }
-.session-state small { color: var(--subtle); font: .45rem var(--mono); }
+.session-state small { overflow: hidden; color: var(--subtle); font: .42rem var(--mono); text-overflow: ellipsis; white-space: nowrap; }
+.source-switch { border: 1px solid var(--gold-soft); padding: 3px 5px; color: var(--gold); font: 700 .38rem var(--mono); }
+.source-switch:hover, .source-switch:focus-visible { border-color: var(--gold); background: #1b170d; color: var(--text); outline: 0; }
+.source-label { margin-right: 7px; color: var(--gold); }
+.sync-state-line { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.sync-state-line form { margin: 0; }
+.sync-state-line button { border: 1px solid var(--line-strong); padding: 3px 5px; background: transparent; color: var(--gold); font: 700 .38rem var(--mono); cursor: pointer; }
+.sync-state-line button:hover, .sync-state-line button:focus-visible { border-color: var(--gold); background: #1b170d; color: var(--text); outline: 0; }
+.sync-state-line button:disabled { color: var(--subtle); cursor: wait; }
 .market-tape { display: flex; min-height: 27px; overflow: hidden; border-bottom: 1px solid var(--line-strong); background: #070809; white-space: nowrap; }
 .market-tape > span { padding: 6px 11px; border-right: 1px solid var(--line); color: var(--muted); font: .5rem var(--mono); }
 .market-tape b { margin-left: 5px; color: var(--text); }
 .source-pill { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font: 700 .5rem var(--mono); }
 .source-dot { width: 6px; height: 6px; background: var(--green); box-shadow: 0 0 8px var(--green); }
 .source-pill.demo .source-dot { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
+
+.csv-source-note { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 13px; padding: 8px 12px; border-bottom: 1px solid var(--gold-soft); background: #121108; }
+.csv-source-note b, .csv-source-note a { color: var(--gold); font: 750 .43rem var(--mono); }
+.csv-source-note span { color: var(--muted); font: .46rem/1.5 var(--mono); }
+.csv-source-note a:hover, .csv-source-note a:focus-visible { color: var(--text); outline: 0; }
+@media (max-width: 650px) { .csv-source-note { grid-template-columns: 1fr; } }
 
 .demo-banner { display: flex; padding: 0 18px; border-bottom: 1px solid var(--line); background: #0b0c0e; color: var(--muted); font: .52rem/1.2 var(--mono); }
 .demo-banner > * { padding: 6px 13px; border-right: 1px solid var(--line); }
@@ -125,6 +153,7 @@ kbd { border: 1px solid var(--line-strong); padding: 2px 3px; background: var(--
 .desk-meta { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px 13px; }
 .desk-meta span { color: var(--subtle); font: .49rem var(--mono); }
 .desk-meta b { margin-left: 4px; color: var(--text); font-size: .53rem; }
+.desk-meta .flow-adjusted-note { display: block; margin-top: 2px; color: var(--positive); font: .42rem var(--mono); letter-spacing: .04em; }
 .eyebrow { margin: 0 0 5px; color: var(--gold); font: 700 .55rem var(--mono); letter-spacing: .12em; }
 
 .panel, .campaign-card, .underlying-card { border: 1px solid var(--line); background: var(--surface); }

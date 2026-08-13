@@ -46,7 +46,7 @@ class SchwabMarketMapper:
                 continue
             normalized_symbol = str(row.get("symbol") or symbol).strip()
             external_key = f"market:{normalized_symbol}"
-            timestamp = _epoch_millis(quote.get("quoteTime"), fallback=observed_at)
+            timestamp = _quote_timestamp(quote.get("quoteTime"), observed_at=observed_at)
             bid = _market_decimal(quote.get("bidPrice"))
             ask = _market_decimal(quote.get("askPrice"))
             last = _market_decimal(quote.get("lastPrice"))
@@ -95,71 +95,23 @@ class SchwabMarketMapper:
         underlying_price = _market_decimal(payload.get("underlyingPrice"))
         instruments: list[InstrumentRecord] = []
         snapshots: list[OptionMarketSnapshot] = []
-        for contract in _chain_contracts(payload.get("callExpDateMap")):
-            symbol = _optional_text(contract.get("symbol"))
-            if not symbol:
-                continue
-            parsed = parse_occ_option_symbol(symbol)
-            if parsed is None:
-                continue
-            external_key = f"market:{symbol}"
-            multiplier = _market_decimal(contract.get("multiplier")) or Decimal("100")
-            bid = _market_decimal(contract.get("bid"))
-            ask = _market_decimal(contract.get("ask"))
-            last = _market_decimal(contract.get("last"))
-            mark = _market_decimal(contract.get("mark"))
-            instruments.append(
-                InstrumentRecord(
-                    source="schwab",
-                    external_key=external_key,
-                    symbol=symbol,
-                    asset_type=AssetType.OPTION,
-                    observed_at=observed_at,
-                    description=_optional_text(contract.get("description")),
-                    underlying_symbol=underlying_symbol or parsed.underlying_symbol,
-                    option_side=OptionSide.CALL,
-                    expiration_date=parsed.expiration_date,
-                    strike=_market_decimal(contract.get("strikePrice")) or parsed.strike,
-                    contract_multiplier=multiplier,
-                    deliverable=OptionDeliverable(
-                        kind=(
-                            DeliverableKind.ADJUSTED
-                            if bool(contract.get("nonStandard"))
-                            else DeliverableKind.STANDARD
-                        ),
-                        components=(
-                            DeliverableComponent(
-                                asset_type=AssetType.EQUITY,
-                                symbol=underlying_symbol or parsed.underlying_symbol,
-                                quantity=multiplier,
-                            ),
-                        ),
-                    ),
-                )
-            )
-            snapshots.append(
-                OptionMarketSnapshot(
-                    instrument=InstrumentRef(source="schwab", external_key=external_key),
-                    observed_at=_epoch_millis(
-                        contract.get("quoteTimeInLong"), fallback=observed_at
-                    ),
-                    quote_quality=_quote_quality(bid, ask),
-                    mark_method=_mark_method(mark, bid, ask, last),
-                    bid=bid,
-                    ask=ask,
-                    last=last,
-                    mark=mark or _midpoint(bid, ask) or last,
+        contract_rows = (
+            (OptionSide.CALL, _chain_contracts(payload.get("callExpDateMap"))),
+            (OptionSide.PUT, _chain_contracts(payload.get("putExpDateMap"))),
+        )
+        for option_side, contracts in contract_rows:
+            for contract in contracts:
+                instrument, snapshot = _map_option_contract(
+                    contract,
+                    option_side=option_side,
+                    underlying_symbol=underlying_symbol,
                     underlying_price=underlying_price,
-                    implied_volatility=_market_decimal(contract.get("volatility")),
-                    delta=_greek(contract.get("delta")),
-                    gamma=_greek(contract.get("gamma")),
-                    theta=_greek(contract.get("theta")),
-                    vega=_greek(contract.get("vega")),
-                    rho=_greek(contract.get("rho")),
-                    volume=_optional_int(contract.get("totalVolume")),
-                    open_interest=_optional_int(contract.get("openInterest")),
+                    observed_at=observed_at,
                 )
-            )
+                if instrument is None or snapshot is None:
+                    continue
+                instruments.append(instrument)
+                snapshots.append(snapshot)
         return MarketObservationBatch(
             source="schwab",
             external_event_key=f"chain:{underlying_symbol}:{observed_at.isoformat()}",
@@ -217,6 +169,75 @@ class SchwabMarketMapper:
             ),
             daily_bars=tuple(bars),
         )
+
+
+def _map_option_contract(
+    contract: Mapping[str, Any],
+    *,
+    option_side: OptionSide,
+    underlying_symbol: str,
+    underlying_price: Decimal | None,
+    observed_at: datetime,
+) -> tuple[InstrumentRecord | None, OptionMarketSnapshot | None]:
+    symbol = _optional_text(contract.get("symbol"))
+    if not symbol:
+        return None, None
+    parsed = parse_occ_option_symbol(symbol)
+    if parsed is None:
+        return None, None
+    external_key = f"market:{symbol}"
+    multiplier = _market_decimal(contract.get("multiplier")) or Decimal("100")
+    bid = _market_decimal(contract.get("bid"))
+    ask = _market_decimal(contract.get("ask"))
+    last = _market_decimal(contract.get("last"))
+    mark = _market_decimal(contract.get("mark"))
+    instrument = InstrumentRecord(
+        source="schwab",
+        external_key=external_key,
+        symbol=symbol,
+        asset_type=AssetType.OPTION,
+        observed_at=observed_at,
+        description=_optional_text(contract.get("description")),
+        underlying_symbol=underlying_symbol or parsed.underlying_symbol,
+        option_side=option_side,
+        expiration_date=parsed.expiration_date,
+        strike=_market_decimal(contract.get("strikePrice")) or parsed.strike,
+        contract_multiplier=multiplier,
+        deliverable=OptionDeliverable(
+            kind=(
+                DeliverableKind.ADJUSTED
+                if bool(contract.get("nonStandard"))
+                else DeliverableKind.STANDARD
+            ),
+            components=(
+                DeliverableComponent(
+                    asset_type=AssetType.EQUITY,
+                    symbol=underlying_symbol or parsed.underlying_symbol,
+                    quantity=multiplier,
+                ),
+            ),
+        ),
+    )
+    snapshot = OptionMarketSnapshot(
+        instrument=InstrumentRef(source="schwab", external_key=external_key),
+        observed_at=_quote_timestamp(contract.get("quoteTimeInLong"), observed_at=observed_at),
+        quote_quality=_quote_quality(bid, ask),
+        mark_method=_mark_method(mark, bid, ask, last),
+        bid=bid,
+        ask=ask,
+        last=last,
+        mark=mark or _midpoint(bid, ask) or last,
+        underlying_price=underlying_price,
+        implied_volatility=_market_decimal(contract.get("volatility")),
+        delta=_greek(contract.get("delta")),
+        gamma=_greek(contract.get("gamma")),
+        theta=_greek(contract.get("theta")),
+        vega=_greek(contract.get("vega")),
+        rho=_greek(contract.get("rho")),
+        volume=_optional_int(contract.get("totalVolume")),
+        open_interest=_optional_int(contract.get("openInterest")),
+    )
+    return instrument, snapshot
 
 
 def _chain_contracts(value: Any) -> tuple[Mapping[str, Any], ...]:
@@ -309,6 +330,12 @@ def _epoch_millis(value: Any, *, fallback: datetime) -> datetime:
         return datetime.fromtimestamp(float(value) / 1000, tz=UTC)
     except (TypeError, ValueError, OSError) as exc:
         raise ValueError("Schwab market timestamp is invalid") from exc
+
+
+def _quote_timestamp(value: Any, *, observed_at: datetime) -> datetime:
+    """Keep provider quote time without allowing clock skew to postdate receipt."""
+    source_time = _epoch_millis(value, fallback=observed_at)
+    return min(source_time, observed_at)
 
 
 def _mapping(value: Any) -> Mapping[str, Any]:

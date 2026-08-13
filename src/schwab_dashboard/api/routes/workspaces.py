@@ -6,6 +6,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from schwab_dashboard.api.dependencies import get_container
+from schwab_dashboard.api.source_context import selected_source_key, source_label
 from schwab_dashboard.application.workspaces.catalog import get_workspace, list_workspaces
 from schwab_dashboard.application.workspaces.projections import (
     build_open_book,
@@ -36,16 +37,40 @@ def workspace_page(
 ) -> Response:
     if workspace_key is WorkspaceKey.DESK:
         return RedirectResponse(url="/", status_code=303)
-    snapshot = container.read_dashboard().execute()
+    source_key = selected_source_key(request)
+    if source_key is None:
+        return RedirectResponse(url="/sources", status_code=303)
+    try:
+        snapshot = container.read_dashboard(source_key).execute()
+    except LookupError:
+        return RedirectResponse(url="/sources", status_code=303)
+    dataset = (
+        container.source_store.get_dataset(source_key.removeprefix("csv:"))
+        if source_key.startswith("csv:")
+        else None
+    )
+    context: dict[str, Any] = {
+        "snapshot": snapshot,
+        "workspace": get_workspace(workspace_key),
+        "workspaces": list_workspaces(),
+        "sync_runtime": container.sync_coordinator.status(),
+        "active_source_key": source_key,
+        "active_source_label": source_label(
+            source_key,
+            dataset_name=dataset.name if dataset is not None else None,
+        ),
+    }
+    if workspace_key is WorkspaceKey.RISK:
+        context["open_book"] = build_open_book(snapshot)
+    elif workspace_key is WorkspaceKey.VOLATILITY:
+        context["volatility_rows"] = build_volatility_rows(snapshot)
+    elif workspace_key is WorkspaceKey.RECORDS:
+        context["source_profiles"] = planned_source_profiles()
+    elif workspace_key is WorkspaceKey.RADAR:
+        context["radar_held_symbols"] = container.premium_radar().held_symbols(snapshot)
+        context["radar_saved_symbols"] = container.premium_radar().saved_symbols()
     return templates.TemplateResponse(
         request=request,
         name="workspace.html",
-        context={
-            "snapshot": snapshot,
-            "workspace": get_workspace(workspace_key),
-            "workspaces": list_workspaces(),
-            "open_book": build_open_book(snapshot),
-            "volatility_rows": build_volatility_rows(snapshot),
-            "source_profiles": planned_source_profiles(),
-        },
+        context=context,
     )

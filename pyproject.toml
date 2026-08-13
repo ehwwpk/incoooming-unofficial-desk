@@ -20,6 +20,7 @@ dependencies = [
   "pydantic-settings>=2.14.2,<3",
   "python-multipart>=0.0.20,<1",
   "sqlalchemy>=2.0.51,<2.1",
+  "tzdata>=2026.3,<2027",
   "typer>=0.16,<1",
   "uvicorn>=0.35,<1",
 ]

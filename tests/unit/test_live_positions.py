@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from schwab_dashboard.application.dashboard.calculations import summarize_portfolio
@@ -93,6 +93,109 @@ def test_portfolio_prefers_account_day_change_over_contradictory_position_pl() -
 
     assert summary.day_profit_loss == D("-163.80")
     assert summary.day_profit_loss_percent == D("-163.80") / D("103853.77") * D("100")
+
+
+def test_portfolio_excludes_same_day_deposit_from_daily_profit() -> None:
+    summary = summarize_portfolio(
+        (_position(day_profit_loss=D("3000")),),
+        (
+            {
+                "liquidation_value": D("128000"),
+                "initial_liquidation_value": D("100000"),
+            },
+        ),
+        cash_movements=(
+            {
+                "occurred_at": date(2026, 8, 12),
+                "movement_type": "transfer",
+                "amount": D("25000"),
+            },
+        ),
+        as_of=date(2026, 8, 12),
+    )
+
+    assert summary.day_external_cash_flow == D("25000")
+    assert summary.day_profit_loss == D("3000")
+    assert summary.day_profit_loss_percent == D("3")
+
+
+def test_portfolio_excludes_deposit_when_utc_midnight_crosses_market_day() -> None:
+    summary = summarize_portfolio(
+        (_position(day_profit_loss=D("-219.03")),),
+        (
+            {
+                "liquidation_value": D("131586.73"),
+                "initial_liquidation_value": D("106805.76"),
+            },
+        ),
+        cash_movements=(
+            {
+                # 2:08 PM New York on Aug 12. SQLite returns normalized UTC
+                # datetimes without their original offset.
+                "occurred_at": datetime(2026, 8, 12, 18, 8, 21),
+                "movement_type": "transfer",
+                "amount": D("25000"),
+            },
+        ),
+        # 10:00 PM New York on Aug 12, despite the Aug 13 UTC date.
+        as_of=datetime(2026, 8, 13, 2, 0, tzinfo=UTC),
+    )
+
+    assert summary.day_external_cash_flow == D("25000")
+    assert summary.day_profit_loss == D("-219.03")
+    assert summary.day_profit_loss_percent == D("-219.03") / D("106805.76") * D("100")
+
+
+def test_portfolio_excludes_same_day_withdrawal_but_not_dividend() -> None:
+    summary = summarize_portfolio(
+        (_position(day_profit_loss=D("3100")),),
+        (
+            {
+                "liquidation_value": D("78100"),
+                "initial_liquidation_value": D("100000"),
+            },
+        ),
+        cash_movements=(
+            {
+                "occurred_at": date(2026, 8, 12),
+                "movement_type": "transfer",
+                "amount": D("-25000"),
+            },
+            {
+                "occurred_at": date(2026, 8, 12),
+                "movement_type": "dividend",
+                "amount": D("100"),
+            },
+        ),
+        as_of=date(2026, 8, 12),
+    )
+
+    assert summary.day_external_cash_flow == D("-25000")
+    assert summary.day_profit_loss == D("3100")
+    assert summary.day_profit_loss_percent == D("3.1")
+
+
+def test_portfolio_does_not_exclude_transfer_from_another_day() -> None:
+    summary = summarize_portfolio(
+        (_position(day_profit_loss=D("1000")),),
+        (
+            {
+                "liquidation_value": D("101000"),
+                "initial_liquidation_value": D("100000"),
+            },
+        ),
+        cash_movements=(
+            {
+                "occurred_at": date(2026, 8, 11),
+                "movement_type": "transfer",
+                "amount": D("25000"),
+            },
+        ),
+        as_of=date(2026, 8, 12),
+    )
+
+    assert summary.day_external_cash_flow == D("0")
+    assert summary.day_profit_loss == D("1000")
 
 
 def test_short_puts_share_the_existing_underlying_group() -> None:

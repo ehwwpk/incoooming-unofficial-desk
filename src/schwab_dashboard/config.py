@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from pathlib import Path
 
 from pydantic import Field, SecretStr
@@ -28,6 +29,19 @@ class Settings(BaseSettings):
     port: int = Field(default=8182, alias="SCHWAB_DASHBOARD_PORT", ge=1, le=65535)
     log_level: str = Field(default="INFO", alias="SCHWAB_DASHBOARD_LOG_LEVEL")
     demo_mode: bool = Field(default=False, alias="SCHWAB_DASHBOARD_DEMO_MODE")
+    auto_sync_enabled: bool = Field(default=True, alias="SCHWAB_AUTO_SYNC_ENABLED")
+    auto_sync_interval_seconds: int = Field(
+        default=900,
+        alias="SCHWAB_AUTO_SYNC_INTERVAL_SECONDS",
+        ge=60,
+        le=86400,
+    )
+    auto_sync_startup_delay_seconds: int = Field(
+        default=2,
+        alias="SCHWAB_AUTO_SYNC_STARTUP_DELAY_SECONDS",
+        ge=0,
+        le=300,
+    )
 
     token_service_name: str = "schwab-options-dashboard"
     token_account_name: str = "personal-schwab-oauth"
@@ -39,6 +53,21 @@ class Settings(BaseSettings):
     transaction_parser_version: str = "schwab-transactions-v1"
     market_parser_version: str = "schwab-market-v1"
     transaction_history_days: int = Field(default=365, ge=1, le=730)
+    # These are personal defaults, not product capability limits. Radar may inspect
+    # any non-negative DTE range returned by the configured market-data source.
+    radar_minimum_dte: int = Field(default=5, ge=0)
+    radar_maximum_dte: int = Field(default=60, ge=0)
+    radar_minimum_annualized_rate_percent: Decimal = Field(
+        default=Decimal("5"), ge=Decimal("0")
+    )
+    radar_maximum_spread_percent: Decimal = Field(default=Decimal("25"), ge=0)
+    radar_minimum_open_interest: int = Field(default=0, ge=0)
+    radar_minimum_volume: int = Field(default=0, ge=0)
+    radar_maximum_quote_age_seconds: int = Field(default=86400, ge=30, le=86400)
+    radar_maximum_five_day_move_percent: Decimal | None = Field(
+        default=Decimal("20"), ge=0
+    )
+    radar_cache_seconds: int = Field(default=60, ge=0, le=3600)
 
     @property
     def resolved_data_dir(self) -> Path:

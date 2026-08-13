@@ -1,9 +1,9 @@
-@import url("./base.css?v=24");
-@import url("./components.css?v=28");
-@import url("./alerts.css?v=22");
+@import url("./base.css?v=26");
+@import url("./components.css?v=32");
+@import url("./alerts.css?v=25");
 @import url("./performance.css?v=25");
 @import url("./dashboard.css?v=24");
-@import url("./desk-overview.css?v=8");
+@import url("./desk-overview.css?v=9");
 
 @media (max-width: 1240px) {
   .portfolio-console { grid-template-columns: repeat(3, 1fr); }
@@ -27,7 +27,6 @@
 
 @media (max-width: 960px) {
   .topbar { grid-template-columns: auto 1fr; }
-  .session-state { display: none; }
   .dashboard-grid { grid-template-columns: 1fr; }
   .side-stack { grid-template-columns: 1fr 1fr; }
   .setup-panel { grid-template-columns: 1fr; }

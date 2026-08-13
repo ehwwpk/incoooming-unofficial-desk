@@ -31,6 +31,10 @@ class AlertFact:
 class RollScenario:
     """Quote-based roll comparison; context only, never an order instruction."""
 
+    source_option_symbol: str
+    source_expiration: date
+    source_strike: Decimal
+    source_contracts: int
     target_expiration: date
     target_strike: Decimal
     strike_lift_per_share: Decimal

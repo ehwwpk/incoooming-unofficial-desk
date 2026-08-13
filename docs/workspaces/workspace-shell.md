@@ -7,7 +7,7 @@ The Desk remains the primary daily operating surface. Its F1-F4 rail navigates D
 | Stable key | Current label | Route | Primary question |
 | --- | --- | --- | --- |
 | `desk` | Desk | `/` | What matters across the whole book right now? |
-| `risk` | Open Calls | `/workspaces/risk` | What do the open calls obligate and how are they marked? |
+| `risk` | Open Options | `/workspaces/risk` | What do the open short calls and puts obligate, and how are they marked? |
 | `attribution` | Results | `/workspaces/attribution` | Where did results come from and is the pace repeatable? |
 | `volatility` | Volatility Lab | `/workspaces/volatility` | How does observed movement compare with option pricing? |
 | `records` | Data Health | `/workspaces/records` | Which records and sources support the displayed answer? |
@@ -19,11 +19,13 @@ stock, a weekly income history, and a closed audit trail. Opening a stock reveal
 contract book; opening a secondary tool reveals portfolio-wide specialist analysis. This is
 progressive disclosure, not a second tab hierarchy.
 
-Open Calls uses nested disclosure without hiding the portfolio pulse. Its four summary numbers remain
-visible. `Next expirations` and `Open calls` start folded and open when their full headers are clicked;
-individual contracts then open for exact DTE, time used, option value versus premium, quote, Greeks,
-value mix, and liquidity. Native `details` and `summary` elements preserve keyboard operation when
-JavaScript is unavailable.
+Open Options uses nested disclosure without hiding the portfolio pulse. Its four summary numbers
+distinguish option lines from contract quantity. `Next expirations` starts open because time is the
+daily operating constraint; the contract register remains folded until needed. The browser remembers
+the operator's disclosure choices. Individual calls then open for exact DTE, time used, option value
+versus premium, quote, Greeks, value mix, and liquidity. Short puts appear in the same obligation book
+instead of creating a disconnected stock row. Native `details` and `summary` elements preserve
+keyboard operation when JavaScript is unavailable.
 
 ## Window behavior
 
@@ -36,7 +38,7 @@ JavaScript is unavailable.
 
 ## Read-model boundary
 
-Every tool reads the same `DashboardSnapshot`. Open Calls and Volatility Lab add deterministic
+Every tool reads the same `DashboardSnapshot`. Open Options and Volatility Lab add deterministic
 projections over that snapshot. The live Schwab reader and isolated demo reader sit behind the same
 application port, so route and template contracts do not depend on the source.
 

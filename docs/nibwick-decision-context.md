@@ -2,6 +2,33 @@
 
 Nibwick's notes translate deterministic option-book calculations into plain English. Observed values, derived estimates, and heuristics stay visibly distinct. No note predicts assignment or recommends a trade.
 
+## Voice rules
+
+Nibwick sounds like a sharp clerk who knows this particular book, not a generic assistant:
+
+- Lead with the actual stock, contract, distance, or clock. Avoid vague narration such as “moved fast,” “needs context,” or “deserves review.”
+- Address the operator directly with “you sold” and “your call” or “your put.”
+- Use one brief human aside at most. Low-urgency notes can be dryly playful; assignment-sensitive and dividend-sensitive notes stay direct.
+- End with what the fact means for attention, never a trade instruction. “Back on the desk” means inspect the position, not close or roll it.
+- Keep model boundaries explicit. Nibwick can surface an open obligation; it cannot predict assignment or the next stock move.
+
+## When notes are generated
+
+Nibwick is evaluated whenever a dashboard snapshot is built. With the local server running, the Schwab source refreshes on its normal sync cadence and the page reloads after a successful sync; Nibwick then evaluates the newest normalized positions, quotes, price history, and dividend fields. It is not a separate cloud daemon and it does not run while the local app is shut down.
+
+Review state is stored in the browser. Reviewing or snoozing a note changes its `new` state; it never removes an alert whose live condition still qualifies. The homepage therefore reports active notes separately from new notes, and the note panel keeps an always-visible symbol roster. A note becomes new again when the contract, severity, strike-proximity band, DTE band, or dividend event changes. This avoids both silent escalation and a duplicate alert every morning.
+
+## Strike and expiration proximity
+
+Open calls and short puts receive a low-noise proximity check:
+
+- An in-the-money contract is surfaced within 30 DTE, with higher urgency inside 7 DTE.
+- A contract within 3% of its strike is surfaced inside 21 DTE.
+- A contract within 7% of its strike is surfaced inside 7 DTE.
+- Every open short contract is checked before ranking. Only the highest-priority directional call note and highest-priority short-put note per symbol are shown, so one name cannot flood the desk. A dividend note may coexist because it represents a different event risk.
+
+Short-put notes report strike distance, DTE, current mark versus entry credit, and assignment notional (`contracts x 100 x strike`). Assignment notional is not a claim that the trade is cash secured or a representation of broker margin treatment.
+
 ## Fast move and roll review pressure
 
 The closest open call receives a 0–100 review-pressure score. This is an attention-ranking tool, not a probability, risk limit, or roll signal.
@@ -12,7 +39,30 @@ The closest open call receives a 0–100 review-pressure score. This is an atten
 - Mark expansion: 0–10 points, starting when the current option mark exceeds entry credit and capped at 2× entry credit.
 - Labels: `LOW` below 25, `MODERATE` from 25–49, `ELEVATED` from 50–74, and `HIGH` from 75.
 
-The note also reports exact strike distance per share, strike distance percent, the same move across covered shares, current mark/entry credit, and DTE. It intentionally does not estimate the price or benefit of a roll because that requires a live replacement chain, bid/ask spreads, liquidity, user exit intent, taxes, and the new strike/expiry.
+The note also reports exact strike distance per share, strike distance percent, current mark/entry credit, and DTE. Where later/higher live replacement quotes are available, the UI may show near-flat roll comparisons using the current buy-to-close ask and replacement sell-to-open bid. These are quote snapshots for planning, not a forecast, recommendation, or executable order.
+
+### From a note to Radar
+
+A displayed roll comparison is one analysis action, not a generic link to Tools. Choosing `CHECK FRESH CHAIN` carries only the verified open-call identifier and the displayed later/higher strike and expiration into Premium Radar. Radar then:
+
+1. verifies that the source call is still open in the selected book;
+2. releases only that call's covered lots for the comparison;
+3. requests a current chain wide enough to include the source expiration and exact replacement;
+4. keeps the exact replacement visible even when it misses the operator's ordinary new-sale policy, while preserving its failed gates;
+5. calculates buy-to-close ask minus sell-to-open bid and labels the quote timing honestly;
+6. highlights the requested replacement without selecting a different contract silently.
+
+Radar treats this handoff as a roll ladder, not an ordinary covered-call scan. It considers only calls with a later expiration and a higher strike than the verified source call, then displays as many as nine valid comparisons without adding filler. The display order is deterministic:
+
+1. net credit or debit closest to zero, grouped into increasingly wider cost bands;
+2. fewer added calendar days;
+3. more strike room;
+4. tighter quoted spread and stronger displayed liquidity;
+5. expiration, strike, and option symbol as stable tie-breakers.
+
+An exact replacement named in the Nibwick note remains in the ladder when it is available, but it occupies its true economic rank instead of being pinned to the first or last slot. Each row is explicitly labeled `NEAR FLAT`, `NET CREDIT`, or `DEBIT FOR ROOM`. Ordinary Radar searches use a separate reading order: nearest expiration first, then calls from lower to higher strike or puts from higher to lower strike within that expiration.
+
+The handoff has three visible outcomes: both legs refreshed, the replacement refreshed while the source ask remains the latest desk snapshot, or the exact replacement unavailable. An old Nibwick replacement quote is never reused as if it were current. A stale source call stops the comparison instead of opening an unconnected scan. Clearing the handoff returns Radar to an ordinary symbol lookup. Nothing in this path previews, places, replaces, or cancels an order.
 
 ## Dividend context
 

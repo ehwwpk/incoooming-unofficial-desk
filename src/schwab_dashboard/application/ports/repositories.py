@@ -85,6 +85,10 @@ class SyncRunRepository(Protocol):
 
     def latest(self) -> SyncRunSummary | None: ...
 
+    def latest_for_source(self, *, source: str) -> SyncRunSummary | None: ...
+
+    def latest_successful(self, *, source: str) -> SyncRunSummary | None: ...
+
 
 class RawEventRepository(Protocol):
     def add(

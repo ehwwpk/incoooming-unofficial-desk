@@ -1,0 +1,5 @@
+Account,Date,Action,Symbol,Description,Quantity,Price,Fees,Amount
+Brokerage 4321,08/01/2026,Sell to Open,CVX  260918C00205000,CVX 09/18/2026 205 Call,2,2.05,0.06,409.94
+Brokerage 4321,08/03/2026,Sell to Open,KTOS  260918C00075000,KTOS 09/18/2026 75 Call,3,1.40,0.09,419.91
+Brokerage 4321,08/05/2026,Sell to Open,URNM  260918C00060000,URNM 09/18/2026 60 Call,2,1.10,0.06,219.94
+Brokerage 4321,08/06/2026,Dividend,CVX,Chevron dividend,,,,1197.00

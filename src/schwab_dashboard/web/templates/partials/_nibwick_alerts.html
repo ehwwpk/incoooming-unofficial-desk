@@ -35,6 +35,19 @@
     </div>
     <button type="button" data-nibwick-close aria-label="Close Nibwick's notes">×</button>
   </header>
+  <nav class="nibwick-alert-roster" data-nibwick-alert-roster aria-label="Active Nibwick notes">
+    {% for alert in snapshot.alerts %}
+    <button
+      type="button"
+      class="{{ alert.level }}"
+      data-nibwick-note-jump
+      data-alert-index="{{ loop.index0 }}"
+      data-review-state="new"
+      aria-label="Open {{ alert.symbol }} note: {{ alert.headline }}"
+      {% if loop.first %}aria-current="true"{% endif %}
+    ><strong>{{ alert.symbol }}</strong><small data-nibwick-roster-state>NEW</small></button>
+    {% endfor %}
+  </nav>
   <div class="nibwick-popover-notes">
     {% for alert in snapshot.alerts %}
     <article
@@ -61,7 +74,16 @@
         </header>
         <div class="nibwick-roll-preview">
           {% for scenario in alert.roll_scenarios %}
-          <article class="nibwick-roll-row">
+          <a
+            href="/workspaces/radar?symbol={{ alert.symbol | urlencode }}&amp;mode=covered_call&amp;review=roll&amp;source={{ scenario.source_option_symbol | urlencode }}&amp;targetExpiration={{ scenario.target_expiration }}&amp;targetStrike={{ scenario.target_strike }}"
+            class="nibwick-roll-row"
+            data-nibwick-roll-review
+            data-roll-symbol="{{ alert.symbol }}"
+            data-roll-source="{{ scenario.source_option_symbol }}"
+            data-roll-target-expiration="{{ scenario.target_expiration }}"
+            data-roll-target-strike="{{ scenario.target_strike }}"
+            aria-label="Review the {{ scenario.target_expiration | short_date }} ${{ '%g' | format(scenario.target_strike) }} call roll in Premium Radar"
+          >
             <div><b>${{ '%g' | format(scenario.target_strike) }}C · {{ scenario.target_expiration | short_date }}</b><small>+${{ '%g' | format(scenario.strike_lift_per_share) }} STRIKE · +{{ scenario.added_days }} DAYS</small></div>
             <div><b>+{{ scenario.assignment_room_gain | money(0) }} ROOM</b><small>{{ scenario.target_buffer_percent | percent }} ABOVE SPOT</small></div>
             <div class="nibwick-roll-cash">
@@ -72,8 +94,9 @@
             {% else %}
               <b>$0.00/SH</b><small>NEAR FLAT</small>
             {% endif %}
+              <span>CHECK FRESH CHAIN &rarr;</span>
             </div>
-          </article>
+          </a>
           {% endfor %}
         </div>
       </section>

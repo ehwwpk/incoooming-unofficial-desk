@@ -3,6 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from schwab_dashboard.application.alerts.context import build_call_review_context
+from schwab_dashboard.application.alerts.identity import option_alert_id
 from schwab_dashboard.application.alerts.models import AlertFact, AlertLevel, DeskAlert
 from schwab_dashboard.application.alerts.rolls import build_neutral_roll_scenarios
 from schwab_dashboard.application.dashboard.covered_calls import UnderlyingCallStats
@@ -30,37 +31,50 @@ def evaluate_fast_move(underlying: UnderlyingCallStats) -> DeskAlert | None:
     priority = 90 if level is AlertLevel.CHECK else 60
     if context.strike_distance_per_share >= 0:
         position_message = (
-            f"is still ${context.strike_distance_per_share:.2f}/share out of the money, "
-            "but the cushion is narrow enough to review"
+            f"The strike is still ${context.strike_distance_per_share:.2f}/share above "
+            "the stock, but that cushion is thin enough to put back on the desk"
         )
         distance_detail = "OUT OF THE MONEY"
+        headline = f"{underlying.symbol} is running at your ${compact_decimal(closest.strike)} call"
     else:
         position_message = (
-            f"is now ${abs(context.strike_distance_per_share):.2f}/share in the money "
-            "and deserves a review"
+            f"The stock is now ${abs(context.strike_distance_per_share):.2f}/share "
+            "through the strike. This one belongs back on the desk"
         )
         distance_detail = "IN THE MONEY"
+        headline = f"{underlying.symbol} ran through your ${compact_decimal(closest.strike)} call"
+    if context.sale_to_current_move_percent >= 0:
+        sale_move_message = (
+            f"{underlying.symbol} is up {context.sale_to_current_move_percent:.1f}% since "
+            f"you sold the ${compact_decimal(closest.strike)} call. Rude timing"
+        )
+    else:
+        sale_move_message = (
+            f"{underlying.symbol} just ran {move:.1f}% in five sessions, though it remains "
+            f"{abs(context.sale_to_current_move_percent):.1f}% below the stock price when "
+            f"you sold the ${compact_decimal(closest.strike)} call"
+        )
     roll_scenarios = build_neutral_roll_scenarios(
         closest,
         current_price=underlying.current_price,
     )
 
     return DeskAlert(
-        alert_id=f"{underlying.symbol.lower()}-fast-move",
+        alert_id=option_alert_id(
+            symbol=underlying.symbol,
+            reason="fast-move",
+            contract_key=closest.record_id,
+            level=level,
+            strike_distance_percent=strike_gap,
+            days_to_expiration=closest.days_to_expiration,
+        ),
         reason_code="fast_move_near_call",
         level=level,
         level_label=level.friendly_label,
         symbol=underlying.symbol,
         target_id=f"{underlying.symbol.lower()}-workspace",
-        headline=(
-            f"Fast move; ${compact_decimal(closest.strike)} call is "
-            f"{abs(strike_gap):.1f}% away"
-        ),
-        message=(
-            f"{underlying.symbol} moved fast after the sale. The "
-            f"${compact_decimal(closest.strike)} call "
-            f"{position_message}."
-        ),
+        headline=headline,
+        message=f"{sale_move_message}. {position_message}.",
         facts=(
             AlertFact(
                 "SPOT / MOVE",

@@ -16,8 +16,19 @@ from schwab_dashboard.infrastructure.database.tables.market import (
     UnderlyingDailyBarTable,
     UnderlyingMarketSnapshotTable,
 )
+from schwab_dashboard.infrastructure.database.tables.opportunity import (
+    RadarCandidateSnapshotTable,
+    RadarLookupRunTable,
+    RadarPolicyTable,
+    RadarSavedSymbolTable,
+)
 from schwab_dashboard.infrastructure.database.tables.reconciliation import (
     ReconciliationIssueTable,
+)
+from schwab_dashboard.infrastructure.database.tables.source import (
+    SourceDatasetTable,
+    SourceImportFileTable,
+    SourceImportRecordTable,
 )
 from schwab_dashboard.infrastructure.database.tables.sync import (
     RawBrokerEventTable,
@@ -35,9 +46,16 @@ __all__ = [
     "OptionLifecycleEventTable",
     "OptionMarketSnapshotTable",
     "PositionSnapshotTable",
+    "RadarCandidateSnapshotTable",
+    "RadarLookupRunTable",
+    "RadarPolicyTable",
+    "RadarSavedSymbolTable",
     "RawBrokerEventTable",
     "RawMarketEventTable",
     "ReconciliationIssueTable",
+    "SourceDatasetTable",
+    "SourceImportFileTable",
+    "SourceImportRecordTable",
     "SyncRunTable",
     "UnderlyingDailyBarTable",
     "UnderlyingMarketSnapshotTable",

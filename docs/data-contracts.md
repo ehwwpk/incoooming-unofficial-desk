@@ -31,6 +31,7 @@ An issue has a stable code, severity, human-readable message, optional instrumen
 ## Time and numeric rules
 
 - Persist timestamps in UTC with explicit timezone information at application boundaries.
-- Interpret trading-calendar groupings in America/New_York later in the analytics layer.
+- Interpret trading-calendar groupings in America/New_York in the analytics layer. Persisted
+  naive broker timestamps are normalized UTC values; plain dates remain calendar dates.
 - Parse quantity and money values through `Decimal(str(value))`.
 - Preserve `null` when the broker omitted a value; do not silently substitute zero.

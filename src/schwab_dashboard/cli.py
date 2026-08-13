@@ -93,9 +93,10 @@ def sync() -> None:
     container = Container()
     try:
         try:
-            result = container.sync_accounts().execute()
-            activity = container.sync_transactions().execute()
-            market = container.sync_market_data().execute()
+            full = container.sync_full(trigger="cli")
+            result = full.accounts
+            activity = full.activity
+            market = full.market
             typer.echo(
                 f"Sync {result.run_id} completed: {result.account_count} account(s), "
                 f"{result.position_count} position(s), "
