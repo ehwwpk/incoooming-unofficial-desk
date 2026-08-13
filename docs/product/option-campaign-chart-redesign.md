@@ -9,19 +9,18 @@ auditable inside that campaign.
 
 ## Implementation status
 
-The first campaign renderer is now implemented behind
-`SCHWAB_DASHBOARD_CAMPAIGN_CHART_ENABLED` (enabled by default). The legacy numbered ticket view
-remains available by setting that flag to `false` while live books are reconciled.
+The campaign renderer is now the only stock-chart renderer. The former feature flag and legacy
+numbered ticket view were removed only after the live-ledger reconciliation gate passed.
 
 The implemented slice provides stable call/put labels (`C1`, `P1`), quantity-aware partial-close
 accounting, exact order-key roll links, explicit `UNKNOWN` links when identical open lots are
 ambiguous, per-event campaign cash, campaign-colored paths, endpoint labels, campaign focus, a
 campaign index, and one net share marker per symbol/day. Raw broker rows remain immutable.
 
-The renderer does not guess through corrections, cancellations, or ambiguous identical lots. Those
-records remain visible with unknown confidence. The legacy fallback should be removed only after a
-representative live-history reconciliation proves campaign cash and remaining quantities against
-the atomic execution ledger.
+The renderer does not guess through corrections or cancellations. Ambiguous identical lots remain
+visible with inferred or unknown confidence, and the campaign audit reports every exclusion. The
+legacy fallback was removed only after representative live-history reconciliation proved campaign
+cash and remaining quantities against the atomic execution ledger.
 
 ## Why the current chart eventually breaks
 
@@ -185,13 +184,14 @@ campaign path.
 
 1. **Done:** quantity-aware campaign reconciliation and hostile fixture tests.
 2. **Done:** campaign paths, endpoint labels, campaign focus, share toggle, and campaign index.
-3. **Done:** feature-flag fallback to the numbered ticket view.
-4. **Before fallback removal:** reconcile representative Schwab histories, including partial closes,
-   rolls, expirations, assignments, adjusted multipliers, and overlapping identical contracts.
-5. **Before fallback removal:** complete keyboard, reduced-motion, range-stability, and dense-book
-   browser checks on live-shaped data.
-6. Remove the legacy ticket renderer only when those checks are green; absence of a visible failure
-   is not reconciliation evidence.
+3. **Done:** reconciled the current Schwab ledger into 29 short-premium campaigns: 25 exact, four
+   quantity-aware inferred, zero unknown, with one long-option lifecycle event excluded.
+4. **Done:** hostile fixtures cover partial closes, partial assignment, overlapping identical
+   contracts, long-option exclusion, and non-100 multipliers.
+5. **Done:** removed the legacy numbered renderer after the reconciliation gate passed.
+6. **Still an explicit coverage gap:** the current live ledger contains no observed adjusted-contract
+   event. The multiplier-aware path is tested, but a real OCC-adjusted contract has not yet been
+   reconciled from this account and must not be described as live-proven.
 
 ## Research basis
 

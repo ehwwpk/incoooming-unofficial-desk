@@ -5,6 +5,7 @@
   const stateLabel = statusRoot.querySelector("[data-sync-state]");
   const detail = statusRoot.querySelector("[data-sync-detail]");
   const syncButton = statusRoot.querySelector("[data-sync-now]");
+  const serverHealth = statusRoot.querySelector("[data-server-health]");
   const pageObservedAt = Date.parse(document.body.dataset.snapshotAsOf || "");
   let reloadQueued = false;
 
@@ -26,11 +27,23 @@
 
   const poll = async () => {
     try {
-      const response = await fetch("/api/v1/sync/status", {
+      const [healthResponse, response] = await Promise.all([
+        fetch("/api/v1/health/ready", {
+          cache: "no-store",
+          headers: { Accept: "application/json" },
+        }),
+        fetch("/api/v1/sync/status", {
         cache: "no-store",
         headers: { Accept: "application/json" },
-      });
+        }),
+      ]);
+      if (!healthResponse.ok) throw new Error(`Server health ${healthResponse.status}`);
       if (!response.ok) throw new Error(`Sync status ${response.status}`);
+      if (serverHealth) {
+        serverHealth.dataset.state = "ready";
+        serverHealth.title = "Local server and ledger database are ready";
+        serverHealth.setAttribute("aria-label", serverHealth.title);
+      }
       const status = await response.json();
       if (syncButton) syncButton.disabled = status.running;
 
@@ -63,6 +76,11 @@
         window.location.reload();
       }
     } catch (_) {
+      if (serverHealth) {
+        serverHealth.dataset.state = "offline";
+        serverHealth.title = "Local server health check failed";
+        serverHealth.setAttribute("aria-label", serverHealth.title);
+      }
       setState("SYNC STATUS OFFLINE", "negative");
       if (detail) detail.textContent = "Dashboard is open / freshness check unavailable";
     }

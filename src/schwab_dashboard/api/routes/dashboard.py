@@ -126,7 +126,6 @@ def home(request: Request, container: ContainerDependency) -> Response:
                 dataset_name=dataset.name if dataset is not None else None,
             ),
             "schwab_credentials_configured": (container.settings.schwab_credentials_configured),
-            "campaign_chart_enabled": container.settings.campaign_chart_enabled,
         },
     )
 

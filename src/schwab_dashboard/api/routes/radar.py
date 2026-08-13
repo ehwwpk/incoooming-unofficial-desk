@@ -72,12 +72,12 @@ def run_lookup(
         )
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
     except RadarLookupError as exc:
         status_code = {
             "authorization_required": status.HTTP_401_UNAUTHORIZED,
-            "unsupported": status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "unsupported": status.HTTP_422_UNPROCESSABLE_CONTENT,
         }.get(exc.state, status.HTTP_502_BAD_GATEWAY)
         raise HTTPException(
             status_code=status_code,
@@ -104,7 +104,7 @@ def read_policy(
         policy = container.premium_radar().policy_for(symbol=symbol, mode=mode)
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
     return _encode(asdict(policy))
 
@@ -121,7 +121,7 @@ def save_policy(
         )
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
     return _encode(asdict(policy))
 
@@ -142,7 +142,7 @@ def save_symbol(payload: SavedSymbolRequest, container: ContainerDependency) -> 
         container.premium_radar().save_symbol(payload.symbol)
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
 
 
@@ -152,7 +152,7 @@ def remove_symbol(symbol: str, container: ContainerDependency) -> None:
         container.premium_radar().remove_symbol(symbol)
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
 
 

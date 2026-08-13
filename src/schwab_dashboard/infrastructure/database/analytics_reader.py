@@ -262,4 +262,5 @@ def _instrument_values(instrument: InstrumentTable) -> dict[str, Any]:
         "expiration_date": instrument.expiration_date,
         "strike": instrument.strike,
         "contract_multiplier": instrument.contract_multiplier,
+        "deliverable": instrument.deliverable,
     }

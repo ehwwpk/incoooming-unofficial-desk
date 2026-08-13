@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from schwab_dashboard.api.errors import unhandled_exception
 from schwab_dashboard.api.routes.dashboard import router as dashboard_router
 from schwab_dashboard.api.routes.health import router as health_router
 from schwab_dashboard.api.routes.radar import router as radar_router
@@ -14,6 +15,7 @@ from schwab_dashboard.api.routes.sources import router as sources_router
 from schwab_dashboard.api.routes.workspaces import router as workspaces_router
 from schwab_dashboard.container import Container
 from schwab_dashboard.infrastructure.runtime.auto_sync import AutoSyncWorker
+from schwab_dashboard.infrastructure.runtime.identity import new_runtime_identity
 
 
 def create_app(container: Container | None = None) -> FastAPI:
@@ -52,6 +54,8 @@ def create_app(container: Container | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     app.state.container = app_container
+    app.state.runtime_identity = new_runtime_identity()
+    app.add_exception_handler(Exception, unhandled_exception)
     static_dir = Path(__file__).resolve().parent / "web" / "static"
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
     app.include_router(health_router)

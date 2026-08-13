@@ -97,17 +97,11 @@
             {% set midpoint = ((item.price_points | length) / 2) | int %}<div class="price-date-axis"><span data-chart-date="start">{{ item.price_points[0].label }}</span><span data-chart-date="mid">{{ item.price_points[midpoint].label }}</span><span data-chart-date="end">{{ item.price_points[-1].label }}</span></div>
           </div>
           <div class="price-map-legend"><span><i></i> <b data-chart-session-count>{{ item.price_points | length }}</b> MARKET SESSIONS</span><span><b class="sale">S</b> SOLD</span><span><b class="expired">X</b> EXPIRED</span><span><b class="closed">C</b> CLOSED</span><span><b class="rolled">R</b> ROLLED</span><span><b class="assigned">A</b> ASSIGNED</span><span><b class="share-trade">±</b> SHARES</span><small><b data-chart-event-count>{{ item.price_events | length + item.share_trade_events | length }}</b> VISIBLE EVENTS · {{ 'FROZEN DEMO CLOSES · SIMULATED CALLS' if snapshot.is_demo else 'SCHWAB DAILY CLOSES · NORMALIZED LEDGER' }}</small></div>
-          <div class="price-event-ledger{% if campaign_chart_enabled %} campaign-index{% endif %}" aria-label="{{ item.symbol }} {% if campaign_chart_enabled %}option campaign index{% else %}numbered option event tape{% endif %}">
-            {% if campaign_chart_enabled %}
+          <div class="price-event-ledger campaign-index" aria-label="{{ item.symbol }} option campaign index">
               {% for campaign in item.price_events | groupby('campaign_id') %}
                 {% set legs = campaign.list %}{% set latest = legs[-1] %}
                 <button type="button" class="{{ latest.event_type }}" data-chart-ledger-event data-event-sequence="{{ latest.sequence }}" data-campaign-id="{{ latest.campaign_id }}" data-lifecycle-id="{{ latest.lifecycle_id }}" data-lifecycle-slot="{{ latest.campaign_slot }}" data-date="{{ latest.date.isoformat() }}" aria-label="Open {{ latest.campaign_label }} campaign details"><b>{{ latest.campaign_label }}</b><span><i>{{ latest.option_side | upper }} · {{ legs | length }} LEG{{ '' if legs | length == 1 else 'S' }} · {{ latest.campaign_confidence | upper }}</i><strong>{{ latest.outcome }} · {{ latest.campaign_net_cash | money }} NET · {{ latest.detail }}</strong></span></button>
               {% endfor %}
-            {% else %}
-              {% for event in item.price_events %}
-              <button type="button" class="{{ event.event_type }}" data-chart-ledger-event data-event-sequence="{{ event.sequence }}" data-campaign-id="{{ event.campaign_id }}" data-lifecycle-id="{{ event.lifecycle_id }}" data-lifecycle-slot="{{ event.campaign_slot }}" data-date="{{ event.date.isoformat() }}" aria-label="Open event {{ event.sequence }} details"><b>{{ event.sequence }}</b><span><i>{{ event.label }} · {{ event.glyph }}</i><strong>{{ event.detail }}</strong></span></button>
-              {% endfor %}
-            {% endif %}
           </div>
         </section>
 

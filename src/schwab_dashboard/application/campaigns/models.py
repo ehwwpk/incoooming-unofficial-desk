@@ -40,12 +40,25 @@ class OptionCampaign:
 
 
 @dataclass(frozen=True, slots=True)
+class CampaignExclusion:
+    record_key: str
+    reason: str
+
+
+@dataclass(frozen=True, slots=True)
 class CampaignLedger:
     campaigns: tuple[OptionCampaign, ...]
     annotations: tuple[CampaignAnnotation, ...]
+    exclusions: tuple[CampaignExclusion, ...] = ()
 
     def annotation_for(self, record_key: str) -> CampaignAnnotation | None:
         return next(
             (item for item in self.annotations if item.record_key == record_key),
+            None,
+        )
+
+    def exclusion_for(self, record_key: str) -> CampaignExclusion | None:
+        return next(
+            (item for item in self.exclusions if item.record_key == record_key),
             None,
         )

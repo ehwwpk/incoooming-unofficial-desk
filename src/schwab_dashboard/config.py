@@ -29,10 +29,6 @@ class Settings(BaseSettings):
     port: int = Field(default=8182, alias="SCHWAB_DASHBOARD_PORT", ge=1, le=65535)
     log_level: str = Field(default="INFO", alias="SCHWAB_DASHBOARD_LOG_LEVEL")
     demo_mode: bool = Field(default=False, alias="SCHWAB_DASHBOARD_DEMO_MODE")
-    campaign_chart_enabled: bool = Field(
-        default=True,
-        alias="SCHWAB_DASHBOARD_CAMPAIGN_CHART_ENABLED",
-    )
     auto_sync_enabled: bool = Field(default=True, alias="SCHWAB_AUTO_SYNC_ENABLED")
     auto_sync_interval_seconds: int = Field(
         default=900,

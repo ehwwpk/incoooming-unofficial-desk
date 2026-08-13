@@ -1,5 +1,4 @@
 {% for event in item.price_events %}
-{% set marker_label = event.campaign_label if campaign_chart_enabled else event.sequence %}
 <button
   type="button"
   class="price-event {{ event.event_type }}"
@@ -38,12 +37,12 @@
   {% if event.resolved_on %}data-resolved-on="{{ event.resolved_on.isoformat() }}"{% endif %}
   {% if event.underlying_at_resolution is not none %}data-underlying-at-resolution="{{ event.underlying_at_resolution }}"{% endif %}
   style="--event-x: {{ event.x_percent }}%; --event-y: {{ event.y_percent }}%; --event-offset: {{ event.vertical_offset }}px"
-  aria-label="{% if campaign_chart_enabled %}Campaign {{ event.campaign_label }}, leg {{ event.campaign_leg_index }}{% else %}Event {{ event.sequence }}{% endif %}: {{ event.label }} {{ event.detail }}"
+  aria-label="Campaign {{ event.campaign_label }}, leg {{ event.campaign_leg_index }}: {{ event.label }} {{ event.detail }}"
   aria-haspopup="dialog"
   aria-expanded="false"
   aria-controls="{{ item.symbol | lower }}-event-popover"
   aria-describedby="{{ item.symbol | lower }}-event-tip-{{ event.sequence }}"
-><b aria-hidden="true">{% if campaign_chart_enabled and not (event.campaign_is_first_visible or event.campaign_is_latest_visible) %}{{ event.glyph }}{% else %}{{ marker_label }}{% endif %}{% if campaign_chart_enabled %}<small>{{ event.campaign_leg_index }}</small>{% endif %}</b><span class="chart-event-quick" role="tooltip" id="{{ item.symbol | lower }}-event-tip-{{ event.sequence }}">{% if campaign_chart_enabled %}{{ event.campaign_label }}.{{ event.campaign_leg_index }} · {% endif %}{{ event.detail }}{% if event.event_type == 'sale' %} · +{{ event.gross_premium | money }}{% endif %}{% if campaign_chart_enabled %} · {{ event.campaign_confidence | upper }}{% endif %}</span></button>
+><b aria-hidden="true">{% if not (event.campaign_is_first_visible or event.campaign_is_latest_visible) %}{{ event.glyph }}{% else %}{{ event.campaign_label }}{% endif %}<small>{{ event.campaign_leg_index }}</small></b><span class="chart-event-quick" role="tooltip" id="{{ item.symbol | lower }}-event-tip-{{ event.sequence }}">{{ event.campaign_label }}.{{ event.campaign_leg_index }} · {{ event.detail }}{% if event.event_type == 'sale' %} · +{{ event.gross_premium | money }}{% endif %} · {{ event.campaign_confidence | upper }}</span></button>
 {% endfor %}
 {% for event in item.share_trade_events %}
 <button

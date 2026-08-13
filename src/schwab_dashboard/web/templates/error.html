@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>Desk interruption · Incoooming</title>
+    <link rel="icon" href="/static/nibwick-favicon.svg?v=2" type="image/svg+xml">
+    <link rel="stylesheet" href="/static/app.css?v=70">
+  </head>
+  <body class="local-error-page">
+    <main class="local-error-card">
+      <p class="eyebrow">LOCAL DESK INTERRUPTION</p>
+      <h1>This page tripped over a wire.</h1>
+      <p>Your saved ledger was not changed. Retry the desk first; if the error returns, run the restart shortcut and check the terminal for the exact cause.</p>
+      <dl>
+        <div><dt>REQUEST</dt><dd>{{ request_path }}</dd></div>
+        <div><dt>LEDGER</dt><dd>UNCHANGED</dd></div>
+      </dl>
+      <nav>
+        <a href="/">RETRY DESK</a>
+        <a href="/api/v1/health/ready">CHECK SERVER</a>
+      </nav>
+      <code>.\scripts\restart-local.cmd</code>
+    </main>
+  </body>
+</html>

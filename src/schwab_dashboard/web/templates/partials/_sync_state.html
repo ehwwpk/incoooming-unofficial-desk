@@ -4,6 +4,7 @@
 {% set interval_seconds = sync_runtime.interval_seconds | default(900) %}
 <div class="session-state" data-sync-status-root>
   <div class="sync-state-line">
+    <i class="server-health-dot" data-server-health title="Local server health is being checked" aria-label="Local server health is being checked"></i>
     {% if snapshot.is_demo %}
     <b class="muted" data-sync-state>DEMO SOURCE</b>
     {% elif snapshot.mode == 'csv' %}

@@ -34,6 +34,8 @@
 .radar-roll-handoff { border-bottom: 1px solid var(--gold-soft); background: #0d0f11; }
 .radar-roll-handoff > header { display: flex; min-height: 27px; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); padding: 4px 10px; }
 .radar-roll-handoff > header span { color: var(--gold); font: 780 .43rem var(--mono); letter-spacing: .06em; }
+.radar-roll-handoff > header a { color: var(--muted); font: 700 .39rem var(--mono); text-decoration: none; }
+.radar-roll-handoff > header a:hover, .radar-roll-handoff > header a:focus-visible { color: var(--gold); outline: 0; }
 .radar-roll-handoff > header strong { margin-left: auto; color: var(--muted); font: 720 .4rem var(--mono); }
 .radar-roll-handoff > header button { border: 0; border-left: 1px solid var(--line); padding: 2px 0 2px 10px; background: transparent; color: var(--subtle); font: 700 .39rem var(--mono); }
 .radar-roll-handoff > header button:hover, .radar-roll-handoff > header button:focus-visible { color: var(--gold); outline: 0; }

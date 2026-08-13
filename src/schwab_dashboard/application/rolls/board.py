@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
+from schwab_dashboard.application.dashboard.anchors import option_contract_anchor
 from schwab_dashboard.application.dashboard.covered_calls import OpenCallClock
 from schwab_dashboard.application.dashboard.models import DashboardSnapshot, LiveOpenOptionPosition
 from schwab_dashboard.application.rolls import RollQuote, RollSource, select_roll_candidates
@@ -14,8 +15,10 @@ ZERO = Decimal("0")
 
 @dataclass(frozen=True, slots=True)
 class RollBoardRow:
+    anchor_id: str
     symbol: str
     source: RollSource
+    days_to_expiration: int
     urgency: str
     urgency_rank: int
     strike_distance_per_share: Decimal
@@ -116,8 +119,10 @@ def _call_row(
         ),
     )
     return RollBoardRow(
+        anchor_id=f"roll-{option_contract_anchor(call.record_id)}",
         symbol=symbol,
         source=source,
+        days_to_expiration=call.days_to_expiration,
         urgency=urgency[0],
         urgency_rank=urgency[1],
         strike_distance_per_share=call.strike_distance_per_share,
@@ -148,8 +153,10 @@ def _put_row(put: LiveOpenOptionPosition) -> RollBoardRow | None:
     )
     result = select_roll_candidates(source, put.roll_quote_candidates)
     return RollBoardRow(
+        anchor_id=f"roll-{option_contract_anchor(put.option_symbol)}",
         symbol=put.underlying_symbol,
         source=source,
+        days_to_expiration=put.days_to_expiration,
         urgency=urgency[0],
         urgency_rank=urgency[1],
         strike_distance_per_share=put.strike_distance_per_share,

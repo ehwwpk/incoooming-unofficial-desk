@@ -41,11 +41,13 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert desk.text.count("data-tools-toggle") == 1
         assert "desk-workspace-launcher" not in desk.text
         assert "function-rail" in desk.text
-        assert 'data-campaign-chart="true"' in desk.text
+        assert "data-campaign-chart" not in desk.text
         assert 'class="price-event-ledger campaign-index"' in desk.text
         assert "C1" in desk.text
         assert "REFRESH ROLL CHOICES" in desk.text
         assert "review=roll&amp;source=cvx-0724-195&amp;from=nibwick" in desk.text
+        assert "returnAnchor=roll-option-cvx-0724-195" in desk.text
+        assert "OPEN THIS CONTRACT" in desk.text
 
         assert risk.status_code == 200
         assert "Next expirations" in risk.text
@@ -62,6 +64,7 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "workspace-directory" not in risk.text
         assert 'class="workspace-breadcrumb"' in risk.text
         assert "BACK TO DESK" in risk.text
+        assert 'data-roll-board-contract=' in risk.text
 
         assert review.status_code == 200
         assert "What the strategy paid" in review.text
@@ -95,6 +98,7 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "data-radar-roll-handoff" in radar.text
         assert "ROLL AN OPEN OPTION" in radar.text
         assert "data-radar-roll-source-picker" in radar.text
+        assert "data-radar-roll-return" in radar.text
         assert 'data-symbol="CVX" data-mode="covered_call"' in radar.text
         assert 'value="CVX" data-radar-symbol' in radar.text
         assert 'data-radar-symbol-chip="CVX"' in radar.text
@@ -112,35 +116,6 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "Cash events" in records.text
         assert "EXACT POSTING DATES" in records.text
         assert "Inactive calendar dates are intentionally omitted" in records.text
-    finally:
-        container.close()
-
-
-def test_demo_desk_can_render_the_legacy_chart_fallback(tmp_path: Path) -> None:
-    settings = Settings(
-        _env_file=None,
-        data_dir=tmp_path,
-        demo_mode=True,
-        campaign_chart_enabled=False,
-    )
-    command.upgrade(_alembic_config(settings), "head")
-    container = Container(settings)
-
-    async def request_desk() -> httpx.Response:
-        transport = httpx.ASGITransport(app=create_app(container))
-        async with httpx.AsyncClient(
-            transport=transport,
-            base_url="http://test",
-            cookies={"incoooming_source": "demo"},
-        ) as client:
-            return await client.get("/")
-
-    try:
-        response = asyncio.run(request_desk())
-        assert response.status_code == 200
-        assert 'data-campaign-chart="false"' in response.text
-        assert 'class="price-event-ledger campaign-index"' not in response.text
-        assert "numbered option event tape" in response.text
     finally:
         container.close()
 
