@@ -149,6 +149,18 @@ SCHWAB_AUTO_SYNC_STARTUP_DELAY_SECONDS=2
 Automatic refresh exists only while `run-local.cmd` is running; Incoooming does not install a
 hidden Windows background service.
 
+If Incoooming is already running, `run-local.cmd` now checks the local server's application ID,
+process ID, and code fingerprint. It leaves an unrelated process alone, reuses a current server,
+and replaces a verified stale Incoooming process. For an intentional one-click restart that returns
+after the replacement passes its health check, run:
+
+```powershell
+.\scripts\restart-local.cmd
+```
+
+The top-right health dot distinguishes a ready local server from an unavailable freshness check. An
+unexpected page failure shows a local recovery screen; it never clears or recreates the ledger.
+
 ## Safety
 
 - Never commit `.env`, `var/`, tokens, exports, or account data.

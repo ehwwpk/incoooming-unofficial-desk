@@ -1,7 +1,6 @@
 (() => {
   const triggers = [...document.querySelectorAll("[data-chart-event-trigger]")];
   if (!triggers.length) return;
-  const campaignChartEnabled = document.body.dataset.campaignChart === "true";
 
   const dollars = new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -170,16 +169,14 @@
       return;
     }
 
-    const campaignId = campaignChartEnabled
-      ? trigger.dataset.campaignId
-      : trigger.dataset.lifecycleId;
+    const campaignId = trigger.dataset.campaignId;
     canvas.dataset.eventFocus = campaignId;
     canvas.querySelectorAll("[data-campaign-id], [data-lifecycle-id]").forEach((node) => {
-      const nodeId = campaignChartEnabled ? node.dataset.campaignId : node.dataset.lifecycleId;
+      const nodeId = node.dataset.campaignId;
       if (nodeId === campaignId) node.dataset.eventActive = "true";
     });
     markerCard(trigger)?.querySelectorAll("[data-chart-ledger-event]").forEach((node) => {
-      const nodeId = campaignChartEnabled ? node.dataset.campaignId : node.dataset.lifecycleId;
+      const nodeId = node.dataset.campaignId;
       if (nodeId === campaignId) node.dataset.eventActive = "true";
     });
   };
@@ -192,9 +189,7 @@
     const grossPremium = number(trigger.dataset.grossPremium);
     const buybackCost = number(trigger.dataset.buybackCost);
     const netCash = number(trigger.dataset.netCash);
-    const campaign = campaignChartEnabled
-      ? trigger.dataset.campaignLabel
-      : `#${trigger.dataset.eventSequence}`;
+    const campaign = trigger.dataset.campaignLabel;
     const side = trigger.dataset.optionSide === "put" ? "P" : "C";
     const heading = `${campaign}.${trigger.dataset.campaignLeg || 1} · ${eventTitles[type] || type.toUpperCase()} · ${shortDate(trigger.dataset.date)}`;
     const contract = `${contracts}× ${symbol} $${strikes.format(number(trigger.dataset.strike))}${side} · EXP ${shortDate(trigger.dataset.expiresOn)}`;
@@ -204,27 +199,19 @@
 
     if (type === "expired") {
       cashText = `${money(grossPremium)} kept · no close debit`;
-      footer = campaignChartEnabled
-        ? `CAMPAIGN RESOLUTION · ${signedMoney(netCash)} LEG NET`
-        : `RESOLVES PREMIUM EVENT #${trigger.dataset.linkedSaleSequence} · ${signedMoney(netCash)} NET OPTION CASH`;
+      footer = `CAMPAIGN RESOLUTION · ${signedMoney(netCash)} LEG NET`;
     } else if (type === "closed" || (type === "rolled" && !isOpenRoll)) {
       cashText = `${signedMoney(-buybackCost)} close · ${signedMoney(netCash)} leg net`;
       cashClass = buybackCost > 0 ? "negative" : "positive";
-      footer = campaignChartEnabled
-        ? `CAMPAIGN RESOLUTION · ${trigger.dataset.outcome.toUpperCase()}`
-        : `RESOLVES PREMIUM EVENT #${trigger.dataset.linkedSaleSequence} · ${trigger.dataset.outcome.toUpperCase()}`;
+      footer = `CAMPAIGN RESOLUTION · ${trigger.dataset.outcome.toUpperCase()}`;
     } else if (type === "assigned") {
       cashText = `${money(grossPremium)} kept · ${contracts * 100} shares called away`;
-      footer = campaignChartEnabled
-        ? "CAMPAIGN RESOLUTION · ASSIGNED"
-        : `RESOLVES PREMIUM EVENT #${trigger.dataset.linkedSaleSequence} · ASSIGNED`;
+      footer = "CAMPAIGN RESOLUTION · ASSIGNED";
     } else if (isOpenRoll) {
       cashText = `${signedMoney(grossPremium)} received · ${money(trigger.dataset.premiumPerShare)}/sh`;
       footer = "OPEN ROLL LEG";
     } else if (trigger.dataset.linkedResolutionSequence) {
-      footer = campaignChartEnabled
-        ? `LATER RESOLVED · ${trigger.dataset.outcome.toUpperCase()}`
-        : `LATER RESOLVED → #${trigger.dataset.linkedResolutionSequence} ${trigger.dataset.outcome.toUpperCase()}`;
+      footer = `LATER RESOLVED · ${trigger.dataset.outcome.toUpperCase()}`;
     }
 
     set(popover, "[data-event-popover-heading]", heading);
@@ -258,9 +245,7 @@
     set(
       popover,
       "[data-event-popover-link]",
-      campaignChartEnabled
-        ? `${footer} · ${campaign} ${signedMoney(trigger.dataset.campaignNetCash)} · ${(trigger.dataset.campaignConfidence || "unknown").replaceAll("_", " ").toUpperCase()} LINK`
-        : footer,
+      `${footer} · ${campaign} ${signedMoney(trigger.dataset.campaignNetCash)} · ${(trigger.dataset.campaignConfidence || "unknown").replaceAll("_", " ").toUpperCase()} LINK`,
     );
   };
 

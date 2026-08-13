@@ -8,6 +8,7 @@ from decimal import Decimal
 
 from schwab_dashboard.application.campaigns.models import (
     CampaignAnnotation,
+    CampaignExclusion,
     CampaignLedger,
     CampaignLinkConfidence,
     OptionCampaign,
@@ -47,7 +48,7 @@ def reconcile_option_campaigns(
     retained but marked inferred instead of silently presented as certain.
     """
 
-    records = _normalized_records(executions, lifecycle_events)
+    records, exclusions = _normalized_records(executions, lifecycle_events)
     campaigns: dict[str, _WorkingCampaign] = {}
     active: defaultdict[str, list[_ActiveLot]] = defaultdict(list)
     annotations: dict[str, tuple[str, CampaignLinkConfidence, int, Decimal]] = {}
@@ -66,8 +67,15 @@ def reconcile_option_campaigns(
                 closed_by_order[order_key],
                 contracts,
             )
-            confidence = roll_confidence if roll_parent else CampaignLinkConfidence.EXACT
-            campaign_id = roll_parent or str(record["record_key"])
+            same_contract_parent = _single_active_campaign(active[position_key])
+            confidence = (
+                roll_confidence
+                if roll_parent
+                else CampaignLinkConfidence.INFERRED
+                if same_contract_parent
+                else CampaignLinkConfidence.EXACT
+            )
+            campaign_id = roll_parent or same_contract_parent or str(record["record_key"])
             if campaign_id not in campaigns:
                 campaigns[campaign_id] = _WorkingCampaign(
                     campaign_id=campaign_id,
@@ -88,6 +96,7 @@ def reconcile_option_campaigns(
             if consumed_campaign_id is not None:
                 campaign_id = consumed_campaign_id
                 campaign = campaigns[campaign_id]
+                confidence = _weaker(confidence, campaign.confidence)
                 if _campaign_has_open_contracts(active, campaign_id):
                     campaign.status = "OPEN"
                     campaign.closed_on = None
@@ -163,14 +172,20 @@ def reconcile_option_campaigns(
             net_cash_to_date,
         ) in annotations.items()
     )
-    return CampaignLedger(campaigns=final_campaigns, annotations=final_annotations)
+    return CampaignLedger(
+        campaigns=final_campaigns,
+        annotations=final_annotations,
+        exclusions=tuple(exclusions),
+    )
 
 
 def _normalized_records(
     executions: Sequence[Mapping[str, object]],
     lifecycle_events: Sequence[Mapping[str, object]],
-) -> list[dict[str, object]]:
+) -> tuple[list[dict[str, object]], list[CampaignExclusion]]:
     records: list[dict[str, object]] = []
+    exclusions: list[CampaignExclusion] = []
+    long_inventory = _long_option_inventory(executions)
     for row in executions:
         if str(row.get("asset_type")) != "option":
             continue
@@ -197,6 +212,14 @@ def _normalized_records(
         event_type = str(row.get("event_type"))
         if event_type not in {"expiration", "assignment"}:
             continue
+        if _consume_long_inventory(long_inventory, row):
+            exclusions.append(
+                CampaignExclusion(
+                    record_key=_record_key(row),
+                    reason="LONG OPTION LIFECYCLE — OUTSIDE SHORT-PREMIUM CAMPAIGNS",
+                )
+            )
+            continue
         records.append(
             {
                 "record_key": _record_key(row),
@@ -221,7 +244,63 @@ def _normalized_records(
             item["record_key"],
         )
     )
-    return records
+    return records, exclusions
+
+
+def _long_option_inventory(
+    executions: Sequence[Mapping[str, object]],
+) -> defaultdict[str, list[tuple[datetime, Decimal]]]:
+    inventory: defaultdict[str, list[tuple[datetime, Decimal]]] = defaultdict(list)
+    for row in sorted(executions, key=lambda item: _datetime(item.get("occurred_at"))):
+        if str(row.get("asset_type")) != "option":
+            continue
+        side = str(row.get("side"))
+        effect = str(row.get("position_effect"))
+        if (side, effect) not in {("buy", "opening"), ("sell", "closing")}:
+            continue
+        key = _scoped_key(row, "symbol")
+        quantity = abs(_decimal(row.get("quantity")))
+        if side == "buy":
+            inventory[key].append((_datetime(row.get("occurred_at")), quantity))
+            continue
+        remaining = quantity
+        for index, (opened_at, available) in enumerate(inventory[key]):
+            consumed = min(available, remaining)
+            inventory[key][index] = (opened_at, available - consumed)
+            remaining -= consumed
+            if remaining <= ZERO:
+                break
+    return inventory
+
+
+def _consume_long_inventory(
+    inventory: Mapping[str, list[tuple[datetime, Decimal]]],
+    row: Mapping[str, object],
+) -> bool:
+    lots = inventory.get(_scoped_key(row, "symbol"), [])
+    occurred_at = _datetime(row.get("occurred_at"))
+    quantity = abs(_decimal(row.get("option_quantity")))
+    eligible = sum(
+        (available for opened_at, available in lots if opened_at <= occurred_at),
+        ZERO,
+    )
+    if quantity <= ZERO or eligible < quantity:
+        return False
+    remaining = quantity
+    for index, (opened_at, available) in enumerate(lots):
+        if opened_at > occurred_at:
+            continue
+        consumed = min(available, remaining)
+        lots[index] = (opened_at, available - consumed)
+        remaining -= consumed
+        if remaining <= ZERO:
+            break
+    return True
+
+
+def _single_active_campaign(lots: Sequence[_ActiveLot]) -> str | None:
+    campaign_ids = {lot.campaign_id for lot in lots if lot.contracts > ZERO}
+    return next(iter(campaign_ids)) if len(campaign_ids) == 1 else None
 
 
 def _consume_single_campaign(
@@ -232,9 +311,18 @@ def _consume_single_campaign(
         return (None, CampaignLinkConfidence.UNKNOWN)
     campaign_ids = {lot.campaign_id for lot in lots if lot.contracts > ZERO}
     available = sum((lot.contracts for lot in lots), ZERO)
-    if len(campaign_ids) != 1 or contracts > available:
+    if contracts > available:
         return (None, CampaignLinkConfidence.UNKNOWN)
-    campaign_id = next(iter(campaign_ids))
+    if len(campaign_ids) == 1:
+        campaign_id = next(iter(campaign_ids))
+        confidence = CampaignLinkConfidence.EXACT
+    elif contracts <= lots[0].contracts:
+        # Listed contracts of one series are fungible. When separate campaign
+        # lots overlap, FIFO is an explicit inference—not broker-supplied truth.
+        campaign_id = lots[0].campaign_id
+        confidence = CampaignLinkConfidence.INFERRED
+    else:
+        return (None, CampaignLinkConfidence.UNKNOWN)
     remaining = contracts
     while lots and remaining > ZERO:
         lot = lots[0]
@@ -243,7 +331,7 @@ def _consume_single_campaign(
         remaining -= consumed
         if lot.contracts == ZERO:
             lots.pop(0)
-    return (campaign_id, CampaignLinkConfidence.EXACT)
+    return (campaign_id, confidence)
 
 
 def _campaign_has_open_contracts(

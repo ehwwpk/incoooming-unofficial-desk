@@ -11,7 +11,7 @@ Already have a Schwab app marked **Ready For Use**? Skip to [step 4](#4-put-the-
 Already filled in `.env`? Skip to [step 5](#5-authorize-schwab-and-build-the-first-book).
 
 > **Time:** about 20 minutes of setup, plus Schwab's approval wait. Schwab says most product-access
-> requests are reviewed within two business days, although some take longer.
+> requests are reviewed within one to two business days.
 
 ## Before you start
 

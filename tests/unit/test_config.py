@@ -27,11 +27,6 @@ def test_demo_mode_is_explicit_and_disabled_by_default() -> None:
     assert Settings(_env_file=None, demo_mode=True).demo_mode is True
 
 
-def test_campaign_chart_can_fall_back_to_the_legacy_ticket_view() -> None:
-    assert Settings(_env_file=None).campaign_chart_enabled is True
-    assert Settings(_env_file=None, campaign_chart_enabled=False).campaign_chart_enabled is False
-
-
 def test_live_server_defaults_to_bounded_automatic_sync() -> None:
     settings = Settings(_env_file=None)
 

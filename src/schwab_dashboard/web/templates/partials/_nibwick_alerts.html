@@ -70,12 +70,12 @@
       <section class="nibwick-roll-ladder" aria-label="Indicative roll preview">
         <header>
           <strong>NEAR-FLAT ROLL PREVIEW</strong>
-          <span>{{ 'SIMULATED' if snapshot.is_demo else 'LIVE' }} · BTC ASK / STO BID</span>
+          <a href="/workspaces/risk?from=nibwick#roll-{{ alert.roll_source_option_symbol | option_anchor }}">OPEN THIS CONTRACT IN ROLL BOARD →</a>
         </header>
         <div class="nibwick-roll-preview">
           {% for scenario in alert.roll_scenarios %}
           <a
-            href="/workspaces/radar?symbol={{ alert.symbol | urlencode }}&amp;mode={{ 'covered_call' if scenario.option_side.value == 'call' else 'cash_secured_put' }}&amp;review=roll&amp;source={{ scenario.source_option_symbol | urlencode }}&amp;targetExpiration={{ scenario.target_expiration }}&amp;targetStrike={{ scenario.target_strike }}&amp;from=nibwick"
+            href="/workspaces/radar?symbol={{ alert.symbol | urlencode }}&amp;mode={{ 'covered_call' if scenario.option_side.value == 'call' else 'cash_secured_put' }}&amp;review=roll&amp;source={{ scenario.source_option_symbol | urlencode }}&amp;targetExpiration={{ scenario.target_expiration }}&amp;targetStrike={{ scenario.target_strike }}&amp;from=nibwick&amp;returnAnchor={{ ('roll-' ~ (scenario.source_option_symbol | option_anchor)) | urlencode }}"
             class="nibwick-roll-row"
             data-nibwick-roll-review
             data-roll-symbol="{{ alert.symbol }}"
@@ -105,8 +105,8 @@
         <b>{{ 'NO CLEAN ROLL IN THE LOADED CHAIN' if alert.no_clean_roll_reason else 'FRESH CHAIN NEEDED' }}</b>
         <span>{{ alert.no_clean_roll_reason or 'The saved account snapshot did not include a usable replacement quote for this contract.' }}</span>
         <div>
-          <a href="/workspaces/radar?symbol={{ alert.symbol | urlencode }}&amp;mode={{ 'covered_call' if alert.roll_option_side.value == 'call' else 'cash_secured_put' }}&amp;review=roll&amp;source={{ alert.roll_source_option_symbol | urlencode }}&amp;from=nibwick">REFRESH ROLL CHOICES →</a>
-          <a href="/workspaces/risk">OPEN ROLL BOARD →</a>
+          <a href="/workspaces/radar?symbol={{ alert.symbol | urlencode }}&amp;mode={{ 'covered_call' if alert.roll_option_side.value == 'call' else 'cash_secured_put' }}&amp;review=roll&amp;source={{ alert.roll_source_option_symbol | urlencode }}&amp;from=nibwick&amp;returnAnchor={{ ('roll-' ~ (alert.roll_source_option_symbol | option_anchor)) | urlencode }}">REFRESH ROLL CHOICES →</a>
+          <a href="/workspaces/risk?from=nibwick#roll-{{ alert.roll_source_option_symbol | option_anchor }}">OPEN THIS CONTRACT →</a>
         </div>
       </section>
       {% endif %}

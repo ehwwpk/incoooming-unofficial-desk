@@ -42,6 +42,8 @@ def test_roll_board_ranks_an_urgent_call_and_exposes_candidates() -> None:
     )
 
     row = next(item for item in projection.rows if item.source.option_symbol == call.record_id)
+    assert row.anchor_id.startswith("roll-option-")
+    assert row.days_to_expiration == 2
     assert row.urgency == "NEEDS ATTENTION"
     assert row.candidates[0].option_symbol == "NEXT CALL"
     assert projection.posture == "AT THE DESK"
@@ -97,6 +99,7 @@ def test_roll_board_handles_short_puts_and_names_missing_market_data() -> None:
     projection = build_roll_board(replace(snapshot, underlyings=(), live_position_book=book))
 
     assert projection.rows[0].source.option_symbol == "KTOS PUT"
+    assert projection.rows[0].anchor_id == "roll-option-ktos-put"
     assert projection.rows[0].candidates[0].strike == D("60")
     assert projection.posture == "AT THE DESK"
 

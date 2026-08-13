@@ -49,6 +49,10 @@ Nibwick alerts, the portfolio Roll Board, and Premium Radar call the same pure s
 handoff includes the source contract and selected target; Radar refreshes the chain and recomputes
 the BTC-ask/STO-bid comparison rather than trusting stale display math.
 
+Every reviewed contract has one stable browser anchor. Nibwick can open that exact Roll Board row;
+the Board carries the same anchor into Radar; and Radar can return to the originating contract. The
+trail changes navigation only. It does not preserve or imply an executable quote.
+
 ## Verification boundary
 
 The board depends on the quote range already loaded for the contract. “No clean roll” means none was

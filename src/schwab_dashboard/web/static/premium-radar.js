@@ -15,6 +15,7 @@
   const saveButton = root.querySelector("[data-radar-save]");
   const rollPanel = root.querySelector("[data-radar-roll-handoff]");
   const rollClear = root.querySelector("[data-radar-roll-clear]");
+  const rollReturn = root.querySelector("[data-radar-roll-return]");
   const rollSourcePicker = root.querySelector("[data-radar-roll-source-picker]");
   const rollSourceRun = root.querySelector("[data-radar-roll-source-run]");
   const policySummary = root.querySelector("[data-radar-policy-summary]");
@@ -78,6 +79,8 @@
     const targetStrikeRaw = params.get("targetStrike");
     const targetStrike = targetStrikeRaw ? Number(targetStrikeRaw) : null;
     const hasOneTargetPart = Boolean(targetExpiration) !== Boolean(targetStrikeRaw);
+    const returnAnchor = (params.get("returnAnchor") || "").trim();
+    const origin = params.get("from");
     const invalid = (
       !/^[A-Z0-9.-]{1,16}$/.test(symbol)
       || !sourceOptionSymbol
@@ -86,6 +89,7 @@
       || hasOneTargetPart
       || (targetExpiration && !/^\d{4}-\d{2}-\d{2}$/.test(targetExpiration))
       || (targetStrike !== null && (!Number.isFinite(targetStrike) || targetStrike <= 0))
+      || (returnAnchor && !/^roll-option-[a-z0-9-]{1,72}$/.test(returnAnchor))
     );
     return {
       symbol,
@@ -93,7 +97,10 @@
       mode: requestedMode,
       targetExpiration,
       targetStrike,
-      origin: params.get("from") === "nibwick" ? "NIBWICK → RADAR" : "ROLL REVIEW",
+      origin: origin === "nibwick"
+        ? "NIBWICK → RADAR"
+        : origin === "roll-board" ? "ROLL BOARD → RADAR" : "ROLL REVIEW",
+      returnAnchor,
       error: invalid ? "This roll link is incomplete. Choose the open option again." : null,
     };
   };
@@ -103,6 +110,12 @@
     rollPanel.hidden = false;
     rollPanel.dataset.rollStatus = "pending";
     setText("[data-radar-roll-origin]", rollHandoff.origin);
+    if (rollReturn) {
+      rollReturn.hidden = !rollHandoff.returnAnchor;
+      rollReturn.href = rollHandoff.returnAnchor
+        ? `/workspaces/risk?from=radar#${encodeURIComponent(rollHandoff.returnAnchor)}`
+        : "/workspaces/risk";
+    }
     setText("[data-radar-roll-status]", "VERIFYING OPEN OPTION");
     setText("[data-radar-roll-source]", "CHECKING CURRENT POSITION");
     setText("[data-radar-roll-target]", rollHandoff.error
@@ -573,7 +586,7 @@
     rollHandoff = null;
     rollPanel.hidden = true;
     const cleanUrl = new URL(window.location.href);
-    ["review", "source", "targetExpiration", "targetStrike", "from"].forEach((key) => cleanUrl.searchParams.delete(key));
+    ["review", "source", "targetExpiration", "targetStrike", "from", "returnAnchor"].forEach((key) => cleanUrl.searchParams.delete(key));
     window.history.replaceState({}, "", cleanUrl);
   });
   rollSourceRun?.addEventListener("click", () => {
@@ -591,6 +604,7 @@
       targetExpiration: null,
       targetStrike: null,
       origin: "ROLL REVIEW",
+      returnAnchor: "",
       error: null,
     };
     const nextUrl = new URL(window.location.href);
@@ -598,7 +612,7 @@
     nextUrl.searchParams.set("mode", selectedMode);
     nextUrl.searchParams.set("review", "roll");
     nextUrl.searchParams.set("source", sourceOptionSymbol);
-    ["targetExpiration", "targetStrike", "from"].forEach((key) => nextUrl.searchParams.delete(key));
+    ["targetExpiration", "targetStrike", "from", "returnAnchor"].forEach((key) => nextUrl.searchParams.delete(key));
     window.history.replaceState({}, "", nextUrl);
     renderPendingRoll();
     syncPutRules();

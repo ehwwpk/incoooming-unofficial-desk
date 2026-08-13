@@ -70,11 +70,16 @@ def build_option_events(
         if _is_chart_lifecycle(row, symbol=symbol, start=start, end=end)
     ]
     rows = [row for row in (*option_rows, *lifecycle_rows) if row is not None]
+    campaign_ledger = reconcile_option_campaigns(executions, lifecycle_events)
+    rows = [
+        row
+        for row in rows
+        if campaign_ledger.exclusion_for(str(row["stable_key"])) is None
+    ]
     rows.sort(key=lambda row: (row["date"], row["sort_order"], row["stable_key"]))
     _mark_roll_openings(rows)
     _link_contract_lifecycles(rows)
     _assign_collision_offsets(rows)
-    campaign_ledger = reconcile_option_campaigns(executions, lifecycle_events)
     campaign_slots = {
         campaign.campaign_id: index % 6
         for index, campaign in enumerate(campaign_ledger.campaigns)

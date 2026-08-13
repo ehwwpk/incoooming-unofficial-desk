@@ -2,13 +2,12 @@
   const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
   const canvases = [...document.querySelectorAll(".price-path-canvas")];
   if (!canvases.length) return;
-  const campaignChartEnabled = document.body.dataset.campaignChart === "true";
 
   const makePath = (className, pathData, marker) => {
     const path = document.createElementNS(SVG_NAMESPACE, "path");
     path.setAttribute("class", className);
     path.setAttribute("d", pathData);
-    if (campaignChartEnabled) path.dataset.campaignId = marker.dataset.campaignId;
+    path.dataset.campaignId = marker.dataset.campaignId;
     path.dataset.lifecycleId = marker.dataset.lifecycleId;
     path.dataset.lifecycleSlot = marker.dataset.lifecycleSlot;
     path.dataset.linkConfidence = marker.dataset.campaignConfidence || "unknown";
@@ -50,10 +49,9 @@
     overlay.replaceChildren();
 
     const campaigns = new Map();
-    const selector = campaignChartEnabled ? "[data-campaign-id]" : "[data-lifecycle-id]";
-    canvas.querySelectorAll(selector).forEach((marker) => {
+    canvas.querySelectorAll("[data-campaign-id]").forEach((marker) => {
       if (marker.hidden) return;
-      const key = campaignChartEnabled ? marker.dataset.campaignId : marker.dataset.lifecycleId;
+      const key = marker.dataset.campaignId;
       const markers = campaigns.get(key) || [];
       markers.push(marker);
       campaigns.set(key, markers);

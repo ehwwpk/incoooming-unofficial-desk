@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import NoReturn
 
@@ -9,9 +10,13 @@ from alembic import command
 from alembic.config import Config
 
 from schwab_dashboard.app import create_app
+from schwab_dashboard.application.campaigns import reconcile_option_campaigns
+from schwab_dashboard.application.campaigns.audit import audit_campaign_ledger
 from schwab_dashboard.application.errors import AuthenticationRequiredError
 from schwab_dashboard.config import Settings
 from schwab_dashboard.container import Container
+from schwab_dashboard.infrastructure.database.analytics_reader import SqlLiveAnalyticsReader
+from schwab_dashboard.infrastructure.runtime.identity import current_build_id
 
 app = typer.Typer(no_args_is_help=True, help="Incoooming local commands.")
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -124,6 +129,67 @@ def doctor() -> None:
         typer.echo(f"Schwab token available: {oauth.token_available() if oauth else False}")
         typer.echo(f"Callback URL: {container.settings.schwab_callback_url}")
         typer.echo(f"Loopback server: {container.settings.host}:{container.settings.port}")
+        typer.echo(f"Expected local build: {current_build_id()}")
+    finally:
+        container.close()
+
+
+@app.command("runtime-id", hidden=True)
+def runtime_id() -> None:
+    """Print the current application fingerprint for the local launcher."""
+
+    typer.echo(current_build_id())
+
+
+@app.command("runtime-config", hidden=True)
+def runtime_config() -> None:
+    """Print the non-secret local address and build identity for the launcher."""
+
+    settings = Settings()
+    typer.echo(
+        json.dumps(
+            {
+                "host": settings.host,
+                "port": settings.port,
+                "build_id": current_build_id(),
+            }
+        )
+    )
+
+
+@app.command("campaign-audit")
+def campaign_audit() -> None:
+    """Audit local short-premium campaign links without printing account details."""
+
+    container = Container()
+    try:
+        reader = SqlLiveAnalyticsReader(container.session_factory)
+        executions = reader.list_executions()
+        lifecycle = reader.list_lifecycle_events()
+        audit = audit_campaign_ledger(
+            reconcile_option_campaigns(executions, lifecycle),
+            executions,
+            lifecycle,
+        )
+        typer.echo(f"Campaigns: {audit.campaigns}")
+        typer.echo(
+            "Confidence: "
+            f"{audit.exact_campaigns} exact / {audit.inferred_campaigns} inferred / "
+            f"{audit.unknown_campaigns} unknown"
+        )
+        typer.echo(
+            f"Excluded long-option lifecycle events: {audit.excluded_long_lifecycle_events}"
+        )
+        typer.echo(f"Adjusted-contract events observed: {audit.adjusted_contract_events}")
+        typer.echo(
+            "Campaign cash: "
+            f"{audit.campaign_net_cash} / source cash {audit.source_net_cash} / "
+            f"variance {audit.cash_variance}"
+        )
+        typer.echo(
+            "Legacy chart removal gate: "
+            f"{'PASS' if audit.legacy_removal_gate_passed else 'HOLD'}"
+        )
     finally:
         container.close()
 

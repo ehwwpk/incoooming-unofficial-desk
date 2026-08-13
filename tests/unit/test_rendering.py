@@ -52,7 +52,6 @@ def test_chart_events_render_as_accessible_buttons_with_one_popover_per_name() -
     rendered = templates.env.get_template("partials/_underlyings.html").render(
         snapshot=snapshot,
         desk_overview=overview,
-        campaign_chart_enabled=True,
     )
 
     assert rendered.count("data-chart-event-popover") == len(snapshot.underlyings)
@@ -69,18 +68,6 @@ def test_chart_events_render_as_accessible_buttons_with_one_popover_per_name() -
     assert 'data-campaign-endpoint="true"' in rendered
     assert overview.nearest_call is not None
     assert f'id="{overview.nearest_call.anchor_id}"' in rendered
-
-
-def test_campaign_chart_keeps_the_legacy_ticket_fallback_available() -> None:
-    snapshot = DemoDashboardReader().execute()
-    rendered = templates.env.get_template("partials/_underlyings.html").render(
-        snapshot=snapshot,
-        desk_overview=build_desk_overview(snapshot),
-        campaign_chart_enabled=False,
-    )
-
-    assert 'class="price-event-ledger campaign-index"' not in rendered
-    assert "numbered option event tape" in rendered
 
 
 def test_live_summary_deep_links_to_the_exact_nearest_contract() -> None:
@@ -122,6 +109,13 @@ def test_open_call_workspace_keeps_exact_dte_in_expanded_contract_context() -> N
     assert rendered.count('class="open-book-section-control"') == 3
     assert "CALENDAR CLOCK" in rendered
     assert "OPTION VALUE / PREMIUM" in rendered
+    for row in roll_board.rows:
+        assert f'id="{row.anchor_id}"' in rendered
+        if row.candidates:
+            assert f'returnAnchor={row.anchor_id}' in rendered
+        else:
+            assert "REFRESH THE FULL CHAIN" in rendered
+            assert f'returnAnchor={row.anchor_id}' in rendered
     assert "OBSERVED POSITION / NOT EVALUATED" not in rendered.upper()
     for row in open_book.rows:
         assert rendered.count(f"{row.days_to_expiration} DTE") >= 2

@@ -36,8 +36,12 @@ def test_initial_migration_supports_local_api(tmp_path: Path) -> None:
         } <= set(inspect(container.engine).get_table_names())
 
         live, ready, dashboard, sync_status, page = asyncio.run(_request_initial_routes(container))
-        assert live.json() == {"status": "ok"}
-        assert ready.json() == {"status": "ready"}
+        assert live.json()["status"] == "ok"
+        assert live.json()["app"] == "incoooming-local-desk"
+        assert isinstance(live.json()["pid"], int)
+        assert len(live.json()["build_id"]) == 16
+        assert ready.json()["status"] == "ready"
+        assert ready.json()["database"] is True
         payload = dashboard.json()
         assert payload["mode"] == "live"
         assert payload["positions"] == []
