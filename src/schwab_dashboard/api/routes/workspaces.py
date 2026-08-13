@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from schwab_dashboard.api.dependencies import get_container
 from schwab_dashboard.api.source_context import selected_source_key, source_label
+from schwab_dashboard.application.rolls.board import build_roll_board
 from schwab_dashboard.application.workspaces.catalog import get_workspace, list_workspaces
 from schwab_dashboard.application.workspaces.projections import (
     build_open_book,
@@ -62,6 +63,7 @@ def workspace_page(
     }
     if workspace_key is WorkspaceKey.RISK:
         context["open_book"] = build_open_book(snapshot)
+        context["roll_board"] = build_roll_board(snapshot)
     elif workspace_key is WorkspaceKey.VOLATILITY:
         context["volatility_rows"] = build_volatility_rows(snapshot)
     elif workspace_key is WorkspaceKey.RECORDS:

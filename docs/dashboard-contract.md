@@ -28,7 +28,7 @@ the interface independent from demo fixtures and Schwab response shapes while th
 ## Stable view sections
 
 1. Combined portfolio: net value, selected-window net premium cash, total strategy income, coverage, calls sold, and shares called away.
-2. Underlying attribution: selected-window option income/APR/dividends/capture, an observed daily-close path with `16W`, `8W`, and `4W` date ranges, lifecycle markers that map directly to auditable execution detail, and per-contract premium-received/current-option-value/open-P&L economics. The approved future campaign-centered visual contract is documented in [Option campaign chart redesign](product/option-campaign-chart-redesign.md); it does not alter the current renderer yet.
+2. Underlying attribution: selected-window option income/APR/dividends/capture, an observed daily-close path with `16W`, `8W`, and `4W` date ranges, campaign markers that map to auditable execution detail, and per-contract premium-received/current-option-value/open-P&L economics. The campaign renderer and its temporary legacy fallback are documented in [Option campaign chart redesign](product/option-campaign-chart-redesign.md).
 3. Income: a quarterly window with 13 weekly periods reconciled to the quarter total.
 4. Lifecycle: contracts expired, closed, rolled, and still open, plus assignments and the completed-ticket positive-cash rate.
 5. Campaigns: current legs, dates, quarter option cash, open profit/loss, collateral, and return on capital.

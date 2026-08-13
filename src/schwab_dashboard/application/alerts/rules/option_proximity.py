@@ -5,7 +5,12 @@ from typing import TYPE_CHECKING
 
 from schwab_dashboard.application.alerts.identity import option_alert_id
 from schwab_dashboard.application.alerts.models import AlertFact, AlertLevel, DeskAlert
-from schwab_dashboard.application.alerts.rolls import build_neutral_roll_scenarios
+from schwab_dashboard.application.alerts.rolls import (
+    build_neutral_roll_scenarios,
+    build_put_roll_scenarios,
+    no_clean_call_roll_reason,
+    no_clean_put_roll_reason,
+)
 from schwab_dashboard.application.dashboard.covered_calls import UnderlyingCallStats
 from schwab_dashboard.application.formatting import compact_decimal
 
@@ -104,6 +109,10 @@ def evaluate_call_expiration_pressure(
             call,
             current_price=underlying.current_price,
         ),
+        no_clean_roll_reason=no_clean_call_roll_reason(
+            call,
+            current_price=underlying.current_price,
+        ),
     )
 
 
@@ -181,6 +190,8 @@ def evaluate_short_put_pressure(put: LiveOpenOptionPosition) -> DeskAlert | None
             "NOTIONAL IS CONTRACTS x 100 x STRIKE; IT IS NOT A CLAIM ABOUT CASH "
             "RESERVATION, MARGIN TREATMENT, OR ASSIGNMENT ODDS."
         ),
+        roll_scenarios=build_put_roll_scenarios(put),
+        no_clean_roll_reason=no_clean_put_roll_reason(put),
     )
 
 

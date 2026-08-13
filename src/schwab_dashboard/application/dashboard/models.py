@@ -26,6 +26,7 @@ from schwab_dashboard.application.dashboard.performance import (
 )
 from schwab_dashboard.application.policy.models import UnderlyingPolicy
 from schwab_dashboard.application.ports.repositories import SyncRunSummary
+from schwab_dashboard.application.rolls.models import RollQuote
 
 
 @dataclass(frozen=True, slots=True)
@@ -150,6 +151,7 @@ class LiveOpenOptionPosition:
     option_type: str = "CALL"
     contract_multiplier: Decimal = Decimal("100")
     multiplier_source: str | None = None
+    roll_quote_candidates: tuple[RollQuote, ...] = ()
 
 
 # Compatibility name retained while the interface moves from a call-only book to

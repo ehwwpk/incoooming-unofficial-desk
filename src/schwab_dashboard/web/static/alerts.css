@@ -290,3 +290,7 @@ body[data-nibwick-popover-open="true"] .nibwick-stage .nibwick-obstacle { animat
   .nibwick-roll-row { grid-template-columns: 1fr auto; }
   .nibwick-roll-row > div:nth-child(2) { display: none; }
 }
+.nibwick-no-roll { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 7px var(--note-pad); border-top: 1px solid var(--note-rule); border-bottom: 1px solid var(--note-rule); background: #171311; }
+.nibwick-no-roll b { color: var(--red); font: 730 6.8px var(--mono); }
+.nibwick-no-roll span { color: #9ca29f; font: 430 8.5px/11px var(--sans); }
+.nibwick-no-roll a { color: var(--gold); font: 720 6.8px var(--mono); text-decoration: none; white-space: nowrap; }

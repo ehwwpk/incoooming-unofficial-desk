@@ -1,0 +1,109 @@
+from dataclasses import replace
+from datetime import date, timedelta
+from decimal import Decimal
+
+from schwab_dashboard.application.dashboard.covered_calls import RollQuoteCandidate
+from schwab_dashboard.application.dashboard.models import (
+    LiveOpenOptionPosition,
+    LivePositionBook,
+)
+from schwab_dashboard.application.rolls import RollQuote
+from schwab_dashboard.application.rolls.board import build_roll_board
+from schwab_dashboard.infrastructure.demo.dashboard import DemoDashboardReader
+
+D = Decimal
+
+
+def test_roll_board_ranks_an_urgent_call_and_exposes_candidates() -> None:
+    snapshot = DemoDashboardReader().execute()
+    underlying = snapshot.underlyings[0]
+    call = underlying.open_call_clocks[0]
+    urgent = replace(
+        call,
+        days_to_expiration=2,
+        strike_distance_per_share=D("-1"),
+        strike_distance_percent=D("-1.5"),
+        close_ask_per_share=D("1.25"),
+        roll_quote_candidates=(
+            RollQuoteCandidate(
+                option_symbol="NEXT CALL",
+                expires_on=call.expires_on + timedelta(days=7),
+                strike=call.strike + D("5"),
+                sell_bid_per_share=D("1.20"),
+                quote_source="TEST",
+            ),
+        ),
+    )
+    updated = replace(underlying, open_call_clocks=(urgent, *underlying.open_call_clocks[1:]))
+    projection = build_roll_board(
+        replace(snapshot, underlyings=(updated, *snapshot.underlyings[1:]))
+    )
+
+    row = next(item for item in projection.rows if item.source.option_symbol == call.record_id)
+    assert row.urgency == "NEEDS ATTENTION"
+    assert row.candidates[0].option_symbol == "NEXT CALL"
+    assert projection.posture == "AT THE DESK"
+
+
+def test_roll_board_handles_short_puts_and_names_missing_market_data() -> None:
+    snapshot = DemoDashboardReader().execute()
+    expires_on = date(2026, 8, 15)
+    put = LiveOpenOptionPosition(
+        account_mask="...1234",
+        option_symbol="KTOS PUT",
+        underlying_symbol="KTOS",
+        contracts=1,
+        expires_on=expires_on,
+        days_to_expiration=2,
+        strike=D("65"),
+        entry_credit_per_share=D("2"),
+        estimated_mark_per_share=D("2.5"),
+        market_value=D("-250"),
+        open_profit_loss=D("-50"),
+        day_profit_loss=D("-20"),
+        underlying_price=D("64"),
+        strike_distance_per_share=D("-1"),
+        strike_distance_percent=D("-1.56"),
+        ask_per_share=D("2.6"),
+        option_type="PUT",
+        roll_quote_candidates=(
+            RollQuote(
+                option_symbol="KTOS NEXT PUT",
+                expires_on=expires_on + timedelta(days=14),
+                strike=D("60"),
+                sell_bid_per_share=D("2.4"),
+                quote_source="TEST",
+            ),
+        ),
+    )
+    book = LivePositionBook(
+        underlyings=(),
+        calls=(),
+        total_shares=0,
+        contract_capacity=0,
+        open_call_positions=0,
+        open_call_contracts=0,
+        covered_contracts=0,
+        uncovered_contracts=0,
+        coverage_percent=D("0"),
+        open_mark_profit_loss=D("0"),
+        puts=(put,),
+        open_put_positions=1,
+        open_put_contracts=1,
+    )
+
+    projection = build_roll_board(replace(snapshot, underlyings=(), live_position_book=book))
+
+    assert projection.rows[0].source.option_symbol == "KTOS PUT"
+    assert projection.rows[0].candidates[0].strike == D("60")
+    assert projection.posture == "AT THE DESK"
+
+
+def test_roll_board_uses_data_fog_when_no_roll_math_can_be_verified() -> None:
+    snapshot = DemoDashboardReader().execute()
+
+    projection = build_roll_board(snapshot)
+
+    assert projection.rows
+    assert projection.no_clean_count == len(projection.rows)
+    assert projection.posture == "DATA FOG"

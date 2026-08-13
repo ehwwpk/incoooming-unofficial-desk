@@ -98,10 +98,16 @@ def _underlying_stats(
         and str(row.get("option_side")) == "call"
         and str(row.get("underlying_symbol")) == symbol
     )
+    option_executions = tuple(
+        row
+        for row in executions
+        if str(row.get("asset_type")) == "option"
+        and str(row.get("underlying_symbol")) == symbol
+    )
     symbol_lifecycle = tuple(
         row
         for row in lifecycle_events
-        if str(row.get("option_side")) == "call" and str(row.get("underlying_symbol")) == symbol
+        if str(row.get("underlying_symbol")) == symbol
     )
     price_points = _ensure_price_points(
         build_price_points(symbol, daily_bars),
@@ -148,11 +154,11 @@ def _underlying_stats(
     first_price = price_points[0].price
     current_range = current_price - low
     range_width = high - low
-    current_symbols = {call.option_symbol for call in item.calls}
+    current_symbols = {option.option_symbol for option in (*item.calls, *item.puts)}
     current_marks = {
-        call.option_symbol: call.estimated_mark_per_share
-        for call in item.calls
-        if call.estimated_mark_per_share is not None
+        option.option_symbol: option.estimated_mark_per_share
+        for option in (*item.calls, *item.puts)
+        if option.estimated_mark_per_share is not None
     }
     basis_total = average_cost * Decimal(item.shares)
     total_attributed_income = net_option_cash + dividend_cash
@@ -232,7 +238,7 @@ def _underlying_stats(
         price_points=price_points,
         price_events=build_option_events(
             symbol,
-            executions=call_executions,
+            executions=option_executions,
             lifecycle_events=symbol_lifecycle,
             points=price_points,
             current_option_symbols=current_symbols,

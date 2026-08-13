@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from schwab_dashboard.application.opportunities.frontier import order_general_frontier
 from schwab_dashboard.application.opportunities.roll_frontier import select_roll_frontier
+from schwab_dashboard.domain.instruments import OptionSide
 from schwab_dashboard.domain.opportunity import (
     RadarCandidate,
     RadarCandidateLabel,
@@ -17,6 +18,7 @@ SOURCE_EXPIRATION = date(2026, 8, 14)
 
 def test_roll_frontier_uses_nine_ranked_higher_later_calls() -> None:
     context = RadarRollSelectionContext(
+        option_side=OptionSide.CALL,
         source_expiration_date=SOURCE_EXPIRATION,
         source_strike=D("68"),
         source_close_ask_per_share=D("0.25"),
@@ -48,7 +50,7 @@ def test_roll_frontier_uses_nine_ranked_higher_later_calls() -> None:
 
     assert len(selected) == 9
     assert all(item.expiration_date > SOURCE_EXPIRATION for item in selected)
-    assert all(item.strike > D("68") for item in selected)
+    assert all(item.strike >= D("68") for item in selected)
     assert selected[0].option_symbol == "flat"
     assert selected[1].option_symbol == "credit-five"
     assert selected[2].option_symbol == "debit-five"
@@ -82,6 +84,26 @@ def test_general_frontier_is_presented_by_time_then_protection() -> None:
         "far-high",
         "far-low",
     ]
+
+
+def test_roll_frontier_supports_same_or_lower_puts() -> None:
+    context = RadarRollSelectionContext(
+        option_side=OptionSide.PUT,
+        source_expiration_date=SOURCE_EXPIRATION,
+        source_strike=D("60"),
+        source_close_ask_per_share=D("1.00"),
+    )
+    selected = select_roll_frontier(
+        (
+            _candidate("same-put", added_days=7, strike="60", bid="1.00"),
+            _candidate("lower-put", added_days=14, strike="55", bid="0.95"),
+            _candidate("invalid-higher-put", added_days=7, strike="65", bid="1.50"),
+        ),
+        context=context,
+    )
+
+    assert [item.option_symbol for item in selected] == ["same-put", "lower-put"]
+    assert selected[0].label is RadarCandidateLabel.NEAR_FLAT
 
 
 def _candidate(

@@ -1,4 +1,5 @@
 {% for event in item.price_events %}
+{% set marker_label = event.campaign_label if campaign_chart_enabled else event.sequence %}
 <button
   type="button"
   class="price-event {{ event.event_type }}"
@@ -7,10 +8,17 @@
   data-chart-event-trigger
   data-event-kind="option"
   data-event-sequence="{{ event.sequence }}"
+  data-campaign-id="{{ event.campaign_id }}"
+  data-campaign-label="{{ event.campaign_label }}"
+  data-campaign-confidence="{{ event.campaign_confidence }}"
+  data-campaign-leg="{{ event.campaign_leg_index }}"
+  data-campaign-net-cash="{{ event.campaign_net_cash }}"
+  data-campaign-endpoint="{{ 'true' if event.campaign_is_first_visible or event.campaign_is_latest_visible else 'false' }}"
+  data-option-side="{{ event.option_side }}"
   data-date="{{ event.date.isoformat() }}"
   data-price="{{ event.price }}"
   data-lifecycle-id="{{ event.lifecycle_id }}"
-  data-lifecycle-slot="{{ (event.lifecycle_id - 1) % 6 }}"
+  data-lifecycle-slot="{{ event.campaign_slot }}"
   data-event-type="{{ event.event_type }}"
   data-contracts="{{ event.contracts }}"
   data-strike="{{ '%g' | format(event.strike) }}"
@@ -30,12 +38,12 @@
   {% if event.resolved_on %}data-resolved-on="{{ event.resolved_on.isoformat() }}"{% endif %}
   {% if event.underlying_at_resolution is not none %}data-underlying-at-resolution="{{ event.underlying_at_resolution }}"{% endif %}
   style="--event-x: {{ event.x_percent }}%; --event-y: {{ event.y_percent }}%; --event-offset: {{ event.vertical_offset }}px"
-  aria-label="Event {{ event.sequence }}: {{ event.label }} {{ event.detail }}{% if event.linked_sale_sequence %}; resolves sale event {{ event.linked_sale_sequence }}{% endif %}"
+  aria-label="{% if campaign_chart_enabled %}Campaign {{ event.campaign_label }}, leg {{ event.campaign_leg_index }}{% else %}Event {{ event.sequence }}{% endif %}: {{ event.label }} {{ event.detail }}"
   aria-haspopup="dialog"
   aria-expanded="false"
   aria-controls="{{ item.symbol | lower }}-event-popover"
   aria-describedby="{{ item.symbol | lower }}-event-tip-{{ event.sequence }}"
-><b aria-hidden="true">{{ event.sequence }}{% if event.linked_sale_sequence %}<small>←{{ event.linked_sale_sequence }}</small>{% endif %}</b><span class="chart-event-quick" role="tooltip" id="{{ item.symbol | lower }}-event-tip-{{ event.sequence }}">#{{ event.sequence }}{% if event.linked_sale_sequence %} RESOLVES #{{ event.linked_sale_sequence }}{% endif %} · {{ event.detail }}{% if event.event_type == 'sale' %} · +{{ event.gross_premium | money }}{% endif %}</span></button>
+><b aria-hidden="true">{% if campaign_chart_enabled and not (event.campaign_is_first_visible or event.campaign_is_latest_visible) %}{{ event.glyph }}{% else %}{{ marker_label }}{% endif %}{% if campaign_chart_enabled %}<small>{{ event.campaign_leg_index }}</small>{% endif %}</b><span class="chart-event-quick" role="tooltip" id="{{ item.symbol | lower }}-event-tip-{{ event.sequence }}">{% if campaign_chart_enabled %}{{ event.campaign_label }}.{{ event.campaign_leg_index }} · {% endif %}{{ event.detail }}{% if event.event_type == 'sale' %} · +{{ event.gross_premium | money }}{% endif %}{% if campaign_chart_enabled %} · {{ event.campaign_confidence | upper }}{% endif %}</span></button>
 {% endfor %}
 {% for event in item.share_trade_events %}
 <button
@@ -48,10 +56,12 @@
   data-date="{{ event.date.isoformat() }}"
   data-price="{{ event.price }}"
   data-shares="{{ event.shares }}"
+  data-gross-buys="{{ event.gross_buys }}"
+  data-gross-sells="{{ event.gross_sells }}"
   data-share-trade="{{ event.action }}"
   data-event-type="share-{{ event.action }}"
   style="--event-x: {{ event.x_percent }}%; --event-y: {{ event.y_percent }}%"
-  aria-label="{{ event.label }}: {{ event.action }} {{ event.shares }} shares at {{ event.price | money }}"
+  aria-label="{{ event.label }}: net {{ event.action }} {{ event.shares }} shares; {{ event.gross_buys }} bought and {{ event.gross_sells }} sold"
   aria-haspopup="dialog"
   aria-expanded="false"
   aria-controls="{{ item.symbol | lower }}-event-popover"

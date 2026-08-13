@@ -5,7 +5,10 @@ from decimal import Decimal
 from schwab_dashboard.application.alerts.context import build_call_review_context
 from schwab_dashboard.application.alerts.identity import option_alert_id
 from schwab_dashboard.application.alerts.models import AlertFact, AlertLevel, DeskAlert
-from schwab_dashboard.application.alerts.rolls import build_neutral_roll_scenarios
+from schwab_dashboard.application.alerts.rolls import (
+    build_neutral_roll_scenarios,
+    no_clean_call_roll_reason,
+)
 from schwab_dashboard.application.dashboard.covered_calls import UnderlyingCallStats
 from schwab_dashboard.application.formatting import compact_decimal
 
@@ -104,4 +107,8 @@ def evaluate_fast_move(underlying: UnderlyingCallStats) -> DeskAlert | None:
             "MOVEMENT ARE EXCLUDED."
         ),
         roll_scenarios=roll_scenarios,
+        no_clean_roll_reason=no_clean_call_roll_reason(
+            closest,
+            current_price=underlying.current_price,
+        ),
     )

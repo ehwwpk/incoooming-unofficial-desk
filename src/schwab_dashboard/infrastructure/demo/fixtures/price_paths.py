@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from decimal import Decimal
 
@@ -176,9 +176,27 @@ def build_price_events(
                     if option_value_per_share is not None and action.record.premium_per_share
                     else None
                 ),
+                campaign_label=f"C{action.lifecycle_id}",
+                campaign_confidence="exact",
+                campaign_leg_index=(1 if action.event_type == "sale" else 2),
+                campaign_net_cash=action.record.net_cash,
+                option_side="call",
+                campaign_slot=(action.lifecycle_id - 1) % 6,
             )
         )
-    return tuple(events)
+    campaign_positions: dict[str, list[int]] = {}
+    for index, event in enumerate(events):
+        campaign_positions.setdefault(event.campaign_id, []).append(index)
+    first = {indexes[0] for indexes in campaign_positions.values()}
+    latest = {indexes[-1] for indexes in campaign_positions.values()}
+    return tuple(
+        replace(
+            event,
+            campaign_is_first_visible=index in first,
+            campaign_is_latest_visible=index in latest,
+        )
+        for index, event in enumerate(events)
+    )
 
 
 def _checkpoint_option_value(record: CallSaleRecord) -> Decimal | None:

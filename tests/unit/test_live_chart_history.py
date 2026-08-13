@@ -42,6 +42,9 @@ def test_resolution_uses_originating_sale_lifecycle() -> None:
     assert events[0].option_value_per_share == D("0.5")
     assert events[0].option_value_vs_credit_percent == D("25.00")
     assert events[1].option_value_vs_credit_percent == D("25.00")
+    assert [event.campaign_label for event in events] == ["C1", "C1"]
+    assert [event.campaign_leg_index for event in events] == [1, 2]
+    assert all(event.campaign_confidence == "exact" for event in events)
 
 
 def test_open_event_compares_current_mark_with_original_credit() -> None:
@@ -68,7 +71,7 @@ def test_open_event_compares_current_mark_with_original_credit() -> None:
     assert events[0].option_value_vs_credit_percent == D("150.0")
 
 
-def test_share_fills_aggregate_to_one_marker_per_side_per_day() -> None:
+def test_share_fills_net_to_one_marker_per_day() -> None:
     points = build_price_points("KTOS", _bars())
     occurred_at = datetime(2026, 8, 6, 15, tzinfo=UTC)
     executions = (
@@ -79,8 +82,10 @@ def test_share_fills_aggregate_to_one_marker_per_side_per_day() -> None:
 
     events = build_share_trade_events("KTOS", executions=executions, points=points)
 
-    assert [(event.action, event.shares) for event in events] == [("buy", 100), ("sell", 10)]
+    assert [(event.action, event.shares) for event in events] == [("buy", 90)]
     assert events[0].price == D("61.5")
+    assert events[0].gross_buys == 100
+    assert events[0].gross_sells == 10
 
 
 def _bars() -> tuple[dict[str, object], ...]:

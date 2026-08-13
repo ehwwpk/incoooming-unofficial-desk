@@ -2,6 +2,7 @@ from dataclasses import replace
 from decimal import Decimal
 
 from schwab_dashboard.application.dashboard.overview import build_desk_overview
+from schwab_dashboard.application.rolls.board import build_roll_board
 from schwab_dashboard.application.workspaces.projections import build_open_book
 from schwab_dashboard.infrastructure.demo.dashboard import DemoDashboardReader
 from schwab_dashboard.web.rendering import money, number, percent, pnl_class, templates
@@ -51,6 +52,7 @@ def test_chart_events_render_as_accessible_buttons_with_one_popover_per_name() -
     rendered = templates.env.get_template("partials/_underlyings.html").render(
         snapshot=snapshot,
         desk_overview=overview,
+        campaign_chart_enabled=True,
     )
 
     assert rendered.count("data-chart-event-popover") == len(snapshot.underlyings)
@@ -62,8 +64,23 @@ def test_chart_events_render_as_accessible_buttons_with_one_popover_per_name() -
     assert "data-underlying-at-resolution" in rendered
     assert "data-event-fact-one-detail" in rendered
     assert "data-chart-ledger-event" in rendered
+    assert 'class="price-event-ledger campaign-index"' in rendered
+    assert "C1" in rendered
+    assert 'data-campaign-endpoint="true"' in rendered
     assert overview.nearest_call is not None
     assert f'id="{overview.nearest_call.anchor_id}"' in rendered
+
+
+def test_campaign_chart_keeps_the_legacy_ticket_fallback_available() -> None:
+    snapshot = DemoDashboardReader().execute()
+    rendered = templates.env.get_template("partials/_underlyings.html").render(
+        snapshot=snapshot,
+        desk_overview=build_desk_overview(snapshot),
+        campaign_chart_enabled=False,
+    )
+
+    assert 'class="price-event-ledger campaign-index"' not in rendered
+    assert "numbered option event tape" in rendered
 
 
 def test_live_summary_deep_links_to_the_exact_nearest_contract() -> None:
@@ -84,14 +101,17 @@ def test_live_summary_deep_links_to_the_exact_nearest_contract() -> None:
 def test_open_call_workspace_keeps_exact_dte_in_expanded_contract_context() -> None:
     snapshot = DemoDashboardReader().execute()
     open_book = build_open_book(snapshot)
+    roll_board = build_roll_board(snapshot)
 
     rendered = templates.env.get_template("workspaces/_open_book.html").render(
         snapshot=snapshot,
         open_book=open_book,
+        roll_board=roll_board,
     )
 
     assert rendered.count('class="open-call-group"') == len(open_book.groups)
-    assert rendered.count("data-open-book-section=") == 2
+    assert rendered.count("data-open-book-section=") == 3
+    assert 'data-open-book-section="roll-board" open' in rendered
     assert (
         '<details class="workspace-panel obligation-calendar open-book-section" '
         'data-open-book-section="calendar" open>'
@@ -99,7 +119,7 @@ def test_open_call_workspace_keeps_exact_dte_in_expanded_contract_context() -> N
     assert (
         '<details class="workspace-panel open-book-section" data-open-book-section="contracts">'
     ) in rendered
-    assert rendered.count('class="open-book-section-control"') == 2
+    assert rendered.count('class="open-book-section-control"') == 3
     assert "CALENDAR CLOCK" in rendered
     assert "OPTION VALUE / PREMIUM" in rendered
     assert "OBSERVED POSITION / NOT EVALUATED" not in rendered.upper()

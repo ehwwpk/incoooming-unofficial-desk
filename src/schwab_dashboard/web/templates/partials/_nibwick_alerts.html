@@ -75,16 +75,16 @@
         <div class="nibwick-roll-preview">
           {% for scenario in alert.roll_scenarios %}
           <a
-            href="/workspaces/radar?symbol={{ alert.symbol | urlencode }}&amp;mode=covered_call&amp;review=roll&amp;source={{ scenario.source_option_symbol | urlencode }}&amp;targetExpiration={{ scenario.target_expiration }}&amp;targetStrike={{ scenario.target_strike }}"
+            href="/workspaces/radar?symbol={{ alert.symbol | urlencode }}&amp;mode={{ 'covered_call' if scenario.option_side.value == 'call' else 'cash_secured_put' }}&amp;review=roll&amp;source={{ scenario.source_option_symbol | urlencode }}&amp;targetExpiration={{ scenario.target_expiration }}&amp;targetStrike={{ scenario.target_strike }}"
             class="nibwick-roll-row"
             data-nibwick-roll-review
             data-roll-symbol="{{ alert.symbol }}"
             data-roll-source="{{ scenario.source_option_symbol }}"
             data-roll-target-expiration="{{ scenario.target_expiration }}"
             data-roll-target-strike="{{ scenario.target_strike }}"
-            aria-label="Review the {{ scenario.target_expiration | short_date }} ${{ '%g' | format(scenario.target_strike) }} call roll in Premium Radar"
+            aria-label="Review the {{ scenario.target_expiration | short_date }} ${{ '%g' | format(scenario.target_strike) }} {{ scenario.option_side.value }} roll in Premium Radar"
           >
-            <div><b>${{ '%g' | format(scenario.target_strike) }}C · {{ scenario.target_expiration | short_date }}</b><small>+${{ '%g' | format(scenario.strike_lift_per_share) }} STRIKE · +{{ scenario.added_days }} DAYS</small></div>
+            <div><b>${{ '%g' | format(scenario.target_strike) }}{{ 'C' if scenario.option_side.value == 'call' else 'P' }} · {{ scenario.target_expiration | short_date }}</b><small>{{ scenario.family_label }} · {{ scenario.added_days }} MORE DAYS</small></div>
             <div><b>+{{ scenario.assignment_room_gain | money(0) }} ROOM</b><small>{{ scenario.target_buffer_percent | percent }} ABOVE SPOT</small></div>
             <div class="nibwick-roll-cash">
             {% if scenario.net_roll_per_share > 0 %}
@@ -100,6 +100,8 @@
           {% endfor %}
         </div>
       </section>
+      {% elif alert.no_clean_roll_reason %}
+      <section class="nibwick-no-roll"><b>NO CLEAN ROLL IN THE LOADED CHAIN</b><span>{{ alert.no_clean_roll_reason }}</span><a href="/workspaces/risk">OPEN ROLL BOARD →</a></section>
       {% endif %}
       <footer class="nibwick-note-actions">
         {% if snapshot.alerts | length > 1 %}
