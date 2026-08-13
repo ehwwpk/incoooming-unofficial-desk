@@ -66,3 +66,5 @@ class DeskAlert:
     method_note: str | None = None
     roll_scenarios: tuple[RollScenario, ...] = ()
     no_clean_roll_reason: str | None = None
+    roll_source_option_symbol: str | None = None
+    roll_option_side: OptionSide | None = None

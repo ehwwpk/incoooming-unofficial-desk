@@ -13,6 +13,7 @@ from schwab_dashboard.application.alerts.rolls import (
 )
 from schwab_dashboard.application.dashboard.covered_calls import UnderlyingCallStats
 from schwab_dashboard.application.formatting import compact_decimal
+from schwab_dashboard.domain.instruments import OptionSide
 
 if TYPE_CHECKING:
     from schwab_dashboard.application.dashboard.models import LiveOpenOptionPosition
@@ -113,6 +114,8 @@ def evaluate_call_expiration_pressure(
             call,
             current_price=underlying.current_price,
         ),
+        roll_source_option_symbol=call.record_id,
+        roll_option_side=OptionSide.CALL,
     )
 
 
@@ -192,6 +195,8 @@ def evaluate_short_put_pressure(put: LiveOpenOptionPosition) -> DeskAlert | None
         ),
         roll_scenarios=build_put_roll_scenarios(put),
         no_clean_roll_reason=no_clean_put_roll_reason(put),
+        roll_source_option_symbol=put.option_symbol,
+        roll_option_side=OptionSide.PUT,
     )
 
 

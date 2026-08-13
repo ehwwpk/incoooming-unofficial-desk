@@ -240,13 +240,13 @@ class RadarRollReview:
     source_contracts: int
     source_close_ask_per_share: Decimal
     source_quote_status: str
-    target_expiration_date: date
-    target_strike: Decimal
+    target_expiration_date: date | None
+    target_strike: Decimal | None
     target_bid_per_share: Decimal | None
     net_roll_per_share: Decimal | None
     net_roll_cash: Decimal | None
-    strike_lift_per_share: Decimal
-    added_days: int
+    strike_lift_per_share: Decimal | None
+    added_days: int | None
     status: str
     comparisons: tuple[RadarRollComparison, ...] = ()
 

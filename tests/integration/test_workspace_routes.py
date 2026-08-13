@@ -44,6 +44,8 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert 'data-campaign-chart="true"' in desk.text
         assert 'class="price-event-ledger campaign-index"' in desk.text
         assert "C1" in desk.text
+        assert "REFRESH ROLL CHOICES" in desk.text
+        assert "review=roll&amp;source=cvx-0724-195&amp;from=nibwick" in desk.text
 
         assert risk.status_code == 200
         assert "Next expirations" in risk.text
@@ -91,6 +93,9 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "premium-radar-indicators.js" in radar.text
         assert "premium-radar-map.js" in radar.text
         assert "data-radar-roll-handoff" in radar.text
+        assert "ROLL AN OPEN OPTION" in radar.text
+        assert "data-radar-roll-source-picker" in radar.text
+        assert 'data-symbol="CVX" data-mode="covered_call"' in radar.text
         assert 'value="CVX" data-radar-symbol' in radar.text
         assert 'data-radar-symbol-chip="CVX"' in radar.text
         assert 'data-radar-symbol-chip="KTOS"' in radar.text
@@ -254,6 +259,39 @@ def test_demo_radar_roll_handoff_reprices_a_verified_open_call(tmp_path: Path) -
         container.close()
 
 
+def test_demo_radar_can_start_a_roll_review_from_only_an_open_source(tmp_path: Path) -> None:
+    settings = Settings(_env_file=None, data_dir=tmp_path, demo_mode=True)
+    command.upgrade(_alembic_config(settings), "head")
+    container = Container(settings)
+
+    try:
+        snapshot = container.read_dashboard("demo").execute()
+        underlying = next(item for item in snapshot.underlyings if item.symbol == "KTOS")
+        source = underlying.open_call_clocks[0]
+        response = asyncio.run(
+            _post_radar_roll(
+                container,
+                symbol=underlying.symbol,
+                source=source.record_id,
+            )
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        review = payload["roll_review"]
+        assert payload["verdict"] == "ROLL REVIEW"
+        assert review["source_option_symbol"] == source.record_id
+        assert review["status"] in {"matched", "no_candidates"}
+        assert len(review["comparisons"]) == len(payload["candidates"])
+        if payload["candidates"]:
+            first = payload["candidates"][0]
+            assert review["status"] == "matched"
+            assert review["target_expiration_date"] == first["expiration_date"]
+            assert review["target_strike"] == first["strike"]
+    finally:
+        container.close()
+
+
 def test_radar_policy_endpoint_accepts_a_leaps_window(tmp_path: Path) -> None:
     settings = Settings(_env_file=None, data_dir=tmp_path, demo_mode=True)
     command.upgrade(_alembic_config(settings), "head")
@@ -351,8 +389,8 @@ async def _post_radar_roll(
     *,
     symbol: str,
     source: str,
-    target_expiration: str,
-    target_strike: str,
+    target_expiration: str | None = None,
+    target_strike: str | None = None,
 ) -> httpx.Response:
     transport = httpx.ASGITransport(app=create_app(container))
     async with httpx.AsyncClient(
@@ -360,16 +398,18 @@ async def _post_radar_roll(
         base_url="http://test",
         cookies={"incoooming_source": "demo"},
     ) as client:
+        roll = {"source_option_symbol": source}
+        if target_expiration is not None and target_strike is not None:
+            roll.update(
+                target_expiration=target_expiration,
+                target_strike=target_strike,
+            )
         return await client.post(
             "/api/v1/radar/lookups",
             json={
                 "symbol": symbol,
                 "mode": "covered_call",
-                "roll": {
-                    "source_option_symbol": source,
-                    "target_expiration": target_expiration,
-                    "target_strike": target_strike,
-                },
+                "roll": roll,
             },
         )
 

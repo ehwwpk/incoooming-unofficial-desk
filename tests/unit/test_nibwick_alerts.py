@@ -83,6 +83,9 @@ def test_fast_move_alert_names_the_sale_and_keeps_the_personality_brief() -> Non
     assert "Rude timing." in alert.message
     assert "put back on the desk" in alert.message
     assert "moved fast after the sale" not in alert.message
+    assert alert.roll_source_option_symbol == call.record_id
+    assert alert.roll_option_side is not None
+    assert alert.roll_option_side.value == "call"
 
 
 def test_short_put_rule_stays_quiet_when_strike_has_room_or_time() -> None:

@@ -15,6 +15,8 @@
   const saveButton = root.querySelector("[data-radar-save]");
   const rollPanel = root.querySelector("[data-radar-roll-handoff]");
   const rollClear = root.querySelector("[data-radar-roll-clear]");
+  const rollSourcePicker = root.querySelector("[data-radar-roll-source-picker]");
+  const rollSourceRun = root.querySelector("[data-radar-roll-source-run]");
   const policySummary = root.querySelector("[data-radar-policy-summary]");
   let currentProjection = null;
   let rollHandoff = null;
@@ -71,22 +73,28 @@
     if (params.get("review") !== "roll") return null;
     const symbol = (params.get("symbol") || "").trim().toUpperCase();
     const sourceOptionSymbol = (params.get("source") || "").trim();
-    const targetExpiration = params.get("targetExpiration") || "";
-    const targetStrike = Number(params.get("targetStrike"));
+    const requestedMode = params.get("mode") || "covered_call";
+    const targetExpiration = params.get("targetExpiration") || null;
+    const targetStrikeRaw = params.get("targetStrike");
+    const targetStrike = targetStrikeRaw ? Number(targetStrikeRaw) : null;
+    const hasOneTargetPart = Boolean(targetExpiration) !== Boolean(targetStrikeRaw);
     const invalid = (
       !/^[A-Z0-9.-]{1,16}$/.test(symbol)
       || !sourceOptionSymbol
       || sourceOptionSymbol.length > 64
-      || !/^\d{4}-\d{2}-\d{2}$/.test(targetExpiration)
-      || !Number.isFinite(targetStrike)
-      || targetStrike <= 0
+      || !["covered_call", "cash_secured_put"].includes(requestedMode)
+      || hasOneTargetPart
+      || (targetExpiration && !/^\d{4}-\d{2}-\d{2}$/.test(targetExpiration))
+      || (targetStrike !== null && (!Number.isFinite(targetStrike) || targetStrike <= 0))
     );
     return {
       symbol,
       sourceOptionSymbol,
+      mode: requestedMode,
       targetExpiration,
       targetStrike,
-      error: invalid ? "This roll link is incomplete. Reopen the specific idea from Nibwick." : null,
+      origin: params.get("from") === "nibwick" ? "NIBWICK → RADAR" : "ROLL REVIEW",
+      error: invalid ? "This roll link is incomplete. Choose the open option again." : null,
     };
   };
 
@@ -94,12 +102,17 @@
     if (!rollHandoff) return;
     rollPanel.hidden = false;
     rollPanel.dataset.rollStatus = "pending";
-    setText("[data-radar-roll-status]", "VERIFYING OPEN CALL");
+    setText("[data-radar-roll-origin]", rollHandoff.origin);
+    setText("[data-radar-roll-status]", "VERIFYING OPEN OPTION");
     setText("[data-radar-roll-source]", "CHECKING CURRENT POSITION");
     setText("[data-radar-roll-target]", rollHandoff.error
       ? "MISSING ROLL DETAILS"
-      : `${strikeMoney(rollHandoff.targetStrike)}C · ${dateLabel(rollHandoff.targetExpiration)}`);
-    setText("[data-radar-roll-target-quote]", "Refreshing the replacement bid");
+      : rollHandoff.targetExpiration
+        ? `${strikeMoney(rollHandoff.targetStrike)}${rollHandoff.mode === "cash_secured_put" ? "P" : "C"} · ${dateLabel(rollHandoff.targetExpiration)}`
+        : "SEARCHING LATER CONTRACTS");
+    setText("[data-radar-roll-target-quote]", rollHandoff.targetExpiration
+      ? "Refreshing the replacement bid"
+      : "Ranking the fresh chain by cost, time, and strike room");
     setText("[data-radar-roll-math-label]", "TWO-LEG CHECK");
     setText("[data-radar-roll-net]", "WAITING FOR CHAIN");
     setText("[data-radar-roll-net-detail]", "Buy old at ask · sell new at bid");
@@ -113,7 +126,7 @@
     rollPanel.hidden = false;
     if (!review) {
       rollPanel.dataset.rollStatus = errorMessage ? "unavailable" : "pending";
-      setText("[data-radar-roll-status]", errorMessage ? "ROLL CHECK STOPPED" : "VERIFYING OPEN CALL");
+      setText("[data-radar-roll-status]", errorMessage ? "ROLL CHECK STOPPED" : "VERIFYING OPEN OPTION");
       if (errorMessage) {
         setText("[data-radar-roll-net]", "NO COMPARISON");
         setText("[data-radar-roll-note]", errorMessage);
@@ -122,13 +135,14 @@
     }
     const matched = review.status === "matched";
     const sourceFresh = review.source_quote_status === "fresh_chain";
+    const hasCandidates = review.status !== "no_candidates";
     rollPanel.dataset.rollStatus = review.status;
     rollPanel.dataset.rollQuoteStatus = review.source_quote_status;
     setText(
       "[data-radar-roll-status]",
       matched
         ? sourceFresh ? "BOTH LEGS REFRESHED" : "TARGET REFRESHED · SOURCE FROM DESK"
-        : "TARGET NOT RETURNED",
+        : hasCandidates ? "TARGET NOT RETURNED" : "NO ELIGIBLE REPLACEMENT",
     );
     const side = review.source_option_side === "put" ? "P" : "C";
     setText(
@@ -139,13 +153,14 @@
       "[data-radar-roll-source-quote]",
       `${sourceFresh ? "Refreshed-chain" : "Latest desk"} buy-to-close ask · ${money(review.source_close_ask_per_share)}`,
     );
-    setText(
-      "[data-radar-roll-target]",
-      `${strikeMoney(review.target_strike)}${side} · ${dateLabel(review.target_expiration_date)}`,
-    );
+    setText("[data-radar-roll-target]", hasCandidates
+      ? `${strikeMoney(review.target_strike)}${side} · ${dateLabel(review.target_expiration_date)}`
+      : "NO CLEAN CHOICE RETURNED");
     setText(
       "[data-radar-roll-target-quote]",
-      matched ? `Sell to open at ${money(review.target_bid_per_share)} bid` : "Not present in the refreshed comparison set",
+      matched
+        ? `Sell to open at ${money(review.target_bid_per_share)} bid`
+        : hasCandidates ? "Not present in the refreshed comparison set" : "Try a wider term or review the open option later",
     );
     if (matched) {
       const net = Number(review.net_roll_per_share);
@@ -168,7 +183,7 @@
           ? "Both legs were refreshed together. Review the highlighted contract; nothing here can place an order."
           : "The replacement quote was refreshed; the close ask is from your latest desk sync. Treat this net as planning math until both legs refresh together.",
       );
-    } else {
+    } else if (hasCandidates) {
       setText("[data-radar-roll-math-label]", "TWO-LEG CHECK");
       setText("[data-radar-roll-net]", "NO FRESH MATCH");
       setText("[data-radar-roll-net-detail]", "The earlier Nibwick quote is not being reused");
@@ -176,6 +191,11 @@
         "[data-radar-roll-note]",
         "The source option is still open, but Schwab did not return that exact replacement in this scan. Current alternatives remain below.",
       );
+    } else {
+      setText("[data-radar-roll-math-label]", "FRESH CHAIN CHECK");
+      setText("[data-radar-roll-net]", "NO CLEAN ROLL");
+      setText("[data-radar-roll-net-detail]", "No later directional contract cleared the current comparison rules");
+      setText("[data-radar-roll-note]", "The source option is still open. Radar found no eligible replacement in this scan; that is a result, not a missing action.");
     }
   };
 
@@ -439,8 +459,8 @@
     });
     if (rollHandoff && projection.roll_review?.status === "matched") {
       const targetIndex = projection.candidates.findIndex(
-        (candidate) => Number(candidate.strike) === rollHandoff.targetStrike
-          && candidate.expiration_date === rollHandoff.targetExpiration,
+        (candidate) => Number(candidate.strike) === Number(projection.roll_review.target_strike)
+          && candidate.expiration_date === projection.roll_review.target_expiration_date,
       );
       if (targetIndex >= 0) window.IncooomingRadarMap?.select(root, targetIndex);
       setText(
@@ -474,9 +494,11 @@
       if (rollHandoff && !rollHandoff.error) {
         payload.roll = {
           source_option_symbol: rollHandoff.sourceOptionSymbol,
-          target_expiration: rollHandoff.targetExpiration,
-          target_strike: rollHandoff.targetStrike,
         };
+        if (rollHandoff.targetExpiration) {
+          payload.roll.target_expiration = rollHandoff.targetExpiration;
+          payload.roll.target_strike = rollHandoff.targetStrike;
+        }
       }
       renderProjection(await request("/api/v1/radar/lookups", {
         method: "POST",
@@ -551,13 +573,42 @@
     rollHandoff = null;
     rollPanel.hidden = true;
     const cleanUrl = new URL(window.location.href);
-    ["review", "source", "targetExpiration", "targetStrike"].forEach((key) => cleanUrl.searchParams.delete(key));
+    ["review", "source", "targetExpiration", "targetStrike", "from"].forEach((key) => cleanUrl.searchParams.delete(key));
     window.history.replaceState({}, "", cleanUrl);
+  });
+  rollSourceRun?.addEventListener("click", () => {
+    const selected = rollSourcePicker?.selectedOptions[0];
+    if (!selected) return;
+    const symbol = selected.dataset.symbol;
+    const selectedMode = selected.dataset.mode;
+    const sourceOptionSymbol = selected.value;
+    symbolInput.value = symbol;
+    form.elements.mode.value = selectedMode;
+    rollHandoff = {
+      symbol,
+      sourceOptionSymbol,
+      mode: selectedMode,
+      targetExpiration: null,
+      targetStrike: null,
+      origin: "ROLL REVIEW",
+      error: null,
+    };
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.set("symbol", symbol);
+    nextUrl.searchParams.set("mode", selectedMode);
+    nextUrl.searchParams.set("review", "roll");
+    nextUrl.searchParams.set("source", sourceOptionSymbol);
+    ["targetExpiration", "targetStrike", "from"].forEach((key) => nextUrl.searchParams.delete(key));
+    window.history.replaceState({}, "", nextUrl);
+    renderPendingRoll();
+    syncPutRules();
+    rollSourcePicker.closest("details").open = false;
+    loadPolicy().then(scan);
   });
   rollHandoff = readRollHandoff();
   if (rollHandoff) {
     symbolInput.value = rollHandoff.symbol;
-    form.elements.mode.value = "covered_call";
+    form.elements.mode.value = rollHandoff.mode;
     renderPendingRoll();
     syncPutRules();
     if (rollHandoff.error) {

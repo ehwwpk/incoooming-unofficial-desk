@@ -11,6 +11,7 @@ from schwab_dashboard.application.alerts.rolls import (
 )
 from schwab_dashboard.application.dashboard.covered_calls import UnderlyingCallStats
 from schwab_dashboard.application.formatting import compact_decimal
+from schwab_dashboard.domain.instruments import OptionSide
 
 D = Decimal
 
@@ -111,4 +112,6 @@ def evaluate_fast_move(underlying: UnderlyingCallStats) -> DeskAlert | None:
             closest,
             current_price=underlying.current_price,
         ),
+        roll_source_option_symbol=closest.record_id,
+        roll_option_side=OptionSide.CALL,
     )
