@@ -25,8 +25,8 @@ ContainerDependency = Annotated[Container, Depends(get_container)]
 
 class RollReviewRequest(BaseModel):
     source_option_symbol: str = Field(min_length=1, max_length=64)
-    target_expiration: date
-    target_strike: Decimal = Field(gt=0)
+    target_expiration: date | None = None
+    target_strike: Decimal | None = Field(default=None, gt=0)
 
 
 class LookupRequest(BaseModel):

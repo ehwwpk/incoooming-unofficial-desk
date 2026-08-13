@@ -294,3 +294,4 @@ body[data-nibwick-popover-open="true"] .nibwick-stage .nibwick-obstacle { animat
 .nibwick-no-roll b { color: var(--red); font: 730 6.8px var(--mono); }
 .nibwick-no-roll span { color: #9ca29f; font: 430 8.5px/11px var(--sans); }
 .nibwick-no-roll a { color: var(--gold); font: 720 6.8px var(--mono); text-decoration: none; white-space: nowrap; }
+.nibwick-no-roll > div { display: flex; align-items: center; gap: 9px; }

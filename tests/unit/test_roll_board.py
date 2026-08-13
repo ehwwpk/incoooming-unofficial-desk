@@ -9,6 +9,8 @@ from schwab_dashboard.application.dashboard.models import (
 )
 from schwab_dashboard.application.rolls import RollQuote
 from schwab_dashboard.application.rolls.board import build_roll_board
+from schwab_dashboard.application.rolls.catalog import build_roll_source_catalog
+from schwab_dashboard.domain.instruments import OptionSide
 from schwab_dashboard.infrastructure.demo.dashboard import DemoDashboardReader
 
 D = Decimal
@@ -107,3 +109,16 @@ def test_roll_board_uses_data_fog_when_no_roll_math_can_be_verified() -> None:
     assert projection.rows
     assert projection.no_clean_count == len(projection.rows)
     assert projection.posture == "DATA FOG"
+
+
+def test_radar_roll_catalog_includes_every_open_call_without_requiring_an_alert() -> None:
+    snapshot = DemoDashboardReader().execute()
+
+    catalog = build_roll_source_catalog(snapshot)
+
+    expected_calls = sum(
+        len(underlying.open_call_clocks) for underlying in snapshot.underlyings
+    )
+    assert len(catalog) == expected_calls
+    assert {choice.option_side for choice in catalog} == {OptionSide.CALL}
+    assert {choice.symbol for choice in catalog} == {"CVX", "KTOS", "URNM"}

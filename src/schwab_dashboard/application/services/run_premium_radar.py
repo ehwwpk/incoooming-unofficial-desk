@@ -59,8 +59,8 @@ class RadarDefaults:
 @dataclass(frozen=True, slots=True)
 class RadarRollRequest:
     source_option_symbol: str
-    target_expiration: date
-    target_strike: Decimal
+    target_expiration: date | None = None
+    target_strike: Decimal | None = None
 
 
 class RadarRollRequestError(LookupError):
@@ -131,12 +131,26 @@ class RunPremiumRadar:
                 requested_at.date(), policy.minimum_dte, field="minimum_dte"
             )
             scan_to = _expiration_date(requested_at.date(), policy.maximum_dte, field="maximum_dte")
-            if roll_source is not None and roll_request is not None:
+            if (
+                roll_source is not None
+                and roll_request is not None
+                and roll_request.target_expiration is not None
+            ):
                 scan_from = min(
                     scan_from,
                     max(requested_at.date(), roll_source.expires_on),
                 )
                 scan_to = max(scan_to, roll_request.target_expiration)
+            elif roll_source is not None:
+                scan_from = min(
+                    scan_from,
+                    max(requested_at.date(), roll_source.expires_on),
+                )
+                scan_to = max(
+                    scan_to,
+                    roll_source.expires_on
+                    + timedelta(days=max(60, policy.maximum_dte - policy.minimum_dte)),
+                )
             bundle = self._market.fetch(
                 symbol=canonical,
                 mode=mode,
@@ -316,6 +330,12 @@ def _resolve_roll_source(
         raise RadarRollRequestError(
             "That source option is no longer open. Refresh the desk before reviewing a roll."
         )
+    if (request.target_expiration is None) != (request.target_strike is None):
+        raise RadarRollRequestError(
+            "Choose both a replacement expiration and strike, or neither to compare the chain."
+        )
+    if request.target_expiration is None or request.target_strike is None:
+        return source
     wrong_direction = (
         request.target_strike < source.strike
         if source.option_side is OptionSide.CALL
@@ -394,15 +414,20 @@ def _build_roll_review(
     source: RollSource,
     request: RadarRollRequest,
 ) -> RadarRollReview:
-    target = next(
-        (
-            candidate
-            for candidate in projection.candidates
-            if candidate.expiration_date == request.target_expiration
-            and candidate.strike == request.target_strike
-        ),
-        None,
+    requested_target = (
+        next(
+            (
+                candidate
+                for candidate in projection.candidates
+                if candidate.expiration_date == request.target_expiration
+                and candidate.strike == request.target_strike
+            ),
+            None,
+        )
+        if request.target_expiration is not None and request.target_strike is not None
+        else None
     )
+    target = requested_target or (projection.candidates[0] if projection.candidates else None)
     refreshed_source = _find_source_contract(bundle, source)
     source_ask = _source_close_ask(bundle, source)
     source_quote_status = (
@@ -414,7 +439,7 @@ def _build_roll_review(
     )
     target_bid = target.bid if target is not None else None
     net_per_share = target_bid - source_ask if target_bid is not None else None
-    contract_shares = Decimal(source.contracts * 100)
+    contract_shares = Decimal(source.contracts) * source.contract_multiplier
     comparisons = tuple(
         RadarRollComparison(
             option_symbol=candidate.option_symbol,
@@ -428,6 +453,11 @@ def _build_roll_review(
         )
         for candidate in projection.candidates
     )
+    if request.target_expiration is None:
+        review_status = "matched" if target is not None else "no_candidates"
+    else:
+        review_status = "matched" if requested_target is not None else "unavailable"
+
     return RadarRollReview(
         source_option_symbol=source.option_symbol,
         source_option_side=source.option_side,
@@ -436,14 +466,16 @@ def _build_roll_review(
         source_contracts=source.contracts,
         source_close_ask_per_share=source_ask,
         source_quote_status=source_quote_status,
-        target_expiration_date=request.target_expiration,
-        target_strike=request.target_strike,
+        target_expiration_date=(target.expiration_date if target is not None else None),
+        target_strike=(target.strike if target is not None else None),
         target_bid_per_share=target_bid,
         net_roll_per_share=net_per_share,
         net_roll_cash=(net_per_share * contract_shares if net_per_share is not None else None),
-        strike_lift_per_share=request.target_strike - source.strike,
-        added_days=(request.target_expiration - source.expires_on).days,
-        status="matched" if target is not None else "unavailable",
+        strike_lift_per_share=(target.strike - source.strike if target is not None else None),
+        added_days=(
+            (target.expiration_date - source.expires_on).days if target is not None else None
+        ),
+        status=review_status,
         comparisons=comparisons,
     )
 
