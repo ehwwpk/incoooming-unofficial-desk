@@ -91,14 +91,13 @@ def test_open_call_workspace_keeps_exact_dte_in_expanded_contract_context() -> N
     )
 
     assert rendered.count('class="open-call-group"') == len(open_book.groups)
-    assert rendered.count('data-open-book-section=') == 2
+    assert rendered.count("data-open-book-section=") == 2
     assert (
         '<details class="workspace-panel obligation-calendar open-book-section" '
         'data-open-book-section="calendar" open>'
     ) in rendered
     assert (
-        '<details class="workspace-panel open-book-section" '
-        'data-open-book-section="contracts">'
+        '<details class="workspace-panel open-book-section" data-open-book-section="contracts">'
     ) in rendered
     assert rendered.count('class="open-book-section-control"') == 2
     assert "CALENDAR CLOCK" in rendered

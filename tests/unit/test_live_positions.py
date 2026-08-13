@@ -146,6 +146,52 @@ def test_portfolio_excludes_deposit_when_utc_midnight_crosses_market_day() -> No
     assert summary.day_profit_loss_percent == D("-219.03") / D("106805.76") * D("100")
 
 
+def test_portfolio_carries_prior_day_deposit_while_schwab_baseline_is_stale() -> None:
+    summary = summarize_portfolio(
+        (_position(day_profit_loss=D("-219.03")),),
+        (
+            {
+                "liquidation_value": D("131586.73"),
+                "initial_liquidation_value": D("106805.76"),
+            },
+        ),
+        cash_movements=(
+            {
+                "occurred_at": datetime(2026, 8, 12, 18, 8, 21),
+                "movement_type": "transfer",
+                "amount": D("25000"),
+            },
+        ),
+        as_of=date(2026, 8, 13),
+    )
+
+    assert summary.day_external_cash_flow == D("25000")
+    assert summary.day_profit_loss == D("-219.03")
+
+
+def test_portfolio_stops_carrying_deposit_after_schwab_baseline_advances() -> None:
+    summary = summarize_portfolio(
+        (_position(day_profit_loss=D("-219.03")),),
+        (
+            {
+                "liquidation_value": D("131586.73"),
+                "initial_liquidation_value": D("131805.76"),
+            },
+        ),
+        cash_movements=(
+            {
+                "occurred_at": datetime(2026, 8, 12, 18, 8, 21),
+                "movement_type": "transfer",
+                "amount": D("25000"),
+            },
+        ),
+        as_of=date(2026, 8, 13),
+    )
+
+    assert summary.day_external_cash_flow == D("0")
+    assert summary.day_profit_loss == D("-219.03")
+
+
 def test_portfolio_excludes_same_day_withdrawal_but_not_dividend() -> None:
     summary = summarize_portfolio(
         (_position(day_profit_loss=D("3100")),),
@@ -228,3 +274,28 @@ def test_short_puts_share_the_existing_underlying_group() -> None:
     assert book.puts[0].strike_distance_per_share == D("10")
     assert book.total_open_mark_profit_loss == D("0")
     assert book.estimated_put_theta_per_day == D("0")
+
+
+def test_option_theta_uses_exported_contract_multiplier() -> None:
+    stock = _position(quantity=D("450"))
+    call = _position(
+        symbol="KTOS1 260918C00075000",
+        asset_type="OPTION",
+        quantity=D("-2"),
+        underlying_symbol="KTOS",
+        option_type="CALL",
+        expiration_date=date(2026, 9, 18),
+        strike=D("75"),
+        contract_multiplier=D("150"),
+        multiplier_source="exported",
+    )
+    book = build_live_position_book(
+        (stock, call),
+        as_of=date(2026, 8, 10),
+        option_market=(({"symbol": call.symbol, "theta": D("-0.05")}),),
+    )
+
+    assert book.calls[0].contract_multiplier == D("150")
+    assert book.contract_capacity == 3
+    assert book.covered_contracts == 2
+    assert book.underlyings[0].estimated_theta_per_day == D("15.00")

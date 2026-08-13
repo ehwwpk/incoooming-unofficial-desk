@@ -173,8 +173,7 @@ def build_price_events(
                 option_value_per_share=option_value_per_share,
                 option_value_vs_credit_percent=(
                     option_value_per_share / action.record.premium_per_share * D("100")
-                    if option_value_per_share is not None
-                    and action.record.premium_per_share
+                    if option_value_per_share is not None and action.record.premium_per_share
                     else None
                 ),
             )

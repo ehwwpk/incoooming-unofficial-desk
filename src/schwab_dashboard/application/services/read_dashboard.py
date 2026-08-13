@@ -114,18 +114,14 @@ class ReadDashboard:
         base_risk = summarize_risk(positions)
         risk = RiskSummary(
             buying_power_used_percent=(
-                (portfolio.maintenance_requirement or ZERO)
-                / portfolio.total_value
-                * Decimal("100")
+                (portfolio.maintenance_requirement or ZERO) / portfolio.total_value * Decimal("100")
                 if portfolio.total_value
                 else ZERO
             ),
             portfolio_delta=Decimal(live_book.total_shares)
             + sum(
                 (
-                    -(option.delta or ZERO)
-                    * Decimal("100")
-                    * Decimal(option.contracts)
+                    -(option.delta or ZERO) * Decimal("100") * Decimal(option.contracts)
                     for option in (*live_book.calls, *live_book.puts)
                 ),
                 ZERO,
@@ -164,9 +160,7 @@ class ReadDashboard:
             ),
             income_periods=performance.income_periods if has_live_records else (),
             cash_events=performance.cash_events,
-            cash_activity_windows=(
-                performance.cash_activity_windows if has_live_records else ()
-            ),
+            cash_activity_windows=(performance.cash_activity_windows if has_live_records else ()),
             cash_chart_series=performance.cash_chart_series if has_live_records else (),
             campaigns=(),
             covered_calls=performance.covered_calls,

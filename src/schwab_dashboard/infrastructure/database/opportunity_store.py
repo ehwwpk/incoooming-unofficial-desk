@@ -160,9 +160,7 @@ class SqlOpportunityStore:
                 )
             )
             if row is None:
-                session.add(
-                    RadarSavedSymbolTable(source=source, symbol=symbol, saved_at=saved_at)
-                )
+                session.add(RadarSavedSymbolTable(source=source, symbol=symbol, saved_at=saved_at))
                 session.commit()
 
     def remove_symbol(self, *, symbol: str, source: str) -> None:

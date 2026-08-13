@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
 from schwab_dashboard.api.dependencies import get_container
 from schwab_dashboard.api.source_context import SOURCE_COOKIE, selected_source_key
@@ -54,6 +54,7 @@ async def import_csv_source(
     dataset_name: Annotated[str, Form()],
     broker: Annotated[BrokerKind, Form()],
     files: Annotated[list[UploadFile], File()],
+    preview_fingerprint: Annotated[str, Form()],
 ) -> Response:
     try:
         payloads: list[tuple[str, bytes]] = []
@@ -63,6 +64,7 @@ async def import_csv_source(
             name=dataset_name,
             broker=broker,
             files=tuple(payloads),
+            preview_fingerprint=preview_fingerprint,
         )
     except (CsvImportError, ValueError) as exc:
         return _render_gateway(request, container, error=str(exc), status_code=422)
@@ -75,6 +77,59 @@ async def import_csv_source(
         samesite="lax",
     )
     return response
+
+
+@router.post("/sources/csv/preview")
+async def preview_csv_source(
+    container: ContainerDependency,
+    dataset_name: Annotated[str, Form()],
+    broker: Annotated[BrokerKind, Form()],
+    files: Annotated[list[UploadFile], File()],
+) -> JSONResponse:
+    try:
+        payloads: list[tuple[str, bytes]] = []
+        for file in files:
+            payloads.append((file.filename or "import.csv", await file.read()))
+        preview = container.import_csv_dataset().preview(
+            name=dataset_name,
+            broker=broker,
+            files=tuple(payloads),
+        )
+    except (CsvImportError, ValueError) as exc:
+        return JSONResponse({"ok": False, "error": str(exc)}, status_code=422)
+    return JSONResponse(
+        {
+            "ok": True,
+            "fingerprint": preview.fingerprint,
+            "can_commit": preview.can_commit,
+            "counts": {
+                "positions": preview.position_count,
+                "activity": preview.activity_count,
+                "ignored": preview.ignored_count,
+                "review": preview.review_count,
+                "rejected": preview.rejected_count,
+            },
+            "capabilities": preview.capabilities,
+            "warnings": preview.warnings,
+            "files": [
+                {
+                    "name": file.filename,
+                    "profile": file.profile,
+                    "broker": file.detected_broker.value,
+                    "confidence": file.confidence,
+                    "kind": file.file_kind,
+                    "header_row": file.header_row,
+                    "encoding": file.encoding,
+                    "delimiter": "TAB" if file.delimiter == "\t" else file.delimiter,
+                    "imported": file.imported_count,
+                    "ignored": file.ignored_count,
+                    "review": file.review_count,
+                    "rejected": file.rejected_count,
+                }
+                for file in preview.files
+            ],
+        }
+    )
 
 
 @router.get("/sources/templates/{template_kind}.csv")

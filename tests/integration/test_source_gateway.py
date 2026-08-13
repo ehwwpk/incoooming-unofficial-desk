@@ -106,8 +106,8 @@ def test_first_visit_chooses_a_source_and_csv_book_remains_isolated(tmp_path: Pa
         assert "gateway-promenade" not in gateway.text
         assert "data-source-route=" not in gateway.text
         assert "()___()" not in gateway.text
-        assert "THE BROKER NAME IS A LABEL ONLY." in gateway.text
-        assert "All four choices currently use the same column-detected importer" in gateway.text
+        assert "THE FORMAT IS VERIFIED." in gateway.text
+        assert "Preview stops mismatches and uncertain rows" in gateway.text
         assert imported.status_code == 303
         assert imported.headers["location"] == "/"
         assert "incoooming_source=csv:" in imported.headers["set-cookie"]
@@ -164,7 +164,9 @@ def test_realistic_csv_book_projects_inventory_options_income_and_dividend(
         container.close()
 
 
-def test_csv_source_choice_changes_provenance_not_normalized_records(tmp_path: Path) -> None:
+def test_csv_source_choice_runs_adapter_detection_and_preserves_safe_records(
+    tmp_path: Path,
+) -> None:
     settings = Settings(_env_file=None, data_dir=tmp_path)
     command.upgrade(_alembic_config(settings), "head")
     container = Container(settings)
@@ -179,14 +181,11 @@ def test_csv_source_choice_changes_provenance_not_normalized_records(tmp_path: P
         )
 
         assert tuple(dataset.broker for dataset in datasets) == tuple(BrokerKind)
-        normalized_books = tuple(
-            container.source_store.load_records(dataset.id) for dataset in datasets
+        assert all(dataset.position_count == 2 for dataset in datasets)
+        assert all(dataset.capabilities for dataset in datasets)
+        assert any(
+            dataset.warnings for dataset in datasets if dataset.broker is not BrokerKind.GENERIC
         )
-        canonical_books = tuple(
-            tuple(sorted(book, key=lambda item: str(item["normalized"]["symbol"])))
-            for book in normalized_books
-        )
-        assert all(book == canonical_books[0] for book in canonical_books[1:])
     finally:
         container.close()
 
@@ -202,7 +201,17 @@ async def _exercise_gateway(container: Container) -> tuple[httpx.Response, ...]:
         gateway = await client.get("/sources")
         imported = await client.post(
             "/sources/csv",
-            data={"dataset_name": "August import", "broker": "generic"},
+            data={
+                "dataset_name": "August import",
+                "broker": "generic",
+                "preview_fingerprint": container.import_csv_dataset()
+                .preview(
+                    name="August import",
+                    broker=BrokerKind.GENERIC,
+                    files=(("positions.csv", POSITIONS), ("activity.csv", ACTIVITY)),
+                )
+                .fingerprint,
+            },
             files=[
                 ("files", ("positions.csv", POSITIONS, "text/csv")),
                 ("files", ("activity.csv", ACTIVITY, "text/csv")),

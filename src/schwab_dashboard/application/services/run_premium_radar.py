@@ -125,9 +125,7 @@ class RunPremiumRadar:
             scan_from = _expiration_date(
                 requested_at.date(), policy.minimum_dte, field="minimum_dte"
             )
-            scan_to = _expiration_date(
-                requested_at.date(), policy.maximum_dte, field="maximum_dte"
-            )
+            scan_to = _expiration_date(requested_at.date(), policy.maximum_dte, field="maximum_dte")
             if roll_source is not None and roll_request is not None:
                 scan_from = min(
                     scan_from,
@@ -141,9 +139,7 @@ class RunPremiumRadar:
                 to_date=scan_to,
             )
             roll_selection = (
-                _roll_selection_context(bundle, roll_source)
-                if roll_source is not None
-                else None
+                _roll_selection_context(bundle, roll_source) if roll_source is not None else None
             )
             projection = evaluate_radar(
                 lookup_id=lookup_id,
@@ -153,9 +149,7 @@ class RunPremiumRadar:
                 policy=policy,
                 now=self._clock(),
                 preferred_strike=(roll_request.target_strike if roll_request else None),
-                preferred_expiration=(
-                    roll_request.target_expiration if roll_request else None
-                ),
+                preferred_expiration=(roll_request.target_expiration if roll_request else None),
                 roll_selection=roll_selection,
             )
             if roll_request is not None and roll_source is not None:
@@ -197,9 +191,7 @@ class RunPremiumRadar:
             mode=mode,
             minimum_dte=self._defaults.minimum_dte,
             maximum_dte=self._defaults.maximum_dte,
-            minimum_annualized_rate_percent=(
-                self._defaults.minimum_annualized_rate_percent
-            ),
+            minimum_annualized_rate_percent=(self._defaults.minimum_annualized_rate_percent),
             minimum_strike_distance_percent=(
                 Decimal("5") if mode is RadarMode.CASH_SECURED_PUT else Decimal("0")
             ),
@@ -214,16 +206,12 @@ class RunPremiumRadar:
         canonical = normalize_symbol(policy.symbol)
         current = self._store.load_policy(symbol=canonical, mode=policy.mode)
         requested_version = current.version if current is not None else 1
-        return self._store.save_policy(
-            replace(policy, symbol=canonical, version=requested_version)
-        )
+        return self._store.save_policy(replace(policy, symbol=canonical, version=requested_version))
 
     def held_symbols(self, snapshot: DashboardSnapshot | None = None) -> tuple[str, ...]:
         account_snapshot = snapshot or self._dashboard_factory().execute()
         if account_snapshot.live_position_book is not None:
-            symbols = (
-                item.symbol for item in account_snapshot.live_position_book.underlyings
-            )
+            symbols = (item.symbol for item in account_snapshot.live_position_book.underlyings)
         else:
             symbols = (item.symbol for item in account_snapshot.underlyings)
         return tuple(sorted(symbols))
@@ -305,9 +293,7 @@ def _account_context(
         covered_call_contracts=open_calls,
         available_call_lots=max(0, capacity - open_calls + released_call_contracts),
         reserved_cash=policy.reserved_cash,
-        account_mask=(
-            str(snapshot.accounts[0].get("account_mask")) if snapshot.accounts else None
-        ),
+        account_mask=(str(snapshot.accounts[0].get("account_mask")) if snapshot.accounts else None),
     )
 
 
@@ -321,9 +307,7 @@ def _resolve_roll_source(
     if request is None:
         return None
     if mode is not RadarMode.COVERED_CALL:
-        raise RadarRollRequestError(
-            "Roll review is available only for an open covered call."
-        )
+        raise RadarRollRequestError("Roll review is available only for an open covered call.")
     underlying = next((item for item in snapshot.underlyings if item.symbol == symbol), None)
     source = next(
         (
@@ -434,11 +418,7 @@ def _find_source_contract(
     source: OpenCallClock,
 ) -> RadarMarketContract | None:
     exact = next(
-        (
-            contract
-            for contract in bundle.contracts
-            if contract.option_symbol == source.record_id
-        ),
+        (contract for contract in bundle.contracts if contract.option_symbol == source.record_id),
         None,
     )
     if exact is not None:

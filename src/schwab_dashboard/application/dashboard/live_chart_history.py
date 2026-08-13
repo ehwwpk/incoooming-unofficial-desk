@@ -37,9 +37,7 @@ def build_price_points(
             date=_date(row.get("trade_date")),
             label=_date(row.get("trade_date")).strftime("%b %d"),
             price=price,
-            x_percent=(
-                Decimal(index) / Decimal(count - 1) * HUNDRED if count > 1 else ZERO
-            ),
+            x_percent=(Decimal(index) / Decimal(count - 1) * HUNDRED if count > 1 else ZERO),
             y_percent=_y_percent(price, low=low, high=high),
             is_friday=_date(row.get("trade_date")).weekday() == 4,
         )
@@ -110,13 +108,9 @@ def build_option_events(
                 y_percent=_decimal(row["y_percent"]),
                 vertical_offset=_int(row["vertical_offset"]),
                 linked_sale_sequence=linked_sale_sequence,
-                linked_resolution_sequence=_optional_int(
-                    row.get("linked_resolution_sequence")
-                ),
+                linked_resolution_sequence=_optional_int(row.get("linked_resolution_sequence")),
                 resolved_on=_optional_date(row.get("resolved_on")),
-                underlying_at_resolution=_optional_decimal(
-                    row.get("underlying_at_resolution")
-                ),
+                underlying_at_resolution=_optional_decimal(row.get("underlying_at_resolution")),
                 expires_on=_date(row["expires_on"]),
                 contracts=_int(row["contracts"]),
                 strike=_decimal(row["strike"]),
@@ -144,9 +138,7 @@ def build_share_trade_events(
     if not points:
         return ()
     start, end = points[0].date, points[-1].date
-    grouped: defaultdict[tuple[date, str], tuple[int, Decimal]] = defaultdict(
-        lambda: (0, ZERO)
-    )
+    grouped: defaultdict[tuple[date, str], tuple[int, Decimal]] = defaultdict(lambda: (0, ZERO))
     for row in executions:
         occurred_on = _row_date(row)
         if not (
@@ -342,9 +334,7 @@ def _option_value_checkpoint(
     elif normalized_outcome == "EXPIRED":
         value_per_share = ZERO
     elif normalized_outcome in {"CLOSED", "ROLLED"}:
-        buyback = _decimal(
-            row.get("resolution_buyback_cost", row.get("buyback_cost"))
-        )
+        buyback = _decimal(row.get("resolution_buyback_cost", row.get("buyback_cost")))
         value_per_share = buyback / contracts / Decimal("100")
     else:
         return None, None
@@ -359,9 +349,7 @@ def _replace_link_indexes_with_sequences(rows: list[dict[str, object]]) -> None:
             _int(rows[_int(sale_index)]["sequence"]) if sale_index is not None else None
         )
         row["linked_resolution_sequence"] = (
-            _int(rows[_int(resolution_index)]["sequence"])
-            if resolution_index is not None
-            else None
+            _int(rows[_int(resolution_index)]["sequence"]) if resolution_index is not None else None
         )
 
 
@@ -387,9 +375,7 @@ def _is_chart_option_execution(
     )
 
 
-def _is_chart_lifecycle(
-    row: Mapping[str, object], *, symbol: str, start: date, end: date
-) -> bool:
+def _is_chart_lifecycle(row: Mapping[str, object], *, symbol: str, start: date, end: date) -> bool:
     occurred_on = _row_date(row)
     return (
         start <= occurred_on <= end

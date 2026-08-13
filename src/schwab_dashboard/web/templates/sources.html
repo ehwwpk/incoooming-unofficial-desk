@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=67">
     <link rel="stylesheet" href="{{ url_for('static', path='/sources.css') }}?v=13">
     <link rel="stylesheet" href="{{ url_for('static', path='/sources-art.css') }}?v=19">
-    <script defer src="{{ url_for('static', path='/sources.js') }}?v=1"></script>
+    <script defer src="{{ url_for('static', path='/sources.js') }}?v=2"></script>
   </head>
   <body class="sources-page">
     {% set schwab_ready = schwab_credentials_configured and schwab_token_available %}
@@ -206,18 +206,22 @@
                 <fieldset class="broker-choice-field">
                   <legend>WHERE DID THE FILE COME FROM?</legend>
                   <div class="broker-choice-grid">
-                    <label><input type="radio" name="broker" value="schwab" checked><span><b>SCHWAB</b><small>BOOK LABEL</small></span></label>
-                    <label><input type="radio" name="broker" value="fidelity"><span><b>FIDELITY</b><small>BOOK LABEL</small></span></label>
-                    <label><input type="radio" name="broker" value="robinhood"><span><b>ROBINHOOD</b><small>BOOK LABEL</small></span></label>
+                    <label><input type="radio" name="broker" value="schwab" checked><span><b>SCHWAB</b><small>WEB EXPORT</small></span></label>
+                    <label><input type="radio" name="broker" value="fidelity"><span><b>FIDELITY</b><small>WEB EXPORT</small></span></label>
+                    <label><input type="radio" name="broker" value="robinhood"><span><b>ROBINHOOD</b><small>ACTIVITY</small></span></label>
+                    <label><input type="radio" name="broker" value="webull"><span><b>WEBULL</b><small>ORDER HISTORY</small></span></label>
+                    <label><input type="radio" name="broker" value="ibkr"><span><b>IBKR</b><small>STATEMENT</small></span></label>
                     <label><input type="radio" name="broker" value="generic"><span><b>GENERIC</b><small>OUR TEMPLATE</small></span></label>
                   </div>
-                  <p class="source-profile-truth"><b>THE BROKER NAME IS A LABEL ONLY.</b> All four choices currently use the same column-detected importer. Broker-specific formats are not yet certified.</p>
+                  <p class="source-profile-truth"><b>THE FORMAT IS VERIFIED.</b> The selected adapter reads that broker's known columns. Preview stops mismatches and uncertain rows before they enter your book.</p>
                 </fieldset>
                 <label class="csv-file-field">CSV FILES
                   <input name="files" type="file" accept=".csv,text/csv" multiple required data-source-files>
                   <small data-source-file-status>No files selected &middot; 10 MB per file</small>
                 </label>
-                <button type="submit">IMPORT LOCAL BOOK <span>&rarr;</span></button>
+                <input type="hidden" name="preview_fingerprint" value="" data-preview-fingerprint>
+                <section class="csv-import-preview" data-import-preview hidden aria-live="polite"></section>
+                <button type="submit" data-import-submit>REVIEW FILES <span>&rarr;</span></button>
               </form>
               <nav class="source-export-help" aria-label="Official broker export help">
                 <span>EXPORT HELP</span>

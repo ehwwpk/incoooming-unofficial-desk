@@ -73,15 +73,9 @@ def test_live_cash_series_reconciles_to_normalized_records() -> None:
     assert tuple(series) == ("month", "quarter", "ytd", "r365")
     assert len(series["month"].points) == 28
     for item in series.values():
-        assert sum((point.premium_received for point in item.points), D("0")) == D(
-            "300"
-        )
-        assert sum((point.executed_debits for point in item.points), D("0")) == D(
-            "125"
-        )
-        assert sum((point.option_cash for point in item.points), D("0")) == D(
-            "175"
-        )
+        assert sum((point.premium_received for point in item.points), D("0")) == D("300")
+        assert sum((point.executed_debits for point in item.points), D("0")) == D("125")
+        assert sum((point.option_cash for point in item.points), D("0")) == D("175")
         assert sum((point.dividends for point in item.points), D("0")) == D("42")
 
 

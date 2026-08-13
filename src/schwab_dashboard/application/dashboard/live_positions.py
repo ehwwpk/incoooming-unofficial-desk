@@ -59,37 +59,37 @@ def build_live_position_book(
             else None
         )
         option = LiveOpenOptionPosition(
-                account_mask=position.account_mask,
-                option_symbol=position.symbol,
-                underlying_symbol=position.underlying_symbol,
-                contracts=contracts,
-                expires_on=position.expiration_date,
-                days_to_expiration=max(0, (position.expiration_date - as_of).days),
-                strike=position.strike,
-                entry_credit_per_share=position.average_price,
-                estimated_mark_per_share=_optional_decimal(quote.get("mark")) or position.mark,
-                market_value=position.market_value,
-                open_profit_loss=position.open_profit_loss,
-                day_profit_loss=position.day_profit_loss,
-                underlying_price=underlying_price,
-                strike_distance_per_share=distance,
-                strike_distance_percent=distance_percent,
-                bid_per_share=_optional_decimal(quote.get("bid")),
-                ask_per_share=_optional_decimal(quote.get("ask")),
-                implied_volatility_percent=_optional_decimal(
-                    quote.get("implied_volatility")
-                ),
-                delta=_optional_decimal(quote.get("delta")),
-                gamma=_optional_decimal(quote.get("gamma")),
-                theta_per_share=_optional_decimal(quote.get("theta")),
-                vega=_optional_decimal(quote.get("vega")),
-                rho=_optional_decimal(quote.get("rho")),
-                volume=_optional_int(quote.get("volume")),
-                open_interest=_optional_int(quote.get("open_interest")),
-                quote_observed_at=quote.get("observed_at"),  # type: ignore[arg-type]
-                quote_quality=str(quote.get("quote_quality") or "") or None,
-                option_type=option_type,
-            )
+            account_mask=position.account_mask,
+            option_symbol=position.symbol,
+            underlying_symbol=position.underlying_symbol,
+            contracts=contracts,
+            expires_on=position.expiration_date,
+            days_to_expiration=max(0, (position.expiration_date - as_of).days),
+            strike=position.strike,
+            entry_credit_per_share=position.average_price,
+            estimated_mark_per_share=_optional_decimal(quote.get("mark")) or position.mark,
+            market_value=position.market_value,
+            open_profit_loss=position.open_profit_loss,
+            day_profit_loss=position.day_profit_loss,
+            underlying_price=underlying_price,
+            strike_distance_per_share=distance,
+            strike_distance_percent=distance_percent,
+            bid_per_share=_optional_decimal(quote.get("bid")),
+            ask_per_share=_optional_decimal(quote.get("ask")),
+            implied_volatility_percent=_optional_decimal(quote.get("implied_volatility")),
+            delta=_optional_decimal(quote.get("delta")),
+            gamma=_optional_decimal(quote.get("gamma")),
+            theta_per_share=_optional_decimal(quote.get("theta")),
+            vega=_optional_decimal(quote.get("vega")),
+            rho=_optional_decimal(quote.get("rho")),
+            volume=_optional_int(quote.get("volume")),
+            open_interest=_optional_int(quote.get("open_interest")),
+            quote_observed_at=quote.get("observed_at"),  # type: ignore[arg-type]
+            quote_quality=str(quote.get("quote_quality") or "") or None,
+            option_type=option_type,
+            contract_multiplier=position.contract_multiplier or HUNDRED,
+            multiplier_source=position.multiplier_source,
+        )
         if option_type == "CALL":
             calls_by_symbol[position.underlying_symbol].append(option)
         else:
@@ -108,9 +108,9 @@ def build_live_position_book(
         all_puts.extend(ordered_puts)
         holding = holdings.get(symbol)
         shares = int(holding.quantity) if holding is not None else 0
-        capacity = max(0, shares // 100)
+        capacity = _contract_capacity(shares, ordered_calls)
         open_contracts = sum(call.contracts for call in ordered_calls)
-        covered_contracts = min(capacity, open_contracts)
+        covered_contracts = _covered_contracts(shares, ordered_calls)
         iv_values = [
             call.implied_volatility_percent
             for call in ordered_calls
@@ -144,7 +144,7 @@ def build_live_position_book(
                 estimated_theta_per_day=sum(
                     (
                         -(call.theta_per_share or ZERO)
-                        * Decimal("100")
+                        * call.contract_multiplier
                         * Decimal(call.contracts)
                         for call in ordered_calls
                     ),
@@ -154,7 +154,7 @@ def build_live_position_book(
                 estimated_put_theta_per_day=sum(
                     (
                         -(put.theta_per_share or ZERO)
-                        * Decimal("100")
+                        * put.contract_multiplier
                         * Decimal(put.contracts)
                         for put in ordered_puts
                     ),
@@ -194,6 +194,29 @@ def _is_short_option(position: PositionSummary) -> bool:
         and position.expiration_date is not None
         and position.strike is not None
     )
+
+
+def _covered_contracts(shares: int, calls: Sequence[LiveOpenOptionPosition]) -> int:
+    remaining = max(0, shares)
+    covered = 0
+    for call in calls:
+        deliverable_shares = int(call.contract_multiplier)
+        if deliverable_shares <= 0:
+            continue
+        count = min(call.contracts, remaining // deliverable_shares)
+        covered += count
+        remaining -= count * deliverable_shares
+    return covered
+
+
+def _contract_capacity(shares: int, calls: Sequence[LiveOpenOptionPosition]) -> int:
+    if not calls:
+        return max(0, shares // 100)
+    smallest_deliverable = min(
+        (int(call.contract_multiplier) for call in calls if call.contract_multiplier > ZERO),
+        default=100,
+    )
+    return max(0, shares // smallest_deliverable)
 
 
 def _canonical(value: str) -> str:

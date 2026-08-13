@@ -1,0 +1,9 @@
+Statement,Header,Field Name,Field Value
+Statement,Data,BrokerName,Interactive Brokers
+Open Positions,Header,DataDiscriminator,Asset Category,Currency,Symbol,Description,Quantity,Mult,Cost Price,Close Price,Value,Unrealized P/L
+Open Positions,Data,Summary,Stocks,USD,CVX,CHEVRON CORP,100,1,150,195,19500,4500
+Open Positions,Data,Summary,Options,USD,CVX  260821C00205000,CVX 21AUG26 205 C,-1,100,2.00,1.25,-125,75
+Trades,Header,DataDiscriminator,Asset Category,Currency,Symbol,Description,Date/Time,Quantity,T. Price,Proceeds,Comm/Fee,Mult
+Trades,Data,Order,Options,USD,CVX  260821C00205000,CVX 21AUG26 205 C,"2026-08-01, 10:30:00",-1,1.25,125,-0.03,100
+Cash Transactions,Header,Currency,Date/Time,Description,Amount,Symbol
+Cash Transactions,Data,USD,2026-08-02,Chevron dividend,171,CVX

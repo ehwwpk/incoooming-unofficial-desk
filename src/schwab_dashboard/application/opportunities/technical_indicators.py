@@ -55,12 +55,8 @@ def _wilder_rsi(
 
     for value_index in range(period + 1, len(values)):
         change_index = value_index - 1
-        average_gain = (
-            average_gain * Decimal(period - 1) + gains[change_index]
-        ) / Decimal(period)
-        average_loss = (
-            average_loss * Decimal(period - 1) + losses[change_index]
-        ) / Decimal(period)
+        average_gain = (average_gain * Decimal(period - 1) + gains[change_index]) / Decimal(period)
+        average_loss = (average_loss * Decimal(period - 1) + losses[change_index]) / Decimal(period)
         result[value_index] = _rsi_value(average_gain, average_loss)
     return tuple(result)
 

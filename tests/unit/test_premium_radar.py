@@ -85,8 +85,7 @@ def test_covered_call_radar_returns_only_candidates_that_clear_account_and_polic
     )
     assert all(candidate.strike >= Decimal("70") for candidate in projection.candidates)
     assert all(
-        candidate.premium_dollars == candidate.bid * 100
-        for candidate in projection.candidates
+        candidate.premium_dollars == candidate.bid * 100 for candidate in projection.candidates
     )
     assert all(candidate.eligible_contracts == 1 for candidate in projection.candidates)
     assert all(
@@ -97,10 +96,7 @@ def test_covered_call_radar_returns_only_candidates_that_clear_account_and_polic
     assert projection.expiration_map is not None
     assert projection.expiration_map.spot == bundle.underlying_price
     assert len(projection.expiration_map.candidates) == len(projection.candidates)
-    assert all(
-        point.trade_date <= NOW.date()
-        for point in projection.expiration_map.price_points
-    )
+    assert all(point.trade_date <= NOW.date() for point in projection.expiration_map.price_points)
     assert len(projection.expiration_map.indicator_points) == len(
         projection.expiration_map.price_points
     )
@@ -153,8 +149,7 @@ def test_explicit_roll_target_remains_visible_when_normal_research_filters_rejec
     reviewed = next(
         candidate
         for candidate in projection.candidates
-        if candidate.strike == target.strike
-        and candidate.expiration_date == target.expiration_date
+        if candidate.strike == target.strike and candidate.expiration_date == target.expiration_date
     )
     assert not reviewed.clears_all_rules
     assert any(gate.code == "minimum_strike" for gate in reviewed.gates)
@@ -198,8 +193,7 @@ def test_cash_secured_put_radar_shows_research_rows_until_setup_is_explicit() ->
     assert any("cash" in reason.lower() for reason in projection.reasons)
     assert projection.expiration_map is not None
     assert all(
-        candidate.effective_entry is not None
-        and candidate.effective_entry_y_percent is not None
+        candidate.effective_entry is not None and candidate.effective_entry_y_percent is not None
         for candidate in projection.expiration_map.candidates
     )
 
@@ -273,9 +267,7 @@ def test_put_with_a_spread_beyond_the_saved_limit_is_not_promoted() -> None:
     assert projection.state is RadarState.WAIT
     assert not projection.candidates
     assert projection.rejected_count > 0
-    assert projection.headline == (
-        "URNM chain loaded; no contract clears the current filters"
-    )
+    assert projection.headline == ("URNM chain loaded; no contract clears the current filters")
     assert any("chain returned contracts" in reason.lower() for reason in projection.reasons)
 
 
@@ -309,8 +301,7 @@ def test_empty_etf_chain_is_distinct_from_a_loaded_chain_filtered_to_zero() -> N
     assert not projection.candidates
     assert projection.headline == "No supported put contracts returned for URNM"
     assert any(
-        "source returned no supported contracts" in reason.lower()
-        for reason in projection.reasons
+        "source returned no supported contracts" in reason.lower() for reason in projection.reasons
     )
 
 

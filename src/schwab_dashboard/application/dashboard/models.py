@@ -114,6 +114,8 @@ class PositionSummary:
     expiration_date: date | None = None
     strike: Decimal | None = None
     open_profit_loss: Decimal | None = None
+    contract_multiplier: Decimal | None = None
+    multiplier_source: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -146,6 +148,8 @@ class LiveOpenOptionPosition:
     quote_observed_at: datetime | None = None
     quote_quality: str | None = None
     option_type: str = "CALL"
+    contract_multiplier: Decimal = Decimal("100")
+    multiplier_source: str | None = None
 
 
 # Compatibility name retained while the interface moves from a call-only book to
@@ -217,9 +221,7 @@ class LivePositionBook:
     def estimated_put_theta_per_day(self) -> Decimal:
         return sum(
             (
-                -(put.theta_per_share or Decimal("0"))
-                * Decimal("100")
-                * Decimal(put.contracts)
+                -(put.theta_per_share or Decimal("0")) * Decimal("100") * Decimal(put.contracts)
                 for put in self.puts
             ),
             Decimal("0"),

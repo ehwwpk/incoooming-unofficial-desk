@@ -41,9 +41,7 @@ def build_expiration_map(
         )
     )
     bars = all_bars[-60:]
-    indicators_by_date = {
-        item.trade_date: item for item in calculate_daily_indicators(all_bars)
-    }
+    indicators_by_date = {item.trade_date: item for item in calculate_daily_indicators(all_bars)}
     history_start = bars[0].trade_date if bars else as_of
     future_end = max(candidate.expiration_date for candidate in candidates)
     if future_end <= history_start:
@@ -95,8 +93,7 @@ def build_expiration_map(
     )
 
     actual_y = [
-        _price_y(candidate.strike, minimum=minimum, maximum=maximum)
-        for candidate in candidates
+        _price_y(candidate.strike, minimum=minimum, maximum=maximum) for candidate in candidates
     ]
     label_y = _spread_labels(actual_y)
     map_candidates = tuple(
@@ -125,9 +122,7 @@ def build_expiration_map(
                 else None
             ),
             expected_move_high=(
-                spot + candidate.expected_move
-                if candidate.expected_move is not None
-                else None
+                spot + candidate.expected_move if candidate.expected_move is not None else None
             ),
             expected_move_low_y_percent=(
                 _price_y(
@@ -181,9 +176,7 @@ def build_expiration_map(
 def _date_x(value: date, *, start: date, end: date) -> Decimal:
     total_days = max((end - start).days, 1)
     elapsed_days = min(max((value - start).days, 0), total_days)
-    return _PLOT_LEFT + (Decimal(elapsed_days) / Decimal(total_days)) * (
-        _PLOT_RIGHT - _PLOT_LEFT
-    )
+    return _PLOT_LEFT + (Decimal(elapsed_days) / Decimal(total_days)) * (_PLOT_RIGHT - _PLOT_LEFT)
 
 
 def _price_y(value: Decimal, *, minimum: Decimal, maximum: Decimal) -> Decimal:

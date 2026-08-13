@@ -305,11 +305,7 @@ def _candidate(
     ask = contract.ask or bid
     middle = midpoint(bid, ask)
     width = spread_percent(bid, ask)
-    room = (
-        contract.strike - spot
-        if mode is RadarMode.COVERED_CALL
-        else spot - contract.strike
-    )
+    room = contract.strike - spot if mode is RadarMode.COVERED_CALL else spot - contract.strike
     room_percent = room / spot * Decimal("100") if spot else Decimal("0")
     movement = expected_move(spot, atm_iv, dte)
     distance_in_moves = abs(room) / movement if movement and movement > 0 else None
@@ -393,8 +389,7 @@ def _passes_research_gates(candidate: RadarCandidate) -> bool:
     """Keep useful comparisons while preserving account and pause warnings."""
 
     return all(
-        gate.status.value != "fail" or gate.code in _PLANNING_GATE_CODES
-        for gate in candidate.gates
+        gate.status.value != "fail" or gate.code in _PLANNING_GATE_CODES for gate in candidate.gates
     )
 
 

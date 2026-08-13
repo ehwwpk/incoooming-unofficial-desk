@@ -84,8 +84,10 @@ def _activity_item(
     }.get(event.event_type, "CALL CLOSED")
     if event.event_type == "CLOSING DEBIT" and record is not None and record.outcome == "Rolled":
         action_label = "CALL ROLLED"
-    tone = "dividend" if event.event_type == "DIVIDEND" else (
-        "credit" if event.amount > 0 else "debit"
+    tone = (
+        "dividend"
+        if event.event_type == "DIVIDEND"
+        else ("credit" if event.amount > 0 else "debit")
     )
     return CashActivityItem(
         event_id=event.event_id,

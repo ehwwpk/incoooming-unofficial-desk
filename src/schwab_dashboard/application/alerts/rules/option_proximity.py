@@ -145,8 +145,7 @@ def evaluate_short_put_pressure(put: LiveOpenOptionPosition) -> DeskAlert | None
         headline=(
             f"{put.underlying_symbol} is through your ${compact_decimal(put.strike)} put"
             if is_itm
-            else f"{distance_percent:.1f}% cushion above your "
-            f"${compact_decimal(put.strike)} put"
+            else f"{distance_percent:.1f}% cushion above your ${compact_decimal(put.strike)} put"
         ),
         message=(
             f"{put.underlying_symbol} is ${distance:.2f}/share {relation} your "

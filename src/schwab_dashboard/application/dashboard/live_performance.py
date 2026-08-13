@@ -53,9 +53,7 @@ def build_live_performance(
     as_of: date,
 ) -> LivePerformanceProjection:
     option_executions = tuple(row for row in executions if _is_covered_call_cash(row))
-    dividends = tuple(
-        row for row in cash_movements if str(row.get("movement_type")) == "dividend"
-    )
+    dividends = tuple(row for row in cash_movements if str(row.get("movement_type")) == "dividend")
     assignments = tuple(
         row for row in lifecycle_events if str(row.get("event_type")) == "assignment"
     )
@@ -187,9 +185,7 @@ def _window(
         completed_trades=len(completed),
         win_rate=ZERO,
         annualized_option_yield=(
-            option_cash / covered_capital * annual_factor * HUNDRED
-            if covered_capital
-            else ZERO
+            option_cash / covered_capital * annual_factor * HUNDRED if covered_capital else ZERO
         ),
         annualized_total_yield=(
             (option_cash + dividend_cash) / covered_capital * annual_factor * HUNDRED
@@ -219,12 +215,8 @@ def _monthly_performance(
     first_month = observed_start_month
     rolling_year_start = _month_shift(date(as_of.year, as_of.month, 1), 11)
     first_month = max(first_month, rolling_year_start)
-    starts_mid_month = (
-        first_month == observed_start_month and first_observed.day > 1
-    )
-    month_count = (
-        (as_of.year - first_month.year) * 12 + as_of.month - first_month.month + 1
-    )
+    starts_mid_month = first_month == observed_start_month and first_observed.day > 1
+    month_count = (as_of.year - first_month.year) * 12 + as_of.month - first_month.month + 1
     months = [
         _month_shift(date(as_of.year, as_of.month, 1), offset)
         for offset in range(month_count - 1, -1, -1)
@@ -255,8 +247,7 @@ def _monthly_performance(
                     0,
                 ),
                 called_away_shares=sum(
-                    int(_decimal(row.get("option_quantity"))) * 100
-                    for row in month_assignments
+                    int(_decimal(row.get("option_quantity"))) * 100 for row in month_assignments
                 ),
                 average_covered_capital=covered_capital,
                 is_partial=month.year == as_of.year and month.month == as_of.month,
@@ -333,17 +324,13 @@ def _covered_call_summary(
     dividend_cash = sum((_decimal(row.get("amount")) for row in dividends), ZERO)
     open_credit = sum(
         (
-            (call.entry_credit_per_share or ZERO)
-            * Decimal("100")
-            * Decimal(call.contracts)
+            (call.entry_credit_per_share or ZERO) * Decimal("100") * Decimal(call.contracts)
             for call in live_book.calls
         ),
         ZERO,
     )
     open_value = sum((abs(call.market_value or ZERO) for call in live_book.calls), ZERO)
-    assigned_contracts = sum(
-        (int(_decimal(row.get("option_quantity"))) for row in assignments), 0
-    )
+    assigned_contracts = sum((int(_decimal(row.get("option_quantity"))) for row in assignments), 0)
     return CoveredCallPortfolioSummary(
         total_shares=live_book.total_shares,
         contract_capacity=live_book.contract_capacity,
@@ -380,9 +367,7 @@ def _operator_metrics(
     covered: CoveredCallPortfolioSummary,
 ) -> OperatorMetricsSummary:
     full = [
-        item
-        for item in monthly
-        if not item.is_partial and item.coverage_status != "coverage_start"
+        item for item in monthly if not item.is_partial and item.coverage_status != "coverage_start"
     ]
     option_values = [item.option_cash for item in full]
     latest_three = option_values[-3:]
@@ -391,9 +376,7 @@ def _operator_metrics(
         quarter_monthly_run_rate=windows[1].monthly_option_run_rate,
         year_to_date_monthly_run_rate=windows[2].monthly_option_run_rate,
         rolling_year_monthly_average=(
-            sum(option_values, ZERO) / Decimal(len(option_values))
-            if option_values
-            else ZERO
+            sum(option_values, ZERO) / Decimal(len(option_values)) if option_values else ZERO
         ),
         rolling_three_month_average=(
             sum(latest_three, ZERO) / Decimal(len(latest_three)) if latest_three else ZERO
@@ -410,9 +393,7 @@ def _operator_metrics(
         buyback_drag_percent=windows[3].buyback_drag_percent,
         average_strike_gap_percent=ZERO,
         average_days_to_expiration=ZERO,
-        uncovered_contract_capacity=max(
-            0, covered.contract_capacity - covered.active_contracts
-        ),
+        uncovered_contract_capacity=max(0, covered.contract_capacity - covered.active_contracts),
     )
 
 

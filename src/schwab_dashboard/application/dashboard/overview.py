@@ -82,8 +82,7 @@ def build_desk_overview(snapshot: DashboardSnapshot) -> DeskOverview:
     }
     live_book = snapshot.live_position_book
     all_puts = [
-        _live_option_focus(put)
-        for put in (live_book.puts if live_book is not None else ())
+        _live_option_focus(put) for put in (live_book.puts if live_book is not None else ())
     ]
 
     for underlying in snapshot.underlyings:

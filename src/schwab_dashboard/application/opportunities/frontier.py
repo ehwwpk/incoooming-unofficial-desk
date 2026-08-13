@@ -71,9 +71,7 @@ def _term_cohorts(
         cohort_dtes = set(unique_dtes[start : start + size])
         cohorts.append(
             tuple(
-                candidate
-                for candidate in candidates
-                if candidate.days_to_expiration in cohort_dtes
+                candidate for candidate in candidates if candidate.days_to_expiration in cohort_dtes
             )
         )
         start += size

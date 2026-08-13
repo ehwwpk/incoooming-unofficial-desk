@@ -22,6 +22,7 @@ in the local database. Every page and workspace receives the same selected sourc
 - Selecting a source never starts a broker sync or a Radar lookup.
 - The dashboard cannot infer that one CSV export contains balances, history, lots, Greeks, or
   dividends merely because it contains positions.
+- CSV import must preview detected formats and row dispositions before a dataset is committed.
 - No workflow asks for brokerage usernames or passwords.
 - A future hosted login must use provider-approved OAuth or a vetted connection provider.
 - Trading endpoints remain outside the application.

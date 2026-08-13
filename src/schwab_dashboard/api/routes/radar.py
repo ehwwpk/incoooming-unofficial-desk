@@ -39,9 +39,7 @@ class PolicyRequest(BaseModel):
     mode: RadarMode
     minimum_dte: int = Field(default=5, ge=0)
     maximum_dte: int = Field(default=60, ge=0)
-    minimum_annualized_rate_percent: Decimal = Field(
-        default=Decimal("5"), ge=Decimal("0")
-    )
+    minimum_annualized_rate_percent: Decimal = Field(default=Decimal("5"), ge=Decimal("0"))
     minimum_strike: Decimal | None = Field(default=None, ge=0)
     minimum_strike_distance_percent: Decimal = Field(default=Decimal("0"), ge=0)
     maximum_effective_entry: Decimal | None = Field(default=None, ge=0)
@@ -70,9 +68,7 @@ def run_lookup(
             symbol=payload.symbol,
             mode=payload.mode,
             snapshot=snapshot,
-            roll_request=(
-                RadarRollRequest(**payload.roll.model_dump()) if payload.roll else None
-            ),
+            roll_request=(RadarRollRequest(**payload.roll.model_dump()) if payload.roll else None),
         )
     except ValueError as exc:
         raise HTTPException(

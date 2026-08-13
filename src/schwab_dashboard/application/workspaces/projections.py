@@ -160,9 +160,7 @@ def build_open_book(snapshot: DashboardSnapshot) -> OpenBookProjection:
                 nearest_buffer_percent=nearest.strike_distance_percent,
                 next_expiration=next_expiring.expires_on,
                 next_expiration_dte=next_expiring.days_to_expiration,
-                open_profit_loss=sum(
-                    (row.open_profit_loss for row in underlying_rows), Decimal(0)
-                ),
+                open_profit_loss=sum((row.open_profit_loss for row in underlying_rows), Decimal(0)),
                 theta_estimate_per_day=sum(
                     (row.theta_estimate_per_day for row in underlying_rows), Decimal(0)
                 ),
@@ -172,9 +170,7 @@ def build_open_book(snapshot: DashboardSnapshot) -> OpenBookProjection:
     put_rows = tuple(
         _open_put_row(put)
         for put in (
-            snapshot.live_position_book.puts
-            if snapshot.live_position_book is not None
-            else ()
+            snapshot.live_position_book.puts if snapshot.live_position_book is not None else ()
         )
     )
     call_contracts = sum((row.contracts for row in grouped_rows), 0)
@@ -191,26 +187,18 @@ def build_open_book(snapshot: DashboardSnapshot) -> OpenBookProjection:
         + sum((row.obligated_shares for row in put_rows), 0),
         entry_credit=sum((row.entry_credit for row in grouped_rows), Decimal(0))
         + sum((row.entry_credit for row in put_rows), Decimal(0)),
-        current_liability=sum(
-            (row.current_liability for row in grouped_rows), Decimal(0)
-        )
+        current_liability=sum((row.current_liability for row in grouped_rows), Decimal(0))
         + sum((row.current_liability for row in put_rows), Decimal(0)),
-        open_profit_loss=sum(
-            (row.open_profit_loss for row in grouped_rows), Decimal(0)
-        )
+        open_profit_loss=sum((row.open_profit_loss for row in grouped_rows), Decimal(0))
         + sum((row.open_profit_loss for row in put_rows), Decimal(0)),
-        theta_estimate_per_day=sum(
-            (row.theta_estimate_per_day for row in grouped_rows), Decimal(0)
-        )
+        theta_estimate_per_day=sum((row.theta_estimate_per_day for row in grouped_rows), Decimal(0))
         + sum((row.theta_estimate_per_day for row in put_rows), Decimal(0)),
     )
 
 
 def _open_put_row(option: LiveOpenOptionPosition) -> OpenPutRow:
     entry_credit = (
-        (option.entry_credit_per_share or Decimal(0))
-        * Decimal("100")
-        * Decimal(option.contracts)
+        (option.entry_credit_per_share or Decimal(0)) * Decimal("100") * Decimal(option.contracts)
     )
     current_liability = abs(
         option.market_value
@@ -233,14 +221,10 @@ def _open_put_row(option: LiveOpenOptionPosition) -> OpenPutRow:
         current_liability=current_liability,
         open_profit_loss=option.open_profit_loss or Decimal(0),
         theta_estimate_per_day=(
-            -(option.theta_per_share or Decimal(0))
-            * Decimal("100")
-            * Decimal(option.contracts)
+            -(option.theta_per_share or Decimal(0)) * Decimal("100") * Decimal(option.contracts)
         ),
         option_value_vs_credit_percent=(
-            current_liability / entry_credit * Decimal("100")
-            if entry_credit
-            else Decimal(0)
+            current_liability / entry_credit * Decimal("100") if entry_credit else Decimal(0)
         ),
     )
 
