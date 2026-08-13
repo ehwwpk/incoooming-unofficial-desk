@@ -85,9 +85,7 @@ def upgrade() -> None:
         sa.Column("metrics", sa.JSON(), nullable=False),
         sa.Column("gates", sa.JSON(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.ForeignKeyConstraint(
-            ["lookup_id"], ["radar_lookup_runs.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["lookup_id"], ["radar_lookup_runs.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("lookup_id", "option_symbol"),
     )

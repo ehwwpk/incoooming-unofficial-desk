@@ -27,13 +27,15 @@ separate paths:
   their own app key, secret, callback URL, and OAuth authorization on their computer. Incoooming
   does not provide or bypass that approval.
 - **Import CSV** creates a new local book from exported positions and activity. Multiple files can
-  be imported together, but separate imports are never silently merged.
+  be imported together, but separate imports are never silently merged. Schwab, Fidelity,
+  Robinhood, Webull, IBKR, and Incoooming-template adapters verify the export before import.
 - **Demo book** opens the fictional operator desk.
 
 The `BOOK` control in the top-right of every desk and workspace returns to this gateway, so a user
 can move from Schwab to a Robinhood or Fidelity export without restarting the server. CSV rows are
-kept with their raw source values and normalized records; unsupported rows stop or surface warnings
-instead of being guessed into financial facts.
+previewed before commit and kept with their raw source values, row numbers, dispositions, and
+normalized records. Unsupported or uncertain rows stay out of the ledger instead of being guessed
+into financial facts.
 
 To smoke-test the file path without using personal data, open `BOOK`, choose `Import CSV`, select
 `Generic / template`, and upload both files in [`examples/csv`](examples/csv). The resulting isolated

@@ -172,6 +172,10 @@ def _position(value: object) -> PositionSummary:
         expiration_date=_optional_date(value.get("expiration_date")),
         strike=_optional_decimal(value.get("strike")),
         open_profit_loss=_optional_decimal(value.get("open_profit_loss")),
+        contract_multiplier=_optional_decimal(value.get("contract_multiplier")),
+        multiplier_source=(
+            str(value["multiplier_source"]) if value.get("multiplier_source") else None
+        ),
     )
 
 

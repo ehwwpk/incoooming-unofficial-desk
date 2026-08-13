@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Sequence
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -44,6 +44,10 @@ def map_positions(rows: Sequence[dict[str, Any]]) -> tuple[PositionSummary, ...]
                 row.get("short_open_profit_loss")
                 if _decimal(row.get("short_quantity")) > ZERO
                 else row.get("long_open_profit_loss")
+            ),
+            contract_multiplier=_optional_decimal(row.get("contract_multiplier")),
+            multiplier_source=(
+                str(row["multiplier_source"]) if row.get("multiplier_source") else None
             ),
         )
         for row in rows
@@ -97,8 +101,7 @@ def summarize_portfolio(
     total_value = liquidation_value if liquidation_value is not None else net_position_value
     day_external_cash_flow = ZERO
     if day_balance_pairs and all(
-        current is not None and initial is not None
-        for current, initial in day_balance_pairs
+        current is not None and initial is not None for current, initial in day_balance_pairs
     ):
         current_day_value = sum(
             (current for current, _ in day_balance_pairs if current is not None), ZERO
@@ -107,11 +110,15 @@ def summarize_portfolio(
             (initial for _, initial in day_balance_pairs if initial is not None), ZERO
         )
         day_external_cash_flow = _daily_external_cash_flow(cash_movements, as_of=as_of)
+        day_external_cash_flow += _carried_external_cash_flow(
+            cash_movements,
+            as_of=as_of,
+            account_day_change=current_day_value - prior_value - day_external_cash_flow,
+            positions=positions,
+        )
         day_profit_loss = current_day_value - prior_value - day_external_cash_flow
     else:
-        day_profit_loss = sum(
-            ((position.day_profit_loss or ZERO) for position in positions), ZERO
-        )
+        day_profit_loss = sum(((position.day_profit_loss or ZERO) for position in positions), ZERO)
         prior_value = total_value - day_profit_loss
     day_percent = day_profit_loss / prior_value * 100 if prior_value else ZERO
     return PortfolioSummary(
@@ -216,6 +223,59 @@ def _daily_external_cash_flow(
         ),
         ZERO,
     )
+
+
+def _carried_external_cash_flow(
+    cash_movements: Sequence[dict[str, Any]],
+    *,
+    as_of: date | datetime | None,
+    account_day_change: Decimal,
+    positions: Sequence[PositionSummary],
+) -> Decimal:
+    """Carry a recent transfer while Schwab's opening baseline still excludes it.
+
+    Schwab can retain the prior session's ``initialLiquidationValue`` after the
+    Eastern calendar date changes. A deposit made during that prior session then
+    reappears as account profit even though the position-level current-day P/L
+    does not contain it. Use complete broker-reported position P/L as a
+    reconciliation reference and carry recent prior-day transfers only when they
+    make the two independent measures materially closer. The carry disappears as
+    soon as Schwab advances its opening baseline.
+    """
+    if as_of is None or not positions or any(
+        position.day_profit_loss is None for position in positions
+    ):
+        return ZERO
+    market_day = market_date(as_of)
+    earliest_day = market_day - timedelta(days=4)
+    recent_prior_flow = sum(
+        (
+            _decimal(movement.get("amount"))
+            for movement in cash_movements
+            if str(movement.get("movement_type") or "").lower() == "transfer"
+            and (
+                movement_day := _market_date_or_none(movement.get("occurred_at"))
+            )
+            is not None
+            and earliest_day <= movement_day < market_day
+        ),
+        ZERO,
+    )
+    if recent_prior_flow == ZERO:
+        return ZERO
+    reported_position_change = sum(
+        (position.day_profit_loss or ZERO for position in positions), ZERO
+    )
+    unadjusted_gap = abs(account_day_change - reported_position_change)
+    adjusted_gap = abs(account_day_change - recent_prior_flow - reported_position_change)
+    minimum_material_improvement = max(
+        Decimal("1"), abs(recent_prior_flow) * Decimal("0.50")
+    )
+    if adjusted_gap < unadjusted_gap and (
+        unadjusted_gap - adjusted_gap
+    ) >= minimum_material_improvement:
+        return recent_prior_flow
+    return ZERO
 
 
 def _market_date_or_none(value: Any) -> date | None:

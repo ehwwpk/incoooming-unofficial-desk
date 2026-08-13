@@ -93,9 +93,7 @@ def sync_status(container: ContainerDependency) -> dict[str, Any]:
         "latest_successful_at": (
             latest_success.completed_at if latest_success is not None else None
         ),
-        "latest_attempt_status": (
-            latest_attempt.status if latest_attempt is not None else None
-        ),
+        "latest_attempt_status": (latest_attempt.status if latest_attempt is not None else None),
         "latest_attempt_error": persisted_error,
     }
 
@@ -127,9 +125,7 @@ def home(request: Request, container: ContainerDependency) -> Response:
                 source_key,
                 dataset_name=dataset.name if dataset is not None else None,
             ),
-            "schwab_credentials_configured": (
-                container.settings.schwab_credentials_configured
-            ),
+            "schwab_credentials_configured": (container.settings.schwab_credentials_configured),
         },
     )
 

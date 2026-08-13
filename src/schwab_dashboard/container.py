@@ -251,9 +251,7 @@ class Container:
                 minimum_open_interest=self.settings.radar_minimum_open_interest,
                 minimum_volume=self.settings.radar_minimum_volume,
                 maximum_quote_age_seconds=self.settings.radar_maximum_quote_age_seconds,
-                maximum_five_day_move_percent=(
-                    self.settings.radar_maximum_five_day_move_percent
-                ),
+                maximum_five_day_move_percent=(self.settings.radar_maximum_five_day_move_percent),
             ),
             source=source,
         )

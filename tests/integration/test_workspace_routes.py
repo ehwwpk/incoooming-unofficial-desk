@@ -162,9 +162,7 @@ def test_demo_radar_roll_handoff_reprices_a_verified_open_call(tmp_path: Path) -
         }
         for comparison in review["comparisons"]:
             candidate = candidates_by_symbol[comparison["option_symbol"]]
-            expected_net = Decimal(candidate["bid"]) - Decimal(
-                review["source_close_ask_per_share"]
-            )
+            expected_net = Decimal(candidate["bid"]) - Decimal(review["source_close_ask_per_share"])
             assert Decimal(comparison["net_roll_per_share"]) == expected_net
             assert Decimal(comparison["net_roll_cash"]) == expected_net * Decimal(
                 source.contracts * 100
@@ -177,12 +175,8 @@ def test_demo_radar_roll_handoff_reprices_a_verified_open_call(tmp_path: Path) -
         assert target_comparison["bid_per_share"] == str(target.bid)
         assert target_comparison["net_roll_per_share"] == review["net_roll_per_share"]
         assert target_comparison["net_roll_cash"] == review["net_roll_cash"]
-        assert target_comparison["strike_change_per_share"] == str(
-            target.strike - source.strike
-        )
-        assert target_comparison["added_days"] == (
-            target.expiration_date - source.expires_on
-        ).days
+        assert target_comparison["strike_change_per_share"] == str(target.strike - source.strike)
+        assert target_comparison["added_days"] == (target.expiration_date - source.expires_on).days
         assert any(
             candidate["strike"] == str(target.strike)
             and candidate["expiration_date"] == str(target.expiration_date)

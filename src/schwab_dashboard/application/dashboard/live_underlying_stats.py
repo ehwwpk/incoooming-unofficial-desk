@@ -101,8 +101,7 @@ def _underlying_stats(
     symbol_lifecycle = tuple(
         row
         for row in lifecycle_events
-        if str(row.get("option_side")) == "call"
-        and str(row.get("underlying_symbol")) == symbol
+        if str(row.get("option_side")) == "call" and str(row.get("underlying_symbol")) == symbol
     )
     price_points = _ensure_price_points(
         build_price_points(symbol, daily_bars),
@@ -173,9 +172,7 @@ def _underlying_stats(
         call_tickets=len(quarter_openings),
         contracts_sold=sum((int(_decimal(row.get("quantity"))) for row in quarter_openings), 0),
         expired_contracts=expired_contracts,
-        closed_contracts=sum(
-            (int(_decimal(row.get("quantity"))) for row in quarter_closings), 0
-        ),
+        closed_contracts=sum((int(_decimal(row.get("quantity"))) for row in quarter_closings), 0),
         rolled_contracts=_rolled_contracts(quarter_executions),
         assigned_contracts=assigned_contracts,
         called_away_shares=assigned_contracts * 100,
@@ -194,9 +191,7 @@ def _underlying_stats(
             if clock.implied_volatility_percent is not None
         ),
         average_open_call_delta=_weighted_average(
-            (abs(clock.delta), clock.contracts)
-            for clock in clocks
-            if clock.delta is not None
+            (abs(clock.delta), clock.contracts) for clock in clocks if clock.delta is not None
         ),
         current_strike_buffer_percent=min(
             (clock.strike_distance_percent for clock in clocks),
@@ -210,9 +205,7 @@ def _underlying_stats(
         lifetime_dividends=dividend_cash,
         income_adjusted_basis=basis_total - total_attributed_income,
         income_adjusted_basis_per_share=(
-            (basis_total - total_attributed_income) / Decimal(item.shares)
-            if item.shares
-            else ZERO
+            (basis_total - total_attributed_income) / Decimal(item.shares) if item.shares else ZERO
         ),
         basis_offset_percent=(
             total_attributed_income / basis_total * HUNDRED if basis_total else ZERO
@@ -285,17 +278,13 @@ def _performance_windows(
                 total_cash=option_cash + dividend_cash,
                 gross_premium=gross,
                 buyback_cost=buyback,
-                option_apr=(
-                    option_cash / capital * annual_factor * HUNDRED if capital else ZERO
-                ),
+                option_apr=(option_cash / capital * annual_factor * HUNDRED if capital else ZERO),
                 total_cash_apr=(
                     (option_cash + dividend_cash) / capital * annual_factor * HUNDRED
                     if capital
                     else ZERO
                 ),
-                premium_capture_percent=(
-                    (gross - buyback) / gross * HUNDRED if gross else ZERO
-                ),
+                premium_capture_percent=((gross - buyback) / gross * HUNDRED if gross else ZERO),
             )
         )
     return tuple(windows)
@@ -305,9 +294,7 @@ def _attribute_dividends(
     cash_movements: Sequence[Mapping[str, object]],
     underlyings: Sequence[LiveUnderlyingPosition],
 ) -> dict[str, tuple[Mapping[str, object], ...]]:
-    descriptions = {
-        item.symbol: _distinctive_words(item.description) for item in underlyings
-    }
+    descriptions = {item.symbol: _distinctive_words(item.description) for item in underlyings}
     result: defaultdict[str, list[Mapping[str, object]]] = defaultdict(list)
     for row in cash_movements:
         if str(row.get("movement_type")) != "dividend":
@@ -318,9 +305,7 @@ def _attribute_dividends(
             continue
         words = _distinctive_words(str(row.get("description") or ""))
         candidates = [
-            symbol
-            for symbol, company_words in descriptions.items()
-            if words & company_words
+            symbol for symbol, company_words in descriptions.items() if words & company_words
         ]
         if len(candidates) == 1:
             result[candidates[0]].append(row)
@@ -365,8 +350,7 @@ def _weighted_average(values: Iterable[tuple[Decimal, int]]) -> Decimal:
     rows = tuple(values)
     weight = sum((contracts for _, contracts in rows), 0)
     return (
-        sum((value * Decimal(contracts) for value, contracts in rows), ZERO)
-        / Decimal(weight)
+        sum((value * Decimal(contracts) for value, contracts in rows), ZERO) / Decimal(weight)
         if weight
         else ZERO
     )
@@ -423,9 +407,7 @@ def _rolled_contracts(rows: Sequence[Mapping[str, object]]) -> int:
         has_close = any(_is_closing_buy(row) for row in order_rows)
         if has_close:
             total += sum(
-                int(_decimal(row.get("quantity")))
-                for row in order_rows
-                if _is_opening_sale(row)
+                int(_decimal(row.get("quantity"))) for row in order_rows if _is_opening_sale(row)
             )
     return total
 

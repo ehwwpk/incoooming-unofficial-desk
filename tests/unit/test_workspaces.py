@@ -64,9 +64,7 @@ def test_open_book_exposes_exact_contract_clocks_and_bounded_value_track() -> No
         )
     for group in projection.groups:
         assert group.contract_count == sum(row.contracts for row in group.rows)
-        assert group.next_expiration_dte == min(
-            row.days_to_expiration for row in group.rows
-        )
+        assert group.next_expiration_dte == min(row.days_to_expiration for row in group.rows)
         assert abs(group.nearest_buffer_percent) == min(
             abs(row.strike_distance_percent) for row in group.rows
         )

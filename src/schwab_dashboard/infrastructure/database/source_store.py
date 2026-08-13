@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from datetime import UTC, datetime
 
 from sqlalchemy import select
@@ -8,6 +9,7 @@ from schwab_dashboard.domain.data_source import (
     BrokerKind,
     DatasetState,
     ImportRecordKind,
+    ImportRowDisposition,
     ParsedCsvFile,
     SourceDataset,
 )
@@ -42,8 +44,17 @@ class SqlSourceDatasetStore:
             for record in file.records
         )
         rejected_count = sum(file.rejected_count for file in files)
+        ignored_count = sum(file.ignored_count for file in files)
+        review_count = sum(file.review_count for file in files)
+        capabilities = tuple(
+            sorted({capability for file in files for capability in file.capabilities})
+        )
         warnings = tuple(dict.fromkeys(message for file in files for message in file.warnings))
-        state = DatasetState.PARTIAL if warnings or not position_count else DatasetState.READY
+        state = (
+            DatasetState.PARTIAL
+            if warnings or review_count or rejected_count or not position_count
+            else DatasetState.READY
+        )
         dataset_row = SourceDatasetTable(
             name=name.strip(),
             broker=broker.value,
@@ -52,7 +63,10 @@ class SqlSourceDatasetStore:
             file_count=len(files),
             position_count=position_count,
             activity_count=activity_count,
+            ignored_count=ignored_count,
+            review_count=review_count,
             rejected_count=rejected_count,
+            capabilities=list(capabilities),
             warnings=list(warnings),
         )
         with self._session_factory() as session:
@@ -66,7 +80,17 @@ class SqlSourceDatasetStore:
                     sha256=file.sha256,
                     headers=list(file.headers),
                     record_count=len(file.records),
+                    source_row_count=len(file.rows),
+                    ignored_count=file.ignored_count,
+                    review_count=file.review_count,
                     rejected_count=file.rejected_count,
+                    detected_broker=file.detected_broker.value,
+                    profile=file.profile,
+                    confidence=file.confidence,
+                    header_row=file.header_row,
+                    encoding=file.encoding,
+                    delimiter=file.delimiter,
+                    capabilities=list(file.capabilities),
                     warnings=list(file.warnings),
                 )
                 session.add(file_row)
@@ -82,6 +106,31 @@ class SqlSourceDatasetStore:
                             external_key=record.external_key,
                             normalized=normalized,
                             raw=dict(record.raw),
+                            disposition=ImportRowDisposition.IMPORTED.value,
+                            source_row_number=record.source_row_number,
+                            fingerprint=record.fingerprint,
+                        )
+                    )
+                for outcome in file.rows:
+                    if outcome.disposition is ImportRowDisposition.IMPORTED:
+                        continue
+                    synthetic = hashlib.sha256(
+                        (
+                            f"{file.sha256}:{outcome.source_row_number}:{outcome.disposition.value}"
+                        ).encode()
+                    ).hexdigest()[:32]
+                    session.add(
+                        SourceImportRecordTable(
+                            dataset_id=dataset_row.id,
+                            file_id=file_row.id,
+                            record_kind=outcome.disposition.value,
+                            external_key=f"csv-row:{synthetic}",
+                            normalized={},
+                            raw=dict(outcome.raw),
+                            disposition=outcome.disposition.value,
+                            source_row_number=outcome.source_row_number,
+                            fingerprint=synthetic,
+                            rejection_reason=outcome.reason,
                         )
                     )
             session.commit()
@@ -107,7 +156,11 @@ class SqlSourceDatasetStore:
                 .where(SourceImportRecordTable.dataset_id == dataset_id)
                 .order_by(SourceImportRecordTable.id)
             ).all()
-        return tuple({"kind": row.record_kind, "normalized": dict(row.normalized)} for row in rows)
+        return tuple(
+            {"kind": row.record_kind, "normalized": dict(row.normalized)}
+            for row in rows
+            if row.disposition == ImportRowDisposition.IMPORTED.value
+        )
 
 
 def _dataset(row: SourceDatasetTable) -> SourceDataset:
@@ -120,7 +173,10 @@ def _dataset(row: SourceDatasetTable) -> SourceDataset:
         file_count=row.file_count,
         position_count=row.position_count,
         activity_count=row.activity_count,
+        ignored_count=row.ignored_count,
+        review_count=row.review_count,
         rejected_count=row.rejected_count,
+        capabilities=tuple(row.capabilities),
         warnings=tuple(row.warnings),
     )
 

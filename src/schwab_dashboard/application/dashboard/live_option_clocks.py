@@ -46,11 +46,15 @@ def _clock(
     as_of: date,
 ) -> OpenCallClock:
     sold_on = min((_row_date(row) for row in opening_rows), default=as_of)
-    underlying_at_sale = _close_on_or_before(
-        call.underlying_symbol,
-        sold_on,
-        daily_bars,
-    ) or call.underlying_price or ZERO
+    underlying_at_sale = (
+        _close_on_or_before(
+            call.underlying_symbol,
+            sold_on,
+            daily_bars,
+        )
+        or call.underlying_price
+        or ZERO
+    )
     original_dte = max(0, (call.expires_on - sold_on).days)
     elapsed_days = max(0, (as_of - sold_on).days)
     elapsed_percent = (
@@ -64,9 +68,7 @@ def _clock(
     entry_credit = entry * CONTRACT_MULTIPLIER * contracts
     current_value = mark * CONTRACT_MULTIPLIER * contracts
     open_profit_loss = (
-        call.open_profit_loss
-        if call.open_profit_loss is not None
-        else entry_credit - current_value
+        call.open_profit_loss if call.open_profit_loss is not None else entry_credit - current_value
     )
     intrinsic_per_share = max(
         ZERO,
@@ -81,9 +83,7 @@ def _clock(
     spread = max(ZERO, (call.ask_per_share or mark) - (call.bid_per_share or mark))
     spread_percent = spread / mark * HUNDRED if mark else ZERO
     remaining_percent = (
-        Decimal(call.days_to_expiration) / Decimal(original_dte) * HUNDRED
-        if original_dte
-        else ZERO
+        Decimal(call.days_to_expiration) / Decimal(original_dte) * HUNDRED if original_dte else ZERO
     )
     return OpenCallClock(
         record_id=call.option_symbol,

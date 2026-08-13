@@ -24,7 +24,10 @@ class SourceDatasetTable(Base):
     file_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     position_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     activity_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    ignored_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    review_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     rejected_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    capabilities: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     warnings: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
 
 
@@ -41,7 +44,17 @@ class SourceImportFileTable(Base):
     sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     headers: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     record_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    source_row_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    ignored_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    review_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     rejected_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    detected_broker: Mapped[str] = mapped_column(String(24), nullable=False, default="generic")
+    profile: Mapped[str] = mapped_column(String(64), nullable=False, default="legacy")
+    confidence: Mapped[str] = mapped_column(String(16), nullable=False, default="unknown")
+    header_row: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    encoding: Mapped[str] = mapped_column(String(24), nullable=False, default="utf-8")
+    delimiter: Mapped[str] = mapped_column(String(4), nullable=False, default=",")
+    capabilities: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     warnings: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
 
 
@@ -63,4 +76,7 @@ class SourceImportRecordTable(Base):
     external_key: Mapped[str] = mapped_column(String(160), nullable=False)
     normalized: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     raw: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    disposition: Mapped[str] = mapped_column(String(24), nullable=False, default="imported")
+    source_row_number: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False, default="")
     rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -62,16 +62,12 @@ def _bucket(
         opening_credit=sum((clock.entry_credit for _, clock in rows), ZERO)
         + sum(
             (
-                (put.entry_credit_per_share or ZERO)
-                * Decimal("100")
-                * Decimal(put.contracts)
+                (put.entry_credit_per_share or ZERO) * Decimal("100") * Decimal(put.contracts)
                 for put in puts
             ),
             ZERO,
         ),
-        estimated_close_value=sum(
-            (clock.current_option_value for _, clock in rows), ZERO
-        )
+        estimated_close_value=sum((clock.current_option_value for _, clock in rows), ZERO)
         + sum(
             (
                 abs(put.market_value)

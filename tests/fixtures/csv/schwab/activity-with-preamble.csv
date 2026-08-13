@@ -1,0 +1,8 @@
+Transactions for account Brokerage 4321
+Exported 08/12/2026
+
+Date,Action,Symbol,Description,Quantity,Price,Fees & Comm,Amount,Account
+08/01/2026,Sell to Open,CVX  260821C00205000,CVX 08/21/2026 205 Call,1,$1.25,$0.03,$124.97,Brokerage 4321
+08/02/2026,Qualified Dividend,CVX,Chevron dividend,,,,$171.00,Brokerage 4321
+08/03/2026,ACH Deposit,,Bank transfer,,,,$25000.00,Brokerage 4321
+Account Total,,,,,,,25295.97,
