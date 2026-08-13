@@ -68,9 +68,11 @@ Open `http://127.0.0.1:8182`. Press `Ctrl+C` in the terminal to stop it.
 
 The main Desk keeps the daily job compact: realized option and dividend cash, live obligations, one
 row per stock, and only the exceptions worth reviewing. Stocks open on demand for a taller price and
-execution chart, the first three contracts beside it, and a two-column option shelf below when the
-book is larger. The Open Options workspace keeps portfolio totals visible, opens the expiration
-calendar by default, and remembers which supporting sections you open or close. Results labels the
+campaign chart, the first three contracts beside it, and a two-column option shelf below when the
+book is larger. Calls use stable `C#` campaign labels and puts use `P#`; rolls keep one identity while
+every execution remains auditable. Routine share trades are netted into one optional daily marker.
+The Open Options workspace starts with Nibwick's portfolio Roll Board, then the expiration calendar
+and full contract register. Results labels the
 actual normalized-history coverage and never turns unavailable months into zero-dollar results.
 Volatility Lab and Data Health live behind `TOOLS`; each tool can open in the current page or its own
 window.
@@ -165,6 +167,8 @@ hidden Windows background service.
 - [Operator workflows](docs/product/operator-workflows.md)
 - [Capability roadmap](docs/product/capability-roadmap.md)
 - [Premium Radar plan](docs/product/premium-radar.md)
+- [Nibwick Roll Board](docs/product/nibwick-roll-board.md)
+- [Option campaign chart](docs/product/option-campaign-chart-redesign.md)
 - [Data source gateway](docs/systems/data-source-gateway.md)
 - [CSV import contract](docs/systems/csv-import.md)
 - [Public access and cost reality](docs/product/public-access-economics.md)

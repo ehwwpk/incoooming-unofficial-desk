@@ -1,9 +1,21 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from schwab_dashboard.application.alerts.models import RollScenario
 from schwab_dashboard.application.dashboard.covered_calls import OpenCallClock
+from schwab_dashboard.application.rolls import (
+    RollCandidate,
+    RollQuote,
+    RollSearchResult,
+    RollSource,
+    select_roll_candidates,
+)
+from schwab_dashboard.domain.instruments import OptionSide
+
+if TYPE_CHECKING:
+    from schwab_dashboard.application.dashboard.models import LiveOpenOptionPosition
 
 D = Decimal
 ZERO = D("0")
@@ -16,52 +28,95 @@ def build_neutral_roll_scenarios(
     *,
     current_price: Decimal,
     neutral_band_per_share: Decimal = DEFAULT_NEUTRAL_BAND,
-    limit: int = 2,
+    limit: int = 9,
 ) -> tuple[RollScenario, ...]:
-    """Compare higher/later calls using conservative two-sided quote math.
+    del neutral_band_per_share
+    result = _call_roll_result(call, current_price=current_price, limit=limit)
+    return tuple(_scenario(result.source, candidate) for candidate in result.candidates)
 
-    The current short call is bought at its ask and the replacement call is sold
-    at its bid. Only near-flat candidates are retained. Commissions, fees, taxes,
-    slippage, and later quote movement are deliberately excluded.
-    """
 
-    candidates: list[RollScenario] = []
-    contract_shares = D(call.contracts * 100)
-    for quote in call.roll_quote_candidates:
-        if quote.strike <= call.strike or quote.expires_on <= call.expires_on:
-            continue
-        net_per_share = quote.sell_bid_per_share - call.close_ask_per_share
-        if abs(net_per_share) > neutral_band_per_share:
-            continue
-        strike_lift = quote.strike - call.strike
-        buffer_percent = (
-            (quote.strike - current_price) / current_price * HUNDRED
-            if current_price > ZERO
-            else ZERO
-        )
-        candidates.append(
-            RollScenario(
-                source_option_symbol=call.record_id,
-                source_expiration=call.expires_on,
-                source_strike=call.strike,
-                source_contracts=call.contracts,
-                target_expiration=quote.expires_on,
-                target_strike=quote.strike,
-                strike_lift_per_share=strike_lift,
-                added_days=(quote.expires_on - call.expires_on).days,
-                net_roll_per_share=net_per_share,
-                net_roll_cash=net_per_share * contract_shares,
-                assignment_room_gain=strike_lift * contract_shares,
-                target_buffer_percent=buffer_percent.quantize(D("0.1")),
-                quote_source=quote.quote_source,
-            )
-        )
+def no_clean_call_roll_reason(call: OpenCallClock, *, current_price: Decimal) -> str | None:
+    return _call_roll_result(call, current_price=current_price, limit=9).no_clean_reason
 
-    candidates.sort(
-        key=lambda scenario: (
-            scenario.added_days,
-            abs(scenario.net_roll_per_share),
-            -scenario.strike_lift_per_share,
-        )
+
+def build_put_roll_scenarios(
+    put: LiveOpenOptionPosition,
+    *,
+    limit: int = 9,
+) -> tuple[RollScenario, ...]:
+    result = _put_roll_result(put, limit=limit)
+    return tuple(_scenario(result.source, candidate) for candidate in result.candidates)
+
+
+def no_clean_put_roll_reason(put: LiveOpenOptionPosition) -> str | None:
+    return _put_roll_result(put, limit=9).no_clean_reason
+
+
+def _call_roll_result(
+    call: OpenCallClock,
+    *,
+    current_price: Decimal,
+    limit: int,
+) -> RollSearchResult:
+    source = RollSource(
+        symbol="",
+        option_symbol=call.record_id,
+        option_side=OptionSide.CALL,
+        expires_on=call.expires_on,
+        strike=call.strike,
+        contracts=call.contracts,
+        close_ask_per_share=call.close_ask_per_share,
+        current_price=current_price,
+        quote_status=call.quote_status,
     )
-    return tuple(candidates[:limit])
+    quotes = tuple(
+        RollQuote(
+            option_symbol=quote.option_symbol,
+            expires_on=quote.expires_on,
+            strike=quote.strike,
+            sell_bid_per_share=quote.sell_bid_per_share,
+            quote_source=quote.quote_source,
+            spread_percent=quote.spread_percent,
+            open_interest=quote.open_interest,
+            volume=quote.volume,
+        )
+        for quote in call.roll_quote_candidates
+    )
+    return select_roll_candidates(source, quotes, limit=limit)
+
+
+def _put_roll_result(put: LiveOpenOptionPosition, *, limit: int) -> RollSearchResult:
+    source = RollSource(
+        symbol=put.underlying_symbol,
+        option_symbol=put.option_symbol,
+        option_side=OptionSide.PUT,
+        expires_on=put.expires_on,
+        strike=put.strike,
+        contracts=put.contracts,
+        close_ask_per_share=put.ask_per_share or put.estimated_mark_per_share or ZERO,
+        current_price=put.underlying_price or ZERO,
+        quote_status=(put.quote_quality or "unavailable").upper(),
+        contract_multiplier=put.contract_multiplier,
+    )
+    return select_roll_candidates(source, put.roll_quote_candidates, limit=limit)
+
+
+def _scenario(source: RollSource, candidate: RollCandidate) -> RollScenario:
+    return RollScenario(
+        source_option_symbol=source.option_symbol,
+        source_expiration=source.expires_on,
+        source_strike=source.strike,
+        source_contracts=source.contracts,
+        target_expiration=candidate.expires_on,
+        target_strike=candidate.strike,
+        strike_lift_per_share=candidate.strike_change_per_share,
+        added_days=candidate.added_days,
+        net_roll_per_share=candidate.net_roll_per_share,
+        net_roll_cash=candidate.net_roll_cash,
+        assignment_room_gain=candidate.assignment_room_gain,
+        target_buffer_percent=candidate.target_buffer_percent,
+        quote_source=candidate.quote_source,
+        option_side=source.option_side,
+        cost_label=candidate.cost_label,
+        family_label=candidate.family_label,
+    )

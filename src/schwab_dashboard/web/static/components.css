@@ -87,6 +87,8 @@
 .lifecycle-link.closed { stroke-dasharray: 1 3; }
 .lifecycle-link.rolled { stroke-dasharray: 6 2; }
 .lifecycle-link.assigned { stroke-dasharray: none; }
+.lifecycle-link[data-link-confidence="inferred"] { stroke-dasharray: 4 3; opacity: .68; }
+.lifecycle-link[data-link-confidence="unknown"] { stroke-dasharray: 1 4; opacity: .42; }
 [data-lifecycle-slot="0"] { --lifecycle-tone: #e3bd58; }
 [data-lifecycle-slot="1"] { --lifecycle-tone: #70c78e; }
 [data-lifecycle-slot="2"] { --lifecycle-tone: #ce8c58; }
@@ -108,8 +110,10 @@
 .price-event.expired { --event-tone: var(--green); }
 .price-event.closed { --event-tone: #84908a; }
 .price-event.assigned { --event-tone: var(--red); }
+.price-event[data-option-side="put"] b { border-radius: 50%; }
 .price-event b { position: relative; display: grid; min-width: 17px; height: 17px; padding: 0 3px; place-items: center; border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); font: 850 .4rem var(--mono); box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--lifecycle-tone, var(--line-strong)); pointer-events: none; }
 .price-event b small { position: absolute; top: 50%; right: calc(100% + 3px); padding: 2px 3px; border: 1px solid var(--event-tone); background: var(--bg); color: var(--event-tone); font: 800 .32rem/1 var(--mono); white-space: nowrap; transform: translateY(-50%); }
+.price-event[data-campaign-endpoint="false"] b { min-width: 14px; width: 14px; height: 14px; padding: 0; font-size: .34rem; opacity: .78; }
 .price-event.sale b { border-color: var(--gold); background: var(--gold); color: var(--bg); box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--lifecycle-tone, var(--gold)); }
 .price-event.expired b { border-color: var(--green); border-radius: 50%; background: #0d1711; color: var(--green); }
 .price-event.closed b { border-color: #84908a; background: #111416; color: #a9b1ad; }
@@ -119,6 +123,9 @@
 .share-event b { display: grid; width: 10px; height: 10px; place-items: center; border: 1px solid currentcolor; border-radius: 50%; background: var(--bg); font: 900 .34rem/1 var(--mono); box-shadow: 0 0 0 2px var(--bg); pointer-events: none; }
 .share-event.buy { color: var(--green); }
 .share-event.sell { color: var(--red); }
+.share-event.flat { color: var(--muted); }
+.price-map:not([data-show-shares="true"]) .share-event { display: none; }
+.chart-share-toggle[aria-pressed="true"] { border-color: var(--green-muted); color: var(--green); }
 .price-now-event { width: 7px; height: 7px; border: 2px solid var(--bg); border-radius: 50%; background: var(--text); box-shadow: 0 0 0 2px var(--text); }
 .price-now-event b { position: absolute; right: 8px; padding: 2px 3px; background: var(--bg); color: var(--text); font: 800 .38rem var(--mono); }
 .price-date-axis { position: absolute; right: 42px; bottom: 3px; left: 4px; display: flex; justify-content: space-between; color: var(--subtle); font: .38rem var(--mono); }
@@ -206,6 +213,8 @@
 .price-event-ledger span { display: grid; min-width: 0; gap: 2px; }
 .price-event-ledger i { color: var(--subtle); font: .38rem var(--mono); font-style: normal; }
 .price-event-ledger strong { overflow: hidden; color: var(--muted); font: .41rem var(--mono); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.price-event-ledger.campaign-index > button { grid-template-columns: 30px minmax(0, 1fr); min-height: 44px; }
+.price-event-ledger.campaign-index > button > b { width: 26px; border-color: var(--lifecycle-tone, var(--line-strong)); color: var(--lifecycle-tone, var(--text)); }
 .underlying-card[data-chart-focus="true"] .underlying-decision-grid { grid-template-columns: minmax(0, 1fr); }
 .underlying-card[data-chart-focus="true"] .workspace-splitter,
 .underlying-card[data-chart-focus="true"] .underlying-call-lane { display: none; }

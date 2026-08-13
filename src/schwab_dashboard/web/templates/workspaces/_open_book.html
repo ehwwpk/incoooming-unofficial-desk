@@ -7,6 +7,39 @@
   <div title="Theoretical one-day option value decay, holding other pricing inputs constant. Not cash income."><span>MODEL TIME DECAY / DAY</span><strong class="positive">+{{ open_book.theta_estimate_per_day | money }}</strong><small>Estimate, not cash received</small></div>
 </section>
 
+<details class="workspace-panel open-book-section roll-board" data-open-book-section="roll-board" open>
+  <summary class="workspace-panel-heading">
+    <div><p class="eyebrow">NIBWICK ROLL BOARD</p><h2>{{ roll_board.posture | title }}</h2></div>
+    <div class="open-book-section-control"><span>{{ roll_board.rows | length }} CONTRACTS · {{ roll_board.attention_count }} NEED ATTENTION · {{ roll_board.total_assignment_notional | money(0) }} AT STRIKE</span><i aria-hidden="true"></i></div>
+  </summary>
+  <div class="roll-board-register">
+    {% for row in roll_board.rows %}
+    <article class="roll-board-row {{ 'attention' if row.urgency_rank == 0 else 'check' if row.urgency_rank == 1 else 'watch' }}">
+      <header>
+        <div><b>{{ row.symbol }} · {{ row.source.contracts }}x ${{ row.source.strike | number(2) }}{{ 'C' if row.source.option_side.value == 'call' else 'P' }}</b><small>{{ row.source.expires_on | short_date }} · {{ row.source.quote_status }}</small></div>
+        <div><span>{{ row.urgency }}</span><strong class="{{ row.strike_distance_per_share | pnl_class }}">{{ row.strike_distance_per_share | money }} / {{ row.strike_distance_percent | percent }}</strong><small>{{ row.assignment_notional | money(0) }} STRIKE NOTIONAL</small></div>
+      </header>
+      {% if row.candidates %}
+      <div class="roll-board-candidates">
+        {% for choice in row.candidates %}
+        <a href="/workspaces/radar?symbol={{ row.symbol | urlencode }}&amp;mode={{ 'covered_call' if row.source.option_side.value == 'call' else 'cash_secured_put' }}&amp;review=roll&amp;source={{ row.source.option_symbol | urlencode }}&amp;targetExpiration={{ choice.expires_on }}&amp;targetStrike={{ choice.strike }}">
+          <span>{{ choice.family_label }}</span>
+          <b>${{ choice.strike | number(2) }}{{ 'C' if choice.option_side.value == 'call' else 'P' }} · {{ choice.expires_on | short_date }}</b>
+          <small>{{ choice.added_days }} MORE DAYS · {{ choice.cost_label }}</small>
+          <strong class="{{ choice.net_roll_cash | pnl_class }}">{{ choice.net_roll_cash | money }} TOTAL</strong>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="roll-board-empty"><b>NO CLEAN ROLL IN THE LOADED CHAIN</b><span>{{ row.no_clean_reason }}</span></p>
+      {% endif %}
+    </article>
+    {% else %}
+    <p class="empty-state">No open short option is inside Nibwick's review zone.</p>
+    {% endfor %}
+  </div>
+</details>
+
 <details class="workspace-panel obligation-calendar open-book-section" data-open-book-section="calendar" open>
   <summary class="workspace-panel-heading">
     <div><p class="eyebrow">OBLIGATION CALENDAR</p><h2>Next expirations</h2></div>

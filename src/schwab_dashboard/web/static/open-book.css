@@ -229,3 +229,24 @@
   .open-put-row { grid-template-columns: 1fr; }
   .open-put-row > div { border-right: 0; border-bottom: 1px solid var(--line); }
 }
+.roll-board-register { display: grid; }
+.roll-board-row { border-top: 1px solid var(--line); box-shadow: inset 2px 0 var(--gold); }
+.roll-board-row.attention { box-shadow: inset 2px 0 var(--red); }
+.roll-board-row.watch { box-shadow: inset 2px 0 var(--green); }
+.roll-board-row > header { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, .7fr); align-items: center; gap: 12px; padding: 9px 12px; background: var(--surface-raised); }
+.roll-board-row > header > div { display: grid; gap: 3px; }
+.roll-board-row > header > div:last-child { justify-items: end; text-align: right; }
+.roll-board-row > header b, .roll-board-row > header strong { font: 720 .58rem var(--mono); }
+.roll-board-row > header span, .roll-board-row > header small { color: var(--subtle); font: 620 .39rem var(--mono); letter-spacing: .025em; }
+.roll-board-candidates { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.roll-board-candidates a { display: grid; min-width: 0; gap: 3px; padding: 9px 11px; border-top: 1px solid var(--line); border-right: 1px solid var(--line); color: inherit; text-decoration: none; }
+.roll-board-candidates a:nth-child(3n) { border-right: 0; }
+.roll-board-candidates a:hover, .roll-board-candidates a:focus-visible { background: #17150e; box-shadow: inset 2px 0 var(--gold); outline: 0; }
+.roll-board-candidates span { color: var(--gold); font: 750 .36rem var(--mono); letter-spacing: .04em; }
+.roll-board-candidates b { font: 700 .5rem var(--mono); }
+.roll-board-candidates small { color: var(--subtle); font: .37rem var(--mono); }
+.roll-board-candidates strong { font: 700 .48rem var(--mono); }
+.roll-board-empty { display: flex; align-items: center; gap: 10px; margin: 0; padding: 9px 12px; border-top: 1px solid var(--line); }
+.roll-board-empty b { color: var(--red); font: 700 .42rem var(--mono); }
+.roll-board-empty span { color: var(--muted); font: .45rem var(--sans); }
+@media (max-width: 900px) { .roll-board-candidates { grid-template-columns: 1fr; } .roll-board-candidates a { border-right: 0; } }

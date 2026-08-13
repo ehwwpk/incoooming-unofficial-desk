@@ -7,7 +7,6 @@ from decimal import Decimal
 
 import httpx
 
-from schwab_dashboard.application.dashboard.covered_calls import OpenCallClock
 from schwab_dashboard.application.dashboard.models import DashboardSnapshot
 from schwab_dashboard.application.errors import AuthenticationRequiredError
 from schwab_dashboard.application.opportunities import evaluate_radar
@@ -15,6 +14,8 @@ from schwab_dashboard.application.opportunities.symbol import normalize_symbol
 from schwab_dashboard.application.ports.dashboard import DashboardReader
 from schwab_dashboard.application.ports.opportunity_market import OpportunityMarketGateway
 from schwab_dashboard.application.ports.opportunity_store import OpportunityStore
+from schwab_dashboard.application.rolls import RollSource
+from schwab_dashboard.domain.instruments import OptionSide
 from schwab_dashboard.domain.opportunity import (
     RadarAccountContext,
     RadarMarketBundle,
@@ -120,7 +121,11 @@ class RunPremiumRadar:
                 account_snapshot,
                 symbol=canonical,
                 policy=policy,
-                released_call_contracts=(roll_source.contracts if roll_source else 0),
+                released_call_contracts=(
+                    roll_source.contracts
+                    if roll_source is not None and roll_source.option_side is OptionSide.CALL
+                    else 0
+                ),
             )
             scan_from = _expiration_date(
                 requested_at.date(), policy.minimum_dte, field="minimum_dte"
@@ -303,36 +308,90 @@ def _resolve_roll_source(
     symbol: str,
     mode: RadarMode,
     request: RadarRollRequest | None,
-) -> OpenCallClock | None:
+) -> RollSource | None:
     if request is None:
         return None
-    if mode is not RadarMode.COVERED_CALL:
-        raise RadarRollRequestError("Roll review is available only for an open covered call.")
-    underlying = next((item for item in snapshot.underlyings if item.symbol == symbol), None)
-    source = next(
+    source = _find_open_roll_source(snapshot, symbol=symbol, mode=mode, request=request)
+    if source is None:
+        raise RadarRollRequestError(
+            "That source option is no longer open. Refresh the desk before reviewing a roll."
+        )
+    wrong_direction = (
+        request.target_strike < source.strike
+        if source.option_side is OptionSide.CALL
+        else request.target_strike > source.strike
+    )
+    if request.target_expiration <= source.expires_on or wrong_direction:
+        direction = "same or higher" if source.option_side is OptionSide.CALL else "same or lower"
+        raise RadarRollRequestError(
+            f"A roll review requires a later expiration and a {direction} strike."
+        )
+    return source
+
+
+def _find_open_roll_source(
+    snapshot: DashboardSnapshot,
+    *,
+    symbol: str,
+    mode: RadarMode,
+    request: RadarRollRequest,
+) -> RollSource | None:
+    if mode is RadarMode.COVERED_CALL:
+        underlying = next((item for item in snapshot.underlyings if item.symbol == symbol), None)
+        call = next(
+            (
+                item
+                for item in (underlying.open_call_clocks if underlying is not None else ())
+                if item.record_id == request.source_option_symbol
+            ),
+            None,
+        )
+        if call is None:
+            return None
+        current_price = underlying.current_price if underlying is not None else Decimal("0")
+        return RollSource(
+            symbol=symbol,
+            option_symbol=call.record_id,
+            option_side=OptionSide.CALL,
+            expires_on=call.expires_on,
+            strike=call.strike,
+            contracts=call.contracts,
+            close_ask_per_share=call.close_ask_per_share,
+            current_price=current_price,
+            quote_status=call.quote_status,
+        )
+    if snapshot.live_position_book is None:
+        return None
+    put = next(
         (
-            call
-            for call in (underlying.open_call_clocks if underlying is not None else ())
-            if call.record_id == request.source_option_symbol
+            item
+            for item in snapshot.live_position_book.puts
+            if item.underlying_symbol == symbol
+            and item.option_symbol == request.source_option_symbol
         ),
         None,
     )
-    if source is None:
-        raise RadarRollRequestError(
-            "That source call is no longer open. Refresh the desk before reviewing a roll."
-        )
-    if request.target_expiration <= source.expires_on or request.target_strike <= source.strike:
-        raise RadarRollRequestError(
-            "A roll-up review requires a later expiration and a higher strike."
-        )
-    return source
+    if put is None:
+        return None
+    return RollSource(
+        symbol=symbol,
+        option_symbol=put.option_symbol,
+        option_side=OptionSide.PUT,
+        expires_on=put.expires_on,
+        strike=put.strike,
+        contracts=put.contracts,
+        close_ask_per_share=put.ask_per_share or put.estimated_mark_per_share or Decimal("0"),
+        current_price=put.underlying_price or Decimal("0"),
+        quote_status=(put.quote_quality or "unavailable").upper(),
+        contract_multiplier=put.contract_multiplier,
+    )
 
 
 def _build_roll_review(
     projection: RadarProjection,
     *,
     bundle: RadarMarketBundle,
-    source: OpenCallClock,
+    source: RollSource,
     request: RadarRollRequest,
 ) -> RadarRollReview:
     target = next(
@@ -370,7 +429,8 @@ def _build_roll_review(
         for candidate in projection.candidates
     )
     return RadarRollReview(
-        source_option_symbol=source.record_id,
+        source_option_symbol=source.option_symbol,
+        source_option_side=source.option_side,
         source_expiration_date=source.expires_on,
         source_strike=source.strike,
         source_contracts=source.contracts,
@@ -390,9 +450,10 @@ def _build_roll_review(
 
 def _roll_selection_context(
     bundle: RadarMarketBundle,
-    source: OpenCallClock,
+    source: RollSource,
 ) -> RadarRollSelectionContext:
     return RadarRollSelectionContext(
+        option_side=source.option_side,
         source_expiration_date=source.expires_on,
         source_strike=source.strike,
         source_close_ask_per_share=_source_close_ask(bundle, source),
@@ -401,7 +462,7 @@ def _roll_selection_context(
 
 def _source_close_ask(
     bundle: RadarMarketBundle,
-    source: OpenCallClock,
+    source: RollSource,
 ) -> Decimal:
     refreshed_source = _find_source_contract(bundle, source)
     if (
@@ -415,10 +476,14 @@ def _source_close_ask(
 
 def _find_source_contract(
     bundle: RadarMarketBundle,
-    source: OpenCallClock,
+    source: RollSource,
 ) -> RadarMarketContract | None:
     exact = next(
-        (contract for contract in bundle.contracts if contract.option_symbol == source.record_id),
+        (
+            contract
+            for contract in bundle.contracts
+            if contract.option_symbol == source.option_symbol
+        ),
         None,
     )
     if exact is not None:
@@ -427,7 +492,7 @@ def _find_source_contract(
         (
             contract
             for contract in bundle.contracts
-            if contract.option_side is RadarMode.COVERED_CALL.option_side
+            if contract.option_side is source.option_side
             and contract.expiration_date == source.expires_on
             and contract.strike == source.strike
         ),

@@ -1,6 +1,7 @@
 (() => {
   const triggers = [...document.querySelectorAll("[data-chart-event-trigger]")];
   if (!triggers.length) return;
+  const campaignChartEnabled = document.body.dataset.campaignChart === "true";
 
   const dollars = new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -169,13 +170,17 @@
       return;
     }
 
-    const lifecycleId = trigger.dataset.lifecycleId;
-    canvas.dataset.eventFocus = lifecycleId;
-    canvas.querySelectorAll("[data-lifecycle-id]").forEach((node) => {
-      if (node.dataset.lifecycleId === lifecycleId) node.dataset.eventActive = "true";
+    const campaignId = campaignChartEnabled
+      ? trigger.dataset.campaignId
+      : trigger.dataset.lifecycleId;
+    canvas.dataset.eventFocus = campaignId;
+    canvas.querySelectorAll("[data-campaign-id], [data-lifecycle-id]").forEach((node) => {
+      const nodeId = campaignChartEnabled ? node.dataset.campaignId : node.dataset.lifecycleId;
+      if (nodeId === campaignId) node.dataset.eventActive = "true";
     });
     markerCard(trigger)?.querySelectorAll("[data-chart-ledger-event]").forEach((node) => {
-      if (node.dataset.lifecycleId === lifecycleId) node.dataset.eventActive = "true";
+      const nodeId = campaignChartEnabled ? node.dataset.campaignId : node.dataset.lifecycleId;
+      if (nodeId === campaignId) node.dataset.eventActive = "true";
     });
   };
 
@@ -187,27 +192,39 @@
     const grossPremium = number(trigger.dataset.grossPremium);
     const buybackCost = number(trigger.dataset.buybackCost);
     const netCash = number(trigger.dataset.netCash);
-    const heading = `#${trigger.dataset.eventSequence} · ${eventTitles[type] || type.toUpperCase()} · ${shortDate(trigger.dataset.date)}`;
-    const contract = `${contracts}× ${symbol} $${strikes.format(number(trigger.dataset.strike))}C · EXP ${shortDate(trigger.dataset.expiresOn)}`;
+    const campaign = campaignChartEnabled
+      ? trigger.dataset.campaignLabel
+      : `#${trigger.dataset.eventSequence}`;
+    const side = trigger.dataset.optionSide === "put" ? "P" : "C";
+    const heading = `${campaign}.${trigger.dataset.campaignLeg || 1} · ${eventTitles[type] || type.toUpperCase()} · ${shortDate(trigger.dataset.date)}`;
+    const contract = `${contracts}× ${symbol} $${strikes.format(number(trigger.dataset.strike))}${side} · EXP ${shortDate(trigger.dataset.expiresOn)}`;
     let cashText = `${signedMoney(grossPremium)} received · ${money(trigger.dataset.premiumPerShare)}/sh`;
     let cashClass = "positive";
     let footer = "OPEN PREMIUM EVENT";
 
     if (type === "expired") {
       cashText = `${money(grossPremium)} kept · no close debit`;
-      footer = `RESOLVES PREMIUM EVENT #${trigger.dataset.linkedSaleSequence} · ${signedMoney(netCash)} NET OPTION CASH`;
+      footer = campaignChartEnabled
+        ? `CAMPAIGN RESOLUTION · ${signedMoney(netCash)} LEG NET`
+        : `RESOLVES PREMIUM EVENT #${trigger.dataset.linkedSaleSequence} · ${signedMoney(netCash)} NET OPTION CASH`;
     } else if (type === "closed" || (type === "rolled" && !isOpenRoll)) {
       cashText = `${signedMoney(-buybackCost)} close · ${signedMoney(netCash)} leg net`;
       cashClass = buybackCost > 0 ? "negative" : "positive";
-      footer = `RESOLVES PREMIUM EVENT #${trigger.dataset.linkedSaleSequence} · ${trigger.dataset.outcome.toUpperCase()}`;
+      footer = campaignChartEnabled
+        ? `CAMPAIGN RESOLUTION · ${trigger.dataset.outcome.toUpperCase()}`
+        : `RESOLVES PREMIUM EVENT #${trigger.dataset.linkedSaleSequence} · ${trigger.dataset.outcome.toUpperCase()}`;
     } else if (type === "assigned") {
       cashText = `${money(grossPremium)} kept · ${contracts * 100} shares called away`;
-      footer = `RESOLVES PREMIUM EVENT #${trigger.dataset.linkedSaleSequence} · ASSIGNED`;
+      footer = campaignChartEnabled
+        ? "CAMPAIGN RESOLUTION · ASSIGNED"
+        : `RESOLVES PREMIUM EVENT #${trigger.dataset.linkedSaleSequence} · ASSIGNED`;
     } else if (isOpenRoll) {
       cashText = `${signedMoney(grossPremium)} received · ${money(trigger.dataset.premiumPerShare)}/sh`;
       footer = "OPEN ROLL LEG";
     } else if (trigger.dataset.linkedResolutionSequence) {
-      footer = `LATER RESOLVED → #${trigger.dataset.linkedResolutionSequence} ${trigger.dataset.outcome.toUpperCase()}`;
+      footer = campaignChartEnabled
+        ? `LATER RESOLVED · ${trigger.dataset.outcome.toUpperCase()}`
+        : `LATER RESOLVED → #${trigger.dataset.linkedResolutionSequence} ${trigger.dataset.outcome.toUpperCase()}`;
     }
 
     set(popover, "[data-event-popover-heading]", heading);
@@ -238,20 +255,29 @@
     set(popover, "[data-event-fact-three-value]", `${trigger.dataset.entryDte} DTE`);
     populateTerm(popover, trigger);
     populateValue(popover, trigger);
-    set(popover, "[data-event-popover-link]", footer);
+    set(
+      popover,
+      "[data-event-popover-link]",
+      campaignChartEnabled
+        ? `${footer} · ${campaign} ${signedMoney(trigger.dataset.campaignNetCash)} · ${(trigger.dataset.campaignConfidence || "unknown").replaceAll("_", " ").toUpperCase()} LINK`
+        : footer,
+    );
   };
 
   const populateShare = (popover, trigger, symbol) => {
     const action = trigger.dataset.shareTrade.toUpperCase();
-    set(popover, "[data-event-popover-heading]", `SHARES ${action === "BUY" ? "BOUGHT" : "SOLD"} · ${shortDate(trigger.dataset.date)}`);
-    set(popover, "[data-event-popover-contract]", `${trigger.dataset.shares} ${symbol} SHARES`);
+    const grossBuys = number(trigger.dataset.grossBuys);
+    const grossSells = number(trigger.dataset.grossSells);
+    const heading = action === "FLAT" ? "SHARE ACTIVITY NETTED FLAT" : `NET SHARES ${action === "BUY" ? "BOUGHT" : "SOLD"}`;
+    set(popover, "[data-event-popover-heading]", `${heading} · ${shortDate(trigger.dataset.date)}`);
+    set(popover, "[data-event-popover-contract]", `${trigger.dataset.shares} NET ${symbol} SHARES`);
     const cash = popover.querySelector("[data-event-popover-cash]");
     if (cash) {
       cash.textContent = `${money(trigger.dataset.price)}/share`;
-      cash.className = action === "BUY" ? "negative" : "positive";
+      cash.className = action === "BUY" ? "negative" : action === "SELL" ? "positive" : "";
     }
     set(popover, "[data-event-fact-one-label]", "ACTION");
-    set(popover, "[data-event-fact-one-value]", action);
+    set(popover, "[data-event-fact-one-value]", action === "FLAT" ? "NET FLAT" : action);
     setFirstFactDetail(popover, "", "");
     set(popover, "[data-event-fact-two-label]", "PRICE");
     set(popover, "[data-event-fact-two-value]", money(trigger.dataset.price));
@@ -259,7 +285,7 @@
     set(popover, "[data-event-fact-three-value]", shortDate(trigger.dataset.date));
     hideTerm(popover);
     hideValue(popover);
-    set(popover, "[data-event-popover-link]", "UNDERLYING INVENTORY EVENT");
+    set(popover, "[data-event-popover-link]", `${grossBuys} BOUGHT · ${grossSells} SOLD · ONE DAILY INVENTORY MARKER`);
   };
 
   const positionPopover = (trigger, popover) => {
@@ -359,4 +385,15 @@
   window.addEventListener("resize", reposition, { passive: true });
   document.addEventListener("option-event-layout", reposition);
   document.addEventListener("position-detail-toggle", () => closeEvent());
+  document.querySelectorAll("[data-chart-shares]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const chart = button.closest("[data-chart-workspace]");
+      const showing = chart?.dataset.showShares === "true";
+      if (!chart) return;
+      chart.dataset.showShares = showing ? "false" : "true";
+      button.setAttribute("aria-pressed", showing ? "false" : "true");
+      button.textContent = showing ? "SHARES OFF" : "SHARES ON";
+      if (showing && activeTrigger?.dataset.eventKind === "share") closeEvent();
+    });
+  });
 })();

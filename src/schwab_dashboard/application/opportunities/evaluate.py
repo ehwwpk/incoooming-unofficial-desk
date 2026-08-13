@@ -178,6 +178,8 @@ def evaluate_radar(
         as_of=evaluated_at.date(),
     )
     if roll_selection is not None:
+        direction = "same/higher" if mode is RadarMode.COVERED_CALL else "same/lower"
+        noun = "call" if mode is RadarMode.COVERED_CALL else "put"
         roll_state = (
             RadarState.PARTIAL
             if warnings or any(not item.clears_all_rules for item in selected)
@@ -194,10 +196,10 @@ def evaluate_radar(
             account=account,
             policy=policy,
             verdict="ROLL REVIEW",
-            headline=f"{len(selected)} later, higher call(s) ranked by roll cost",
+            headline=f"{len(selected)} later {direction} {noun}(s), grouped by trade-off",
             reasons=(
-                "Closest to $0 first; ties favor fewer added days and more strike room.",
-                "Credits use the replacement bid and the current call's buy-to-close ask.",
+                "Lowest cash cost, least extra time, and most strike room stay distinct.",
+                "Credits use the replacement bid and the current option's buy-to-close ask.",
             ),
             candidates=selected,
             rejected_count=rejected,

@@ -5,6 +5,8 @@ from datetime import date
 from decimal import Decimal
 from enum import StrEnum
 
+from schwab_dashboard.domain.instruments import OptionSide
+
 
 class AlertLevel(StrEnum):
     ATTENTION = "attention"
@@ -44,6 +46,9 @@ class RollScenario:
     assignment_room_gain: Decimal
     target_buffer_percent: Decimal
     quote_source: str
+    option_side: OptionSide = OptionSide.CALL
+    cost_label: str = ""
+    family_label: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,3 +65,4 @@ class DeskAlert:
     priority: int
     method_note: str | None = None
     roll_scenarios: tuple[RollScenario, ...] = ()
+    no_clean_roll_reason: str | None = None

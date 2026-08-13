@@ -221,8 +221,9 @@ class RadarRollComparison:
 
 @dataclass(frozen=True, slots=True)
 class RadarRollSelectionContext:
-    """The open short call that replacement candidates must improve."""
+    """The open short option that replacement candidates must improve."""
 
+    option_side: OptionSide
     source_expiration_date: date
     source_strike: Decimal
     source_close_ask_per_share: Decimal
@@ -230,9 +231,10 @@ class RadarRollSelectionContext:
 
 @dataclass(frozen=True, slots=True)
 class RadarRollReview:
-    """Server-verified context for replacing one open short call."""
+    """Server-verified context for replacing one open short option."""
 
     source_option_symbol: str
+    source_option_side: OptionSide
     source_expiration_date: date
     source_strike: Decimal
     source_contracts: int

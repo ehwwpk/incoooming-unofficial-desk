@@ -48,6 +48,14 @@ class PriceEvent:
     outcome: str
     option_value_per_share: Decimal | None
     option_value_vs_credit_percent: Decimal | None
+    campaign_label: str = ""
+    campaign_confidence: str = "unknown"
+    campaign_leg_index: int = 1
+    campaign_net_cash: Decimal = Decimal("0")
+    option_side: str = "call"
+    campaign_slot: int = 0
+    campaign_is_first_visible: bool = False
+    campaign_is_latest_visible: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,6 +68,8 @@ class ShareTradeEvent:
     price: Decimal
     x_percent: Decimal
     y_percent: Decimal
+    gross_buys: int = 0
+    gross_sells: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,12 +87,16 @@ class UnderlyingPerformanceWindow:
 
 @dataclass(frozen=True, slots=True)
 class RollQuoteCandidate:
-    """One later/higher call quote that could replace an open short call."""
+    """One quoted contract that could replace an open short option."""
 
     expires_on: Date
     strike: Decimal
     sell_bid_per_share: Decimal
     quote_source: str
+    option_symbol: str = ""
+    spread_percent: Decimal | None = None
+    open_interest: int | None = None
+    volume: int | None = None
 
 
 @dataclass(frozen=True, slots=True)

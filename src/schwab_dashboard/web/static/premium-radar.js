@@ -130,9 +130,10 @@
         ? sourceFresh ? "BOTH LEGS REFRESHED" : "TARGET REFRESHED · SOURCE FROM DESK"
         : "TARGET NOT RETURNED",
     );
+    const side = review.source_option_side === "put" ? "P" : "C";
     setText(
       "[data-radar-roll-source]",
-      `${strikeMoney(review.source_strike)}C · ${dateLabel(review.source_expiration_date)} · ${review.source_contracts}X`,
+      `${strikeMoney(review.source_strike)}${side} · ${dateLabel(review.source_expiration_date)} · ${review.source_contracts}X`,
     );
     setText(
       "[data-radar-roll-source-quote]",
@@ -140,7 +141,7 @@
     );
     setText(
       "[data-radar-roll-target]",
-      `${strikeMoney(review.target_strike)}C · ${dateLabel(review.target_expiration_date)}`,
+      `${strikeMoney(review.target_strike)}${side} · ${dateLabel(review.target_expiration_date)}`,
     );
     setText(
       "[data-radar-roll-target-quote]",
@@ -173,7 +174,7 @@
       setText("[data-radar-roll-net-detail]", "The earlier Nibwick quote is not being reused");
       setText(
         "[data-radar-roll-note]",
-        "The source call is still open, but Schwab did not return that exact replacement in this scan. Current alternatives remain below.",
+        "The source option is still open, but Schwab did not return that exact replacement in this scan. Current alternatives remain below.",
       );
     }
   };
@@ -278,6 +279,7 @@
     hero.append(strike, credit);
     const rollStrip = rollComparison ? element("div", "radar-candidate-roll") : null;
     if (rollStrip) {
+      const sourceSide = projection.roll_review.source_option_side === "put" ? "P" : "C";
       const net = Number(rollComparison.net_roll_per_share);
       const total = Number(rollComparison.net_roll_cash);
       rollStrip.dataset.rollTone = net > 0 ? "credit" : net < 0 ? "debit" : "flat";
@@ -292,7 +294,7 @@
         element(
           "small",
           "",
-          `BUY ${strikeMoney(projection.roll_review.source_strike)}C @ ${money(projection.roll_review.source_close_ask_per_share)} · SELL THIS @ ${money(rollComparison.bid_per_share)}`,
+          `BUY ${strikeMoney(projection.roll_review.source_strike)}${sourceSide} @ ${money(projection.roll_review.source_close_ask_per_share)} · SELL THIS @ ${money(rollComparison.bid_per_share)}`,
         ),
       );
       const change = element("div");
@@ -306,7 +308,7 @@
         element(
           "small",
           "",
-          `FROM ${strikeMoney(projection.roll_review.source_strike)}C · ${dateLabel(projection.roll_review.source_expiration_date)}`,
+          `FROM ${strikeMoney(projection.roll_review.source_strike)}${sourceSide} · ${dateLabel(projection.roll_review.source_expiration_date)}`,
         ),
       );
       rollStrip.append(economics, change);
@@ -413,7 +415,7 @@
     setText(
       "[data-radar-comparison-title]",
       isRollReview
-        ? "Later calls, ordered by two-leg cost"
+        ? `Later ${projection.mode === "cash_secured_put" ? "puts" : "calls"}, grouped by trade-off`
         : "Up to nine contracts worth comparing",
     );
     if (
@@ -422,7 +424,7 @@
       && Number.isFinite(Number(projection.policy?.maximum_dte))
     ) {
       policySummary.textContent = isRollReview
-        ? "HIGHER STRIKES · LATER EXPIRATIONS · CLOSEST TO FLAT FIRST"
+        ? `${projection.mode === "cash_secured_put" ? "SAME / LOWER STRIKES" : "SAME / HIGHER STRIKES"} · LATER EXPIRATIONS · THREE TRADE-OFF FAMILIES`
         : `${projection.policy.minimum_dte}–${projection.policy.maximum_dte} DTE · ${number(projection.policy.minimum_annualized_rate_percent, 1)}% MINIMUM SIMPLE APR · NO FILLER`;
     }
     root.querySelectorAll("[data-radar-candidate-index]").forEach((card) => {
@@ -443,7 +445,9 @@
       if (targetIndex >= 0) window.IncooomingRadarMap?.select(root, targetIndex);
       setText(
         "[data-radar-size-note]",
-        `SOURCE CALL RELEASES ${projection.roll_review.source_contracts} COVERED LOT${projection.roll_review.source_contracts === 1 ? "" : "S"} FOR THIS REVIEW`,
+        projection.mode === "covered_call"
+          ? `SOURCE CALL RELEASES ${projection.roll_review.source_contracts} COVERED LOT${projection.roll_review.source_contracts === 1 ? "" : "S"} FOR THIS REVIEW`
+          : `SOURCE PUT SETS THE CONTRACT SIZE FOR THIS ${projection.roll_review.source_contracts}X REVIEW`,
       );
     }
   };

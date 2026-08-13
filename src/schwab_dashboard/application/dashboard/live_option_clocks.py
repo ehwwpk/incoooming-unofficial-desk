@@ -194,8 +194,11 @@ def _roll_candidates(
         expiration = _date(row.get("expiration_date"))
         strike = _decimal(row.get("strike"))
         sell_bid = _decimal(row.get("bid"))
-        if expiration <= call.expires_on or strike <= call.strike or sell_bid <= ZERO:
+        if expiration <= call.expires_on or strike < call.strike or sell_bid <= ZERO:
             continue
+        ask = _decimal(row.get("ask"))
+        mark = _decimal(row.get("mark"))
+        spread = max(ZERO, ask - sell_bid)
         quality = str(row.get("quote_quality") or "observed").replace("_", " ").upper()
         candidates.append(
             RollQuoteCandidate(
@@ -203,6 +206,10 @@ def _roll_candidates(
                 strike=strike,
                 sell_bid_per_share=sell_bid,
                 quote_source=f"SCHWAB CHAIN · {quality} BID",
+                option_symbol=str(row.get("symbol") or ""),
+                spread_percent=(spread / mark * HUNDRED if mark else None),
+                open_interest=_optional_int(row.get("open_interest")),
+                volume=_optional_int(row.get("volume")),
             )
         )
     candidates.sort(key=lambda item: (item.expires_on, item.strike))
@@ -249,6 +256,10 @@ def _date(value: object) -> date:
 
 def _decimal(value: object) -> Decimal:
     return ZERO if value is None else Decimal(str(value))
+
+
+def _optional_int(value: object) -> int | None:
+    return None if value is None else int(str(value))
 
 
 def _canonical(value: str) -> str:

@@ -41,12 +41,15 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert desk.text.count("data-tools-toggle") == 1
         assert "desk-workspace-launcher" not in desk.text
         assert "function-rail" in desk.text
+        assert 'data-campaign-chart="true"' in desk.text
+        assert 'class="price-event-ledger campaign-index"' in desk.text
+        assert "C1" in desk.text
 
         assert risk.status_code == 200
         assert "Next expirations" in risk.text
         assert "CALENDAR CLOCK" in risk.text
         assert "STOCKS ·" in risk.text
-        assert risk.text.count("data-open-book-section=") == 2
+        assert risk.text.count("data-open-book-section=") == 3
         assert 'data-open-book-section="calendar" open' in risk.text
         assert "MODEL TIME DECAY / DAY" in risk.text
         assert "EARNINGS DATE UNAVAILABLE" in risk.text
@@ -108,6 +111,35 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         container.close()
 
 
+def test_demo_desk_can_render_the_legacy_chart_fallback(tmp_path: Path) -> None:
+    settings = Settings(
+        _env_file=None,
+        data_dir=tmp_path,
+        demo_mode=True,
+        campaign_chart_enabled=False,
+    )
+    command.upgrade(_alembic_config(settings), "head")
+    container = Container(settings)
+
+    async def request_desk() -> httpx.Response:
+        transport = httpx.ASGITransport(app=create_app(container))
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://test",
+            cookies={"incoooming_source": "demo"},
+        ) as client:
+            return await client.get("/")
+
+    try:
+        response = asyncio.run(request_desk())
+        assert response.status_code == 200
+        assert 'data-campaign-chart="false"' in response.text
+        assert 'class="price-event-ledger campaign-index"' not in response.text
+        assert "numbered option event tape" in response.text
+    finally:
+        container.close()
+
+
 def test_demo_radar_roll_handoff_reprices_a_verified_open_call(tmp_path: Path) -> None:
     settings = Settings(_env_file=None, data_dir=tmp_path, demo_mode=True)
     command.upgrade(_alembic_config(settings), "head")
@@ -146,7 +178,7 @@ def test_demo_radar_roll_handoff_reprices_a_verified_open_call(tmp_path: Path) -
         assert payload["verdict"] == "ROLL REVIEW"
         assert len(payload["candidates"]) <= 9
         assert all(
-            Decimal(candidate["strike"]) > source.strike
+                Decimal(candidate["strike"]) >= source.strike
             and date.fromisoformat(candidate["expiration_date"]) > source.expires_on
             for candidate in payload["candidates"]
         )

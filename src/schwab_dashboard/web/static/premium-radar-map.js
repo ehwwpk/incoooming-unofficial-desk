@@ -338,6 +338,7 @@
     const rollRow = root.querySelector("[data-radar-map-roll-row]");
     rollRow.hidden = !rollComparison;
     if (rollComparison) {
+      const sourceSide = projection.roll_review.source_option_side === "put" ? "P" : "C";
       const net = Number(rollComparison.net_roll_per_share);
       setText(root, "[data-radar-map-roll-label]", `ROLL NET · ${projection.roll_review.source_contracts}X`);
       setText(
@@ -348,7 +349,7 @@
       setText(
         root,
         "[data-radar-map-roll-detail]",
-        `From ${strikeMoney(projection.roll_review.source_strike)}C · ${signedMoney(rollComparison.strike_change_per_share)} strike · ${rollComparison.added_days >= 0 ? "+" : "−"}${Math.abs(rollComparison.added_days)} days`,
+        `From ${strikeMoney(projection.roll_review.source_strike)}${sourceSide} · ${signedMoney(rollComparison.strike_change_per_share)} strike · ${rollComparison.added_days >= 0 ? "+" : "−"}${Math.abs(rollComparison.added_days)} days`,
       );
       rollRow.dataset.rollTone = net > 0 ? "credit" : net < 0 ? "debit" : "flat";
     } else {

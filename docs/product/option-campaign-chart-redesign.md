@@ -7,7 +7,21 @@ primary visual identity becomes the option **campaign**: one stable identity tha
 sale, any later roll legs, and the final expiration, close, or assignment. Individual executions stay
 auditable inside that campaign.
 
-This is a design and data contract only. No chart code changes are authorized by this document.
+## Implementation status
+
+The first campaign renderer is now implemented behind
+`SCHWAB_DASHBOARD_CAMPAIGN_CHART_ENABLED` (enabled by default). The legacy numbered ticket view
+remains available by setting that flag to `false` while live books are reconciled.
+
+The implemented slice provides stable call/put labels (`C1`, `P1`), quantity-aware partial-close
+accounting, exact order-key roll links, explicit `UNKNOWN` links when identical open lots are
+ambiguous, per-event campaign cash, campaign-colored paths, endpoint labels, campaign focus, a
+campaign index, and one net share marker per symbol/day. Raw broker rows remain immutable.
+
+The renderer does not guess through corrections, cancellations, or ambiguous identical lots. Those
+records remain visible with unknown confidence. The legacy fallback should be removed only after a
+representative live-history reconciliation proves campaign cash and remaining quantities against
+the atomic execution ledger.
 
 ## Why the current chart eventually breaks
 
@@ -167,15 +181,17 @@ campaign path.
 - one day containing a share buy, a partial close, and a roll pair at nearly the same price;
 - a dense chart with `SHARES` off, then on, proving that hiding the rail never hides assignment.
 
-## Delivery sequence for a later turn
+## Delivery sequence and gate
 
-1. Add campaign/leg invariants and fixture tests without altering current rendering.
-2. Produce a static visual grammar prototype with the current CVX, KTOS, and URNM books.
-3. Add a pure deterministic lane-packing projection and collision snapshots.
-4. Render campaign paths behind markers; keep the existing chart available behind a feature flag.
-5. Replace the event tape with the campaign index and synchronized anchored details.
-6. Verify reconciliation, keyboard flow, reduced motion, 16W/8W/4W stability, and dense-book stress.
-7. Remove the old global numbering only after side-by-side user review.
+1. **Done:** quantity-aware campaign reconciliation and hostile fixture tests.
+2. **Done:** campaign paths, endpoint labels, campaign focus, share toggle, and campaign index.
+3. **Done:** feature-flag fallback to the numbered ticket view.
+4. **Before fallback removal:** reconcile representative Schwab histories, including partial closes,
+   rolls, expirations, assignments, adjusted multipliers, and overlapping identical contracts.
+5. **Before fallback removal:** complete keyboard, reduced-motion, range-stability, and dense-book
+   browser checks on live-shaped data.
+6. Remove the legacy ticket renderer only when those checks are green; absence of a visible failure
+   is not reconciliation evidence.
 
 ## Research basis
 
