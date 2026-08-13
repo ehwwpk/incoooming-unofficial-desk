@@ -1,4 +1,5 @@
 {% set active = snapshot.performance_windows[0] if snapshot.performance_windows else none %}
+{% set completed_cash_months = snapshot.monthly_performance | rejectattr('is_partial') | rejectattr('coverage_status', 'equalto', 'coverage_start') | list %}
 <section
   class="desk-pulse"
   aria-label="Option income and live option summary"
@@ -33,8 +34,8 @@
       </div>
     </div>
     <footer class="income-observed-bar" aria-label="Observed monthly option cash statistics">
-      <div><span>ROLLING 365 MONTH AVG</span><b>{{ snapshot.operator_metrics.rolling_year_monthly_average | money }}</b><small>Monthly equivalent</small></div>
-      <div><span>LATEST 3 FULL MONTHS</span><b>{{ snapshot.operator_metrics.rolling_three_month_average | money }}</b><small>May–Jul average</small></div>
+      <div><span>{{ 'ROLLING 365 FULL-MONTH AVG' if completed_cash_months | length >= 12 else 'OBSERVED FULL-MONTH AVG' }}</span><b>{{ snapshot.operator_metrics.rolling_year_monthly_average | money }}</b><small>{{ completed_cash_months | length }} complete month{{ '' if completed_cash_months | length == 1 else 's' }} in normalized history</small></div>
+      <div><span>{% if completed_cash_months %}LATEST {{ [3, completed_cash_months | length] | min }} FULL MONTH{{ '' if completed_cash_months | length == 1 else 'S' }}{% else %}LATEST FULL MONTHS{% endif %}</span><b>{{ snapshot.operator_metrics.rolling_three_month_average | money }}</b><small>{% if completed_cash_months %}{{ completed_cash_months[-3].label if completed_cash_months | length >= 3 else completed_cash_months[0].label }}–{{ completed_cash_months[-1].label }} average{% else %}No complete month yet{% endif %}</small></div>
       <div><span>MEDIAN FULL MONTH</span><b>{{ snapshot.operator_metrics.median_completed_month | money }}</b><small>{{ snapshot.operator_metrics.completed_months }} completed months</small></div>
     </footer>
   </article>
@@ -46,9 +47,9 @@
     </header>
     <div class="live-book-grid">
       <div>
-        <span>OPEN OPTION POSITIONS</span>
+        <span>OPEN OPTION LINES</span>
         <strong>{{ desk_overview.open_positions }}</strong>
-        <small>{{ desk_overview.open_call_contracts }} calls{% if desk_overview.open_put_contracts %} · {{ desk_overview.open_put_contracts }} puts{% endif %} across {{ desk_overview.underlying_count }} stocks</small>
+        <small>{{ desk_overview.open_contracts }} contracts · {{ desk_overview.open_call_contracts }} calls{% if desk_overview.open_put_contracts %} / {{ desk_overview.open_put_contracts }} puts{% endif %} across {{ desk_overview.underlying_count }} stocks</small>
       </div>
       <div>
         <span>SHARE LOTS COVERED</span>
@@ -77,9 +78,9 @@
       <div><span>OPEN MARK P/L</span><b class="{{ desk_overview.open_mark_profit_loss | pnl_class }}">{{ desk_overview.open_mark_profit_loss | money }}</b><small>Unrealized · changes with the market</small></div>
       <div><span>DIVIDEND OVERLAP</span><b>{{ desk_overview.dividend_overlap_contracts }} CONTRACTS</b><small>Calls open across an ex-dividend date</small></div>
       {% if snapshot.alerts %}
-      <button type="button" data-nibwick-summary aria-expanded="false" aria-controls="nibwick-note-popover"><span>NIBWICK NOTES</span><b data-nibwick-summary-count>{{ snapshot.alerts | length }} TO REVIEW</b><small data-nibwick-summary-detail>{{ snapshot.alerts[0].symbol }} · {{ snapshot.alerts[0].headline }}</small></button>
+      <button type="button" data-nibwick-summary aria-expanded="false" aria-controls="nibwick-note-popover"><span>NIBWICK NOTES</span><b data-nibwick-summary-count>{{ snapshot.alerts | length }} ACTIVE</b><small data-nibwick-summary-detail>{{ snapshot.alerts | length }} NEW · {{ snapshot.alerts[0].symbol }} · {{ snapshot.alerts[0].headline }}</small></button>
       {% else %}
-      <div class="all-clear"><span>DESK NOTES</span><b>ALL CLEAR</b><small>No current exception needs review</small></div>
+      <div class="all-clear"><span>NIBWICK NOTES</span><b>QUIET DESK</b><small>Nothing is tugging Nibwick's sleeve right now</small></div>
       {% endif %}
     </footer>
   </article>

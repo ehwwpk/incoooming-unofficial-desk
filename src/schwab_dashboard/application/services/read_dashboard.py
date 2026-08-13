@@ -25,6 +25,7 @@ from schwab_dashboard.application.dashboard.models import (
     RiskSummary,
 )
 from schwab_dashboard.application.dashboard.performance import OperatorMetricsSummary
+from schwab_dashboard.application.market_time import market_date
 from schwab_dashboard.application.ports.analytics import LiveAnalyticsReader
 from schwab_dashboard.application.ports.repositories import UnitOfWorkFactory
 
@@ -47,7 +48,12 @@ class ReadDashboard:
 
     def execute(self) -> DashboardSnapshot:
         with self._uow_factory() as uow:
-            latest_sync = uow.sync_runs.latest()
+            latest_sync_attempt = uow.sync_runs.latest_for_source(source="schwab_full")
+            latest_sync = uow.sync_runs.latest_successful(source="schwab_full")
+            if latest_sync_attempt is None:
+                latest_sync_attempt = uow.sync_runs.latest()
+            if latest_sync is None:
+                latest_sync = uow.sync_runs.latest_successful(source="schwab")
             accounts = uow.accounts.list_summaries()
             positions = map_positions(uow.positions.list_latest())
             balances = uow.balances.list_latest()
@@ -64,11 +70,17 @@ class ReadDashboard:
             if latest_sync is not None and latest_sync.completed_at is not None
             else datetime.now(UTC)
         )
+        as_of_market_date = market_date(as_of)
 
-        portfolio = summarize_portfolio(positions, balances)
+        portfolio = summarize_portfolio(
+            positions,
+            balances,
+            cash_movements=cash_movements,
+            as_of=as_of,
+        )
         live_book = build_live_position_book(
             positions,
-            as_of=as_of.date(),
+            as_of=as_of_market_date,
             option_market=option_market,
             underlying_market=underlying_market,
         )
@@ -81,7 +93,7 @@ class ReadDashboard:
             lifecycle_events=lifecycle_events,
             live_book=live_book,
             covered_capital=covered_capital,
-            as_of=as_of.date(),
+            as_of=as_of_market_date,
         )
         underlyings = build_live_underlying_stats(
             live_book=live_book,
@@ -91,9 +103,13 @@ class ReadDashboard:
             lifecycle_events=lifecycle_events,
             daily_bars=daily_bars,
             option_market=option_market,
-            as_of=as_of.date(),
+            as_of=as_of_market_date,
         )
-        alerts = build_desk_alerts(underlyings, as_of=as_of.date())
+        alerts = build_desk_alerts(
+            underlyings,
+            as_of=as_of_market_date,
+            put_positions=live_book.puts,
+        )
         has_live_records = bool(positions or executions or cash_movements or lifecycle_events)
         base_risk = summarize_risk(positions)
         risk = RiskSummary(
@@ -151,7 +167,7 @@ class ReadDashboard:
             cash_activity_windows=(
                 performance.cash_activity_windows if has_live_records else ()
             ),
-            cash_chart_series=(),
+            cash_chart_series=performance.cash_chart_series if has_live_records else (),
             campaigns=(),
             covered_calls=performance.covered_calls,
             underlyings=underlyings,
@@ -160,7 +176,11 @@ class ReadDashboard:
             performance_windows=performance.performance_windows if has_live_records else (),
             monthly_performance=performance.monthly_performance if has_live_records else (),
             strategy_attribution=(),
-            expiration_calendar=build_expiration_calendar(underlyings, as_of.date()),
+            expiration_calendar=build_expiration_calendar(
+                underlyings,
+                as_of_market_date,
+                put_positions=live_book.puts,
+            ),
             policies=(),
             quarter_history=(),
             operator_metrics=performance.operator_metrics,
@@ -169,6 +189,7 @@ class ReadDashboard:
             allocations=summarize_allocations(positions),
             risk=risk,
             live_position_book=live_book,
+            latest_sync_attempt=latest_sync_attempt,
         )
 
 

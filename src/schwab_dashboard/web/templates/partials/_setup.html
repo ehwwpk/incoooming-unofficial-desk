@@ -1,11 +1,18 @@
 <section class="panel setup-panel">
   <div>
     <p class="eyebrow">Connection pending</p>
-    <h2>Schwab approval is the only external blocker.</h2>
-    <p>Your local ledger and UI are ready. When the developer app is approved, add its credentials and complete OAuth.</p>
+    {% if schwab_credentials_configured %}
+    <h2>Your saved Schwab ledger is here. Live refresh is not authorized.</h2>
+    <p>The dashboard can still show the last successful sync, but Schwab positions, activity, quotes, and Radar will not update until the local OAuth connection is restored.</p>
+    {% else %}
+    <h2>This computer does not have Schwab Developer app credentials yet.</h2>
+    <p>Add the approved app key, secret, and exact callback URL before starting OAuth.</p>
+    {% endif %}
   </div>
   <ol>
+    {% if not schwab_credentials_configured %}
     <li>Add the approved app key, secret, and exact callback URL to <code>.env</code>.</li>
+    {% endif %}
     <li>Run <code>schwab-dashboard auth-url</code> and authorize the account.</li>
     <li>Run <code>schwab-dashboard auth-complete</code>, then <code>schwab-dashboard sync</code>.</li>
   </ol>

@@ -1,13 +1,13 @@
 {% from "partials/_open_call_row.html" import open_call_row %}
 
-<section class="workspace-metric-strip operator-strip" aria-label="Open call summary">
-  <div><span>OPEN OBLIGATIONS</span><strong>{{ open_book.rows | length }} <small>POSITIONS</small></strong><small>{{ open_book.obligated_shares }} shares committed</small></div>
-  <div><span>PREMIUM RECEIVED</span><strong>{{ open_book.entry_credit | money }}</strong><small>Opening cash on live calls</small></div>
+<section class="workspace-metric-strip operator-strip" aria-label="Open option summary">
+  <div><span>OPEN OBLIGATIONS</span><strong>{{ open_book.total_positions }} <small>OPTION LINES</small></strong><small>{{ open_book.total_contracts }} contracts · {{ open_book.obligated_shares }} shares committed</small></div>
+  <div><span>PREMIUM RECEIVED</span><strong>{{ open_book.entry_credit | money }}</strong><small>Opening cash on live short options</small></div>
   <div><span>OPEN MARK P/L</span><strong class="{{ open_book.open_profit_loss | pnl_class }}">{{ open_book.open_profit_loss | money }}</strong><small>Unrealized · option value now {{ open_book.current_liability | money }}</small></div>
   <div title="Theoretical one-day option value decay, holding other pricing inputs constant. Not cash income."><span>MODEL TIME DECAY / DAY</span><strong class="positive">+{{ open_book.theta_estimate_per_day | money }}</strong><small>Estimate, not cash received</small></div>
 </section>
 
-<details class="workspace-panel obligation-calendar open-book-section" data-open-book-section="calendar">
+<details class="workspace-panel obligation-calendar open-book-section" data-open-book-section="calendar" open>
   <summary class="workspace-panel-heading">
     <div><p class="eyebrow">OBLIGATION CALENDAR</p><h2>Next expirations</h2></div>
     <div class="open-book-section-control"><span>EXPIRY · SHARES · EVENTS</span><i aria-hidden="true"></i></div>
@@ -16,17 +16,17 @@
     {% for bucket in snapshot.expiration_calendar %}
     <article>
       <time datetime="{{ bucket.expires_on.isoformat() }}"><b>{{ bucket.expires_on.strftime('%b %d') | upper }}</b><span>{{ bucket.days_to_expiration }} DTE</span></time>
-      <div><strong>{{ bucket.contracts }} CALLS / {{ bucket.committed_shares }} SHARES</strong><span>{{ bucket.opening_credit | money }} received · {{ bucket.estimated_close_value | money }} value now</span></div>
+      <div><strong>{% if bucket.call_contracts %}{{ bucket.call_contracts }} CALLS{% endif %}{% if bucket.call_contracts and bucket.put_contracts %} · {% endif %}{% if bucket.put_contracts %}{{ bucket.put_contracts }} PUTS{% endif %} / {{ bucket.committed_shares }} SHARES</strong><span>{{ bucket.opening_credit | money }} received · {{ bucket.estimated_close_value | money }} value now</span></div>
       <div><strong class="{{ bucket.nearest_strike_buffer_percent | pnl_class }}">{{ bucket.nearest_strike_buffer_percent | percent }} NEAREST BUFFER</strong><span>{{ bucket.event_labels | join(' · ') if bucket.event_labels else 'No known dividend event before expiry' }}</span></div>
     </article>
-    {% endfor %}
+    {% else %}<p class="empty-state">No open option expirations are available.</p>{% endfor %}
   </div>
 </details>
 
 <details class="workspace-panel open-book-section" data-open-book-section="contracts">
   <summary class="workspace-panel-heading">
-    <div><p class="eyebrow">LIVE CONTRACTS</p><h2>Open calls</h2></div>
-    <div class="open-book-section-control"><span>{{ open_book.groups | length }} STOCKS · {{ open_book.rows | length }} POSITIONS</span><i aria-hidden="true"></i></div>
+    <div><p class="eyebrow">LIVE CONTRACTS</p><h2>Open options</h2></div>
+    <div class="open-book-section-control"><span>{{ open_book.groups | length }} STOCKS · {{ open_book.total_positions }} LINES · {{ open_book.total_contracts }} CONTRACTS</span><i aria-hidden="true"></i></div>
   </summary>
   <div class="open-call-register">
     {% for group in open_book.groups %}
@@ -45,6 +45,19 @@
         {% for row in group.rows %}{{ open_call_row(row) }}{% endfor %}
       </div>
     </section>
-    {% else %}<p class="empty-state">No normalized open calls are available.</p>{% endfor %}
+    {% else %}{% if not open_book.put_rows %}<p class="empty-state">No normalized open short options are available.</p>{% endif %}{% endfor %}
   </div>
+  {% if open_book.put_rows %}
+  <section class="open-put-register" aria-label="Open short puts">
+    <header><b>SHORT PUTS</b><span>{{ open_book.put_rows | length }} LINES · {{ open_book.put_contracts }} CONTRACTS</span></header>
+    {% for row in open_book.put_rows %}
+    <article class="open-put-row" data-context-symbol-row="{{ row.symbol }}">
+      <div><b>{{ row.contracts }}x ${{ row.strike | number(2) }}P</b><small>{{ row.symbol }} · {{ row.days_to_expiration }} DTE · {{ row.expires_on | short_date }}</small></div>
+      <div><span>TO STRIKE</span><b class="{{ row.strike_distance_per_share | pnl_class }}">{{ row.strike_distance_per_share | money }} / {{ row.strike_distance_percent | percent }}</b></div>
+      <div><span>VALUE / PREMIUM</span><b>{{ row.option_value_vs_credit_percent | percent }}</b><small>{{ row.current_liability | money }} now / {{ row.entry_credit | money }} received</small></div>
+      <div><span>OPEN P/L</span><b class="{{ row.open_profit_loss | pnl_class }}">{{ row.open_profit_loss | money }}</b><small>+{{ row.theta_estimate_per_day | money }}/day model decay</small></div>
+    </article>
+    {% endfor %}
+  </section>
+  {% endif %}
 </details>

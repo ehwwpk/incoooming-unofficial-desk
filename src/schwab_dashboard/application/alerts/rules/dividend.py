@@ -6,6 +6,7 @@ from schwab_dashboard.application.alerts.context import (
     DividendReviewContext,
     build_dividend_review_context,
 )
+from schwab_dashboard.application.alerts.identity import option_alert_id
 from schwab_dashboard.application.alerts.models import AlertFact, AlertLevel, DeskAlert
 from schwab_dashboard.application.dashboard.covered_calls import UnderlyingCallStats
 from schwab_dashboard.application.formatting import compact_decimal
@@ -45,15 +46,12 @@ def evaluate_dividend_overlap(
     if sensitive_calls and days_until <= DIVIDEND_WATCH_WINDOW_DAYS:
         level = AlertLevel.ATTENTION
         priority = 100
-        headline = f"{underlying.symbol} call may be assigned before the dividend"
     elif sensitive_calls:
         level = AlertLevel.CHECK
         priority = 85
-        headline = f"{underlying.symbol} call needs a dividend check"
     elif days_until <= DIVIDEND_WATCH_WINDOW_DAYS:
         level = AlertLevel.WATCH
         priority = 55
-        headline = f"{underlying.symbol} call is in the dividend window"
     else:
         return None
 
@@ -66,35 +64,49 @@ def evaluate_dividend_overlap(
     exposed_shares = exposed_contracts * 100
     amount_in_the_money = abs(context.strike_distance_per_share)
     percent_in_the_money = abs(context.strike_distance_percent)
+    if sensitive_calls:
+        headline = (
+            f"{underlying.symbol}'s ${compact_decimal(context.call.strike)} call has "
+            "early-assignment pressure"
+        )
+    else:
+        headline = (
+            f"{underlying.symbol}'s dividend arrives before your "
+            f"${compact_decimal(context.call.strike)} call expires"
+        )
 
     if sensitive_calls:
         time_value_shortfall = underlying.dividend_per_share - context.extrinsic_per_share
         message = (
-            f"{underlying.symbol} is ${amount_in_the_money:.2f}/share "
-            f"({percent_in_the_money:.1f}%) above the "
-            f"${compact_decimal(context.call.strike)} call "
-            f"and therefore in the money, with {_days_text(days_until).lower()} "
-            "until ex-dividend. Across "
+            f"{underlying.symbol} is ${amount_in_the_money:.2f}/share through your "
+            f"${compact_decimal(context.call.strike)} call, and ex-dividend is "
+            f"{_days_text(days_until).lower()}. Across "
             f"{exposed_contracts} contract{'s' if exposed_contracts != 1 else ''} "
             f"({exposed_shares} shares), the ${underlying.dividend_per_share:.2f} "
-            f"dividend is ${time_value_shortfall:.2f}/share greater than remaining "
-            f"time value. That combination raises early-assignment sensitivity. "
-            "Assignment cannot be predicted; recheck the live mark before acting."
+            f"dividend exceeds remaining time value by ${time_value_shortfall:.2f}/share. "
+            "That is the classic early-assignment pressure setup—not a prediction. "
+            "Check the live mark before acting."
         )
     else:
         message = (
-            f"{underlying.symbol} is ${amount_in_the_money:.2f}/share "
-            f"({percent_in_the_money:.1f}%) above the "
-            f"${compact_decimal(context.call.strike)} call "
-            f"and therefore in the money, with {_days_text(days_until).lower()} "
-            "until ex-dividend. Remaining "
-            f"time value (${context.extrinsic_per_share:.2f}/share) is still greater "
-            f"than the ${underlying.dividend_per_share:.2f} dividend, which reduces "
-            "the dividend-capture incentive. Assignment is still possible, not predictable."
+            f"{underlying.symbol} is ${amount_in_the_money:.2f}/share through your "
+            f"${compact_decimal(context.call.strike)} call, and ex-dividend is "
+            f"{_days_text(days_until).lower()}. Remaining time value is "
+            f"${context.extrinsic_per_share:.2f}/share, still above the "
+            f"${underlying.dividend_per_share:.2f} dividend. That weakens the early-exercise "
+            "incentive, but assignment remains possible."
         )
 
     return DeskAlert(
-        alert_id=f"{underlying.symbol.lower()}-dividend-overlap",
+        alert_id=option_alert_id(
+            symbol=underlying.symbol,
+            reason="dividend-overlap",
+            contract_key=context.call.record_id,
+            level=level,
+            strike_distance_percent=context.strike_distance_percent,
+            days_to_expiration=context.call.days_to_expiration,
+            event_key=ex_date.isoformat(),
+        ),
         reason_code="dividend_overlap",
         level=level,
         level_label=level.friendly_label,

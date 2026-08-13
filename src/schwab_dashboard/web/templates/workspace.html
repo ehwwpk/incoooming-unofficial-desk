@@ -5,30 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <title>{{ workspace.label }} · Incoooming</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=59">
-    <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=5">
-    {% if workspace.key.value == 'risk' %}<link rel="stylesheet" href="{{ url_for('static', path='/open-book.css') }}?v=2">{% endif %}
+    <link rel="icon" href="{{ url_for('static', path='/nibwick-favicon.svg') }}?v=2" type="image/svg+xml">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=67">
+    <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=7">
+    {% if workspace.key.value == 'radar' %}<link rel="stylesheet" href="{{ url_for('static', path='/premium-radar.css') }}?v=11">{% endif %}
+    {% if workspace.key.value == 'risk' %}<link rel="stylesheet" href="{{ url_for('static', path='/open-book.css') }}?v=3">{% endif %}
     {% if workspace.key.value == 'attribution' %}<link rel="stylesheet" href="{{ url_for('static', path='/results-cash.css') }}?v=1">{% endif %}
   </head>
-  <body class="workspace-page" data-workspace-key="{{ workspace.key.value }}" data-workspace-context='{"account":"{{ snapshot.accounts[0].account_mask if snapshot.accounts else "---" }}","symbol":"ALL","asOf":"{{ snapshot.as_of.date().isoformat() }}"}'>
+  <body class="workspace-page" data-workspace-key="{{ workspace.key.value }}" data-demo-mode="{{ 'true' if snapshot.is_demo else 'false' }}" data-snapshot-as-of="{{ snapshot.as_of.isoformat() }}" data-workspace-context='{"account":"{{ snapshot.accounts[0].account_mask if snapshot.accounts else "---" }}","symbol":"ALL","asOf":"{{ snapshot.as_of.date().isoformat() }}"}'>
     <header class="topbar workspace-topbar">
       <a class="brand" href="/" aria-label="Return to the Desk">
-        <span class="brand-mark">IU</span>
+        {% include "partials/_brand_mark.html" %}
         <span><strong>INCOOOMING</strong><small>DESK TOOLS · READ ONLY</small></span>
       </a>
       {% set current_workspace_key = workspace.key.value %}
       {% include "partials/_product_nav.html" %}
-      <div class="session-state">
-        <b class="{{ 'muted' if snapshot.is_demo else 'positive' }}">{{ 'DEMO SOURCE' if snapshot.is_demo else 'LIVE SOURCE' }}</b>
-        <small>{{ snapshot.as_of | short_date }} · READ ONLY</small>
-      </div>
+      {% include "partials/_sync_state.html" %}
     </header>
 
     <div class="workspace-tape" aria-label="Shared desk context">
       <span>ACCOUNT <b data-context-account>{{ snapshot.accounts[0].account_mask if snapshot.accounts else '---' }}</b></span>
       <span>FOCUS <b data-context-symbol>ALL NAMES</b></span>
       <span>AS OF <b>{{ snapshot.as_of | short_date }}</b></span>
-      <span>SOURCE <b>{{ 'SIMULATED LEDGER' if snapshot.is_demo else 'NORMALIZED LEDGER' }}</b></span>
+      <span>SOURCE <b>{% if snapshot.is_demo %}SIMULATED LEDGER{% elif snapshot.mode == 'csv' %}CSV BOOK{% else %}SCHWAB LEDGER{% endif %}</b></span>
       <span data-window-state>SAME-ORIGIN WINDOW LINK READY</span>
     </div>
 
@@ -58,6 +57,13 @@
           <b>SIM</b><span>Real calculations over fictional fixtures. No brokerage connection or order path is active.</span>
         </div>
         {% endif %}
+        {% if snapshot.mode == 'csv' %}
+        <div class="csv-source-note" role="status">
+          <b>CSV BOOK</b>
+          <span>{{ active_source_label }} shows only capabilities supported by the imported files. Missing live market facts remain unavailable.</span>
+          <a href="/sources">SWITCH BOOK &rarr;</a>
+        </div>
+        {% endif %}
 
         {% include workspace.template_name %}
 
@@ -70,6 +76,9 @@
 
     <script src="{{ url_for('static', path='/workspace-navigation.js') }}?v=2" defer></script>
     <script src="{{ url_for('static', path='/workspace-channel.js') }}?v=1" defer></script>
+    <script src="{{ url_for('static', path='/workspace-disclosures.js') }}?v=1" defer></script>
+    {% if snapshot.mode == 'live' %}<script src="{{ url_for('static', path='/auto-sync.js') }}?v=1" defer></script>{% endif %}
+    {% if workspace.key.value == 'radar' %}<script src="{{ url_for('static', path='/premium-radar-indicators.js') }}?v=1" defer></script><script src="{{ url_for('static', path='/premium-radar-map.js') }}?v=5" defer></script><script src="{{ url_for('static', path='/premium-radar.js') }}?v=11" defer></script>{% endif %}
     {% if workspace.key.value == 'attribution' %}<script src="{{ url_for('static', path='/results-cash.js') }}?v=1" defer></script>{% endif %}
   </body>
 </html>

@@ -8,6 +8,7 @@ from typing import Any
 from fastapi.templating import Jinja2Templates
 
 from schwab_dashboard.application.dashboard.anchors import option_contract_anchor
+from schwab_dashboard.application.market_time import market_date
 
 WEB_ROOT = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=WEB_ROOT / "templates")
@@ -38,7 +39,8 @@ def percent(value: Any, decimals: int = 1) -> str:
 def short_date(value: date | datetime | None) -> str:
     if value is None:
         return "Not available"
-    return value.strftime("%b %d, %Y")
+    display_date = market_date(value) if isinstance(value, datetime) else value
+    return display_date.strftime("%b %d, %Y")
 
 
 def pnl_class(value: Any) -> str:

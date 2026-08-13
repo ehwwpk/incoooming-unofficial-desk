@@ -122,15 +122,22 @@ class SchwabReadOnlyMarketDataClient:
         *,
         from_date: date,
         to_date: date,
+        contract_type: str = "CALL",
+        strike_count: int = 100,
     ) -> Mapping[str, Any]:
+        normalized_contract_type = contract_type.strip().upper()
+        if normalized_contract_type not in {"CALL", "PUT", "ALL"}:
+            raise ValueError("contract_type must be CALL, PUT, or ALL")
+        if not 1 <= strike_count <= 500:
+            raise ValueError("strike_count must be between 1 and 500")
         return self._get_mapping(
             "/chains",
             params={
                 "symbol": symbol,
-                "contractType": "CALL",
+                "contractType": normalized_contract_type,
                 "includeUnderlyingQuote": "true",
                 "strategy": "SINGLE",
-                "strikeCount": "100",
+                "strikeCount": str(strike_count),
                 "fromDate": from_date.isoformat(),
                 "toDate": to_date.isoformat(),
             },

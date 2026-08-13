@@ -5,13 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <title>Incoooming · Options Income</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=60">
-    <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=4">
+    <link rel="icon" href="{{ url_for('static', path='/nibwick-favicon.svg') }}?v=2" type="image/svg+xml">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=69">
+    <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=7">
   </head>
-  <body data-workspace-key="desk" data-workspace-context='{"account":"{{ snapshot.accounts[0].account_mask if snapshot.accounts else "---" }}","symbol":"ALL","asOf":"{{ snapshot.as_of.date().isoformat() }}"}'>
+  <body data-workspace-key="desk" data-demo-mode="{{ 'true' if snapshot.is_demo else 'false' }}" data-snapshot-as-of="{{ snapshot.as_of.isoformat() }}" data-workspace-context='{"account":"{{ snapshot.accounts[0].account_mask if snapshot.accounts else "---" }}","symbol":"ALL","asOf":"{{ snapshot.as_of.date().isoformat() }}"}'>
     <header class="topbar desk-topbar">
       <a class="brand" href="/" aria-label="Dashboard home">
-        <span class="brand-mark">IU</span>
+        {% include "partials/_brand_mark.html" %}
         <span><strong>INCOOOMING</strong><small>OPTIONS INCOME · LOCAL LEDGER 01</small></span>
       </a>
       {% set current_workspace_key = 'desk' %}
@@ -21,10 +22,7 @@
         <input type="text" data-command-input aria-label="Jump to a dashboard section or symbol" placeholder="CVX, KTOS, URNM, income, risk, records…">
         <kbd>CTRL K</kbd>
       </label>
-      <div class="session-state">
-        <b class="positive">{{ 'DEMO CHECKED' if snapshot.is_demo else 'RECONCILED' }}</b>
-        <small>{{ snapshot.as_of | short_date }} · {{ 'SIMULATION' if snapshot.is_demo else 'LIVE LEDGER' }}</small>
-      </div>
+      {% include "partials/_sync_state.html" %}
     </header>
 
     <div class="terminal-shell">
@@ -34,18 +32,14 @@
         <a href="#income" data-rail-link="income"><kbd>F3</kbd><span>CASH</span></a>
         <div class="nibwick-stage" data-nibwick-stage>
           {% if snapshot.alerts %}
-          <button type="button" class="nibwick-alert-badge" data-nibwick-alert-badge aria-label="Open Nibwick's {{ snapshot.alerts | length }} notes" aria-expanded="false" aria-controls="nibwick-note-popover">
-            <span class="nibwick-alert-plaque" aria-hidden="true"><b>!</b><span data-nibwick-unread-count>{{ snapshot.alerts | length }}</span></span>
+          <button type="button" class="nibwick-alert-badge" data-nibwick-alert-badge data-new-count="{{ snapshot.alerts | length }}" aria-label="Open Nibwick's {{ snapshot.alerts | length }} active notes" aria-expanded="false" aria-controls="nibwick-note-popover">
+            <span class="nibwick-alert-plaque" aria-hidden="true"><b>!</b><span data-nibwick-active-count>{{ snapshot.alerts | length }}</span></span>
           </button>
           {% endif %}
           <i class="nibwick-obstacle" data-nibwick-obstacle aria-hidden="true">[?]</i>
           <button type="button" class="nibwick" data-nibwick data-paused="false" {% if snapshot.alerts %}aria-label="Open Nibwick's notes" aria-expanded="false" aria-controls="nibwick-note-popover" title="Nibwick has a desk note // click to open"{% else %}aria-label="Pause Nibwick's desk patrol" aria-pressed="false" title="Nibwick // unofficial night clerk // click to pause"{% endif %}>
-            <pre data-nibwick-art aria-hidden="true"> ()___()
-( o   o )
-|   ^   |
-(  /_\  )
- `-._.-'
-  /   \</pre>
+            {% from "partials/_nibwick.html" import nibwick_ascii %}
+            {{ nibwick_ascii(true) }}
             <span data-nibwick-status>STUDY</span>
           </button>
         </div>
@@ -75,16 +69,24 @@
           <span>NET LIQ <b>{{ snapshot.portfolio.total_value | money }}</b></span>
           <span>GROSS POS <b>{{ snapshot.portfolio.gross_position_value | money }}</b></span>
           {% endif %}
-          <span>TODAY <b class="{{ snapshot.portfolio.day_profit_loss | pnl_class }}">{{ snapshot.portfolio.day_profit_loss | money }} / {{ snapshot.portfolio.day_profit_loss_percent | percent(2) }}</b></span>
+          <span>TODAY <b class="{{ snapshot.portfolio.day_profit_loss | pnl_class }}">{{ snapshot.portfolio.day_profit_loss | money }} / {{ snapshot.portfolio.day_profit_loss_percent | percent(2) }}</b>{% if snapshot.portfolio.day_external_cash_flow > 0 %}<small class="flow-adjusted-note">{{ snapshot.portfolio.day_external_cash_flow | money }} DEPOSIT EXCLUDED</small>{% elif snapshot.portfolio.day_external_cash_flow < 0 %}<small class="flow-adjusted-note">{{ (snapshot.portfolio.day_external_cash_flow * -1) | money }} WITHDRAWAL EXCLUDED</small>{% endif %}</span>
           {% if snapshot.performance_windows %}<span>RANGE <b data-active-range>{{ snapshot.performance_windows[0].range_label }}</b></span>{% endif %}
           <span>AS OF <b>{{ snapshot.as_of | short_date }}</b></span>
-          <span>STATUS <b class="{{ 'muted' if snapshot.is_demo else 'positive' }}">{{ 'SIMULATION' if snapshot.is_demo else 'LIVE LEDGER' }}</b></span>
+          <span>STATUS <b class="{{ 'muted' if snapshot.is_demo else 'positive' }}">{% if snapshot.is_demo %}SIMULATION{% elif snapshot.mode == 'csv' %}CSV BOOK{% else %}LIVE LEDGER{% endif %}</b></span>
         </div>
       </section>
 
+      {% if snapshot.mode == 'csv' %}
+      <aside class="csv-source-note" role="status">
+        <b>CSV BOOK</b>
+        <span>{{ active_source_label }} uses only facts present in the imported files. Portfolio value covers imported positions, not brokerage cash; live quotes, Greeks, IV, and automatic refresh stay unavailable.</span>
+        <a href="/sources">SWITCH OR IMPORT &rarr;</a>
+      </aside>
+      {% endif %}
+
       {% include "partials/_summary.html" %}
       {% include "partials/_periods.html" %}
-      {% if not snapshot.is_demo and not snapshot.token_available %}
+      {% if snapshot.mode == 'live' and not snapshot.token_available %}
         {% include "partials/_setup.html" %}
       {% endif %}
       {% include "partials/_underlyings.html" %}
@@ -96,7 +98,7 @@
       </section>
 
       <footer>
-        <span>LOCALHOST / PRIVATE / READ-ONLY BROKER ADAPTER</span>
+        <span>LOCALHOST / PRIVATE / READ-ONLY / {{ active_source_label | upper }}</span>
         <span>PERFORMANCE ACCOUNTING — NOT TAX OR INVESTMENT ADVICE</span>
       </footer>
       </main>
@@ -109,10 +111,11 @@
     <script src="{{ url_for('static', path='/event-layout.js') }}?v=4" defer></script>
     <script src="{{ url_for('static', path='/lifecycle-links.js') }}?v=4" defer></script>
     <script src="{{ url_for('static', path='/chart-events.js') }}?v=4" defer></script>
-    <script src="{{ url_for('static', path='/nibwick-alerts.js') }}?v=10" defer></script>
+    <script src="{{ url_for('static', path='/nibwick-alerts.js') }}?v=13" defer></script>
     <script src="{{ url_for('static', path='/nibwick.js') }}?v=5" defer></script>
     <script src="{{ url_for('static', path='/position-details.js') }}?v=2" defer></script>
     <script src="{{ url_for('static', path='/workspace-navigation.js') }}?v=2" defer></script>
     <script src="{{ url_for('static', path='/workspace-channel.js') }}?v=1" defer></script>
+    {% if snapshot.mode == 'live' %}<script src="{{ url_for('static', path='/auto-sync.js') }}?v=1" defer></script>{% endif %}
   </body>
 </html>

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+from schwab_dashboard.domain.instruments import AssetType, OptionSide
 from schwab_dashboard.domain.market import MarkMethod, QuoteQuality
 from schwab_dashboard.infrastructure.schwab.market_mapper import SchwabMarketMapper
 
@@ -35,6 +36,48 @@ def test_maps_underlying_quote_with_source_timestamp() -> None:
     assert snapshot.mark_method is MarkMethod.BROKER
     assert snapshot.mark == Decimal("60.75")
     assert snapshot.observed_at <= batch.observed_at
+
+
+def test_maps_etf_underlying_without_downgrading_it_to_unknown() -> None:
+    batch = SchwabMarketMapper().map_quotes(
+        {
+            "URNM": {
+                "symbol": "URNM",
+                "assetMainType": "EQUITY",
+                "assetSubType": "ETF",
+                "quote": {
+                    "bidPrice": 55.35,
+                    "askPrice": 55.40,
+                    "mark": 55.375,
+                    "quoteTime": 1786471140000,
+                },
+                "reference": {"description": "Sprott Uranium Miners ETF"},
+            }
+        },
+        observed_at=NOW,
+        parser_version="test",
+    )
+
+    assert batch.instruments[0].asset_type is AssetType.ETF
+    assert batch.instruments[0].symbol == "URNM"
+    assert batch.underlying_snapshots[0].mark == Decimal("55.375")
+
+
+def test_clamps_provider_quote_clock_skew_to_the_raw_event_time() -> None:
+    future_quote_time = int((NOW + timedelta(seconds=3)).timestamp() * 1000)
+    batch = SchwabMarketMapper().map_quotes(
+        {
+            "CVX": {
+                "symbol": "CVX",
+                "assetMainType": "EQUITY",
+                "quote": {"mark": 198.25, "quoteTime": future_quote_time},
+            }
+        },
+        observed_at=NOW,
+        parser_version="test",
+    )
+
+    assert batch.underlying_snapshots[0].observed_at == batch.observed_at
 
 
 def test_maps_open_call_and_replacement_chain_quotes_with_greeks() -> None:
@@ -82,6 +125,41 @@ def test_maps_open_call_and_replacement_chain_quotes_with_greeks() -> None:
     assert snapshot.delta == Decimal("0.25")
     assert snapshot.theta == Decimal("-0.04")
     assert snapshot.open_interest == 400
+
+
+def test_maps_put_chain_without_relabelling_it_as_a_call() -> None:
+    symbol = "URNM  260918P00050000"
+    batch = SchwabMarketMapper().map_chain(
+        {
+            "symbol": "URNM",
+            "underlyingPrice": 55.37,
+            "putExpDateMap": {
+                "2026-09-18:38": {
+                    "50.0": [
+                        {
+                            "symbol": symbol,
+                            "putCall": "PUT",
+                            "strikePrice": 50,
+                            "multiplier": 100,
+                            "bid": 0.9,
+                            "ask": 1.05,
+                            "volatility": 46,
+                            "delta": -0.22,
+                            "quoteTimeInLong": 1786471140000,
+                        }
+                    ]
+                }
+            },
+        },
+        observed_at=NOW,
+        parser_version="test",
+    )
+
+    assert len(batch.instruments) == 1
+    assert len(batch.option_snapshots) == 1
+    assert batch.instruments[0].option_side is OptionSide.PUT
+    assert batch.instruments[0].underlying_symbol == "URNM"
+    assert batch.option_snapshots[0].delta == Decimal("-0.22")
 
 
 def test_maps_real_daily_ohlcv_bars() -> None:

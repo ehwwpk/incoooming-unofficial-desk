@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#0b0c0e">
+    <title>Get Incoooming</title>
+    <link rel="icon" href="{{ url_for('static', path='/nibwick-favicon.svg') }}?v=2" type="image/svg+xml">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=67">
+    <link rel="stylesheet" href="{{ url_for('static', path='/sources.css') }}?v=13">
+    <link rel="stylesheet" href="{{ url_for('static', path='/sources-art.css') }}?v=19">
+    <script defer src="{{ url_for('static', path='/sources.js') }}?v=1"></script>
+  </head>
+  <body class="sources-page">
+    {% set schwab_ready = schwab_credentials_configured and schwab_token_available %}
+    <header class="sources-topbar">
+      <a class="brand" href="/sources" aria-label="Incoooming source gateway">
+        {% include "partials/_brand_mark.html" %}
+        <span><strong>INCOOOMING</strong></span>
+      </a>
+      <div class="gateway-trust" aria-label="Session safeguards">
+        <span><i></i>LOCAL SESSION</span>
+        <span>READ ONLY</span>
+        <span>NO ORDER PATH</span>
+      </div>
+    </header>
+
+    <main class="sources-shell">
+      <section class="sources-hero" aria-labelledby="gateway-title">
+        <div class="sources-hero-copy">
+          <h1 id="gateway-title">Get Incoooming</h1>
+          <p>Live Schwab through your approved Developer API. Broker CSV. Demo.</p>
+        </div>
+
+        <figure class="gateway-visual" aria-label="Two hand-drawn operators presenting an options lifecycle chart">
+          <div class="gateway-operator gateway-operator-left" aria-hidden="true">
+            <img src="{{ url_for('static', path='/incoooming-operators.png') }}" alt="">
+          </div>
+          <div class="gateway-operator gateway-operator-right" aria-hidden="true">
+            <img src="{{ url_for('static', path='/incoooming-operators.png') }}" alt="">
+          </div>
+          <div class="gateway-market-slab" aria-label="Simulated NVIDIA covered-call history">
+            <div class="gateway-market-plot">
+            <div class="gateway-market-meta" aria-hidden="true">
+              <span><strong>NVDA</strong> JUL 01&ndash;AUG 12</span>
+              <b>$206.84 <i>SIM</i></b>
+            </div>
+            <svg class="gateway-option-chart" viewBox="0 0 450 240" role="img" aria-label="Simulated NVIDIA daily prices with six linked covered-call events">
+            <g class="gateway-chart-axis-labels">
+              <text x="414" y="67">$208</text>
+              <text x="414" y="107">$200</text>
+              <text x="414" y="147">$192</text>
+              <text x="414" y="187">$184</text>
+              <text x="18" y="222">JUL 01</text>
+              <text x="210" y="222" text-anchor="middle">JUL 22</text>
+              <text x="407" y="222" text-anchor="end">AUG 12</text>
+            </g>
+            <path class="gateway-chart-price" d="M18 165L31 160L44 169L57 153L70 158L83 149L96 134L109 141L122 127L135 139L148 143L161 119L174 105L187 112L200 91L213 102L226 95L239 78L252 86L265 73L278 82L291 67L304 61L317 79L330 88L343 72L356 83L369 69L382 76L395 58L407 64" />
+            <g class="gateway-daily-points">
+              <circle cx="18" cy="165" r="1.7" style="--point-delay: .42s" />
+              <circle cx="31" cy="160" r="1.7" style="--point-delay: .62s" />
+              <circle cx="44" cy="169" r="1.7" style="--point-delay: .84s" />
+              <circle cx="57" cy="153" r="1.7" style="--point-delay: 1.06s" />
+              <circle cx="70" cy="158" r="1.7" style="--point-delay: 1.28s" />
+              <circle cx="83" cy="149" r="1.7" style="--point-delay: 1.5s" />
+              <circle cx="96" cy="134" r="1.7" style="--point-delay: 1.72s" />
+              <circle cx="109" cy="141" r="1.7" style="--point-delay: 1.94s" />
+              <circle cx="122" cy="127" r="1.7" style="--point-delay: 2.16s" />
+              <circle cx="135" cy="139" r="1.7" style="--point-delay: 2.38s" />
+              <circle cx="148" cy="143" r="1.7" style="--point-delay: 2.6s" />
+              <circle cx="161" cy="119" r="1.7" style="--point-delay: 2.82s" />
+              <circle cx="174" cy="105" r="1.7" style="--point-delay: 3.04s" />
+              <circle cx="187" cy="112" r="1.7" style="--point-delay: 3.26s" />
+              <circle cx="200" cy="91" r="1.7" style="--point-delay: 3.48s" />
+              <circle cx="213" cy="102" r="1.7" style="--point-delay: 3.7s" />
+              <circle cx="226" cy="95" r="1.7" style="--point-delay: 3.92s" />
+              <circle cx="239" cy="78" r="1.7" style="--point-delay: 4.14s" />
+              <circle cx="252" cy="86" r="1.7" style="--point-delay: 4.36s" />
+              <circle cx="265" cy="73" r="1.7" style="--point-delay: 4.58s" />
+              <circle cx="278" cy="82" r="1.7" style="--point-delay: 4.8s" />
+              <circle cx="291" cy="67" r="1.7" style="--point-delay: 5.02s" />
+              <circle cx="304" cy="61" r="1.7" style="--point-delay: 5.24s" />
+              <circle cx="317" cy="79" r="1.7" style="--point-delay: 5.46s" />
+              <circle cx="330" cy="88" r="1.7" style="--point-delay: 5.68s" />
+              <circle cx="343" cy="72" r="1.7" style="--point-delay: 5.9s" />
+              <circle cx="356" cy="83" r="1.7" style="--point-delay: 6.12s" />
+              <circle cx="369" cy="69" r="1.7" style="--point-delay: 6.34s" />
+              <circle cx="382" cy="76" r="1.7" style="--point-delay: 6.56s" />
+              <circle cx="395" cy="58" r="1.7" style="--point-delay: 6.78s" />
+              <circle cx="407" cy="64" r="1.7" style="--point-delay: 7s" />
+            </g>
+            <g class="gateway-event-stems">
+              <path class="stem-sale" style="--stem-delay: 1.22s" d="M70 158V127" />
+              <path class="stem-sale" style="--stem-delay: 2.32s" d="M135 139V108" />
+              <path class="stem-expired" style="--stem-delay: 2.84s" d="M161 119V151" />
+              <path class="stem-rolled" style="--stem-delay: 4.52s" d="M252 86V54" />
+              <path class="stem-sale" style="--stem-delay: 5.94s" d="M330 88V56" />
+              <path class="stem-closed" style="--stem-delay: 6.9s" d="M382 76V108" />
+            </g>
+            <g class="gateway-event-anchors">
+              <circle class="anchor-sale" cx="70" cy="158" r="2.5" style="--anchor-delay: 1.22s" />
+              <circle class="anchor-sale" cx="135" cy="139" r="2.5" style="--anchor-delay: 2.32s" />
+              <circle class="anchor-expired" cx="161" cy="119" r="2.5" style="--anchor-delay: 2.84s" />
+              <circle class="anchor-rolled" cx="252" cy="86" r="2.5" style="--anchor-delay: 4.52s" />
+              <circle class="anchor-sale" cx="330" cy="88" r="2.5" style="--anchor-delay: 5.94s" />
+              <circle class="anchor-closed" cx="382" cy="76" r="2.5" style="--anchor-delay: 6.9s" />
+            </g>
+            <g class="gateway-chart-links">
+              <path class="gateway-cycle-link cycle-expired" d="M70 127C90 98 135 108 161 151" />
+              <path class="gateway-cycle-link cycle-rolled" d="M135 108C164 73 214 68 252 54" />
+              <path class="gateway-cycle-link cycle-closed" d="M252 54C291 22 357 39 382 108" />
+            </g>
+            <g class="gateway-chart-events">
+              <g class="gateway-chart-event event-sale event-one" style="--event-delay: .15s; --camera-x: 140px; --approach-x: 78px; --apex-x: 18px; --event-yaw: -9deg; --mid-yaw: -4deg; --apex-yaw: 3deg" transform="translate(70 127)"><rect x="-11" y="-11" width="22" height="22" /><text y="1">1</text></g>
+              <g class="gateway-chart-event event-sale event-two" style="--event-delay: 1.1s; --camera-x: 75px; --approach-x: 46px; --apex-x: -13px; --event-yaw: 7deg; --mid-yaw: 3deg; --apex-yaw: -3deg" transform="translate(135 108)"><rect x="-11" y="-11" width="22" height="22" /><text y="1">2</text></g>
+              <g class="gateway-chart-event event-expired event-three" style="--event-delay: 1.62s; --camera-x: 49px; --approach-x: 72px; --apex-x: 22px; --event-yaw: -6deg; --mid-yaw: -3deg; --apex-yaw: 3deg" transform="translate(161 151)"><rect x="-10" y="-10" width="20" height="20" /><text y="1">3</text></g>
+              <g class="gateway-chart-event event-rolled event-four" style="--event-delay: 3.3s; --camera-x: -42px; --approach-x: -70px; --apex-x: -18px; --event-yaw: 8deg; --mid-yaw: 4deg; --apex-yaw: -4deg" transform="translate(252 54)"><rect x="-10" y="-10" width="20" height="20" /><text y="1">4</text></g>
+              <g class="gateway-chart-event event-sale event-five" style="--event-delay: 4.72s; --camera-x: -120px; --approach-x: -67px; --apex-x: 14px; --event-yaw: -8deg; --mid-yaw: -4deg; --apex-yaw: 4deg" transform="translate(330 56)"><rect x="-11" y="-11" width="22" height="22" /><text y="1">5</text></g>
+              <g class="gateway-chart-event event-closed event-six" style="--event-delay: 5.68s; --camera-x: -172px; --approach-x: -91px; --apex-x: -20px; --event-yaw: 7deg; --mid-yaw: 3deg; --apex-yaw: -3deg" transform="translate(382 108)"><rect x="-10" y="-10" width="20" height="20" /><text y="1">6</text></g>
+            </g>
+            <g class="gateway-chart-now">
+              <circle cx="407" cy="64" r="4" />
+              <text x="399" y="53">NOW / $206.84</text>
+            </g>
+            </svg>
+              <button class="gateway-event-hit event-one" type="button" style="--event-x: 15.56%; --event-y: 52.92%; --event-delay: .15s" aria-label="Event 1. Sold one NVIDIA July 17 220 dollar call on July 8. Stock at sale 188 dollars and 60 cents. Premium received 92 dollars. 9 days to expiration.">
+                <span class="gateway-event-mini" aria-hidden="true"><b>#1 SOLD / JUL 08</b><strong>1x NVDA JUL 17 $220C</strong><i><span>STOCK AT SALE</span><em>$188.60</em></i><i><span>PREMIUM</span><em>+$92</em></i><i><span>ENTRY TERM</span><em>9 DTE</em></i><small>OPENED COVERED CALL</small></span>
+              </button>
+              <button class="gateway-event-hit event-two" type="button" style="--event-x: 30%; --event-y: 45%; --event-delay: 1.1s" aria-label="Event 2. Sold one NVIDIA August 21 220 dollar call on July 15. Stock at sale 197 dollars and 75 cents. Premium received 395 dollars. 37 days to expiration.">
+                <span class="gateway-event-mini" aria-hidden="true"><b>#2 SOLD / JUL 15</b><strong>1x NVDA AUG 21 $220C</strong><i><span>STOCK AT SALE</span><em>$197.75</em></i><i><span>PREMIUM</span><em>+$395</em></i><i><span>ENTRY TERM</span><em>37 DTE</em></i><small>OPENED ROLL CHAIN</small></span>
+              </button>
+              <button class="gateway-event-hit event-three" type="button" style="--event-x: 35.78%; --event-y: 62.92%; --event-delay: 1.62s" aria-label="Event 3. The July 17 220 dollar call expired worthless on July 17. NVIDIA closed at 193 dollars and 40 cents. All 92 dollars of premium was kept. Resolves event 1.">
+                <span class="gateway-event-mini" aria-hidden="true"><b>#3 EXPIRED / JUL 17</b><strong>RESOLVES #1 / $220C</strong><i><span>STOCK AT EXPIRY</span><em>$193.40</em></i><i><span>PREMIUM KEPT</span><em>$92</em></i><i><span>CAPTURE</span><em>100%</em></i><small>EXPIRED WORTHLESS</small></span>
+              </button>
+              <button class="gateway-event-hit event-four" type="button" style="--event-x: 56%; --event-y: 22.5%; --event-delay: 3.3s" aria-label="Event 4. Rolled the August 21 220 dollar call to a September 18 230 dollar call on July 29. NVIDIA traded at 203 dollars and 20 cents. Net roll credit 165 dollars. Resolves event 2.">
+                <span class="gateway-event-mini" aria-hidden="true"><b>#4 ROLLED / JUL 29</b><strong>$220C TO SEP 18 $230C</strong><i><span>STOCK AT ROLL</span><em>$203.20</em></i><i><span>NET CREDIT</span><em>+$165</em></i><i><span>NEW TERM</span><em>51 DTE</em></i><small>RESOLVES #2 / OPENS NEXT LEG</small></span>
+              </button>
+              <button class="gateway-event-hit event-five align-right" type="button" style="--event-x: 73.33%; --event-y: 23.33%; --event-delay: 4.72s" aria-label="Event 5. Sold one NVIDIA September 18 240 dollar call on August 5. Stock at sale 201 dollars and 85 cents. Premium received 308 dollars. 44 days to expiration. Still open.">
+                <span class="gateway-event-mini" aria-hidden="true"><b>#5 SOLD / AUG 05</b><strong>1x NVDA SEP 18 $240C</strong><i><span>STOCK AT SALE</span><em>$201.85</em></i><i><span>PREMIUM</span><em>+$308</em></i><i><span>ENTRY TERM</span><em>44 DTE</em></i><small>OPEN / 16.0% ABOVE REFERENCE</small></span>
+              </button>
+              <button class="gateway-event-hit event-six align-right" type="button" style="--event-x: 84.89%; --event-y: 45%; --event-delay: 5.68s" aria-label="Event 6. Closed the September 18 230 dollar call on August 12. NVIDIA reference price 206 dollars and 84 cents. Buyback cost 171 dollars. Resolves event 4.">
+                <span class="gateway-event-mini" aria-hidden="true"><b>#6 CLOSED / AUG 12</b><strong>RESOLVES #4 / $230C</strong><i><span>STOCK AT CLOSE</span><em>$206.84</em></i><i><span>BUYBACK</span><em>-$171</em></i><i><span>STRIKE BUFFER</span><em>11.2%</em></i><small>ROLL CHAIN COMPLETE</small></span>
+              </button>
+            </div>
+            <p class="gateway-market-hint">HOVER A SQUARE FOR DETAILS</p>
+          </div>
+        </figure>
+      </section>
+
+      {% if error %}
+      <div class="source-error" role="alert" aria-live="polite">
+        <b>IMPORT STOPPED</b><span>{{ error }}</span>
+      </div>
+      {% endif %}
+
+      <section class="source-choice-layout" aria-label="Available data sources">
+        <article class="source-live-card{{ ' is-active' if selected_source == 'schwab' else '' }}">
+          <header class="source-card-heading">
+            <div class="source-card-index"><span>01</span><i></i></div>
+            <div>
+              <p>LIVE SCHWAB &middot; DEVELOPER API</p>
+              <h2>{{ 'Open your live Schwab account.' if schwab_ready else 'Connect your approved Schwab app.' }}</h2>
+            </div>
+            <strong class="source-status {{ 'ready' if schwab_ready else 'attention' }}">
+              <i></i>{{ 'CONNECTED' if schwab_ready else ('AUTHORIZE' if schwab_credentials_configured else 'SETUP NEEDED') }}
+            </strong>
+          </header>
+
+          {% if schwab_ready %}
+          <p class="source-card-copy">This computer has a valid Schwab Developer API connection. Open your positions, options, activity, current marks, Greeks, and price history.</p>
+          {% else %}
+          <p class="source-card-copy">This is not a normal Schwab customer login. This early build requires your own approved Schwab Developer app, saved app credentials, and completed authorization.</p>
+          {% endif %}
+
+          <div class="source-capabilities" aria-label="Live Schwab book capabilities">
+            <span>POSITIONS</span>
+            <span>OPTIONS</span>
+            <span>ACTIVITY</span>
+            <span>MARKET DATA</span>
+            <span>HISTORY</span>
+          </div>
+
+          <footer>
+            <div class="source-privacy-note">
+              <b>SCHWAB HANDLES THE LOGIN</b>
+              <span>Incoooming uses your local OAuth token. It never asks for your Schwab password.</span>
+            </div>
+            <form action="/sources/select" method="post">
+              <input type="hidden" name="source_key" value="schwab">
+              <button type="submit">{{ 'OPEN LIVE ACCOUNT' if schwab_ready else 'OPEN API SETUP' }} <span>&rarr;</span></button>
+            </form>
+          </footer>
+        </article>
+
+        <aside class="source-side-stack">
+          <details class="source-disclosure source-csv-card"{{ ' open' if error else '' }}>
+            <summary>
+              <span class="source-card-index"><b>02</b><i></i></span>
+              <span class="disclosure-copy"><small>BROKER CSV</small><strong>Bring your own ledger.</strong><em>Upload positions and activity. Files stay on this computer.</em></span>
+              <span class="disclosure-state">LOCAL <i></i></span>
+            </summary>
+            <div class="source-disclosure-body">
+              <form action="/sources/csv" method="post" enctype="multipart/form-data" class="csv-import-form">
+                <label>BOOK NAME<input name="dataset_name" maxlength="120" placeholder="Robinhood taxable &mdash; Aug 2026" required></label>
+                <fieldset class="broker-choice-field">
+                  <legend>WHERE DID THE FILE COME FROM?</legend>
+                  <div class="broker-choice-grid">
+                    <label><input type="radio" name="broker" value="schwab" checked><span><b>SCHWAB</b><small>BOOK LABEL</small></span></label>
+                    <label><input type="radio" name="broker" value="fidelity"><span><b>FIDELITY</b><small>BOOK LABEL</small></span></label>
+                    <label><input type="radio" name="broker" value="robinhood"><span><b>ROBINHOOD</b><small>BOOK LABEL</small></span></label>
+                    <label><input type="radio" name="broker" value="generic"><span><b>GENERIC</b><small>OUR TEMPLATE</small></span></label>
+                  </div>
+                  <p class="source-profile-truth"><b>THE BROKER NAME IS A LABEL ONLY.</b> All four choices currently use the same column-detected importer. Broker-specific formats are not yet certified.</p>
+                </fieldset>
+                <label class="csv-file-field">CSV FILES
+                  <input name="files" type="file" accept=".csv,text/csv" multiple required data-source-files>
+                  <small data-source-file-status>No files selected &middot; 10 MB per file</small>
+                </label>
+                <button type="submit">IMPORT LOCAL BOOK <span>&rarr;</span></button>
+              </form>
+              <nav class="source-export-help" aria-label="Official broker export help">
+                <span>EXPORT HELP</span>
+                <a href="https://help.streetsmart.schwab.com/edge/printablemanuals/edgemanual.pdf" target="_blank" rel="noopener">SCHWAB</a>
+                <a href="https://www.fidelity.com/webxpress/help/topics/learn_portfolio_positions.shtml" target="_blank" rel="noopener">FIDELITY</a>
+                <a href="https://robinhood.com/us/en/support/articles/finding-your-account-documents/" target="_blank" rel="noopener">ROBINHOOD</a>
+              </nav>
+              <footer class="source-template-links">
+                <span>NEED THE FORMAT?</span>
+                <a href="/sources/templates/positions.csv">POSITIONS TEMPLATE &darr;</a>
+                <a href="/sources/templates/activity.csv">ACTIVITY TEMPLATE &darr;</a>
+              </footer>
+            </div>
+          </details>
+
+          <article class="source-demo-card{{ ' is-active' if selected_source == 'demo' else '' }}">
+            <div class="source-card-index"><span>03</span><i></i></div>
+            <div>
+              <p>DEMO</p>
+              <h2>Kick the tires with fake money.</h2>
+              <span>Fictional CVX, KTOS, and URNM. Real dashboard machinery; zero brokerage connection.</span>
+            </div>
+            <form action="/sources/select" method="post">
+              <input type="hidden" name="source_key" value="demo">
+              <button type="submit" aria-label="Open demo book">OPEN DEMO <span>&rarr;</span></button>
+            </form>
+          </article>
+        </aside>
+      </section>
+
+      {% if datasets %}
+      <section class="imported-books">
+        <header>
+          <div><p class="eyebrow">LOCAL LIBRARY</p><h2>Your imported books</h2></div>
+          <span>RAW ROWS + NORMALIZED RECORDS REMAIN AUDITABLE</span>
+        </header>
+        <div>
+          {% for dataset in datasets %}
+          <article class="{{ 'is-active' if selected_source == 'csv:' ~ dataset.id else '' }}">
+            <div>
+              <b>{{ dataset.name }}</b>
+              <span>{{ dataset.broker.value | upper }} &middot; {{ dataset.created_at | short_date }}</span>
+            </div>
+            <dl>
+              <div><dt>POSITIONS</dt><dd>{{ dataset.position_count }}</dd></div>
+              <div><dt>ACTIVITY</dt><dd>{{ dataset.activity_count }}</dd></div>
+              <div><dt>FILES</dt><dd>{{ dataset.file_count }}</dd></div>
+              <div><dt>STATE</dt><dd class="{{ 'positive' if dataset.state.value == 'ready' else 'muted' }}">{{ dataset.state.value | upper }}</dd></div>
+            </dl>
+            {% if dataset.warnings %}<p>{{ dataset.warnings[0] }}</p>{% endif %}
+            <form action="/sources/select" method="post">
+              <input type="hidden" name="source_key" value="csv:{{ dataset.id }}">
+              <button type="submit">OPEN BOOK <span>&rarr;</span></button>
+            </form>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      <aside class="source-boundary">
+        <div><span></span><b>YOUR LOGIN STAYS WITH THE BROKER</b></div>
+        <p>This local build never collects brokerage passwords. Live Schwab requires your approved Developer app and OAuth. CSV reads only the files you select.</p>
+        <span>LOCAL / READ ONLY / NO ORDER PATH</span>
+      </aside>
+    </main>
+  </body>
+</html>

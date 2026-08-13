@@ -41,6 +41,10 @@ def build_neutral_roll_scenarios(
         )
         candidates.append(
             RollScenario(
+                source_option_symbol=call.record_id,
+                source_expiration=call.expires_on,
+                source_strike=call.strike,
+                source_contracts=call.contracts,
                 target_expiration=quote.expires_on,
                 target_strike=quote.strike,
                 strike_lift_per_share=strike_lift,

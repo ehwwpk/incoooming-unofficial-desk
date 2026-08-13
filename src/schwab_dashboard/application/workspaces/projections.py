@@ -8,7 +8,10 @@ from schwab_dashboard.application.dashboard.covered_calls import (
     OpenCallClock,
     UnderlyingCallStats,
 )
-from schwab_dashboard.application.dashboard.models import DashboardSnapshot
+from schwab_dashboard.application.dashboard.models import (
+    DashboardSnapshot,
+    LiveOpenOptionPosition,
+)
 from schwab_dashboard.application.policy.evaluate import evaluate_policy_fit
 from schwab_dashboard.application.policy.models import CallPolicy
 from schwab_dashboard.application.volatility.calculate import analyze_volatility_history
@@ -76,9 +79,32 @@ class OpenCallGroup:
 
 
 @dataclass(frozen=True, slots=True)
+class OpenPutRow:
+    option_symbol: str
+    symbol: str
+    contracts: int
+    strike: Decimal
+    expires_on: date
+    days_to_expiration: int
+    obligated_shares: int
+    strike_distance_per_share: Decimal
+    strike_distance_percent: Decimal
+    entry_credit: Decimal
+    current_liability: Decimal
+    open_profit_loss: Decimal
+    theta_estimate_per_day: Decimal
+    option_value_vs_credit_percent: Decimal
+
+
+@dataclass(frozen=True, slots=True)
 class OpenBookProjection:
     rows: tuple[OpenCallRow, ...]
     groups: tuple[OpenCallGroup, ...]
+    put_rows: tuple[OpenPutRow, ...]
+    total_positions: int
+    total_contracts: int
+    call_contracts: int
+    put_contracts: int
     obligated_shares: int
     entry_credit: Decimal
     current_liability: Decimal
@@ -143,15 +169,78 @@ def build_open_book(snapshot: DashboardSnapshot) -> OpenBookProjection:
             )
         )
     grouped_rows = tuple(row for group in groups for row in group.rows)
+    put_rows = tuple(
+        _open_put_row(put)
+        for put in (
+            snapshot.live_position_book.puts
+            if snapshot.live_position_book is not None
+            else ()
+        )
+    )
+    call_contracts = sum((row.contracts for row in grouped_rows), 0)
+    put_contracts = sum((row.contracts for row in put_rows), 0)
     return OpenBookProjection(
         rows=grouped_rows,
         groups=tuple(groups),
-        obligated_shares=sum((row.obligated_shares for row in grouped_rows), 0),
-        entry_credit=sum((row.entry_credit for row in grouped_rows), Decimal(0)),
-        current_liability=sum((row.current_liability for row in grouped_rows), Decimal(0)),
-        open_profit_loss=sum((row.open_profit_loss for row in grouped_rows), Decimal(0)),
+        put_rows=put_rows,
+        total_positions=len(grouped_rows) + len(put_rows),
+        total_contracts=call_contracts + put_contracts,
+        call_contracts=call_contracts,
+        put_contracts=put_contracts,
+        obligated_shares=sum((row.obligated_shares for row in grouped_rows), 0)
+        + sum((row.obligated_shares for row in put_rows), 0),
+        entry_credit=sum((row.entry_credit for row in grouped_rows), Decimal(0))
+        + sum((row.entry_credit for row in put_rows), Decimal(0)),
+        current_liability=sum(
+            (row.current_liability for row in grouped_rows), Decimal(0)
+        )
+        + sum((row.current_liability for row in put_rows), Decimal(0)),
+        open_profit_loss=sum(
+            (row.open_profit_loss for row in grouped_rows), Decimal(0)
+        )
+        + sum((row.open_profit_loss for row in put_rows), Decimal(0)),
         theta_estimate_per_day=sum(
             (row.theta_estimate_per_day for row in grouped_rows), Decimal(0)
+        )
+        + sum((row.theta_estimate_per_day for row in put_rows), Decimal(0)),
+    )
+
+
+def _open_put_row(option: LiveOpenOptionPosition) -> OpenPutRow:
+    entry_credit = (
+        (option.entry_credit_per_share or Decimal(0))
+        * Decimal("100")
+        * Decimal(option.contracts)
+    )
+    current_liability = abs(
+        option.market_value
+        if option.market_value is not None
+        else (option.estimated_mark_per_share or Decimal(0))
+        * Decimal("100")
+        * Decimal(option.contracts)
+    )
+    return OpenPutRow(
+        option_symbol=option.option_symbol,
+        symbol=option.underlying_symbol,
+        contracts=option.contracts,
+        strike=option.strike,
+        expires_on=option.expires_on,
+        days_to_expiration=option.days_to_expiration,
+        obligated_shares=option.contracts * 100,
+        strike_distance_per_share=option.strike_distance_per_share or Decimal(0),
+        strike_distance_percent=option.strike_distance_percent or Decimal(0),
+        entry_credit=entry_credit,
+        current_liability=current_liability,
+        open_profit_loss=option.open_profit_loss or Decimal(0),
+        theta_estimate_per_day=(
+            -(option.theta_per_share or Decimal(0))
+            * Decimal("100")
+            * Decimal(option.contracts)
+        ),
+        option_value_vs_credit_percent=(
+            current_liability / entry_credit * Decimal("100")
+            if entry_credit
+            else Decimal(0)
         ),
     )
 

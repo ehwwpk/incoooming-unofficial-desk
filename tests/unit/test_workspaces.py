@@ -27,9 +27,10 @@ def test_workspace_catalog_keeps_stable_keys_separate_from_labels() -> None:
     assert [item.key for item in workspaces] == list(WorkspaceKey)
     assert len({item.route for item in workspaces}) == len(workspaces)
     assert len({item.window_name for item in workspaces}) == len(workspaces)
-    assert get_workspace(WorkspaceKey.RISK).label == "Open Calls"
+    assert get_workspace(WorkspaceKey.RISK).label == "Open Options"
     assert get_workspace(WorkspaceKey.ATTRIBUTION).label == "Results"
     assert get_workspace(WorkspaceKey.RECORDS).label == "Data Health"
+    assert get_workspace(WorkspaceKey.RADAR).label == "Premium Radar"
     assert get_workspace(WorkspaceKey.RISK).route == "/workspaces/risk"
     assert get_workspace(WorkspaceKey.RECORDS).window_name == "iud-source-ledger"
 
@@ -112,7 +113,9 @@ def test_desk_overview_includes_short_puts_without_corrupting_call_coverage() ->
         (*snapshot.positions, put),
         as_of=snapshot.as_of.date(),
     )
-    overview = build_desk_overview(replace(snapshot, live_position_book=live_book))
+    snapshot_with_put = replace(snapshot, live_position_book=live_book)
+    overview = build_desk_overview(snapshot_with_put)
+    open_book = build_open_book(snapshot_with_put)
 
     assert overview.open_put_positions == 1
     assert overview.open_put_contracts == 1
@@ -121,6 +124,12 @@ def test_desk_overview_includes_short_puts_without_corrupting_call_coverage() ->
     assert overview.open_call_contracts == snapshot.covered_calls.active_contracts
     assert overview.coverage_percent == snapshot.covered_calls.coverage_percent
     assert overview.open_mark_profit_loss == snapshot.covered_calls.open_mark_profit_loss - 50
+    assert open_book.put_contracts == 1
+    assert open_book.call_contracts == snapshot.covered_calls.active_contracts
+    assert open_book.total_contracts == snapshot.covered_calls.active_contracts + 1
+    assert open_book.total_positions == len(open_book.rows) + 1
+    assert open_book.put_rows[0].symbol == "URNM"
+    assert open_book.put_rows[0].days_to_expiration == 42
 
 
 def test_volatility_projection_uses_daily_closes_and_refuses_to_invent_iv_rank() -> None:

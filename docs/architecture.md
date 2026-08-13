@@ -7,20 +7,34 @@ Get real Schwab account and position data into an auditable local ledger with th
 ## Runtime shape
 
 ```text
-CLI / local web UI
+CLI / source gateway / local web UI
         |
 application services
         |
 domain contracts and ports
    /                 \
-Schwab read adapter   SQLite repositories
+source adapters       SQLite repositories
    |                       |
 Schwab OAuth/API      append-only raw events + derived snapshots
+CSV staging parser    isolated imported books
+Radar market port     isolated lookup runs + candidate evidence
 ```
 
 This is a modular monolith: one local process and one database, with explicit internal boundaries. A service split would slow the personal-use milestone without improving correctness.
 
+The live process owns one serialized full-sync coordinator. It runs once shortly after server
+startup, repeats on a bounded interval, and accepts manual refresh requests through the same lock.
+Browser GET requests remain read-only projections over SQLite; they never wait on Schwab directly.
+
 Demo mode is a separate read adapter implementing the same dashboard contract. It does not call Schwab, create sync runs, or write SQLite records. Removing demo mode later will not change the API or templates.
+
+CSV imports are immutable source datasets. Each import stages files and normalized records under a
+dataset identifier, then projects that dataset through the same dashboard contract. Selecting a CSV
+book changes the reader; it never copies rows into or combines them with the live Schwab ledger.
+
+Premium Radar has a separate market-data gateway, HTTP client, cache, persistence tables, and
+explicit request route. It may read the active dashboard snapshot for account context, but it is not
+registered with the recurring account sync coordinator.
 
 ## Module responsibilities
 
@@ -35,18 +49,19 @@ Demo mode is a separate read adapter implementing the same dashboard contract. I
 
 ## Initial data flow
 
-1. Create a `sync_run` in `running` state.
+1. Create a `schwab_full` sync run in `running` state and acquire the in-process sync lock.
 2. Request the account-number/hash mapping and accounts with positions from Schwab.
-3. Store one immutable raw event per returned account before normalization.
-4. Map the response into broker-neutral account and position values.
-5. Upsert the account identity using the Schwab account hash; persist a point-in-time position snapshot.
-6. Reconcile duplicate/malformed position identities and persist issues.
-7. Commit the unit of work and mark the run completed. Any failure rolls back normalized writes and records a failed run in a separate transaction.
+3. Store immutable raw account events before normalizing point-in-time account, balance, and position snapshots.
+4. Fetch one year of transaction history in bounded windows and normalize executions, cash movements, and lifecycle events.
+5. Fetch current underlying quotes, bounded option chains and Greeks, plus daily underlying history.
+6. Commit each auditable ingestion stage and its reconciliation evidence.
+7. Mark `schwab_full` completed only after all stages succeed. Any exception persists a failed full run, remains visible in the UI, and does not replace the latest known-good full snapshot.
 
 ## Near-term extension points
 
 - Transactions become another raw event type and normalization service.
-- CSV imports implement the same broker-event ingestion port.
+- CSV imports can graduate from the isolated staging contract into the canonical ledger only after
+  broker-specific fixtures and reconciliation checks are verified.
 - Campaigns consume normalized executions; they never parse Schwab payloads.
 - Quotes and chains use a separate market-data port and storage policy.
 - A replacement UI consumes the same local API; it does not require ledger changes.

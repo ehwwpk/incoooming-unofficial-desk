@@ -50,6 +50,16 @@
 .expiration-buckets span { color: var(--muted); font: .47rem/1.35 var(--mono); }
 
 .open-call-register { display: grid; }
+.open-put-register { border-top: 2px solid var(--gold-soft); background: var(--call-panel); }
+.open-put-register > header { display: flex; min-height: 34px; align-items: center; justify-content: space-between; padding: 7px 13px; border-bottom: 1px solid var(--line-strong); background: #0a0c0e; }
+.open-put-register > header b { color: var(--gold); font: 750 .48rem var(--mono); letter-spacing: .07em; }
+.open-put-register > header span { color: var(--call-label); font: 650 .43rem var(--mono); }
+.open-put-row { display: grid; grid-template-columns: 1.05fr .8fr 1.1fr .9fr; min-height: 58px; border-bottom: 2px solid var(--line-strong); background: var(--call-panel); }
+.open-put-row:last-child { border-bottom: 0; }
+.open-put-row > div { display: grid; min-width: 0; align-content: center; gap: 3px; padding: 8px 13px; border-right: 1px solid var(--line); }
+.open-put-row > div:last-child { border-right: 0; }
+.open-put-row span, .open-put-row small { overflow: hidden; color: var(--call-label); font: 650 .43rem/1.25 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
+.open-put-row b { font: 750 .58rem/1.2 var(--mono); }
 .open-call-group { border-top: 1px solid var(--line-strong); background: var(--call-panel); }
 .open-call-group:first-child { border-top: 0; }
 .open-call-group > header {
@@ -203,6 +213,9 @@
   .call-fact-strip > div:nth-child(2) { border-right: 0; }
   .call-fact-strip > div:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
   .call-context-line { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .open-put-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .open-put-row > div:nth-child(2) { border-right: 0; }
+  .open-put-row > div:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
 }
 
 @media (max-width: 620px) {
@@ -213,4 +226,6 @@
   .contract-clock footer span { display: none; }
   .call-fact-strip { grid-template-columns: 1fr; }
   .call-fact-strip > div { border-right: 0; border-bottom: 1px solid var(--line); }
+  .open-put-row { grid-template-columns: 1fr; }
+  .open-put-row > div { border-right: 0; border-bottom: 1px solid var(--line); }
 }

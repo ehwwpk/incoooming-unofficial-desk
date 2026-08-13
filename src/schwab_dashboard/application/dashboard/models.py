@@ -37,6 +37,7 @@ class PortfolioSummary:
     option_value: Decimal
     day_profit_loss: Decimal
     day_profit_loss_percent: Decimal
+    day_external_cash_flow: Decimal = Decimal("0")
     gross_position_value: Decimal = Decimal("0")
     net_position_value: Decimal = Decimal("0")
     liquidation_value: Decimal | None = None
@@ -275,6 +276,7 @@ class DashboardSnapshot:
     allocations: Sequence[AllocationSlice]
     risk: RiskSummary
     live_position_book: LivePositionBook | None = None
+    latest_sync_attempt: SyncRunSummary | None = None
 
     @property
     def is_demo(self) -> bool:

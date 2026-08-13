@@ -13,7 +13,8 @@
   const headerSymbol = panel.querySelector("[data-nibwick-header-symbol]");
   const headerLevel = panel.querySelector("[data-nibwick-header-level]");
   const announcement = document.querySelector("[data-nibwick-announcement]");
-  const unreadCountElement = badge.querySelector("[data-nibwick-unread-count]");
+  const activeCountElement = badge.querySelector("[data-nibwick-active-count]");
+  const rosterButtons = [...panel.querySelectorAll("[data-nibwick-note-jump]")];
   const stateStorageKey = "incoooming:nibwick-alert-state:v1";
   const currentAlertIds = new Set(notes.map((note) => note.dataset.alertId));
   const readAlertIds = new Set();
@@ -22,6 +23,7 @@
   let activeIndex = 0;
   let returnFocus = null;
   let linkedCard = null;
+  let pendingSymbolIndex = null;
 
   try {
     const storedState = JSON.parse(window.localStorage.getItem(stateStorageKey) || "{}");
@@ -48,32 +50,39 @@
   const renderUnreadState = () => {
     const unreadCount = notes.filter((note) => !readAlertIds.has(note.dataset.alertId)).length;
     const nextUnreadNote = notes.find((note) => !readAlertIds.has(note.dataset.alertId));
-    badge.hidden = unreadCount === 0;
-    if (unreadCountElement) unreadCountElement.textContent = String(unreadCount);
+    const symbols = [...new Set(notes.map((note) => note.dataset.alertSymbol))];
+    badge.hidden = false;
+    badge.dataset.newCount = String(unreadCount);
+    if (activeCountElement) activeCountElement.textContent = String(notes.length);
     badge.setAttribute(
       "aria-label",
-      unreadCount
-        ? `Open Nibwick's ${unreadCount} unread ${unreadCount === 1 ? "note" : "notes"}`
-        : "All Nibwick notes reviewed",
+      `Open Nibwick's ${notes.length} active ${notes.length === 1 ? "note" : "notes"}; ${unreadCount} new`,
     );
+    rosterButtons.forEach((button) => {
+      const note = notes[Number(button.dataset.alertIndex)];
+      const reviewed = note ? readAlertIds.has(note.dataset.alertId) : false;
+      button.dataset.reviewState = reviewed ? "reviewed" : "new";
+      const state = button.querySelector("[data-nibwick-roster-state]");
+      if (state) state.textContent = reviewed ? "SEEN" : "NEW";
+    });
     summaryTriggers.forEach((trigger) => {
       const count = trigger.querySelector("[data-nibwick-summary-count]");
       const detail = trigger.querySelector("[data-nibwick-summary-detail]");
-      if (count) count.textContent = unreadCount ? `${unreadCount} TO REVIEW` : "ALL REVIEWED";
+      if (count) count.textContent = `${notes.length} ACTIVE`;
       if (detail) {
         detail.textContent = nextUnreadNote
-          ? `${nextUnreadNote.dataset.alertSymbol} · ${nextUnreadNote.dataset.alertHeadline || "Desk note"}`
-          : "No unread desk notes";
+          ? `${unreadCount} NEW · ${nextUnreadNote.dataset.alertSymbol} · ${nextUnreadNote.dataset.alertHeadline || "Desk note"}`
+          : `SEEN · ${symbols.join(" · ")} STILL ACTIVE`;
       }
       trigger.setAttribute(
         "aria-label",
-        unreadCount ? `Open ${unreadCount} unread Nibwick ${unreadCount === 1 ? "note" : "notes"}` : "Open reviewed Nibwick notes",
+        `Open ${notes.length} active Nibwick ${notes.length === 1 ? "note" : "notes"}; ${unreadCount} new`,
       );
     });
     stage.dataset.notesRead = unreadCount === 0 ? "true" : "false";
     if (unreadCount === 0) {
       delete stage.dataset.attention;
-      if (announcement) announcement.textContent = "All Nibwick notes reviewed.";
+      if (announcement) announcement.textContent = `All ${notes.length} active Nibwick notes reviewed.`;
     }
   };
 
@@ -155,6 +164,10 @@
       headerLevel.textContent = activeNote.dataset.alertLevelLabel;
       headerLevel.className = `nibwick-popover-level ${activeNote.dataset.alertLevel}`;
     }
+    rosterButtons.forEach((button, buttonIndex) => {
+      if (buttonIndex === activeIndex) button.setAttribute("aria-current", "true");
+      else button.removeAttribute("aria-current");
+    });
     if (!panel.hidden) markNoteRead(activeIndex);
     linkActiveCard();
     positionPanel();
@@ -165,7 +178,10 @@
     panel.hidden = false;
     document.body.dataset.nibwickPopoverOpen = "true";
     delete stage.dataset.attention;
-    markNoteRead(activeIndex);
+    const nextUnreadIndex = notes.findIndex((note) => !readAlertIds.has(note.dataset.alertId));
+    const requestedIndex = returnFocus === nibwick || returnFocus === badge ? pendingSymbolIndex : null;
+    showNote(requestedIndex ?? (nextUnreadIndex >= 0 ? nextUnreadIndex : activeIndex));
+    pendingSymbolIndex = null;
     setExpanded(true);
     linkActiveCard();
     positionPanel();
@@ -205,7 +221,7 @@
     ) {
       return;
     }
-    showNote(index);
+    pendingSymbolIndex = index;
     seenSymbols.add(symbol);
     stage.dataset.attention = "true";
     badge.setAttribute("aria-label", `Open Nibwick's ${symbol} note`);
@@ -220,6 +236,9 @@
   });
   panel.querySelectorAll("[data-nibwick-note-next]").forEach((button) => {
     button.addEventListener("click", () => showNote(activeIndex + 1));
+  });
+  rosterButtons.forEach((button) => {
+    button.addEventListener("click", () => showNote(Number(button.dataset.alertIndex)));
   });
   panel.querySelectorAll("[data-nibwick-show-name]").forEach((link) => {
     link.addEventListener("click", () => {
@@ -238,6 +257,11 @@
   });
   panel.querySelectorAll("[data-nibwick-ack]").forEach((button) => {
     button.addEventListener("click", () => setResolution("acknowledged"));
+  });
+  panel.querySelectorAll("[data-nibwick-roll-review]").forEach((link) => {
+    link.addEventListener("click", () => {
+      markNoteRead(activeIndex);
+    });
   });
   panel.querySelectorAll("[data-nibwick-snooze]").forEach((button) => {
     button.addEventListener("click", () => setResolution("snoozed"));

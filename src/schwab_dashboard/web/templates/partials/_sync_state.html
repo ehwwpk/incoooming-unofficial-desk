@@ -1,0 +1,29 @@
+{% set latest_attempt = snapshot.latest_sync_attempt %}
+{% set latest_success = snapshot.latest_sync %}
+{% set attempt_failed = latest_attempt and latest_attempt.status == 'failed' %}
+{% set interval_seconds = sync_runtime.interval_seconds | default(900) %}
+<div class="session-state" data-sync-status-root>
+  <div class="sync-state-line">
+    {% if snapshot.is_demo %}
+    <b class="muted" data-sync-state>DEMO SOURCE</b>
+    {% elif snapshot.mode == 'csv' %}
+    <b class="positive" data-sync-state>CSV BOOK</b>
+    {% elif not snapshot.token_available %}
+    <b class="negative" data-sync-state>RECONNECT SCHWAB</b>
+    {% elif attempt_failed %}
+    <b class="negative" data-sync-state>SYNC ATTENTION</b>
+    {% elif latest_success %}
+    <b class="positive" data-sync-state>SYNCED</b>
+    {% else %}
+    <b class="muted" data-sync-state>WAITING TO SYNC</b>
+    {% endif %}
+    <a href="/sources" class="source-switch" title="Current book: {{ active_source_label }}. Open another broker connection, CSV book, or demo.">BOOK</a>
+    {% if snapshot.mode == 'live' %}
+    <form action="/sync" method="post"><button type="submit" data-sync-now>SYNC NOW</button></form>
+    {% endif %}
+  </div>
+  <small>
+    <span class="source-label">{{ active_source_label | upper }}</span>
+    <span data-sync-detail>{% if snapshot.is_demo %}SIMULATION{% elif snapshot.mode == 'csv' %}IMPORTED {{ snapshot.as_of | short_date }}{% elif latest_success %}{{ snapshot.as_of | short_date }} / AUTO {{ (interval_seconds / 60) | int }}M{% else %}NO SUCCESSFUL SNAPSHOT{% endif %}</span>
+  </small>
+</div>

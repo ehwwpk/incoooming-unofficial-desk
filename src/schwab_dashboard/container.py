@@ -5,10 +5,21 @@ from sqlalchemy import inspect
 
 from schwab_dashboard.application.errors import AuthenticationRequiredError
 from schwab_dashboard.application.ports.dashboard import DashboardReader
+from schwab_dashboard.application.ports.opportunity_market import OpportunityMarketGateway
+from schwab_dashboard.application.services.full_sync import (
+    FullSyncCoordinator,
+    FullSyncResult,
+)
+from schwab_dashboard.application.services.import_csv_dataset import ImportCsvDataset
 from schwab_dashboard.application.services.read_dashboard import ReadDashboard
 from schwab_dashboard.application.services.record_ledger_activity import RecordLedgerActivity
 from schwab_dashboard.application.services.record_market_observations import (
     RecordMarketObservations,
+)
+from schwab_dashboard.application.services.run_premium_radar import (
+    AuthorizationRequiredOpportunityMarketGateway,
+    RadarDefaults,
+    RunPremiumRadar,
 )
 from schwab_dashboard.application.services.sync_accounts import SyncAccountsAndPositions
 from schwab_dashboard.application.services.sync_market import SyncSchwabMarketData
@@ -23,11 +34,15 @@ from schwab_dashboard.infrastructure.database.engine import (
     create_database_engine,
     create_session_factory,
 )
+from schwab_dashboard.infrastructure.database.opportunity_store import SqlOpportunityStore
+from schwab_dashboard.infrastructure.database.source_store import SqlSourceDatasetStore
 from schwab_dashboard.infrastructure.database.uow import build_uow_factory
 from schwab_dashboard.infrastructure.database.uow_market import build_market_uow_factory
 from schwab_dashboard.infrastructure.database.uow_truth import build_truth_uow_factory
 from schwab_dashboard.infrastructure.database.uow_workspace import build_workspace_uow_factory
 from schwab_dashboard.infrastructure.demo.dashboard import DemoDashboardReader
+from schwab_dashboard.infrastructure.demo.opportunity import DemoOpportunityMarketGateway
+from schwab_dashboard.infrastructure.imports import CsvDashboardReader
 from schwab_dashboard.infrastructure.schwab.gateway import (
     SchwabBrokerGateway,
     SchwabReadOnlyMarketDataClient,
@@ -36,6 +51,9 @@ from schwab_dashboard.infrastructure.schwab.gateway import (
 from schwab_dashboard.infrastructure.schwab.mapper import SchwabAccountMapper
 from schwab_dashboard.infrastructure.schwab.market_mapper import SchwabMarketMapper
 from schwab_dashboard.infrastructure.schwab.oauth import SchwabOAuthClient
+from schwab_dashboard.infrastructure.schwab.opportunity_gateway import (
+    SchwabOpportunityMarketGateway,
+)
 from schwab_dashboard.infrastructure.schwab.transaction_mapper import SchwabTransactionMapper
 from schwab_dashboard.infrastructure.secrets.keyring_tokens import KeyringTokenStore
 
@@ -56,7 +74,19 @@ class Container:
         self._oauth_http = httpx.Client(timeout=30.0, follow_redirects=False)
         self._trader_http = httpx.Client(timeout=30.0, follow_redirects=False)
         self._market_http = httpx.Client(timeout=30.0, follow_redirects=False)
+        self._radar_http = httpx.Client(timeout=30.0, follow_redirects=False)
         self.oauth = self._build_oauth()
+        self.opportunity_store = SqlOpportunityStore(self.session_factory)
+        self.source_store = SqlSourceDatasetStore(self.session_factory)
+        self._radar_service = self._build_radar_service()
+        self.sync_coordinator = FullSyncCoordinator(
+            accounts_factory=self.sync_accounts,
+            activity_factory=self.sync_transactions,
+            market_factory=self.sync_market_data,
+            enabled=self.settings.auto_sync_enabled and not self.settings.demo_mode,
+            interval_seconds=self.settings.auto_sync_interval_seconds,
+            uow_factory=self.uow_factory,
+        )
 
     def database_ready(self) -> bool:
         try:
@@ -70,8 +100,15 @@ class Container:
                 "instruments",
                 "option_lifecycle_events",
                 "option_market_snapshots",
+                "radar_candidate_snapshots",
+                "radar_lookup_runs",
+                "radar_policies",
+                "radar_saved_symbols",
                 "raw_broker_events",
                 "raw_market_events",
+                "source_datasets",
+                "source_import_files",
+                "source_import_records",
                 "sync_runs",
                 "underlying_market_snapshots",
                 "underlying_daily_bars",
@@ -81,9 +118,14 @@ class Container:
         except Exception:
             return False
 
-    def read_dashboard(self) -> DashboardReader:
-        if self.settings.demo_mode:
+    def read_dashboard(self, source_key: str | None = None) -> DashboardReader:
+        if self.settings.demo_mode or source_key == "demo":
             return DemoDashboardReader()
+        if source_key and source_key.startswith("csv:"):
+            return CsvDashboardReader(
+                store=self.source_store,
+                dataset_id=source_key.removeprefix("csv:"),
+            )
         return ReadDashboard(
             uow_factory=self.uow_factory,
             analytics_reader=SqlLiveAnalyticsReader(self.session_factory),
@@ -142,11 +184,23 @@ class Container:
             parser_version=self.settings.market_parser_version,
         )
 
+    def sync_full(self, *, trigger: str) -> FullSyncResult:
+        return self.sync_coordinator.execute(trigger=trigger)
+
+    def token_available(self) -> bool:
+        return self.oauth.token_available() if self.oauth is not None else False
+
     def save_workspace_preferences(self) -> SaveWorkspacePreferences:
         return SaveWorkspacePreferences(uow_factory=self.workspace_uow_factory)
 
     def load_workspace_preferences(self) -> LoadWorkspacePreferences:
         return LoadWorkspacePreferences(uow_factory=self.workspace_uow_factory)
+
+    def premium_radar(self) -> RunPremiumRadar:
+        return self._radar_service
+
+    def import_csv_dataset(self) -> ImportCsvDataset:
+        return ImportCsvDataset(store=self.source_store)
 
     def require_oauth(self) -> SchwabOAuthClient:
         if self.oauth is None:
@@ -159,7 +213,50 @@ class Container:
         self._oauth_http.close()
         self._trader_http.close()
         self._market_http.close()
+        self._radar_http.close()
         self.engine.dispose()
+
+    def _build_radar_service(self) -> RunPremiumRadar:
+        market: OpportunityMarketGateway
+        if self.settings.demo_mode:
+            market = DemoOpportunityMarketGateway()
+            source = "demo"
+        elif self.oauth is None:
+            market = AuthorizationRequiredOpportunityMarketGateway()
+            source = "schwab"
+        else:
+            market = SchwabOpportunityMarketGateway(
+                client=SchwabReadOnlyMarketDataClient(
+                    base_url=self.settings.market_data_base_url,
+                    oauth=self.oauth,
+                    http_client=self._radar_http,
+                ),
+                mapper=SchwabMarketMapper(),
+                recorder=self.record_market_observations(),
+                parser_version=f"{self.settings.market_parser_version}-radar",
+                cache_seconds=self.settings.radar_cache_seconds,
+            )
+            source = "schwab"
+        return RunPremiumRadar(
+            market=market,
+            store=self.opportunity_store,
+            dashboard_factory=self.read_dashboard,
+            defaults=RadarDefaults(
+                minimum_dte=self.settings.radar_minimum_dte,
+                maximum_dte=self.settings.radar_maximum_dte,
+                minimum_annualized_rate_percent=(
+                    self.settings.radar_minimum_annualized_rate_percent
+                ),
+                maximum_spread_percent=self.settings.radar_maximum_spread_percent,
+                minimum_open_interest=self.settings.radar_minimum_open_interest,
+                minimum_volume=self.settings.radar_minimum_volume,
+                maximum_quote_age_seconds=self.settings.radar_maximum_quote_age_seconds,
+                maximum_five_day_move_percent=(
+                    self.settings.radar_maximum_five_day_move_percent
+                ),
+            ),
+            source=source,
+        )
 
     def _build_oauth(self) -> SchwabOAuthClient | None:
         if not self.settings.schwab_credentials_configured:

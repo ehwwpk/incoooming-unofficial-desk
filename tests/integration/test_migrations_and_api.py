@@ -35,7 +35,9 @@ def test_initial_migration_supports_local_api(tmp_path: Path) -> None:
             "workspace_preferences",
         } <= set(inspect(container.engine).get_table_names())
 
-        live, ready, dashboard, page = asyncio.run(_request_initial_routes(container))
+        live, ready, dashboard, sync_status, page = asyncio.run(
+            _request_initial_routes(container)
+        )
         assert live.json() == {"status": "ok"}
         assert ready.json() == {"status": "ready"}
         payload = dashboard.json()
@@ -45,8 +47,14 @@ def test_initial_migration_supports_local_api(tmp_path: Path) -> None:
         assert payload["cash_activity_windows"] == []
         assert payload["cash_chart_series"] == []
         assert payload["policies"] == []
+        assert sync_status.status_code == 200
+        assert sync_status.json()["state"] == "authorization_required"
+        assert sync_status.json()["interval_seconds"] == 900
         assert page.status_code == 200
-        assert "Schwab approval is the only external blocker" in page.text
+        assert (
+            "This computer does not have Schwab Developer app credentials yet."
+            in page.text
+        )
     finally:
         container.close()
 
@@ -56,10 +64,13 @@ def test_demo_mode_renders_operator_plan_without_credentials(tmp_path: Path) -> 
     command.upgrade(_alembic_config(settings), "head")
     container = Container(settings)
     try:
-        _, ready, dashboard, page = asyncio.run(_request_initial_routes(container))
+        _, ready, dashboard, sync_status, page = asyncio.run(
+            _request_initial_routes(container)
+        )
         payload = dashboard.json()
 
         assert ready.status_code == 200
+        assert sync_status.json()["state"] == "demo"
         assert payload["mode"] == "demo"
         assert payload["portfolio"]["total_value"] == "223485.00"
         assert payload["income"]["month"] == "1805.000"
@@ -100,7 +111,10 @@ def test_demo_mode_renders_operator_plan_without_credentials(tmp_path: Path) -> 
         assert len(payload["expiration_calendar"]) == 5
         assert payload["expiration_calendar"][0]["days_to_expiration"] == 7
         assert len(payload["policies"]) == 3
-        assert payload["alerts"] == []
+        assert [
+            (alert["symbol"], alert["reason_code"], alert["level"])
+            for alert in payload["alerts"]
+        ] == [("CVX", "call_expiration_proximity", "watch")]
         assert payload["monthly_performance"][-1]["option_cash"] == "-930"
         assert payload["strategy_attribution"][0]["status"] == "CURRENT-INVENTORY PROXY"
         assert payload["strategy_attribution"][-1]["actual_result"] is None
@@ -141,7 +155,10 @@ def test_demo_mode_renders_operator_plan_without_credentials(tmp_path: Path) -> 
         assert page.text.count("data-cash-activity-window") == 4
         assert page.text.count("data-cash-event-target") == 12
         assert page.text.count("data-workspace-splitter") == 3
-        assert page.text.count("data-nibwick-note") == 0
+        assert page.text.count("data-nibwick-note\n      data-alert-id") == 1
+        assert page.text.count("data-nibwick-note-jump") == 1
+        assert "data-nibwick-active-count" in page.text
+        assert "1 ACTIVE" in page.text
         assert "MONTHLY OPTION INCOME TARGET" not in page.text
     finally:
         container.close()
@@ -149,10 +166,16 @@ def test_demo_mode_renders_operator_plan_without_credentials(tmp_path: Path) -> 
 
 async def _request_initial_routes(container: Container) -> tuple[httpx.Response, ...]:
     transport = httpx.ASGITransport(app=create_app(container))
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+    source = "demo" if container.settings.demo_mode else "schwab"
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        cookies={"incoooming_source": source},
+    ) as client:
         return (
             await client.get("/api/v1/health/live"),
             await client.get("/api/v1/health/ready"),
             await client.get("/api/v1/dashboard"),
+            await client.get("/api/v1/sync/status"),
             await client.get("/"),
         )

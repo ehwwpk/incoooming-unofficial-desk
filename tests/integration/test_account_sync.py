@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -140,3 +140,38 @@ def test_activity_run_does_not_hide_latest_position_snapshot(
 
     assert len(rows) == 1
     assert rows[0]["symbol"] == "XYZ"
+
+
+def test_latest_successful_sync_is_not_replaced_by_a_newer_failed_attempt(
+    database_runtime: tuple[object, object, object],
+) -> None:
+    _, _, uow_factory = database_runtime
+    succeeded_at = datetime.now(UTC) - timedelta(minutes=5)
+    failed_at = datetime.now(UTC)
+
+    with uow_factory() as uow:  # type: ignore[operator]
+        successful_run = uow.sync_runs.start(source="schwab", started_at=succeeded_at)
+        uow.sync_runs.complete(
+            successful_run,
+            completed_at=succeeded_at,
+            account_count=1,
+            position_count=24,
+        )
+        failed_run = uow.sync_runs.start(source="schwab", started_at=failed_at)
+        uow.sync_runs.fail(
+            failed_run,
+            completed_at=failed_at,
+            error_message="authorization unavailable",
+        )
+        uow.commit()
+
+    with uow_factory() as uow:  # type: ignore[operator]
+        latest_attempt = uow.sync_runs.latest()
+        latest_success = uow.sync_runs.latest_successful(source="schwab")
+
+    assert latest_attempt is not None
+    assert latest_attempt.run_id == failed_run
+    assert latest_attempt.status == "failed"
+    assert latest_success is not None
+    assert latest_success.run_id == successful_run
+    assert latest_success.status == "completed"

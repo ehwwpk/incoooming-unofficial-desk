@@ -25,3 +25,11 @@ def test_blank_credentials_are_not_treated_as_configured() -> None:
 def test_demo_mode_is_explicit_and_disabled_by_default() -> None:
     assert Settings(_env_file=None).demo_mode is False
     assert Settings(_env_file=None, demo_mode=True).demo_mode is True
+
+
+def test_live_server_defaults_to_bounded_automatic_sync() -> None:
+    settings = Settings(_env_file=None)
+
+    assert settings.auto_sync_enabled is True
+    assert settings.auto_sync_interval_seconds == 900
+    assert settings.auto_sync_startup_delay_seconds == 2

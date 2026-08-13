@@ -12,6 +12,7 @@ from schwab_dashboard.application.dashboard.models import (
     PositionSummary,
     RiskSummary,
 )
+from schwab_dashboard.application.market_time import market_date
 
 ZERO = Decimal("0")
 
@@ -52,6 +53,9 @@ def map_positions(rows: Sequence[dict[str, Any]]) -> tuple[PositionSummary, ...]
 def summarize_portfolio(
     positions: Sequence[PositionSummary],
     balances: Sequence[dict[str, Any]] = (),
+    *,
+    cash_movements: Sequence[dict[str, Any]] = (),
+    as_of: date | datetime | None = None,
 ) -> PortfolioSummary:
     stock_value = sum(
         (
@@ -91,6 +95,7 @@ def summarize_portfolio(
         [_optional_decimal(row.get("maintenance_requirement")) for row in balances]
     )
     total_value = liquidation_value if liquidation_value is not None else net_position_value
+    day_external_cash_flow = ZERO
     if day_balance_pairs and all(
         current is not None and initial is not None
         for current, initial in day_balance_pairs
@@ -101,7 +106,8 @@ def summarize_portfolio(
         prior_value = sum(
             (initial for _, initial in day_balance_pairs if initial is not None), ZERO
         )
-        day_profit_loss = current_day_value - prior_value
+        day_external_cash_flow = _daily_external_cash_flow(cash_movements, as_of=as_of)
+        day_profit_loss = current_day_value - prior_value - day_external_cash_flow
     else:
         day_profit_loss = sum(
             ((position.day_profit_loss or ZERO) for position in positions), ZERO
@@ -116,6 +122,7 @@ def summarize_portfolio(
         option_value=option_value,
         day_profit_loss=day_profit_loss,
         day_profit_loss_percent=day_percent,
+        day_external_cash_flow=day_external_cash_flow,
         gross_position_value=gross_position_value,
         net_position_value=net_position_value,
         liquidation_value=liquidation_value,
@@ -189,6 +196,40 @@ def _optional_date(value: Any) -> date | None:
 def _sum_known(values: Sequence[Decimal | None]) -> Decimal | None:
     known = [value for value in values if value is not None]
     return sum(known, ZERO) if known else None
+
+
+def _daily_external_cash_flow(
+    cash_movements: Sequence[dict[str, Any]],
+    *,
+    as_of: date | datetime | None,
+) -> Decimal:
+    """Return net deposits/withdrawals that must not be called market profit."""
+    if as_of is None:
+        return ZERO
+    market_day = market_date(as_of)
+    return sum(
+        (
+            _decimal(movement.get("amount"))
+            for movement in cash_movements
+            if str(movement.get("movement_type") or "").lower() == "transfer"
+            and _market_date_or_none(movement.get("occurred_at")) == market_day
+        ),
+        ZERO,
+    )
+
+
+def _market_date_or_none(value: Any) -> date | None:
+    if value is None:
+        return None
+    if isinstance(value, (date, datetime)):
+        return market_date(value)
+    text = str(value).strip().replace("Z", "+00:00")
+    if not text:
+        return None
+    try:
+        return market_date(datetime.fromisoformat(text))
+    except ValueError:
+        return date.fromisoformat(text)
 
 
 def _position_mark(row: dict[str, Any]) -> Decimal | None:

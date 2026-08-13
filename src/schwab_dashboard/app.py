@@ -9,8 +9,11 @@ from fastapi.staticfiles import StaticFiles
 
 from schwab_dashboard.api.routes.dashboard import router as dashboard_router
 from schwab_dashboard.api.routes.health import router as health_router
+from schwab_dashboard.api.routes.radar import router as radar_router
+from schwab_dashboard.api.routes.sources import router as sources_router
 from schwab_dashboard.api.routes.workspaces import router as workspaces_router
 from schwab_dashboard.container import Container
+from schwab_dashboard.infrastructure.runtime.auto_sync import AutoSyncWorker
 
 
 def create_app(container: Container | None = None) -> FastAPI:
@@ -19,10 +22,27 @@ def create_app(container: Container | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        del app
-        yield
-        if owns_container:
-            app_container.close()
+        worker: AutoSyncWorker | None = None
+        if (
+            owns_container
+            and app_container.settings.auto_sync_enabled
+            and not app_container.settings.demo_mode
+        ):
+            worker = AutoSyncWorker(
+                coordinator=app_container.sync_coordinator,
+                token_available=app_container.token_available,
+                interval_seconds=app_container.settings.auto_sync_interval_seconds,
+                startup_delay_seconds=app_container.settings.auto_sync_startup_delay_seconds,
+            )
+            worker.start()
+        app.state.auto_sync_worker = worker
+        try:
+            yield
+        finally:
+            if worker is not None:
+                await worker.stop()
+            if owns_container:
+                app_container.close()
 
     app = FastAPI(
         title="Incoooming",
@@ -35,6 +55,8 @@ def create_app(container: Container | None = None) -> FastAPI:
     static_dir = Path(__file__).resolve().parent / "web" / "static"
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
     app.include_router(health_router)
+    app.include_router(sources_router)
     app.include_router(dashboard_router)
+    app.include_router(radar_router)
     app.include_router(workspaces_router)
     return app

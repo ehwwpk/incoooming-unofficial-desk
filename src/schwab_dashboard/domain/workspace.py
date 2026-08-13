@@ -11,6 +11,7 @@ class WorkspaceKey(StrEnum):
     DESK = "desk"
     RISK = "risk"
     ATTRIBUTION = "attribution"
+    RADAR = "radar"
     VOLATILITY = "volatility"
     RECORDS = "records"
 

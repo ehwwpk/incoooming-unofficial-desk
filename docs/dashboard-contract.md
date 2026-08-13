@@ -28,7 +28,7 @@ the interface independent from demo fixtures and Schwab response shapes while th
 ## Stable view sections
 
 1. Combined portfolio: net value, selected-window net premium cash, total strategy income, coverage, calls sold, and shares called away.
-2. Underlying attribution: selected-window option income/APR/dividends/capture, an observed daily-close path with `FULL`, `8W`, and `4W` date ranges, numbered simulated lifecycle markers that map directly to a written event tape, and per-contract premium-received/current-option-value/open-P&L economics.
+2. Underlying attribution: selected-window option income/APR/dividends/capture, an observed daily-close path with `16W`, `8W`, and `4W` date ranges, lifecycle markers that map directly to auditable execution detail, and per-contract premium-received/current-option-value/open-P&L economics. The approved future campaign-centered visual contract is documented in [Option campaign chart redesign](product/option-campaign-chart-redesign.md); it does not alter the current renderer yet.
 3. Income: a quarterly window with 13 weekly periods reconciled to the quarter total.
 4. Lifecycle: contracts expired, closed, rolled, and still open, plus assignments and the completed-ticket positive-cash rate.
 5. Campaigns: current legs, dates, quarter option cash, open profit/loss, collateral, and return on capital.
@@ -36,7 +36,7 @@ the interface independent from demo fixtures and Schwab response shapes while th
 7. Positions and risk: reconciled inventory, buying-power use, delta, theta, concentration, and next expiration.
 
 The default Desk keeps the operating answer visible and folds stock detail until the operator asks
-for it. The Calls workspace follows the same rule: portfolio totals remain visible, while the
+for it. The Open Options workspace follows the same rule: portfolio totals remain visible, while the
 expiration calendar and grouped contract register start closed and open from their full headers.
 Contract rows provide a second disclosure level for clocks, quotes, Greeks, value mix, and liquidity.
 
@@ -91,7 +91,7 @@ Daily cash and daily theta are never interchangeable. Cash appears only on execu
 
 ## Accounting definitions
 
-- Live `TODAY` change is current Schwab liquidation value minus Schwab's start-of-day liquidation value, divided by that same start-of-day value. Position-level day P/L is only a fallback when account-level values are unavailable; the header never mixes a position sum with an unrelated account-value denominator.
+- Live `TODAY` change is current Schwab liquidation value minus Schwab's start-of-day liquidation value and minus normalized same-market-day external transfers. The market day is derived in America/New_York, not from the UTC date or the host computer's local date. Deposits and withdrawals are disclosed beside the result but are never called profit or loss. The adjusted dollar result is divided by the start-of-day liquidation value. Position-level day P/L is only a fallback when account-level values are unavailable; the header never mixes a position sum with an unrelated account-value denominator.
 - Gross premium is `premium per share × contracts × 100`.
 - Net premium cash flow is gross premium minus executed buy-to-close cash outflow. It describes cash transactions, not mark-to-market profit.
 - Total cash income is net premium cash flow plus dividends.

@@ -50,6 +50,31 @@ class SqlSyncRunRepository:
         row = self._session.scalar(
             select(SyncRunTable).order_by(SyncRunTable.started_at.desc()).limit(1)
         )
+        return self._summary(row)
+
+    def latest_for_source(self, *, source: str) -> SyncRunSummary | None:
+        row = self._session.scalar(
+            select(SyncRunTable)
+            .where(SyncRunTable.source == source)
+            .order_by(SyncRunTable.started_at.desc())
+            .limit(1)
+        )
+        return self._summary(row)
+
+    def latest_successful(self, *, source: str) -> SyncRunSummary | None:
+        row = self._session.scalar(
+            select(SyncRunTable)
+            .where(
+                SyncRunTable.source == source,
+                SyncRunTable.status == "completed",
+            )
+            .order_by(SyncRunTable.started_at.desc())
+            .limit(1)
+        )
+        return self._summary(row)
+
+    @staticmethod
+    def _summary(row: SyncRunTable | None) -> SyncRunSummary | None:
         if row is None:
             return None
         return SyncRunSummary(
