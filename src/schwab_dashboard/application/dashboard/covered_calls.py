@@ -224,6 +224,8 @@ class UnderlyingCallStats:
     price_events: Sequence[PriceEvent]
     share_trade_events: Sequence[ShareTradeEvent]
     tone: str
+    current_session_change_percent: Decimal | None = None
+    current_week_change_percent: Decimal | None = None
 
     @property
     def open_call_theta_per_day(self) -> Decimal:
@@ -232,6 +234,35 @@ class UnderlyingCallStats:
             (call.short_theta_per_day for call in self.open_call_clocks),
             Decimal("0"),
         )
+
+    @property
+    def daily_price_change_percent(self) -> Decimal | None:
+        """Current-session return, falling back to the latest daily closes."""
+        if self.current_session_change_percent is not None:
+            return self.current_session_change_percent
+        return _session_price_change(self.price_points, sessions=1)
+
+    @property
+    def weekly_price_change_percent(self) -> Decimal | None:
+        """Current five-session return, falling back to the latest daily closes."""
+        if self.current_week_change_percent is not None:
+            return self.current_week_change_percent
+        return _session_price_change(self.price_points, sessions=5)
+
+
+def _session_price_change(
+    points: Sequence[PricePoint],
+    *,
+    sessions: int,
+) -> Decimal | None:
+    """Return the verified close-to-close move for a market-session horizon."""
+    if sessions <= 0:
+        raise ValueError("sessions must be positive")
+    if len(points) <= sessions:
+        return None
+    start = points[-(sessions + 1)].price
+    end = points[-1].price
+    return (end / start - Decimal("1")) * Decimal("100") if start else None
 
 
 @dataclass(frozen=True, slots=True)

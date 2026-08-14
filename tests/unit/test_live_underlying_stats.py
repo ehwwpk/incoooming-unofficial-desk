@@ -1,13 +1,44 @@
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
+from schwab_dashboard.application.dashboard.covered_calls import PricePoint
 from schwab_dashboard.application.dashboard.live_positions import build_live_position_book
 from schwab_dashboard.application.dashboard.live_underlying_stats import (
+    _current_price_change,
     build_live_underlying_stats,
 )
 from schwab_dashboard.application.dashboard.models import PositionSummary
 
 D = Decimal
+
+
+def test_current_price_change_uses_the_correct_session_baseline() -> None:
+    as_of = date(2026, 8, 10)
+    points = tuple(
+        PricePoint(
+            date=as_of - timedelta(days=5 - index),
+            label="",
+            price=D(str(50 + index * 2)),
+            x_percent=D("0"),
+            y_percent=D("0"),
+            is_friday=False,
+        )
+        for index in range(6)
+    )
+
+    assert _current_price_change(
+        points,
+        current_price=D("60"),
+        sessions=5,
+        as_of=as_of,
+    ) == D("20")
+    assert _current_price_change(
+        points[:-1],
+        current_price=D("60"),
+        sessions=5,
+        as_of=as_of,
+    ) == (D("60") / D("50") - D("1")) * D("100")
 
 
 def test_live_underlying_projection_restores_chart_clocks_and_theta() -> None:
@@ -113,6 +144,23 @@ def test_live_underlying_projection_restores_chart_clocks_and_theta() -> None:
     assert underlying.open_call_clocks[0].sold_on == sold_at.date()
     assert underlying.open_call_clocks[0].roll_quote_candidates[0].strike == D("70")
     assert underlying.open_call_theta_per_day == D("20.00")
+    assert underlying.daily_price_change_percent == D("1.7")
+    assert underlying.weekly_price_change_percent == D("20")
+    fallback = replace(
+        underlying,
+        current_session_change_percent=None,
+        current_week_change_percent=None,
+    )
+    assert fallback.daily_price_change_percent == (D("60") / D("58") - D("1")) * D("100")
+    assert fallback.weekly_price_change_percent == D("20")
+    short_history = replace(
+        underlying,
+        price_points=underlying.price_points[:1],
+        current_session_change_percent=None,
+        current_week_change_percent=None,
+    )
+    assert short_history.daily_price_change_percent is None
+    assert short_history.weekly_price_change_percent is None
     assert [event.event_type for event in underlying.price_events] == ["sale"]
     assert len(underlying.share_trade_events) == 1
     assert underlying.performance_windows[0].option_cash == D("399")
