@@ -150,6 +150,7 @@
         priceSeries: this.market.candles,
         timeForDate: (value) => this.market.timeForDate(value),
         onSelect: (campaign) => this.selectCampaign(campaign),
+        onIsolate: (campaign) => this.isolateCampaign(campaign),
         onHover: (hit, point) => this.showPopover(hit, point),
         onLeave: () => { this.popover.hidden = true; },
       });
@@ -227,6 +228,12 @@
       this.selected = this.selected === campaign.id ? null : campaign.id;
       if (this.selected) story.renderCampaign(this.story, campaign);
       else story.renderOverview(this.story, this.payload.campaigns);
+      this.render();
+    }
+
+    isolateCampaign(campaign) {
+      this.selected = campaign.id;
+      story.renderCampaign(this.story, campaign);
       this.render();
     }
 

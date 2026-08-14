@@ -19,6 +19,7 @@ from schwab_dashboard.domain.market import (
     OptionMarketSnapshot,
     QuoteQuality,
     UnderlyingDailyBar,
+    UnderlyingIntradayBar,
     UnderlyingMarketSnapshot,
 )
 from schwab_dashboard.infrastructure.database.analytics_reader import SqlLiveAnalyticsReader
@@ -27,6 +28,7 @@ from schwab_dashboard.infrastructure.database.tables import (
     OptionMarketSnapshotTable,
     RawMarketEventTable,
     UnderlyingDailyBarTable,
+    UnderlyingIntradayBarTable,
     UnderlyingMarketSnapshotTable,
 )
 from schwab_dashboard.infrastructure.database.uow_market import build_market_uow_factory
@@ -268,3 +270,106 @@ def test_unchanged_price_history_is_reused_across_syncs(
     with session_factory() as session:  # type: ignore[operator]
         assert session.scalar(select(func.count()).select_from(RawMarketEventTable)) == 1
         assert session.scalar(select(func.count()).select_from(UnderlyingDailyBarTable)) == 1
+
+
+def test_unchanged_intraday_history_is_reused_across_syncs(
+    database_runtime: tuple[object, object, object],
+) -> None:
+    _, session_factory, _ = database_runtime
+    service = RecordMarketObservations(
+        uow_factory=build_market_uow_factory(session_factory),  # type: ignore[arg-type]
+    )
+    reference = InstrumentRef(source="schwab", external_key="market:CVX")
+    instrument = InstrumentRecord(
+        source="schwab",
+        external_key="market:CVX",
+        symbol="CVX",
+        asset_type=AssetType.EQUITY,
+        observed_at=NOW,
+    )
+    bar = UnderlyingIntradayBar(
+        instrument=reference,
+        started_at=NOW - timedelta(minutes=30),
+        interval_minutes=30,
+        open=Decimal("196"),
+        high=Decimal("197"),
+        low=Decimal("195.5"),
+        close=Decimal("196.5"),
+        volume=1000,
+    )
+    first = MarketObservationBatch(
+        source="schwab",
+        external_event_key="intraday:30m:CVX:first",
+        observed_at=NOW,
+        parser_version="test-v1",
+        raw_payload={"symbol": "CVX", "candles": [{"close": 196.5}]},
+        instruments=(instrument,),
+        intraday_bars=(bar,),
+    )
+    second = replace(
+        first,
+        external_event_key="intraday:30m:CVX:second",
+        observed_at=NOW + timedelta(minutes=1),
+        instruments=(replace(instrument, observed_at=NOW + timedelta(minutes=1)),),
+    )
+
+    service.execute(first)
+    service.execute(second)
+
+    with session_factory() as session:  # type: ignore[operator]
+        assert session.scalar(select(func.count()).select_from(RawMarketEventTable)) == 1
+        assert session.scalar(select(func.count()).select_from(UnderlyingIntradayBarTable)) == 1
+
+
+def test_revised_intraday_bar_keeps_a_new_version_and_reads_the_latest(
+    database_runtime: tuple[object, object, object],
+) -> None:
+    _, session_factory, _ = database_runtime
+    service = RecordMarketObservations(
+        uow_factory=build_market_uow_factory(session_factory),  # type: ignore[arg-type]
+    )
+    reference = InstrumentRef(source="schwab", external_key="market:CVX")
+    instrument = InstrumentRecord(
+        source="schwab",
+        external_key="market:CVX",
+        symbol="CVX",
+        asset_type=AssetType.EQUITY,
+        observed_at=NOW,
+    )
+    first_bar = UnderlyingIntradayBar(
+        instrument=reference,
+        started_at=NOW - timedelta(minutes=30),
+        interval_minutes=30,
+        open=Decimal("196"),
+        high=Decimal("197"),
+        low=Decimal("195.5"),
+        close=Decimal("196.5"),
+        volume=1000,
+    )
+    first = MarketObservationBatch(
+        source="schwab",
+        external_event_key="intraday:30m:CVX:first",
+        observed_at=NOW,
+        parser_version="test-v1",
+        raw_payload={"symbol": "CVX", "candles": [{"close": 196.5}]},
+        instruments=(instrument,),
+        intraday_bars=(first_bar,),
+    )
+    second = replace(
+        first,
+        external_event_key="intraday:30m:CVX:second",
+        observed_at=NOW + timedelta(minutes=1),
+        raw_payload={"symbol": "CVX", "candles": [{"close": 196.75}]},
+        instruments=(replace(instrument, observed_at=NOW + timedelta(minutes=1)),),
+        intraday_bars=(replace(first_bar, close=Decimal("196.75"), volume=1200),),
+    )
+
+    service.execute(first)
+    service.execute(second)
+
+    rows = SqlLiveAnalyticsReader(session_factory).list_intraday_bars(symbols=["CVX"])
+    assert len(rows) == 1
+    assert rows[0]["close"] == Decimal("196.7500000000")
+    assert rows[0]["volume"] == 1200
+    with session_factory() as session:  # type: ignore[operator]
+        assert session.scalar(select(func.count()).select_from(UnderlyingIntradayBarTable)) == 2

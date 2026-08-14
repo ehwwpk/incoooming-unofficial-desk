@@ -22,13 +22,14 @@
   }
 
   class CampaignLifecycleLayer {
-    constructor({ stage, canvas, chart, priceSeries, timeForDate, onSelect, onHover, onLeave }) {
+    constructor({ stage, canvas, chart, priceSeries, timeForDate, onSelect, onIsolate, onHover, onLeave }) {
       this.stage = stage;
       this.surface = canvas;
       this.chart = chart;
       this.priceSeries = priceSeries;
       this.timeForDate = timeForDate || ((value) => value);
       this.onSelect = onSelect;
+      this.onIsolate = onIsolate;
       this.onHover = onHover;
       this.onLeave = onLeave;
       this.selection = { campaigns: [], level: "medium" };
@@ -36,21 +37,52 @@
       this.shares = [];
       this.hits = [];
       this.frame = 0;
+      this.trackingFrame = 0;
+      this.clickTimer = 0;
       this.pointerStart = null;
+      this.suppressClick = false;
       this.bind();
     }
 
     bind() {
       this.stage.addEventListener("pointerdown", (event) => {
         this.pointerStart = { x: event.clientX, y: event.clientY };
+        this.suppressClick = false;
+        this.trackTransform();
       });
       this.stage.addEventListener("pointerup", (event) => {
         if (!this.pointerStart) return;
         const moved = Math.hypot(event.clientX - this.pointerStart.x, event.clientY - this.pointerStart.y);
         this.pointerStart = null;
-        if (moved > 5) return;
+        this.suppressClick = moved > 5;
+        this.stopTracking();
+        this.redrawBurst();
+      });
+      this.stage.addEventListener("pointercancel", () => {
+        this.pointerStart = null;
+        this.suppressClick = true;
+        this.stopTracking();
+        this.redrawBurst();
+      });
+      this.stage.addEventListener("click", (event) => {
+        if (this.suppressClick) {
+          this.suppressClick = false;
+          return;
+        }
         const hit = this.hit(event);
-        if (hit?.kind === "campaign") this.onSelect?.(hit.campaign, hit.leg);
+        if (hit?.kind !== "campaign") return;
+        clearTimeout(this.clickTimer);
+        this.clickTimer = window.setTimeout(() => {
+          this.onSelect?.(hit.campaign, hit.leg);
+          this.clickTimer = 0;
+        }, 220);
+      });
+      this.stage.addEventListener("dblclick", (event) => {
+        const hit = this.hit(event);
+        if (hit?.kind !== "campaign") return;
+        clearTimeout(this.clickTimer);
+        this.clickTimer = 0;
+        this.onIsolate?.(hit.campaign, hit.leg);
       });
       this.stage.addEventListener("pointermove", (event) => {
         const hit = this.hit(event);
@@ -62,6 +94,7 @@
         this.stage.classList.remove("has-lifecycle-hit");
         this.onLeave?.();
       });
+      this.stage.addEventListener("wheel", () => this.redrawBurst(), { passive: true });
     }
 
     setState({ selection, selected, shares }) {
@@ -74,6 +107,31 @@
     schedule() {
       cancelAnimationFrame(this.frame);
       this.frame = requestAnimationFrame(() => this.render());
+    }
+
+    trackTransform() {
+      cancelAnimationFrame(this.trackingFrame);
+      const tick = () => {
+        if (!this.pointerStart) return;
+        this.render();
+        this.trackingFrame = requestAnimationFrame(tick);
+      };
+      this.trackingFrame = requestAnimationFrame(tick);
+    }
+
+    stopTracking() {
+      cancelAnimationFrame(this.trackingFrame);
+      this.trackingFrame = 0;
+    }
+
+    redrawBurst(frames = 4) {
+      let remaining = frames;
+      const tick = () => {
+        this.render();
+        remaining -= 1;
+        if (remaining > 0) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
     }
 
     localPoint(event) {
@@ -157,7 +215,7 @@
         "stroke-dasharray": selected ? "none" : "4 4",
         "stroke-linecap": "round",
         "vector-effect": "non-scaling-stroke",
-        opacity: selected ? .98 : (this.selected ? .22 : .82),
+        opacity: selected ? .98 : (this.selected ? .08 : .82),
       }));
     }
 
@@ -178,14 +236,14 @@
           y2: y,
           stroke: identity,
           "stroke-width": 1,
-          opacity: .54,
+          opacity: selected ? .54 : (this.selected ? .06 : .54),
           "vector-effect": "non-scaling-stroke",
         }));
       }
 
       const group = element("g", {
         transform: `translate(${x.toFixed(1)} ${y.toFixed(1)})`,
-        opacity: selected ? 1 : (this.selected ? .48 : .98),
+        opacity: selected ? 1 : (this.selected ? .14 : .98),
       });
       const shape = item.campaign.option_side === "put"
         ? element("polygon", {
