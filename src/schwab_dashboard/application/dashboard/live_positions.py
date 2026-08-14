@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from schwab_dashboard.application.dashboard.models import (
@@ -25,7 +25,7 @@ def build_live_position_book(
     underlying_market: Sequence[Mapping[str, object]] = (),
 ) -> LivePositionBook:
     option_quotes = {_canonical(str(row["symbol"])): row for row in option_market}
-    underlying_quotes = {str(row["symbol"]): row for row in underlying_market}
+    underlying_quotes = {_canonical(str(row["symbol"])): row for row in underlying_market}
     holdings = {
         position.symbol: position
         for position in positions
@@ -41,9 +41,14 @@ def build_live_position_book(
         assert position.strike is not None
         contracts = int(abs(position.quantity))
         holding = holdings.get(position.underlying_symbol)
-        underlying_quote = underlying_quotes.get(position.underlying_symbol, {})
-        underlying_price = _optional_decimal(underlying_quote.get("mark")) or (
-            holding.mark if holding else None
+        underlying_quote = underlying_quotes.get(_canonical(position.underlying_symbol), {})
+        quoted_underlying_price = _optional_decimal(underlying_quote.get("mark"))
+        underlying_price = (
+            quoted_underlying_price
+            if quoted_underlying_price is not None
+            else holding.mark
+            if holding is not None
+            else None
         )
         quote = option_quotes.get(_canonical(position.symbol), {})
         option_type = str(position.option_type or "").upper()
@@ -116,6 +121,42 @@ def build_live_position_book(
         all_puts.extend(ordered_puts)
         holding = holdings.get(symbol)
         shares = int(holding.quantity) if holding is not None else 0
+        share_quantity = holding.quantity if holding is not None else ZERO
+        underlying_quote = underlying_quotes.get(_canonical(symbol), {})
+        # Account position marks can lag Schwab Market Data intraday. Quantity,
+        # cost and account balances remain account-authoritative; quote-derived
+        # price, value and session move come from the latest market snapshot.
+        quoted_price = _optional_decimal(underlying_quote.get("mark"))
+        current_price = (
+            quoted_price
+            if quoted_price is not None
+            else holding.mark
+            if holding is not None
+            else None
+        )
+        previous_close = _optional_decimal(underlying_quote.get("previous_close"))
+        quote_observed_at = _optional_datetime(underlying_quote.get("observed_at"))
+        current_session_change_percent = _session_change_percent(
+            current_price=current_price,
+            previous_close=previous_close,
+            fallback=(holding.day_profit_loss_percent if holding is not None else None),
+        )
+        market_value = (
+            current_price * share_quantity
+            if quoted_price is not None and current_price is not None
+            else holding.market_value
+            if holding is not None
+            else None
+        )
+        day_profit_loss = (
+            (current_price - previous_close) * share_quantity
+            if quoted_price is not None
+            and current_price is not None
+            and previous_close is not None
+            else holding.day_profit_loss
+            if holding is not None
+            else None
+        )
         capacity = _contract_capacity(shares, ordered_calls)
         open_contracts = sum(call.contracts for call in ordered_calls)
         covered_contracts = _covered_contracts(shares, ordered_calls)
@@ -132,9 +173,9 @@ def build_live_position_book(
                 else "No matching long shares",
                 shares=shares,
                 average_price=holding.average_price if holding is not None else None,
-                current_price=holding.mark if holding is not None else None,
-                market_value=holding.market_value if holding is not None else None,
-                day_profit_loss=holding.day_profit_loss if holding is not None else None,
+                current_price=current_price,
+                market_value=market_value,
+                day_profit_loss=day_profit_loss,
                 contract_capacity=capacity,
                 open_call_contracts=open_contracts,
                 covered_contracts=covered_contracts,
@@ -168,6 +209,10 @@ def build_live_position_book(
                     ),
                     ZERO,
                 ),
+                previous_close=previous_close,
+                current_session_change_percent=current_session_change_percent,
+                quote_observed_at=quote_observed_at,
+                quote_quality=str(underlying_quote.get("quote_quality") or "") or None,
             )
         )
 
@@ -202,6 +247,21 @@ def _is_short_option(position: PositionSummary) -> bool:
         and position.expiration_date is not None
         and position.strike is not None
     )
+
+
+def _session_change_percent(
+    *,
+    current_price: Decimal | None,
+    previous_close: Decimal | None,
+    fallback: Decimal | None,
+) -> Decimal | None:
+    if current_price is None or previous_close is None or previous_close <= ZERO:
+        return fallback
+    return (current_price / previous_close - Decimal("1")) * HUNDRED
+
+
+def _optional_datetime(value: object) -> datetime | None:
+    return value if isinstance(value, datetime) else None
 
 
 def _covered_contracts(shares: int, calls: Sequence[LiveOpenOptionPosition]) -> int:

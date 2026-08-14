@@ -146,6 +146,28 @@ def test_live_underlying_projection_restores_chart_clocks_and_theta() -> None:
     assert underlying.open_call_theta_per_day == D("20.00")
     assert underlying.daily_price_change_percent == D("1.7")
     assert underlying.weekly_price_change_percent == D("20")
+    live_quote_book = replace(
+        book,
+        underlyings=(
+            replace(
+                book.underlyings[0],
+                current_price=D("61"),
+                current_session_change_percent=D("2.5"),
+            ),
+        ),
+    )
+    live_quote_result = build_live_underlying_stats(
+        live_book=live_quote_book,
+        positions=(stock, call),
+        executions=executions,
+        cash_movements=(),
+        lifecycle_events=(),
+        daily_bars=bars,
+        option_market=option_market,
+        as_of=as_of,
+    )
+    assert live_quote_result[0].current_price == D("61")
+    assert live_quote_result[0].daily_price_change_percent == D("2.5")
     fallback = replace(
         underlying,
         current_session_change_percent=None,

@@ -58,6 +58,54 @@ def test_live_book_matches_short_calls_to_long_shares() -> None:
     assert book.calls[0].strike_distance_percent == D("25.00")
 
 
+def test_live_book_prefers_market_quote_over_stale_account_position_mark() -> None:
+    stock = _position(
+        symbol="CVX",
+        description="Chevron",
+        mark=D("197.70"),
+        market_value=D("158160"),
+        day_profit_loss=D("0"),
+        day_profit_loss_percent=D("0"),
+    )
+    call = _position(
+        symbol="CVX   260918C00205000",
+        asset_type="OPTION",
+        quantity=D("-1"),
+        underlying_symbol="CVX",
+        option_type="CALL",
+        expiration_date=date(2026, 9, 18),
+        strike=D("205"),
+    )
+    observed_at = datetime(2026, 8, 14, 16, 34, 10, tzinfo=UTC)
+
+    book = build_live_position_book(
+        (stock, call),
+        as_of=date(2026, 8, 14),
+        underlying_market=(
+            {
+                "symbol": "CVX",
+                "mark": D("200.80"),
+                "previous_close": D("197.70"),
+                "observed_at": observed_at,
+                "quote_quality": "complete",
+            },
+        ),
+    )
+
+    underlying = book.underlyings[0]
+    assert underlying.current_price == D("200.80")
+    assert underlying.previous_close == D("197.70")
+    assert underlying.market_value == D("160640.00")
+    assert underlying.day_profit_loss == D("2480.00")
+    assert underlying.current_session_change_percent == (
+        D("200.80") / D("197.70") - D("1")
+    ) * D("100")
+    assert underlying.quote_observed_at == observed_at
+    assert underlying.quote_quality == "complete"
+    assert book.calls[0].underlying_price == D("200.80")
+    assert book.calls[0].strike_distance_per_share == D("4.20")
+
+
 def test_portfolio_uses_liquidation_value_not_gross_positions() -> None:
     stock = _position(market_value=D("220000"), day_profit_loss=D("7000"))
     summary = summarize_portfolio(
