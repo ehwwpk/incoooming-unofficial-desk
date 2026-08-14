@@ -132,7 +132,7 @@ def test_demo_mode_renders_operator_plan_without_credentials(tmp_path: Path) -> 
 
         assert page.status_code == 200
         assert "Incoooming" in page.text
-        assert "Income &amp; pace" in page.text
+        assert "Incoom &amp; Pacing" in page.text
         assert "Live options" in page.text
         assert 'data-period="week"' not in page.text
         assert 'data-period="month"' in page.text

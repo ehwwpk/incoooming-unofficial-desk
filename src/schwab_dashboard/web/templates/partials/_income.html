@@ -27,11 +27,11 @@
         <strong class="{{ event.amount | pnl_class }}">{{ event.amount | money }}</strong>
       </li>
       {% else %}
-      <li class="cash-activity-empty"><span>No executed cash events in this window.</span></li>
+      <li class="cash-activity-empty"><span>No cash reached the ledger in this window.</span></li>
       {% endfor %}
     </ol>
   </div>
   {% else %}
-  <p class="cash-activity-empty">Connect a broker or import activity to build the cash ledger.</p>
+  <p class="cash-activity-empty">Connect a broker or import a file to start the cash ledger.</p>
   {% endfor %}
 </section>
