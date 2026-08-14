@@ -42,11 +42,16 @@ class SqlRawMarketEventRepository:
         canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
         payload_hash = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
         if external_event_key.startswith(("history:", "intraday:")):
+            event_prefix = (
+                "intraday:%"
+                if external_event_key.startswith("intraday:")
+                else "history:%"
+            )
             unchanged_history = self._session.scalar(
                 select(RawMarketEventTable)
                 .where(
                     RawMarketEventTable.source == source,
-                    RawMarketEventTable.external_event_key.like("history:%"),
+                    RawMarketEventTable.external_event_key.like(event_prefix),
                     RawMarketEventTable.parser_version == parser_version,
                     RawMarketEventTable.payload_hash == payload_hash,
                 )

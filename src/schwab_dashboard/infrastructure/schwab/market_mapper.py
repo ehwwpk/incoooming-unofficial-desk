@@ -185,25 +185,29 @@ class SchwabMarketMapper:
         if not symbol:
             raise ValueError("Schwab intraday history is missing its symbol")
         external_key = f"market:{symbol}"
-        bars: list[UnderlyingIntradayBar] = []
+        bars_by_time: dict[datetime, UnderlyingIntradayBar] = {}
         raw_candles = payload.get("candles") or []
         if not isinstance(raw_candles, Sequence) or isinstance(raw_candles, (str, bytes)):
             raise ValueError("Schwab intraday candles are not a list")
         for candle in raw_candles:
             if not isinstance(candle, Mapping):
                 continue
-            bars.append(
-                UnderlyingIntradayBar(
-                    instrument=InstrumentRef(source="schwab", external_key=external_key),
-                    started_at=_epoch_millis(candle.get("datetime"), fallback=observed_at),
-                    interval_minutes=interval_minutes,
-                    open=_required_market_decimal(candle.get("open")),
-                    high=_required_market_decimal(candle.get("high")),
-                    low=_required_market_decimal(candle.get("low")),
-                    close=_required_market_decimal(candle.get("close")),
-                    volume=_optional_int(candle.get("volume")) or 0,
-                )
+            started_at = _epoch_millis(candle.get("datetime"), fallback=observed_at)
+            # Schwab can return the same minute bucket more than once, including
+            # revised OHLC/volume values. The later occurrence is the provider's
+            # final value for this response; retaining both would create two
+            # contradictory observations inside one immutable raw event.
+            bars_by_time[started_at] = UnderlyingIntradayBar(
+                instrument=InstrumentRef(source="schwab", external_key=external_key),
+                started_at=started_at,
+                interval_minutes=interval_minutes,
+                open=_required_market_decimal(candle.get("open")),
+                high=_required_market_decimal(candle.get("high")),
+                low=_required_market_decimal(candle.get("low")),
+                close=_required_market_decimal(candle.get("close")),
+                volume=_optional_int(candle.get("volume")) or 0,
             )
+        bars = sorted(bars_by_time.values(), key=lambda item: item.started_at)
         return MarketObservationBatch(
             source="schwab",
             external_event_key=(
