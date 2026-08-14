@@ -101,13 +101,10 @@ def _underlying_stats(
     option_executions = tuple(
         row
         for row in executions
-        if str(row.get("asset_type")) == "option"
-        and str(row.get("underlying_symbol")) == symbol
+        if str(row.get("asset_type")) == "option" and str(row.get("underlying_symbol")) == symbol
     )
     symbol_lifecycle = tuple(
-        row
-        for row in lifecycle_events
-        if str(row.get("underlying_symbol")) == symbol
+        row for row in lifecycle_events if str(row.get("underlying_symbol")) == symbol
     )
     price_points = _ensure_price_points(
         build_price_points(symbol, daily_bars),
@@ -125,6 +122,22 @@ def _underlying_stats(
     current_price = item.current_price or _first_underlying_price(item) or price_points[-1].price
     market_value = item.market_value or current_price * Decimal(item.shares)
     average_cost = item.average_price or current_price
+    current_session_change = (
+        holding.day_profit_loss_percent
+        if holding is not None and holding.day_profit_loss_percent is not None
+        else _current_price_change(
+            price_points,
+            current_price=current_price,
+            sessions=1,
+            as_of=as_of,
+        )
+    )
+    current_week_change = _current_price_change(
+        price_points,
+        current_price=current_price,
+        sessions=5,
+        as_of=as_of,
+    )
     windows = _performance_windows(
         call_executions,
         dividends,
@@ -250,7 +263,33 @@ def _underlying_stats(
             points=price_points,
         ),
         tone=tone,
+        current_session_change_percent=current_session_change,
+        current_week_change_percent=current_week_change,
     )
+
+
+def _current_price_change(
+    points: Sequence[PricePoint],
+    *,
+    current_price: Decimal,
+    sessions: int,
+    as_of: date,
+) -> Decimal | None:
+    """Compare the current mark with the verified close N market sessions earlier."""
+    if sessions <= 0:
+        raise ValueError("sessions must be positive")
+    if not points:
+        return None
+
+    current_session_is_in_history = points[-1].date >= as_of
+    required_points = sessions + 1 if current_session_is_in_history else sessions
+    if len(points) < required_points:
+        return None
+
+    reference = (
+        points[-(sessions + 1)].price if current_session_is_in_history else points[-sessions].price
+    )
+    return (current_price / reference - Decimal("1")) * HUNDRED if reference else None
 
 
 def _performance_windows(

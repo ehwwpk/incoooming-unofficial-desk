@@ -46,6 +46,10 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "data-campaign-chart-fallback" in desk.text
         assert "data-campaign-chart-legacy" not in desk.text
         assert desk.text.count("data-campaign-chart data-symbol") == 3
+        assert desk.text.count('class="position-move-tape"') == 3
+        assert "Latest close versus the prior market-session close" in desk.text
+        assert "Current price versus five market sessions earlier" in desk.text
+        assert 'class="position-price-value"' in desk.text
         assert "REFRESH ROLL CHOICES" in desk.text
         assert "review=roll&amp;source=cvx-0724-195&amp;from=nibwick" in desk.text
         assert "returnAnchor=roll-option-cvx-0724-195" in desk.text
@@ -66,7 +70,7 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "workspace-directory" not in risk.text
         assert 'class="workspace-breadcrumb"' in risk.text
         assert "BACK TO DESK" in risk.text
-        assert 'data-roll-board-contract=' in risk.text
+        assert "data-roll-board-contract=" in risk.text
 
         assert review.status_code == 200
         assert "What the strategy paid" in review.text
@@ -160,7 +164,7 @@ def test_demo_radar_roll_handoff_reprices_a_verified_open_call(tmp_path: Path) -
         assert payload["verdict"] == "ROLL REVIEW"
         assert len(payload["candidates"]) <= 9
         assert all(
-                Decimal(candidate["strike"]) >= source.strike
+            Decimal(candidate["strike"]) >= source.strike
             and date.fromisoformat(candidate["expiration_date"]) > source.expires_on
             for candidate in payload["candidates"]
         )

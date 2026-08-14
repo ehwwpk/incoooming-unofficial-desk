@@ -20,7 +20,23 @@
     {% set active_window = item.performance_windows[0] %}
     <details id="{{ item.symbol | lower }}-workspace" class="underlying-card position-book {{ item.tone }}-edge" data-underlying-card="{{ item.symbol }}" data-position-details>
       <summary class="position-row-summary" aria-label="Open {{ item.symbol }} option details">
-        <div class="position-identity"><div class="position-ticker-line"><strong>{{ item.symbol }}</strong>{% if row.alert_count %}<small class="position-alert-pill">{{ row.alert_count }} NOTE{{ '' if row.alert_count == 1 else 'S' }}</small>{% endif %}</div><span>{{ item.company_name }}</span><small>{{ item.current_price | money }} · {{ item.market_value | money(0) }} value</small></div>
+        <div class="position-identity">
+          <div class="position-identity-copy">
+            <div class="position-ticker-line"><strong>{{ item.symbol }}</strong>{% if row.alert_count %}<small class="position-alert-pill">{{ row.alert_count }} NOTE{{ '' if row.alert_count == 1 else 'S' }}</small>{% endif %}</div>
+            <span>{{ item.company_name }}</span>
+            <small class="position-price-value">{{ item.current_price | money }} · {{ item.market_value | money(0) }} value</small>
+          </div>
+          <div class="position-move-tape" aria-label="{{ item.symbol }} price changes">
+            <span title="{% if item.current_session_change_percent is not none %}Current market-session change from Schwab{% else %}Latest close versus the prior market-session close{% endif %}">
+              <small>DAY</small>
+              {% if item.daily_price_change_percent is not none %}<b class="{{ item.daily_price_change_percent | pnl_class }}">{{ '+' if item.daily_price_change_percent > 0 else '' }}{{ item.daily_price_change_percent | percent(2) }}</b>{% else %}<b class="muted">—</b>{% endif %}
+            </span>
+            <span title="Current price versus five market sessions earlier">
+              <small>WEEK</small>
+              {% if item.weekly_price_change_percent is not none %}<b class="{{ item.weekly_price_change_percent | pnl_class }}">{{ '+' if item.weekly_price_change_percent > 0 else '' }}{{ item.weekly_price_change_percent | percent(2) }}</b>{% else %}<b class="muted">—</b>{% endif %}
+            </span>
+          </div>
+        </div>
         <div><span>SHARES</span><strong>{{ item.shares }}</strong><small>{{ item.contract_capacity }} total 100-share lots</small></div>
         <div class="position-income"><span data-name-option-label>NET OPTION INCOME / 4 WEEKS</span><strong data-name-option-cash>{{ active_window.option_cash | money }}</strong><small><b data-name-dividends>{{ active_window.dividends | money }}</b> dividends</small></div>
         <div class="position-contracts"><span>OPEN POSITIONS</span><strong>{{ row.open_positions }}</strong><small>{{ item.active_contracts }} call contract{{ '' if item.active_contracts == 1 else 's' }}{% if row.live_underlying and row.live_underlying.open_put_contracts %} · {{ row.live_underlying.open_put_contracts }} put contract{{ '' if row.live_underlying.open_put_contracts == 1 else 's' }}{% endif %} · {{ item.coverage_percent | percent }} of share lots covered</small></div>

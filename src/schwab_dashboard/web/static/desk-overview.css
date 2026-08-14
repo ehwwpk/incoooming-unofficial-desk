@@ -60,14 +60,24 @@
 .position-book > summary strong { overflow: hidden; font: 700 .68rem var(--mono); text-overflow: ellipsis; white-space: nowrap; }
 .position-book > summary strong small { color: var(--subtle); font-size: .43rem; }
 .position-book > summary small { overflow: hidden; color: var(--subtle); font: .45rem/1.35 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
-.position-identity { grid-area: identity; }
+.position-identity { grid-area: identity; grid-template-columns: minmax(0, 1fr) auto; align-content: stretch !important; align-items: stretch; gap: 0 !important; padding-block: 0 !important; padding-right: 0 !important; }
+.position-identity-copy { display: grid; min-width: 0; align-content: center; gap: 5px; padding: 9px 10px 9px 0; }
 .position-book > summary > div:nth-child(2) { grid-area: shares; }
 .position-book > summary > div:nth-child(4) { grid-area: calls; }
 .position-book > summary > div:nth-child(6) { grid-area: mark; }
 .position-identity strong { color: var(--gold); font-size: .83rem !important; letter-spacing: .05em; }
 .position-identity span { color: var(--muted) !important; font-family: var(--sans) !important; }
+.position-identity .position-price-value { color: var(--muted-light) !important; font: 650 .53rem/1.35 var(--mono) !important; letter-spacing: .005em; }
 .position-ticker-line { display: flex; min-width: 0; align-items: center; gap: 8px; }
 .position-alert-pill { flex: 0 0 auto; border: 1px solid var(--gold-soft); padding: 2px 5px; color: var(--gold) !important; font: 750 .38rem/1 var(--mono) !important; letter-spacing: .05em; }
+.position-move-tape { display: grid; min-width: 112px; grid-template-columns: repeat(2, minmax(54px, 1fr)); border-left: 1px solid var(--line); background: #0a0c0d; }
+.position-move-tape > span { display: grid; min-width: 0; align-content: center; gap: 4px; padding: 8px 7px; text-align: right; }
+.position-move-tape > span + span { border-left: 1px solid var(--line); }
+.position-move-tape small { color: var(--subtle) !important; font: 700 .39rem/1 var(--mono) !important; letter-spacing: .06em; }
+.position-move-tape b { color: var(--text); font: 750 .54rem/1 var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.position-move-tape b.positive { color: var(--green); }
+.position-move-tape b.negative { color: var(--red); }
+.position-move-tape b.muted { color: var(--subtle); }
 .position-income { grid-area: income; background: #0f120f; }
 .position-income > strong { color: var(--green); font-size: .78rem !important; }
 .position-nearest { grid-area: nearest; }
@@ -150,6 +160,7 @@
   .position-book > summary { grid-template-areas: "identity identity" "income income" "shares calls" "nearest mark"; grid-template-columns: 1fr 1fr; }
   .position-book > summary > div { border-top: 1px solid var(--line); }
   .position-book > summary .position-identity { border-top: 0; }
+  .position-move-tape { min-width: 124px; }
   .position-book > summary > div:nth-child(2n) { border-right: 0; }
   .live-book-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .live-book-grid > :nth-child(2n) { border-right: 0; }
