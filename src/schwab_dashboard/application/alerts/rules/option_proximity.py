@@ -11,7 +11,7 @@ from schwab_dashboard.application.alerts.rolls import (
     no_clean_call_roll_reason,
     no_clean_put_roll_reason,
 )
-from schwab_dashboard.application.dashboard.covered_calls import UnderlyingCallStats
+from schwab_dashboard.application.dashboard.covered_calls import OpenCallClock, UnderlyingCallStats
 from schwab_dashboard.application.formatting import compact_decimal
 from schwab_dashboard.domain.instruments import OptionSide
 
@@ -24,8 +24,19 @@ D = Decimal
 def evaluate_call_expiration_pressure(
     underlying: UnderlyingCallStats,
 ) -> DeskAlert | None:
-    qualifying_calls = tuple(
-        (call, level)
+    """Return the highest-priority call note for compatibility with single-note callers."""
+
+    alerts = evaluate_call_expiration_pressures(underlying)
+    return max(alerts, key=lambda alert: alert.priority, default=None)
+
+
+def evaluate_call_expiration_pressures(
+    underlying: UnderlyingCallStats,
+) -> tuple[DeskAlert, ...]:
+    """Evaluate every qualifying open call instead of hiding sibling obligations."""
+
+    alerts = tuple(
+        _build_call_expiration_alert(underlying, call=call, level=level)
         for call in underlying.open_call_clocks
         if (
             level := _proximity_level(
@@ -35,16 +46,15 @@ def evaluate_call_expiration_pressure(
         )
         is not None
     )
-    if not qualifying_calls:
-        return None
-    call, level = max(
-        qualifying_calls,
-        key=lambda candidate: (
-            _priority(candidate[1]),
-            -abs(candidate[0].strike_distance_percent),
-            -candidate[0].days_to_expiration,
-        ),
-    )
+    return tuple(sorted(alerts, key=lambda alert: -alert.priority))
+
+
+def _build_call_expiration_alert(
+    underlying: UnderlyingCallStats,
+    *,
+    call: OpenCallClock,
+    level: AlertLevel,
+) -> DeskAlert:
     is_itm = call.strike_distance_per_share <= 0
     priority = _priority(level)
     distance = abs(call.strike_distance_per_share)
@@ -209,6 +219,8 @@ def _proximity_level(
         return AlertLevel.ATTENTION if days_to_expiration <= 7 else AlertLevel.CHECK
     if distance_percent <= D("3") and days_to_expiration <= 21:
         return AlertLevel.CHECK if days_to_expiration <= 7 else AlertLevel.WATCH
+    if distance_percent <= D("5") and days_to_expiration <= 21:
+        return AlertLevel.WATCH
     if distance_percent <= D("7") and days_to_expiration <= 7:
         return AlertLevel.WATCH
     return None

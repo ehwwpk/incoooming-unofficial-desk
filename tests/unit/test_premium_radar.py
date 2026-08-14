@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from schwab_dashboard.application.opportunities import evaluate_radar
+from schwab_dashboard.application.opportunities.eligibility import evaluate_gates
 from schwab_dashboard.application.opportunities.quote_math import (
     bid_credit_per_calendar_day,
     expected_move,
@@ -11,6 +12,7 @@ from schwab_dashboard.application.opportunities.quote_math import (
 )
 from schwab_dashboard.domain.opportunity import (
     RadarAccountContext,
+    RadarGateStatus,
     RadarMode,
     RadarPolicy,
     RadarState,
@@ -32,6 +34,8 @@ def test_radar_policy_defaults_are_preferences_not_capability_limits() -> None:
     assert policy.minimum_dte == 0
     assert policy.maximum_dte == 1095
     assert policy.minimum_annualized_rate_percent == Decimal("0")
+    assert policy.maximum_spread_percent is None
+    assert policy.maximum_five_day_move_percent is None
 
 
 def test_quote_math_is_bid_based_and_does_not_hide_a_wide_market() -> None:
@@ -46,6 +50,62 @@ def test_quote_math_is_bid_based_and_does_not_hide_a_wide_market() -> None:
         premium_per_contract=Decimal("220"),
         dte=30,
     ).quantize(Decimal("0.01")) == Decimal("7.33")
+
+
+def test_optional_spread_limit_does_not_weaken_quote_validation() -> None:
+    bundle = DemoOpportunityMarketGateway().fetch(
+        symbol="URNM",
+        mode=RadarMode.CASH_SECURED_PUT,
+        from_date=NOW.date(),
+        to_date=NOW.date(),
+    )
+    contract = replace(bundle.contracts[0], ask=Decimal("9.80"))
+    policy = RadarPolicy(
+        symbol="URNM",
+        mode=RadarMode.CASH_SECURED_PUT,
+        reserved_cash=Decimal("100000"),
+    )
+    account = RadarAccountContext(
+        shares=0,
+        covered_call_contracts=0,
+        available_call_lots=0,
+        reserved_cash=Decimal("100000"),
+    )
+    spot = bundle.underlying_price
+    assert spot is not None
+    spread = next(
+        gate
+        for gate in evaluate_gates(
+            contract,
+            mode=RadarMode.CASH_SECURED_PUT,
+            policy=policy,
+            account=account,
+            spot=spot,
+            dte=(contract.expiration_date - NOW.date()).days,
+            five_day_move_percent=None,
+            now=NOW,
+        )
+        if gate.code == "spread"
+    )
+    missing_market = replace(contract, bid=None)
+    invalid_spread = next(
+        gate
+        for gate in evaluate_gates(
+            missing_market,
+            mode=RadarMode.CASH_SECURED_PUT,
+            policy=policy,
+            account=account,
+            spot=spot,
+            dte=(contract.expiration_date - NOW.date()).days,
+            five_day_move_percent=None,
+            now=NOW,
+        )
+        if gate.code == "spread"
+    )
+
+    assert spread.status is RadarGateStatus.PASS
+    assert spread.detail == "No bid/ask width limit is configured"
+    assert invalid_spread.status is RadarGateStatus.FAIL
 
 
 def test_covered_call_radar_returns_only_candidates_that_clear_account_and_policy() -> None:

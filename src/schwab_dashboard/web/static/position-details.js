@@ -1,6 +1,7 @@
 (() => {
   const books = [...document.querySelectorAll("[data-position-details]")];
   if (!books.length) return;
+  const VIEW_STATE_KEY = "incoooming:auto-refresh-view";
 
   const refreshExpandedCharts = (book) => {
     window.requestAnimationFrame(() => {
@@ -71,5 +72,26 @@
       window.history.pushState(null, "", link.hash);
     }
   });
-  openHashTarget("auto");
+  const restoreAutoRefreshView = () => {
+    try {
+      const serialized = sessionStorage.getItem(VIEW_STATE_KEY);
+      if (!serialized) return false;
+      sessionStorage.removeItem(VIEW_STATE_KEY);
+      const state = JSON.parse(serialized);
+      const currentPath = `${window.location.pathname}${window.location.search}`;
+      if (state.path !== currentPath) return false;
+      const openIds = Array.isArray(state.openDetails) ? state.openDetails : [];
+      books.forEach((book) => {
+        book.open = Boolean(book.id && openIds.includes(book.id));
+      });
+      if (Number.isFinite(Number(state.scrollY))) {
+        window.requestAnimationFrame(() => window.scrollTo(0, Number(state.scrollY)));
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
+  };
+
+  if (!restoreAutoRefreshView()) openHashTarget("auto");
 })();

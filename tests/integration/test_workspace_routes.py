@@ -297,6 +297,8 @@ def test_radar_policy_endpoint_accepts_a_leaps_window(tmp_path: Path) -> None:
         assert response.json()["minimum_dte"] == 0
         assert response.json()["maximum_dte"] == 1095
         assert Decimal(response.json()["minimum_annualized_rate_percent"]) == Decimal("0")
+        assert response.json()["maximum_spread_percent"] is None
+        assert response.json()["maximum_five_day_move_percent"] is None
     finally:
         container.close()
 

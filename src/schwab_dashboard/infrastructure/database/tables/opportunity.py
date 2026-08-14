@@ -29,7 +29,7 @@ class RadarPolicyTable(Base):
         Numeric(28, 10), nullable=False
     )
     maximum_effective_entry: Mapped[Decimal | None] = mapped_column(Numeric(28, 10))
-    maximum_spread_percent: Mapped[Decimal] = mapped_column(Numeric(28, 10), nullable=False)
+    maximum_spread_percent: Mapped[Decimal | None] = mapped_column(Numeric(28, 10))
     minimum_open_interest: Mapped[int] = mapped_column(Integer, nullable=False)
     minimum_volume: Mapped[int] = mapped_column(Integer, nullable=False)
     maximum_quote_age_seconds: Mapped[int] = mapped_column(Integer, nullable=False)

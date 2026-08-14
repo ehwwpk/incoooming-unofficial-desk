@@ -58,11 +58,11 @@ class Settings(BaseSettings):
     radar_minimum_dte: int = Field(default=5, ge=0)
     radar_maximum_dte: int = Field(default=60, ge=0)
     radar_minimum_annualized_rate_percent: Decimal = Field(default=Decimal("5"), ge=Decimal("0"))
-    radar_maximum_spread_percent: Decimal = Field(default=Decimal("25"), ge=0)
+    radar_maximum_spread_percent: Decimal | None = Field(default=None, ge=0)
     radar_minimum_open_interest: int = Field(default=0, ge=0)
     radar_minimum_volume: int = Field(default=0, ge=0)
     radar_maximum_quote_age_seconds: int = Field(default=86400, ge=30, le=86400)
-    radar_maximum_five_day_move_percent: Decimal | None = Field(default=Decimal("20"), ge=0)
+    radar_maximum_five_day_move_percent: Decimal | None = Field(default=None, ge=0)
     radar_cache_seconds: int = Field(default=60, ge=0, le=3600)
 
     @property

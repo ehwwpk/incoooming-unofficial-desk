@@ -213,6 +213,13 @@ def _spread_gate(contract: RadarMarketContract, *, policy: RadarPolicy) -> Radar
             status=RadarGateStatus.FAIL,
             detail="Spread is unavailable without a valid two-sided quote",
         )
+    if policy.maximum_spread_percent is None:
+        return RadarGate(
+            code="spread",
+            label="Bid/ask width",
+            status=RadarGateStatus.PASS,
+            detail="No bid/ask width limit is configured",
+        )
     width = spread_percent(contract.bid, contract.ask)
     return _gate(
         "spread",

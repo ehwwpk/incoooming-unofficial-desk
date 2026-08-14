@@ -49,7 +49,7 @@ class RadarDefaults:
     minimum_dte: int
     maximum_dte: int
     minimum_annualized_rate_percent: Decimal
-    maximum_spread_percent: Decimal
+    maximum_spread_percent: Decimal | None
     minimum_open_interest: int
     minimum_volume: int
     maximum_quote_age_seconds: int

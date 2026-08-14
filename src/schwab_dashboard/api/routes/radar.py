@@ -43,13 +43,13 @@ class PolicyRequest(BaseModel):
     minimum_strike: Decimal | None = Field(default=None, ge=0)
     minimum_strike_distance_percent: Decimal = Field(default=Decimal("0"), ge=0)
     maximum_effective_entry: Decimal | None = Field(default=None, ge=0)
-    maximum_spread_percent: Decimal = Field(default=Decimal("25"), ge=0)
+    maximum_spread_percent: Decimal | None = Field(default=None, ge=0)
     minimum_open_interest: int = Field(default=0, ge=0)
     minimum_volume: int = Field(default=0, ge=0)
     maximum_quote_age_seconds: int = Field(default=86400, ge=30, le=86400)
     allowed_contracts: int = Field(default=1, ge=0, le=1000)
     reserved_cash: Decimal = Field(default=Decimal("0"), ge=0)
-    maximum_five_day_move_percent: Decimal | None = Field(default=Decimal("20"), ge=0)
+    maximum_five_day_move_percent: Decimal | None = Field(default=None, ge=0)
 
 
 class SavedSymbolRequest(BaseModel):

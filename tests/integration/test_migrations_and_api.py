@@ -54,6 +54,7 @@ def test_initial_migration_supports_local_api(tmp_path: Path) -> None:
         assert sync_status.json()["state"] == "authorization_required"
         assert sync_status.json()["interval_seconds"] == 900
         assert page.status_code == 200
+        assert "data-page-built-at=" in page.text
         assert "This computer does not have Schwab Developer app credentials yet." in page.text
     finally:
         container.close()
