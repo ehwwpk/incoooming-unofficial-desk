@@ -180,6 +180,10 @@ class LiveUnderlyingPosition:
     estimated_theta_per_day: Decimal = Decimal("0")
     puts: Sequence[LiveOpenOptionPosition] = ()
     estimated_put_theta_per_day: Decimal = Decimal("0")
+    previous_close: Decimal | None = None
+    current_session_change_percent: Decimal | None = None
+    quote_observed_at: datetime | None = None
+    quote_quality: str | None = None
 
     @property
     def open_put_contracts(self) -> int:

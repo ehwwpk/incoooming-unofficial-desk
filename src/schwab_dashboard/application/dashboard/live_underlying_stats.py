@@ -123,7 +123,9 @@ def _underlying_stats(
     market_value = item.market_value or current_price * Decimal(item.shares)
     average_cost = item.average_price or current_price
     current_session_change = (
-        holding.day_profit_loss_percent
+        item.current_session_change_percent
+        if item.current_session_change_percent is not None
+        else holding.day_profit_loss_percent
         if holding is not None and holding.day_profit_loss_percent is not None
         else _current_price_change(
             price_points,
