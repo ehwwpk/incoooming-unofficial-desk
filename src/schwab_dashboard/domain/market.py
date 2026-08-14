@@ -110,6 +110,31 @@ class UnderlyingDailyBar:
 
 
 @dataclass(frozen=True, slots=True)
+class UnderlyingIntradayBar:
+    instrument: InstrumentRef
+    started_at: datetime
+    interval_minutes: int
+    open: Decimal
+    high: Decimal
+    low: Decimal
+    close: Decimal
+    volume: int
+
+    def __post_init__(self) -> None:
+        require_aware(self.started_at, "started_at")
+        if self.interval_minutes <= 0:
+            raise ValueError("interval_minutes must be positive")
+        for name in ("open", "high", "low", "close"):
+            require_optional_non_negative(getattr(self, name), name)
+        if self.volume < 0:
+            raise ValueError("volume must be non-negative")
+        if self.high < max(self.open, self.close, self.low):
+            raise ValueError("intraday high must contain the open, close, and low")
+        if self.low > min(self.open, self.close, self.high):
+            raise ValueError("intraday low must contain the open, close, and high")
+
+
+@dataclass(frozen=True, slots=True)
 class MarketObservationBatch:
     source: str
     external_event_key: str
@@ -120,6 +145,7 @@ class MarketObservationBatch:
     underlying_snapshots: tuple[UnderlyingMarketSnapshot, ...] = ()
     option_snapshots: tuple[OptionMarketSnapshot, ...] = ()
     daily_bars: tuple[UnderlyingDailyBar, ...] = ()
+    intraday_bars: tuple[UnderlyingIntradayBar, ...] = ()
 
     def __post_init__(self) -> None:
         require_text(self.source, "source")

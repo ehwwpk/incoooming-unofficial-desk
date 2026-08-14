@@ -18,6 +18,7 @@ from schwab_dashboard.domain.market import (
     MarkMethod,
     OptionMarketSnapshot,
     QuoteQuality,
+    UnderlyingDailyBar,
     UnderlyingMarketSnapshot,
 )
 from schwab_dashboard.infrastructure.database.analytics_reader import SqlLiveAnalyticsReader
@@ -25,6 +26,7 @@ from schwab_dashboard.infrastructure.database.tables import (
     InstrumentTable,
     OptionMarketSnapshotTable,
     RawMarketEventTable,
+    UnderlyingDailyBarTable,
     UnderlyingMarketSnapshotTable,
 )
 from schwab_dashboard.infrastructure.database.uow_market import build_market_uow_factory
@@ -153,3 +155,116 @@ def test_latest_reader_uses_retrieval_time_when_exchange_timestamp_is_unchanged(
 
     assert len(rows) == 1
     assert rows[0]["mark"] == Decimal("3.3100000000")
+
+
+def test_latest_reader_deterministically_breaks_equal_retrieval_time_ties(
+    database_runtime: tuple[object, object, object],
+) -> None:
+    _, session_factory, _ = database_runtime
+    service = RecordMarketObservations(
+        uow_factory=build_market_uow_factory(session_factory),  # type: ignore[arg-type]
+    )
+    daily_bar = UnderlyingDailyBar(
+        instrument=InstrumentRef(source="schwab", external_key="equity-ktos"),
+        trade_date=date(2026, 8, 9),
+        open=Decimal("59.50"),
+        high=Decimal("60.80"),
+        low=Decimal("59.25"),
+        close=Decimal("60.77"),
+        volume=1_000,
+    )
+    first = replace(
+        _batch(option_mark="3.30"),
+        raw_payload={"version": "first"},
+        daily_bars=(daily_bar,),
+    )
+    second = replace(
+        first,
+        external_event_key="quotes-2026-08-09T19:45:00Z-second",
+        raw_payload={"version": "second"},
+        underlying_snapshots=(
+            replace(
+                first.underlying_snapshots[0],
+                bid=Decimal("60.99"),
+                ask=Decimal("61.01"),
+                last=Decimal("61.00"),
+                mark=Decimal("61.00"),
+            ),
+        ),
+        option_snapshots=(
+            replace(first.option_snapshots[0], mark=Decimal("3.31")),
+        ),
+        daily_bars=(
+            replace(
+                daily_bar,
+                high=Decimal("61.10"),
+                close=Decimal("61.00"),
+                volume=1_100,
+            ),
+        ),
+    )
+    service.execute(first)
+    service.execute(second)
+
+    with session_factory() as session:  # type: ignore[operator]
+        events = {
+            event.external_event_key: event
+            for event in session.scalars(select(RawMarketEventTable)).all()
+        }
+        events[first.external_event_key].created_at = NOW
+        events[second.external_event_key].created_at = NOW + timedelta(minutes=1)
+        session.commit()
+
+    reader = SqlLiveAnalyticsReader(session_factory)  # type: ignore[arg-type]
+
+    assert reader.list_latest_underlying_market()[0]["mark"] == Decimal("61.0000000000")
+    assert reader.list_latest_option_market()[0]["mark"] == Decimal("3.3100000000")
+    assert reader.list_daily_bars()[0]["close"] == Decimal("61.0000000000")
+
+
+def test_unchanged_price_history_is_reused_across_syncs(
+    database_runtime: tuple[object, object, object],
+) -> None:
+    _, session_factory, _ = database_runtime
+    service = RecordMarketObservations(
+        uow_factory=build_market_uow_factory(session_factory),  # type: ignore[arg-type]
+    )
+    reference = InstrumentRef(source="schwab", external_key="market:SPY")
+    instrument = InstrumentRecord(
+        source="schwab",
+        external_key="market:SPY",
+        symbol="SPY",
+        asset_type=AssetType.ETF,
+        observed_at=NOW,
+    )
+    bar = UnderlyingDailyBar(
+        instrument=reference,
+        trade_date=date(2026, 8, 8),
+        open=Decimal("640"),
+        high=Decimal("645"),
+        low=Decimal("639"),
+        close=Decimal("644"),
+        volume=1000,
+    )
+    first = MarketObservationBatch(
+        source="schwab",
+        external_event_key="history:SPY:first",
+        observed_at=NOW,
+        parser_version="test-v1",
+        raw_payload={"symbol": "SPY", "candles": [{"close": 644}]},
+        instruments=(instrument,),
+        daily_bars=(bar,),
+    )
+    second = replace(
+        first,
+        external_event_key="history:SPY:second",
+        observed_at=NOW + timedelta(minutes=1),
+        instruments=(replace(instrument, observed_at=NOW + timedelta(minutes=1)),),
+    )
+
+    service.execute(first)
+    service.execute(second)
+
+    with session_factory() as session:  # type: ignore[operator]
+        assert session.scalar(select(func.count()).select_from(RawMarketEventTable)) == 1
+        assert session.scalar(select(func.count()).select_from(UnderlyingDailyBarTable)) == 1

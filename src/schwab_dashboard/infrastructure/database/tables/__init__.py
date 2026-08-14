@@ -14,6 +14,7 @@ from schwab_dashboard.infrastructure.database.tables.market import (
     OptionMarketSnapshotTable,
     RawMarketEventTable,
     UnderlyingDailyBarTable,
+    UnderlyingIntradayBarTable,
     UnderlyingMarketSnapshotTable,
 )
 from schwab_dashboard.infrastructure.database.tables.opportunity import (
@@ -58,6 +59,7 @@ __all__ = [
     "SourceImportRecordTable",
     "SyncRunTable",
     "UnderlyingDailyBarTable",
+    "UnderlyingIntradayBarTable",
     "UnderlyingMarketSnapshotTable",
     "WorkspacePreferenceTable",
 ]

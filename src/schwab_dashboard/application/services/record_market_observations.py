@@ -7,6 +7,7 @@ from schwab_dashboard.application.ports.market import (
     MarketUnitOfWorkFactory,
     OptionMarketSnapshotWrite,
     UnderlyingDailyBarWrite,
+    UnderlyingIntradayBarWrite,
     UnderlyingMarketSnapshotWrite,
 )
 from schwab_dashboard.domain.market import InstrumentRef, MarketObservationBatch
@@ -18,6 +19,7 @@ class MarketObservationResult:
     instrument_count: int
     underlying_snapshot_count: int
     option_snapshot_count: int
+    intraday_bar_count: int
 
 
 class RecordMarketObservations:
@@ -64,6 +66,15 @@ class RecordMarketObservations:
                         bar=daily_bar,
                     )
                 )
+            for intraday_bar in batch.intraday_bars:
+                instrument_id = self._instrument_id(uow, intraday_bar.instrument)
+                uow.underlying_intraday_bars.add(
+                    UnderlyingIntradayBarWrite(
+                        raw_event_id=raw_event_id,
+                        instrument_id=instrument_id,
+                        bar=intraday_bar,
+                    )
+                )
             uow.commit()
 
         return MarketObservationResult(
@@ -71,6 +82,7 @@ class RecordMarketObservations:
             instrument_count=len(batch.instruments),
             underlying_snapshot_count=len(batch.underlying_snapshots),
             option_snapshot_count=len(batch.option_snapshots),
+            intraday_bar_count=len(batch.intraday_bars),
         )
 
     @staticmethod

@@ -184,3 +184,52 @@ def test_maps_real_daily_ohlcv_bars() -> None:
     assert len(batch.daily_bars) == 1
     assert batch.daily_bars[0].close == Decimal("60.75")
     assert batch.daily_bars[0].volume == 1000
+
+
+def test_maps_timestamped_intraday_ohlcv_bars() -> None:
+    batch = SchwabMarketMapper().map_intraday_price_history(
+        {
+            "symbol": "CVX",
+            "candles": [
+                {
+                    "datetime": 1786469400000,
+                    "open": 195,
+                    "high": 197,
+                    "low": 194.5,
+                    "close": 196.25,
+                    "volume": 1200,
+                }
+            ],
+        },
+        observed_at=NOW,
+        parser_version="test",
+        interval_minutes=30,
+    )
+
+    assert len(batch.intraday_bars) == 1
+    assert batch.intraday_bars[0].interval_minutes == 30
+    assert batch.intraday_bars[0].started_at.tzinfo is not None
+    assert batch.intraday_bars[0].close == Decimal("196.25")
+
+
+def test_price_history_preserves_known_asset_type() -> None:
+    batch = SchwabMarketMapper().map_price_history(
+        {
+            "symbol": "URNM",
+            "candles": [
+                {
+                    "datetime": 1786406400000,
+                    "open": 54,
+                    "high": 56,
+                    "low": 53,
+                    "close": 55,
+                    "volume": 1000,
+                }
+            ],
+        },
+        observed_at=NOW,
+        parser_version="test",
+        asset_type=AssetType.ETF,
+    )
+
+    assert batch.instruments[0].asset_type is AssetType.ETF

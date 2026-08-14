@@ -41,9 +41,11 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert desk.text.count("data-tools-toggle") == 1
         assert "desk-workspace-launcher" not in desk.text
         assert "function-rail" in desk.text
-        assert "data-campaign-chart" not in desk.text
-        assert 'class="price-event-ledger campaign-index"' in desk.text
-        assert "C1" in desk.text
+        assert "data-campaign-chart" in desk.text
+        assert "/static/charts/campaign-chart.js" in desk.text
+        assert "data-campaign-chart-fallback" in desk.text
+        assert "data-campaign-chart-legacy" not in desk.text
+        assert desk.text.count("data-campaign-chart data-symbol") == 3
         assert "REFRESH ROLL CHOICES" in desk.text
         assert "review=roll&amp;source=cvx-0724-195&amp;from=nibwick" in desk.text
         assert "returnAnchor=roll-option-cvx-0724-195" in desk.text

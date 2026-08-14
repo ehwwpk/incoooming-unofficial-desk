@@ -26,6 +26,7 @@ from schwab_dashboard.application.dashboard.models import (
 )
 from schwab_dashboard.application.dashboard.performance import OperatorMetricsSummary
 from schwab_dashboard.application.market_time import market_date
+from schwab_dashboard.application.performance.projection import build_performance_comparison
 from schwab_dashboard.application.ports.analytics import LiveAnalyticsReader
 from schwab_dashboard.application.ports.repositories import UnitOfWorkFactory
 
@@ -58,12 +59,39 @@ class ReadDashboard:
             positions = map_positions(uow.positions.list_latest())
             balances = uow.balances.list_latest()
 
-        option_market = self._analytics_reader.list_latest_option_market()
-        underlying_market = self._analytics_reader.list_latest_underlying_market()
+        position_history = self._analytics_reader.list_position_history()
+        option_symbols = tuple(
+            sorted(
+                {
+                    position.symbol.upper()
+                    for position in positions
+                    if position.asset_type.upper() == "OPTION"
+                }
+            )
+        )
+        underlying_symbols = tuple(
+            sorted(
+                {(position.underlying_symbol or position.symbol).upper() for position in positions}
+            )
+        )
+        historical_stock_symbols = {
+            str(row.get("symbol") or "").strip().upper()
+            for row in position_history
+            if str(row.get("asset_type") or "").upper() != "OPTION"
+        }
+        daily_bar_symbols = tuple(
+            sorted({*underlying_symbols, *historical_stock_symbols, "SPY"} - {""})
+        )
+
+        option_market = self._analytics_reader.list_latest_option_market(symbols=option_symbols)
+        underlying_market = self._analytics_reader.list_latest_underlying_market(
+            symbols=underlying_symbols
+        )
         executions = self._analytics_reader.list_executions()
         cash_movements = self._analytics_reader.list_cash_movements()
         lifecycle_events = self._analytics_reader.list_lifecycle_events()
-        daily_bars = self._analytics_reader.list_daily_bars()
+        daily_bars = self._analytics_reader.list_daily_bars(symbols=daily_bar_symbols)
+        balance_history = self._analytics_reader.list_balance_history()
 
         as_of = (
             latest_sync.completed_at
@@ -184,6 +212,13 @@ class ReadDashboard:
             risk=risk,
             live_position_book=live_book,
             latest_sync_attempt=latest_sync_attempt,
+            performance_comparison=build_performance_comparison(
+                balance_history=balance_history,
+                cash_movements=cash_movements,
+                position_history=position_history,
+                daily_bars=daily_bars,
+                executions=executions,
+            ),
         )
 
 

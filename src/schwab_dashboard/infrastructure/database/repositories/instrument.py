@@ -32,7 +32,8 @@ class SqlInstrumentRepository:
             self._session.add(row)
         else:
             row.symbol = instrument.symbol
-            row.asset_type = instrument.asset_type.value
+            if instrument.asset_type.value != "unknown" or row.asset_type == "unknown":
+                row.asset_type = instrument.asset_type.value
             _update_optional_metadata(row, values)
             if _as_utc(instrument.observed_at) < _as_utc(row.first_observed_at):
                 row.first_observed_at = instrument.observed_at

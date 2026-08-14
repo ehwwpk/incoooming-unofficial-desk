@@ -6,7 +6,8 @@
     <meta name="color-scheme" content="dark">
     <title>Incoooming · Options Income</title>
     <link rel="icon" href="{{ url_for('static', path='/nibwick-favicon.svg') }}?v=2" type="image/svg+xml">
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=70">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=71">
+    <link rel="stylesheet" href="{{ url_for('static', path='/campaign-chart.css') }}?v=8">
     <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=7">
   </head>
   <body data-workspace-key="desk" data-demo-mode="{{ 'true' if snapshot.is_demo else 'false' }}" data-snapshot-as-of="{{ snapshot.as_of.isoformat() }}" data-workspace-context='{"account":"{{ snapshot.accounts[0].account_mask if snapshot.accounts else "---" }}","symbol":"ALL","asOf":"{{ snapshot.as_of.date().isoformat() }}"}'>
@@ -105,15 +106,18 @@
     </div>
     <script src="{{ url_for('static', path='/periods.js') }}?v=19" defer></script>
     <script src="{{ url_for('static', path='/cash-activity.js') }}?v=1" defer></script>
-    <script src="{{ url_for('static', path='/workspace-splitter.js') }}?v=1" defer></script>
-    <script src="{{ url_for('static', path='/chart-viewport.js') }}?v=2" defer></script>
-    <script src="{{ url_for('static', path='/chart-focus.js') }}?v=1" defer></script>
-    <script src="{{ url_for('static', path='/event-layout.js') }}?v=4" defer></script>
-    <script src="{{ url_for('static', path='/lifecycle-links.js') }}?v=6" defer></script>
-    <script src="{{ url_for('static', path='/chart-events.js') }}?v=6" defer></script>
+    <script src="{{ url_for('static', path='/workspace-splitter.js') }}?v=2" defer></script>
     <script src="{{ url_for('static', path='/nibwick-alerts.js') }}?v=13" defer></script>
     <script src="{{ url_for('static', path='/nibwick.js') }}?v=5" defer></script>
     <script src="{{ url_for('static', path='/position-details.js') }}?v=2" defer></script>
+    <script src="{{ url_for('static', path='/vendor/lightweight-charts/lightweight-charts.standalone.production.js') }}?v=5.2.0" defer></script>
+    <script src="{{ url_for('static', path='/charts/campaign-layout.js') }}?v=5" defer></script>
+    <script src="{{ url_for('static', path='/charts/campaign-market-layer.js') }}?v=3" defer></script>
+    <script src="{{ url_for('static', path='/charts/campaign-indicators.js') }}?v=1" defer></script>
+    <script src="{{ url_for('static', path='/charts/campaign-lifecycle-layer.js') }}?v=7" defer></script>
+    <script src="{{ url_for('static', path='/charts/campaign-focus.js') }}?v=3" defer></script>
+    <script src="{{ url_for('static', path='/charts/campaign-story.js') }}?v=2" defer></script>
+    <script src="{{ url_for('static', path='/charts/campaign-chart.js') }}?v=9" defer></script>
     <script src="{{ url_for('static', path='/workspace-navigation.js') }}?v=2" defer></script>
     <script src="{{ url_for('static', path='/workspace-channel.js') }}?v=1" defer></script>
     {% if snapshot.mode == 'live' %}<script src="{{ url_for('static', path='/auto-sync.js') }}?v=2" defer></script>{% endif %}

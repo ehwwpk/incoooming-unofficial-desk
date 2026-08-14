@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 from sqlalchemy import and_, func, select
 
 from schwab_dashboard.infrastructure.database.engine import SessionFactory
-from schwab_dashboard.infrastructure.database.tables.account import AccountTable
+from schwab_dashboard.infrastructure.database.tables.account import (
+    AccountBalanceSnapshotTable,
+    AccountTable,
+    PositionSnapshotTable,
+)
 from schwab_dashboard.infrastructure.database.tables.instrument import InstrumentTable
 from schwab_dashboard.infrastructure.database.tables.ledger import (
     CashMovementTable,
@@ -16,13 +21,60 @@ from schwab_dashboard.infrastructure.database.tables.market import (
     OptionMarketSnapshotTable,
     RawMarketEventTable,
     UnderlyingDailyBarTable,
+    UnderlyingIntradayBarTable,
     UnderlyingMarketSnapshotTable,
 )
+from schwab_dashboard.infrastructure.database.tables.sync import SyncRunTable
 
 
 class SqlLiveAnalyticsReader:
     def __init__(self, session_factory: SessionFactory) -> None:
         self._session_factory = session_factory
+
+    def list_balance_history(self) -> tuple[dict[str, Any], ...]:
+        with self._session_factory() as session:
+            rows = session.execute(
+                select(AccountBalanceSnapshotTable, AccountTable)
+                .join(AccountTable, AccountTable.id == AccountBalanceSnapshotTable.account_id)
+                .order_by(AccountBalanceSnapshotTable.observed_at, AccountTable.account_mask)
+            ).all()
+        return tuple(
+            {
+                "account_mask": account.account_mask,
+                "observed_at": balance.observed_at,
+                "liquidation_value": balance.liquidation_value,
+                "initial_liquidation_value": balance.initial_liquidation_value,
+                "equity": balance.equity,
+                "cash_balance": balance.cash_balance,
+                "long_market_value": balance.long_market_value,
+                "short_market_value": balance.short_market_value,
+                "long_option_market_value": balance.long_option_market_value,
+                "short_option_market_value": balance.short_option_market_value,
+            }
+            for balance, account in rows
+        )
+
+    def list_position_history(self) -> tuple[dict[str, Any], ...]:
+        with self._session_factory() as session:
+            rows = session.execute(
+                select(PositionSnapshotTable, AccountTable)
+                .join(AccountTable, AccountTable.id == PositionSnapshotTable.account_id)
+                .join(SyncRunTable, SyncRunTable.id == PositionSnapshotTable.sync_run_id)
+                .where(SyncRunTable.status == "completed")
+                .order_by(PositionSnapshotTable.observed_at, AccountTable.account_mask)
+            ).all()
+        return tuple(
+            {
+                "sync_run_id": position.sync_run_id,
+                "account_mask": account.account_mask,
+                "observed_at": position.observed_at,
+                "symbol": position.symbol,
+                "asset_type": position.asset_type,
+                "net_quantity": position.long_quantity - position.short_quantity,
+                "market_value": position.market_value,
+            }
+            for position, account in rows
+        )
 
     def list_executions(self) -> tuple[dict[str, Any], ...]:
         with self._session_factory() as session:
@@ -100,8 +152,16 @@ class SqlLiveAnalyticsReader:
             for event, instrument, account in rows
         )
 
-    def list_latest_option_market(self) -> tuple[dict[str, Any], ...]:
-        latest = (
+    def list_latest_option_market(
+        self, *, symbols: Sequence[str] | None = None
+    ) -> tuple[dict[str, Any], ...]:
+        normalized = _normalized_symbols(symbols)
+        if symbols is not None and not normalized:
+            return ()
+        instrument_ids = self._instrument_ids_for_symbols(normalized)
+        if normalized and not instrument_ids:
+            return ()
+        latest_retrieval_query = (
             select(
                 OptionMarketSnapshotTable.instrument_id,
                 func.max(RawMarketEventTable.observed_at).label("latest_at"),
@@ -111,27 +171,58 @@ class SqlLiveAnalyticsReader:
                 RawMarketEventTable.id == OptionMarketSnapshotTable.raw_event_id,
             )
             .group_by(OptionMarketSnapshotTable.instrument_id)
-            .subquery()
         )
+        if instrument_ids is not None:
+            latest_retrieval_query = latest_retrieval_query.where(
+                OptionMarketSnapshotTable.instrument_id.in_(instrument_ids)
+            )
+        latest_retrieval = latest_retrieval_query.subquery()
+        ranked_query = (
+            select(
+                OptionMarketSnapshotTable.id.label("snapshot_id"),
+                func.row_number()
+                .over(
+                    partition_by=OptionMarketSnapshotTable.instrument_id,
+                    order_by=(
+                        RawMarketEventTable.observed_at.desc(),
+                        RawMarketEventTable.created_at.desc(),
+                        OptionMarketSnapshotTable.created_at.desc(),
+                        OptionMarketSnapshotTable.raw_event_id.desc(),
+                        OptionMarketSnapshotTable.id.desc(),
+                    ),
+                )
+                .label("version_rank"),
+            )
+            .join(
+                RawMarketEventTable,
+                RawMarketEventTable.id == OptionMarketSnapshotTable.raw_event_id,
+            )
+            .join(
+                latest_retrieval,
+                and_(
+                    latest_retrieval.c.instrument_id
+                    == OptionMarketSnapshotTable.instrument_id,
+                    latest_retrieval.c.latest_at == RawMarketEventTable.observed_at,
+                ),
+            )
+        )
+        ranked = ranked_query.subquery()
         with self._session_factory() as session:
-            rows = session.execute(
+            query = (
                 select(OptionMarketSnapshotTable, InstrumentTable)
                 .join(
                     InstrumentTable,
                     InstrumentTable.id == OptionMarketSnapshotTable.instrument_id,
                 )
                 .join(
-                    RawMarketEventTable,
-                    RawMarketEventTable.id == OptionMarketSnapshotTable.raw_event_id,
+                    ranked,
+                    ranked.c.snapshot_id == OptionMarketSnapshotTable.id,
                 )
-                .join(
-                    latest,
-                    and_(
-                        latest.c.instrument_id == OptionMarketSnapshotTable.instrument_id,
-                        latest.c.latest_at == RawMarketEventTable.observed_at,
-                    ),
-                )
-            ).all()
+                .where(ranked.c.version_rank == 1)
+            )
+            if normalized:
+                query = query.where(InstrumentTable.symbol.in_(normalized))
+            rows = session.execute(query).all()
         return tuple(
             {
                 **_instrument_values(instrument),
@@ -155,8 +246,16 @@ class SqlLiveAnalyticsReader:
             for snapshot, instrument in rows
         )
 
-    def list_latest_underlying_market(self) -> tuple[dict[str, Any], ...]:
-        latest = (
+    def list_latest_underlying_market(
+        self, *, symbols: Sequence[str] | None = None
+    ) -> tuple[dict[str, Any], ...]:
+        normalized = _normalized_symbols(symbols)
+        if symbols is not None and not normalized:
+            return ()
+        instrument_ids = self._instrument_ids_for_symbols(normalized)
+        if normalized and not instrument_ids:
+            return ()
+        latest_retrieval_query = (
             select(
                 UnderlyingMarketSnapshotTable.instrument_id,
                 func.max(RawMarketEventTable.observed_at).label("latest_at"),
@@ -166,27 +265,58 @@ class SqlLiveAnalyticsReader:
                 RawMarketEventTable.id == UnderlyingMarketSnapshotTable.raw_event_id,
             )
             .group_by(UnderlyingMarketSnapshotTable.instrument_id)
-            .subquery()
         )
+        if instrument_ids is not None:
+            latest_retrieval_query = latest_retrieval_query.where(
+                UnderlyingMarketSnapshotTable.instrument_id.in_(instrument_ids)
+            )
+        latest_retrieval = latest_retrieval_query.subquery()
+        ranked_query = (
+            select(
+                UnderlyingMarketSnapshotTable.id.label("snapshot_id"),
+                func.row_number()
+                .over(
+                    partition_by=UnderlyingMarketSnapshotTable.instrument_id,
+                    order_by=(
+                        RawMarketEventTable.observed_at.desc(),
+                        RawMarketEventTable.created_at.desc(),
+                        UnderlyingMarketSnapshotTable.created_at.desc(),
+                        UnderlyingMarketSnapshotTable.raw_event_id.desc(),
+                        UnderlyingMarketSnapshotTable.id.desc(),
+                    ),
+                )
+                .label("version_rank"),
+            )
+            .join(
+                RawMarketEventTable,
+                RawMarketEventTable.id == UnderlyingMarketSnapshotTable.raw_event_id,
+            )
+            .join(
+                latest_retrieval,
+                and_(
+                    latest_retrieval.c.instrument_id
+                    == UnderlyingMarketSnapshotTable.instrument_id,
+                    latest_retrieval.c.latest_at == RawMarketEventTable.observed_at,
+                ),
+            )
+        )
+        ranked = ranked_query.subquery()
         with self._session_factory() as session:
-            rows = session.execute(
+            query = (
                 select(UnderlyingMarketSnapshotTable, InstrumentTable)
                 .join(
                     InstrumentTable,
                     InstrumentTable.id == UnderlyingMarketSnapshotTable.instrument_id,
                 )
                 .join(
-                    RawMarketEventTable,
-                    RawMarketEventTable.id == UnderlyingMarketSnapshotTable.raw_event_id,
+                    ranked,
+                    ranked.c.snapshot_id == UnderlyingMarketSnapshotTable.id,
                 )
-                .join(
-                    latest,
-                    and_(
-                        latest.c.instrument_id == UnderlyingMarketSnapshotTable.instrument_id,
-                        latest.c.latest_at == RawMarketEventTable.observed_at,
-                    ),
-                )
-            ).all()
+                .where(ranked.c.version_rank == 1)
+            )
+            if normalized:
+                query = query.where(InstrumentTable.symbol.in_(normalized))
+            rows = session.execute(query).all()
         return tuple(
             {
                 "symbol": instrument.symbol,
@@ -202,8 +332,16 @@ class SqlLiveAnalyticsReader:
             for snapshot, instrument in rows
         )
 
-    def list_daily_bars(self) -> tuple[dict[str, Any], ...]:
-        latest = (
+    def list_daily_bars(
+        self, *, symbols: Sequence[str] | None = None
+    ) -> tuple[dict[str, Any], ...]:
+        normalized = _normalized_symbols(symbols)
+        if symbols is not None and not normalized:
+            return ()
+        instrument_ids = self._instrument_ids_for_symbols(normalized)
+        if normalized and not instrument_ids:
+            return ()
+        latest_retrieval_query = (
             select(
                 UnderlyingDailyBarTable.instrument_id,
                 UnderlyingDailyBarTable.trade_date,
@@ -217,26 +355,60 @@ class SqlLiveAnalyticsReader:
                 UnderlyingDailyBarTable.instrument_id,
                 UnderlyingDailyBarTable.trade_date,
             )
-            .subquery()
         )
+        if instrument_ids is not None:
+            latest_retrieval_query = latest_retrieval_query.where(
+                UnderlyingDailyBarTable.instrument_id.in_(instrument_ids)
+            )
+        latest_retrieval = latest_retrieval_query.subquery()
+        ranked_query = (
+            select(
+                UnderlyingDailyBarTable.id.label("bar_id"),
+                func.row_number()
+                .over(
+                    partition_by=(
+                        UnderlyingDailyBarTable.instrument_id,
+                        UnderlyingDailyBarTable.trade_date,
+                    ),
+                    order_by=(
+                        RawMarketEventTable.observed_at.desc(),
+                        RawMarketEventTable.created_at.desc(),
+                        UnderlyingDailyBarTable.created_at.desc(),
+                        UnderlyingDailyBarTable.raw_event_id.desc(),
+                        UnderlyingDailyBarTable.id.desc(),
+                    ),
+                )
+                .label("version_rank"),
+            )
+            .join(
+                RawMarketEventTable,
+                RawMarketEventTable.id == UnderlyingDailyBarTable.raw_event_id,
+            )
+            .join(
+                latest_retrieval,
+                and_(
+                    latest_retrieval.c.instrument_id
+                    == UnderlyingDailyBarTable.instrument_id,
+                    latest_retrieval.c.trade_date == UnderlyingDailyBarTable.trade_date,
+                    latest_retrieval.c.latest_at == RawMarketEventTable.observed_at,
+                ),
+            )
+        )
+        ranked = ranked_query.subquery()
         with self._session_factory() as session:
-            rows = session.execute(
+            query = (
                 select(UnderlyingDailyBarTable, InstrumentTable)
                 .join(InstrumentTable, InstrumentTable.id == UnderlyingDailyBarTable.instrument_id)
                 .join(
-                    RawMarketEventTable,
-                    RawMarketEventTable.id == UnderlyingDailyBarTable.raw_event_id,
+                    ranked,
+                    ranked.c.bar_id == UnderlyingDailyBarTable.id,
                 )
-                .join(
-                    latest,
-                    and_(
-                        latest.c.instrument_id == UnderlyingDailyBarTable.instrument_id,
-                        latest.c.trade_date == UnderlyingDailyBarTable.trade_date,
-                        latest.c.latest_at == RawMarketEventTable.observed_at,
-                    ),
-                )
+                .where(ranked.c.version_rank == 1)
                 .order_by(InstrumentTable.symbol, UnderlyingDailyBarTable.trade_date)
-            ).all()
+            )
+            if normalized:
+                query = query.where(InstrumentTable.symbol.in_(normalized))
+            rows = session.execute(query).all()
         return tuple(
             {
                 "symbol": instrument.symbol,
@@ -249,6 +421,84 @@ class SqlLiveAnalyticsReader:
             }
             for bar, instrument in rows
         )
+
+    def list_intraday_bars(
+        self, *, symbols: Sequence[str] | None = None
+    ) -> tuple[dict[str, Any], ...]:
+        normalized = _normalized_symbols(symbols)
+        if symbols is not None and not normalized:
+            return ()
+        instrument_ids = self._instrument_ids_for_symbols(normalized)
+        if normalized and not instrument_ids:
+            return ()
+        ranked_query = (
+            select(
+                UnderlyingIntradayBarTable.id.label("bar_id"),
+                func.row_number()
+                .over(
+                    partition_by=(
+                        UnderlyingIntradayBarTable.instrument_id,
+                        UnderlyingIntradayBarTable.started_at,
+                        UnderlyingIntradayBarTable.interval_minutes,
+                    ),
+                    order_by=(
+                        RawMarketEventTable.observed_at.desc(),
+                        RawMarketEventTable.created_at.desc(),
+                        UnderlyingIntradayBarTable.created_at.desc(),
+                        UnderlyingIntradayBarTable.id.desc(),
+                    ),
+                )
+                .label("version_rank"),
+            )
+            .join(
+                RawMarketEventTable,
+                RawMarketEventTable.id == UnderlyingIntradayBarTable.raw_event_id,
+            )
+        )
+        if instrument_ids is not None:
+            ranked_query = ranked_query.where(
+                UnderlyingIntradayBarTable.instrument_id.in_(instrument_ids)
+            )
+        ranked = ranked_query.subquery()
+        with self._session_factory() as session:
+            query = (
+                select(UnderlyingIntradayBarTable, InstrumentTable)
+                .join(
+                    InstrumentTable,
+                    InstrumentTable.id == UnderlyingIntradayBarTable.instrument_id,
+                )
+                .join(ranked, ranked.c.bar_id == UnderlyingIntradayBarTable.id)
+                .where(ranked.c.version_rank == 1)
+                .order_by(InstrumentTable.symbol, UnderlyingIntradayBarTable.started_at)
+            )
+            if normalized:
+                query = query.where(InstrumentTable.symbol.in_(normalized))
+            rows = session.execute(query).all()
+        return tuple(
+            {
+                "symbol": instrument.symbol,
+                "started_at": bar.started_at,
+                "interval_minutes": bar.interval_minutes,
+                "open": bar.open,
+                "high": bar.high,
+                "low": bar.low,
+                "close": bar.close,
+                "volume": bar.volume,
+            }
+            for bar, instrument in rows
+        )
+
+    def _instrument_ids_for_symbols(
+        self, symbols: tuple[str, ...]
+    ) -> tuple[str, ...] | None:
+        if not symbols:
+            return None
+        with self._session_factory() as session:
+            return tuple(
+                session.scalars(
+                    select(InstrumentTable.id).where(InstrumentTable.symbol.in_(symbols))
+                ).all()
+            )
 
 
 def _instrument_values(instrument: InstrumentTable) -> dict[str, Any]:
@@ -264,3 +514,11 @@ def _instrument_values(instrument: InstrumentTable) -> dict[str, Any]:
         "contract_multiplier": instrument.contract_multiplier,
         "deliverable": instrument.deliverable,
     }
+
+
+def _normalized_symbols(symbols: Sequence[str] | None) -> tuple[str, ...]:
+    if symbols is None:
+        return ()
+    return tuple(
+        sorted({symbol.strip().upper() for symbol in symbols if symbol and symbol.strip()})
+    )

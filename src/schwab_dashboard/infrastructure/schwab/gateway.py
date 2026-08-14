@@ -156,6 +156,29 @@ class SchwabReadOnlyMarketDataClient:
             },
         )
 
+    def get_intraday_price_history(
+        self,
+        symbol: str,
+        *,
+        start_at: datetime,
+        end_at: datetime,
+        frequency_minutes: int = 30,
+    ) -> Mapping[str, Any]:
+        if frequency_minutes not in {1, 5, 10, 15, 30}:
+            raise ValueError("frequency_minutes must be 1, 5, 10, 15, or 30")
+        return self._get_mapping(
+            "/pricehistory",
+            params={
+                "symbol": symbol,
+                "frequencyType": "minute",
+                "frequency": str(frequency_minutes),
+                "startDate": str(int(start_at.timestamp() * 1000)),
+                "endDate": str(int(end_at.timestamp() * 1000)),
+                "needExtendedHoursData": "true",
+                "needPreviousClose": "true",
+            },
+        )
+
     def _get_mapping(
         self,
         path: str,

@@ -50,31 +50,30 @@
 .underlying-grid { gap: 6px; }
 .position-book { overflow: clip; }
 .position-book::after { top: 7px; font-size: 3rem; }
-.position-book > summary { position: relative; z-index: 1; display: grid; grid-template-areas: "identity shares income calls nearest mark control"; grid-template-columns: 1.2fr .62fr 1.05fr .78fr .9fr .9fr .62fr; min-height: 78px; cursor: pointer; list-style: none; background: var(--surface); }
+.position-book > summary { position: relative; z-index: 1; display: grid; grid-template-areas: "identity shares income calls nearest mark"; grid-template-columns: 1.28fr .62fr 1.05fr .9fr .9fr .92fr; min-height: 78px; cursor: pointer; list-style: none; background: var(--surface); }
 .position-book > summary::-webkit-details-marker { display: none; }
+.position-book > summary::after { content: "⌄"; position: absolute; right: 8px; top: 8px; color: var(--subtle); font: 700 .55rem var(--mono); transition: transform 150ms ease, color 150ms ease; }
+.position-book[open] > summary::after { transform: rotate(180deg); color: var(--gold); }
 .position-book > summary > div { display: grid; min-width: 0; align-content: center; gap: 5px; padding: 9px 10px; border-right: 1px solid var(--line); }
 .position-book > summary > div:last-child { border-right: 0; }
 .position-book > summary span { color: var(--subtle); font: 650 .43rem var(--mono); letter-spacing: .04em; }
 .position-book > summary strong { overflow: hidden; font: 700 .68rem var(--mono); text-overflow: ellipsis; white-space: nowrap; }
 .position-book > summary strong small { color: var(--subtle); font-size: .43rem; }
-.position-book > summary small { overflow: hidden; color: var(--subtle); font: .4rem/1.35 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
+.position-book > summary small { overflow: hidden; color: var(--subtle); font: .45rem/1.35 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
 .position-identity { grid-area: identity; }
 .position-book > summary > div:nth-child(2) { grid-area: shares; }
 .position-book > summary > div:nth-child(4) { grid-area: calls; }
 .position-book > summary > div:nth-child(6) { grid-area: mark; }
 .position-identity strong { color: var(--gold); font-size: .83rem !important; letter-spacing: .05em; }
 .position-identity span { color: var(--muted) !important; font-family: var(--sans) !important; }
+.position-ticker-line { display: flex; min-width: 0; align-items: center; gap: 8px; }
+.position-alert-pill { flex: 0 0 auto; border: 1px solid var(--gold-soft); padding: 2px 5px; color: var(--gold) !important; font: 750 .38rem/1 var(--mono) !important; letter-spacing: .05em; }
 .position-income { grid-area: income; background: #0f120f; }
 .position-income > strong { color: var(--green); font-size: .78rem !important; }
 .position-nearest { grid-area: nearest; }
-.position-open-control { grid-area: control; justify-items: center; text-align: center; }
-.position-open-control > b { border: 1px solid var(--line-strong); padding: 6px 7px; color: var(--gold); font: 700 .4rem var(--mono); }
-.position-close-label { display: none; }
+.position-contracts small { color: var(--muted-light) !important; font-size: .47rem !important; }
 .position-book[open] { border-color: var(--gold-soft); }
 .position-book[open] > summary { background: var(--surface-raised); box-shadow: inset 0 -1px var(--gold-soft); }
-.position-book[open] .position-open-label { display: none; }
-.position-book[open] .position-close-label { display: inline; }
-.position-alert { color: var(--gold) !important; font-weight: 700 !important; }
 .position-detail { border-top: 1px solid var(--line-strong); }
 .position-detail > .name-analytics { border-top: 0; }
 
@@ -129,11 +128,10 @@
 
 @media (max-width: 1180px) {
   .desk-pulse { grid-template-columns: 1fr; }
-  .position-book > summary { grid-template-areas: "identity income nearest control" "shares calls mark control"; grid-template-columns: 1.25fr 1fr 1fr .65fr; }
+  .position-book > summary { grid-template-areas: "identity income nearest" "shares calls mark"; grid-template-columns: 1.25fr 1fr 1fr; }
   .position-book > summary > div:nth-child(2) { grid-area: shares; border-top: 1px solid var(--line); }
   .position-book > summary > div:nth-child(4) { grid-area: calls; border-top: 1px solid var(--line); }
   .position-book > summary > div:nth-child(6) { grid-area: mark; border-top: 1px solid var(--line); }
-  .position-open-control { border-left: 1px solid var(--line); }
   .cash-activity-equation { grid-template-columns: minmax(130px, .8fr) auto minmax(170px, 1.15fr) auto minmax(130px, .9fr) minmax(120px, .72fr); }
   .live-position-facts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
@@ -149,11 +147,10 @@
   .income-observed-bar { grid-template-columns: 1fr; }
   .income-observed-bar > div { border-right: 0; border-bottom: 1px solid var(--line); }
   .income-observed-bar > div:last-child { border-bottom: 0; }
-  .position-book > summary { grid-template-areas: "identity control" "income income" "shares calls" "nearest mark"; grid-template-columns: 1fr .72fr; }
+  .position-book > summary { grid-template-areas: "identity identity" "income income" "shares calls" "nearest mark"; grid-template-columns: 1fr 1fr; }
   .position-book > summary > div { border-top: 1px solid var(--line); }
-  .position-book > summary .position-identity, .position-book > summary .position-open-control { border-top: 0; }
+  .position-book > summary .position-identity { border-top: 0; }
   .position-book > summary > div:nth-child(2n) { border-right: 0; }
-  .position-open-control { border-left: 0; }
   .live-book-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .live-book-grid > :nth-child(2n) { border-right: 0; }
   .live-book-footer { grid-template-columns: 1fr; }

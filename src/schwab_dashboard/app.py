@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from schwab_dashboard.api.errors import unhandled_exception
+from schwab_dashboard.api.routes.charts import router as charts_router
 from schwab_dashboard.api.routes.dashboard import router as dashboard_router
 from schwab_dashboard.api.routes.health import router as health_router
 from schwab_dashboard.api.routes.radar import router as radar_router
@@ -60,6 +61,7 @@ def create_app(container: Container | None = None) -> FastAPI:
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
     app.include_router(health_router)
     app.include_router(sources_router)
+    app.include_router(charts_router)
     app.include_router(dashboard_router)
     app.include_router(radar_router)
     app.include_router(workspaces_router)
