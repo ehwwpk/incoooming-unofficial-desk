@@ -5,6 +5,7 @@ from decimal import Decimal
 from schwab_dashboard.application.alerts import build_desk_alerts
 from schwab_dashboard.application.alerts.rules import (
     evaluate_call_expiration_pressure,
+    evaluate_call_expiration_pressures,
     evaluate_fast_move,
     evaluate_short_put_pressure,
 )
@@ -161,6 +162,40 @@ def test_call_expiration_rule_checks_every_contract_before_ranking() -> None:
     assert alert.level == "watch"
     assert "5 days left" in alert.message
     assert next(fact.value for fact in alert.facts if fact.label == "TIME LEFT") == "5 DTE"
+
+
+def test_call_expiration_rule_keeps_each_qualifying_contract_visible() -> None:
+    snapshot = DemoDashboardReader().execute()
+    cvx = next(item for item in snapshot.underlyings if item.symbol == "CVX")
+    first = replace(
+        cvx.open_call_clocks[0],
+        record_id="CVX-205-CALL",
+        strike=D("205"),
+        strike_distance_per_share=D("6.70"),
+        strike_distance_percent=D("3.38"),
+        days_to_expiration=14,
+    )
+    second = replace(
+        cvx.open_call_clocks[1],
+        record_id="CVX-2075-CALL",
+        strike=D("207.5"),
+        strike_distance_per_share=D("9.20"),
+        strike_distance_percent=D("4.64"),
+        days_to_expiration=0,
+    )
+    underlying = replace(cvx, open_call_clocks=(first, second))
+
+    contract_alerts = evaluate_call_expiration_pressures(underlying)
+    combined = build_desk_alerts((underlying,), as_of=snapshot.as_of.date())
+
+    assert {alert.roll_source_option_symbol for alert in contract_alerts} == {
+        "CVX-205-CALL",
+        "CVX-2075-CALL",
+    }
+    assert {alert.roll_source_option_symbol for alert in combined} == {
+        "CVX-205-CALL",
+        "CVX-2075-CALL",
+    }
 
 
 def test_build_alerts_limits_short_put_notes_to_one_per_symbol() -> None:

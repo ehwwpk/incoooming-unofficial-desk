@@ -1,4 +1,5 @@
 from dataclasses import asdict
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Request
@@ -37,6 +38,7 @@ def workspace_page(
     request: Request,
     container: ContainerDependency,
 ) -> Response:
+    page_built_at = datetime.now(UTC)
     if workspace_key is WorkspaceKey.DESK:
         return RedirectResponse(url="/", status_code=303)
     source_key = selected_source_key(request)
@@ -53,6 +55,7 @@ def workspace_page(
     )
     context: dict[str, Any] = {
         "snapshot": snapshot,
+        "page_built_at": page_built_at,
         "workspace": get_workspace(workspace_key),
         "workspaces": list_workspaces(),
         "sync_runtime": container.sync_coordinator.status(),

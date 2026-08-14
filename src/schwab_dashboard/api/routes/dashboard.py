@@ -1,5 +1,6 @@
 import logging
 from dataclasses import asdict
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Annotated, Any
 
@@ -21,6 +22,15 @@ from schwab_dashboard.web.rendering import templates
 router = APIRouter(tags=["dashboard"])
 ContainerDependency = Annotated[Container, Depends(get_container)]
 LOGGER = logging.getLogger(__name__)
+
+
+def _utc_timestamp(value: datetime | None) -> datetime | None:
+    """Restore UTC lost by SQLite before timestamps reach browser date parsing."""
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 @router.get("/api/v1/dashboard")
@@ -91,7 +101,7 @@ def sync_status(container: ContainerDependency) -> dict[str, Any]:
         "state": state,
         "token_available": token_available,
         "latest_successful_at": (
-            latest_success.completed_at if latest_success is not None else None
+            _utc_timestamp(latest_success.completed_at) if latest_success is not None else None
         ),
         "latest_attempt_status": (latest_attempt.status if latest_attempt is not None else None),
         "latest_attempt_error": persisted_error,
@@ -100,6 +110,7 @@ def sync_status(container: ContainerDependency) -> dict[str, Any]:
 
 @router.get("/", response_class=HTMLResponse)
 def home(request: Request, container: ContainerDependency) -> Response:
+    page_built_at = datetime.now(UTC)
     source_key = selected_source_key(request)
     if source_key is None:
         return RedirectResponse(url="/sources", status_code=status.HTTP_303_SEE_OTHER)
@@ -117,6 +128,7 @@ def home(request: Request, container: ContainerDependency) -> Response:
         name="dashboard.html",
         context={
             "snapshot": snapshot,
+            "page_built_at": page_built_at,
             "desk_overview": build_desk_overview(snapshot),
             "workspaces": list_workspaces(),
             "sync_runtime": container.sync_coordinator.status(),

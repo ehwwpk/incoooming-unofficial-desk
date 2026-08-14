@@ -556,10 +556,11 @@
     const symbol = canonicalSymbol();
     if (!symbol) { symbolInput.focus(); return; }
     const values = Object.fromEntries(new FormData(policyForm));
-    const numeric = ["minimum_dte", "maximum_dte", "minimum_annualized_rate_percent", "minimum_strike_distance_percent", "maximum_spread_percent", "minimum_open_interest", "minimum_volume", "maximum_quote_age_seconds", "allowed_contracts", "reserved_cash"];
+    const numeric = ["minimum_dte", "maximum_dte", "minimum_annualized_rate_percent", "minimum_strike_distance_percent", "minimum_open_interest", "minimum_volume", "maximum_quote_age_seconds", "allowed_contracts", "reserved_cash"];
     numeric.forEach((key) => { values[key] = Number(values[key] || 0); });
     values.minimum_strike = values.minimum_strike ? Number(values.minimum_strike) : null;
     values.maximum_effective_entry = values.maximum_effective_entry ? Number(values.maximum_effective_entry) : null;
+    values.maximum_spread_percent = values.maximum_spread_percent ? Number(values.maximum_spread_percent) : null;
     values.maximum_five_day_move_percent = values.maximum_five_day_move_percent ? Number(values.maximum_five_day_move_percent) : null;
     values.mode = mode();
     try {

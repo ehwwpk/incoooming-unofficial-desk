@@ -9,7 +9,7 @@
     >
       <span><b>{{ snapshot.underlyings | length if snapshot.underlyings else (live_book.underlyings | length if live_book else 0) }}</b> STOCKS</span>
       <span><b>{{ snapshot.covered_calls.total_shares | number(0) if snapshot.underlyings else (live_book.total_shares | number(0) if live_book else 0) }}</b> SHARES</span>
-      <span><b>{{ desk_overview.open_positions }}</b> OPTION LINES</span>
+      <span><b>{{ desk_overview.open_positions }}</b> OPTION POSITIONS</span>
       <span><b>{{ desk_overview.open_contracts }}</b> CONTRACTS</span>
     </div>
   </div>
@@ -23,7 +23,7 @@
         <div class="position-identity"><div class="position-ticker-line"><strong>{{ item.symbol }}</strong>{% if row.alert_count %}<small class="position-alert-pill">{{ row.alert_count }} NOTE{{ '' if row.alert_count == 1 else 'S' }}</small>{% endif %}</div><span>{{ item.company_name }}</span><small>{{ item.current_price | money }} · {{ item.market_value | money(0) }} value</small></div>
         <div><span>SHARES</span><strong>{{ item.shares }}</strong><small>{{ item.contract_capacity }} total 100-share lots</small></div>
         <div class="position-income"><span data-name-option-label>NET OPTION INCOME / 4 WEEKS</span><strong data-name-option-cash>{{ active_window.option_cash | money }}</strong><small><b data-name-dividends>{{ active_window.dividends | money }}</b> dividends</small></div>
-        <div class="position-contracts"><span>OPEN OPTION LINES</span><strong>{{ row.open_positions }}</strong><small>{{ item.active_contracts }} call contracts{% if row.live_underlying and row.live_underlying.open_put_contracts %} · {{ row.live_underlying.open_put_contracts }} put contracts{% endif %} · {{ item.coverage_percent | percent }} covered</small></div>
+        <div class="position-contracts"><span>OPEN POSITIONS</span><strong>{{ row.open_positions }}</strong><small>{{ item.active_contracts }} call contract{{ '' if item.active_contracts == 1 else 's' }}{% if row.live_underlying and row.live_underlying.open_put_contracts %} · {{ row.live_underlying.open_put_contracts }} put contract{{ '' if row.live_underlying.open_put_contracts == 1 else 's' }}{% endif %} · {{ item.coverage_percent | percent }} of share lots covered</small></div>
         <div class="position-nearest"><span>NEAREST STRIKE</span>{% if row.nearest_call %}<strong>${{ '%g' | format(row.nearest_call.strike) }}C</strong>{% if row.nearest_call.strike_distance_per_share >= 0 %}<small>{{ row.nearest_call.strike_distance_percent | percent }} above · {{ row.nearest_call.days_to_expiration }} DTE</small>{% else %}<small class="negative">{{ (-row.nearest_call.strike_distance_percent) | percent }} past · {{ row.nearest_call.days_to_expiration }} DTE</small>{% endif %}{% else %}<strong>NONE</strong><small>No open call</small>{% endif %}</div>
         <div><span>OPEN MARK P/L</span><strong class="{{ row.open_mark_profit_loss | pnl_class }}">{{ row.open_mark_profit_loss | money }}</strong><small>Unrealized estimate</small></div>
       </summary>

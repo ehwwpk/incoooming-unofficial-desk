@@ -70,13 +70,13 @@ class RadarPolicy:
     minimum_strike: Decimal | None = None
     minimum_strike_distance_percent: Decimal = Decimal("0")
     maximum_effective_entry: Decimal | None = None
-    maximum_spread_percent: Decimal = Decimal("25")
+    maximum_spread_percent: Decimal | None = None
     minimum_open_interest: int = 0
     minimum_volume: int = 0
     maximum_quote_age_seconds: int = 86400
     allowed_contracts: int = 1
     reserved_cash: Decimal = Decimal("0")
-    maximum_five_day_move_percent: Decimal | None = Decimal("20")
+    maximum_five_day_move_percent: Decimal | None = None
 
     def __post_init__(self) -> None:
         require_text(self.symbol, "symbol")
@@ -92,7 +92,7 @@ class RadarPolicy:
             raise ValueError("minimum_strike_distance_percent must be non-negative")
         if self.maximum_effective_entry is not None and self.maximum_effective_entry < 0:
             raise ValueError("maximum_effective_entry must be non-negative")
-        if self.maximum_spread_percent < 0:
+        if self.maximum_spread_percent is not None and self.maximum_spread_percent < 0:
             raise ValueError("maximum_spread_percent must be non-negative")
         if self.minimum_open_interest < 0 or self.minimum_volume < 0:
             raise ValueError("liquidity limits must be non-negative")

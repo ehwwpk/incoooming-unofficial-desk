@@ -1,6 +1,7 @@
 (() => {
   const stage = document.querySelector("[data-nibwick-stage]");
   const nibwick = document.querySelector("[data-nibwick]");
+  const patrolGroup = document.querySelector("[data-nibwick-patrol-group]");
   const art = document.querySelector("[data-nibwick-art]");
   const status = document.querySelector("[data-nibwick-status]");
   const alertPanel = document.querySelector("[data-nibwick-popover]");
@@ -50,7 +51,10 @@
   };
 
   const measureStage = () => {
-    const distance = Math.max(3, stage.clientHeight - nibwick.offsetHeight - 6);
+    const distance = Math.max(
+      3,
+      stage.clientHeight - (patrolGroup?.offsetHeight || nibwick.offsetHeight) - 6,
+    );
     stage.style.setProperty("--nibwick-distance", `${distance}px`);
   };
 

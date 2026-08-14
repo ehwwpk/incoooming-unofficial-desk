@@ -6,7 +6,11 @@
   const detail = statusRoot.querySelector("[data-sync-detail]");
   const syncButton = statusRoot.querySelector("[data-sync-now]");
   const serverHealth = statusRoot.querySelector("[data-server-health]");
-  const pageObservedAt = Date.parse(document.body.dataset.snapshotAsOf || "");
+  // Market observations can be older than the sync run that fetched them on
+  // weekends, holidays, and after hours. Comparing those two different clocks
+  // makes every fresh page look stale and creates an endless reload loop.
+  const pageBuiltAt = Date.parse(document.body.dataset.pageBuiltAt || "");
+  const VIEW_STATE_KEY = "incoooming:auto-refresh-view";
   let reloadQueued = false;
 
   const setState = (label, tone) => {
@@ -17,12 +21,18 @@
   };
 
   const localTime = (value) => {
-    const parsed = Date.parse(value || "");
+    const parsed = parseServerTime(value);
     if (!Number.isFinite(parsed)) return "NO SUCCESSFUL SNAPSHOT";
     return `SYNCED ${new Date(parsed).toLocaleTimeString([], {
       hour: "numeric",
       minute: "2-digit",
     })}`;
+  };
+
+  const parseServerTime = (value) => {
+    if (!value) return Number.NaN;
+    const normalized = /(?:Z|[+-]\d\d:\d\d)$/i.test(value) ? value : `${value}Z`;
+    return Date.parse(normalized);
   };
 
   const poll = async () => {
@@ -63,16 +73,31 @@
         detail.title = error || "";
       }
 
-      const latestObservedAt = Date.parse(status.latest_successful_at || "");
+      const latestObservedAt = parseServerTime(status.latest_successful_at);
       if (
         !reloadQueued &&
         !status.running &&
-        Number.isFinite(pageObservedAt) &&
+        Number.isFinite(pageBuiltAt) &&
         Number.isFinite(latestObservedAt) &&
-        latestObservedAt > pageObservedAt + 1000 &&
+        latestObservedAt > pageBuiltAt + 1000 &&
         document.visibilityState === "visible"
       ) {
         reloadQueued = true;
+        const openDetails = [...document.querySelectorAll("details[open][id]")]
+          .map((node) => node.id)
+          .filter(Boolean);
+        try {
+          sessionStorage.setItem(
+            VIEW_STATE_KEY,
+            JSON.stringify({
+              path: `${window.location.pathname}${window.location.search}`,
+              openDetails,
+              scrollY: window.scrollY,
+            }),
+          );
+        } catch (_) {
+          // Refresh still proceeds when browser storage is disabled.
+        }
         window.location.reload();
       }
     } catch (_) {
