@@ -45,7 +45,7 @@ def test_basis_lens_renders_positive_surplus_after_full_capital_recovery() -> No
     assert "+$27,500.00" in rendered
 
 
-def test_chart_events_render_as_accessible_buttons_with_one_popover_per_name() -> None:
+def test_campaign_charts_render_as_lazy_accessible_workspaces() -> None:
     snapshot = DemoDashboardReader().execute()
     overview = build_desk_overview(snapshot)
 
@@ -54,18 +54,19 @@ def test_chart_events_render_as_accessible_buttons_with_one_popover_per_name() -
         desk_overview=overview,
     )
 
-    assert rendered.count("data-chart-event-popover") == len(snapshot.underlyings)
-    assert rendered.count("data-chart-event-trigger") == sum(
-        len(item.price_events) + len(item.share_trade_events) for item in snapshot.underlyings
+    assert rendered.count("data-campaign-chart data-symbol") == len(snapshot.underlyings)
+    assert rendered.count("data-campaign-chart-fallback") == len(snapshot.underlyings)
+    assert "data-campaign-chart-legacy" not in rendered
+    assert rendered.count("data-campaign-focus") == len(snapshot.underlyings)
+    assert rendered.count('role="group" aria-label="Market chart style"') == len(
+        snapshot.underlyings
     )
-    assert 'aria-haspopup="dialog"' in rendered
-    assert "data-linked-resolution-sequence" in rendered
-    assert "data-underlying-at-resolution" in rendered
-    assert "data-event-fact-one-detail" in rendered
-    assert "data-chart-ledger-event" in rendered
-    assert 'class="price-event-ledger campaign-index"' in rendered
-    assert "C1" in rendered
-    assert 'data-campaign-endpoint="true"' in rendered
+    assert rendered.count('role="group" aria-label="Option campaign visibility"') == len(
+        snapshot.underlyings
+    )
+    assert rendered.count('role="group" aria-label="Chart range"') == len(
+        snapshot.underlyings
+    )
     assert overview.nearest_call is not None
     assert f'id="{overview.nearest_call.anchor_id}"' in rendered
 

@@ -20,6 +20,7 @@ from schwab_dashboard.domain.market import (
     OptionMarketSnapshot,
     QuoteQuality,
     UnderlyingDailyBar,
+    UnderlyingIntradayBar,
     UnderlyingMarketSnapshot,
 )
 from schwab_dashboard.infrastructure.schwab.option_symbol import parse_occ_option_symbol
@@ -128,6 +129,7 @@ class SchwabMarketMapper:
         *,
         observed_at: datetime,
         parser_version: str,
+        asset_type: AssetType = AssetType.UNKNOWN,
     ) -> MarketObservationBatch:
         symbol = str(payload.get("symbol") or "").strip()
         if not symbol:
@@ -163,11 +165,63 @@ class SchwabMarketMapper:
                     source="schwab",
                     external_key=external_key,
                     symbol=symbol,
-                    asset_type=AssetType.EQUITY,
+                    asset_type=asset_type,
                     observed_at=observed_at,
                 ),
             ),
             daily_bars=tuple(bars),
+        )
+
+    def map_intraday_price_history(
+        self,
+        payload: Mapping[str, Any],
+        *,
+        observed_at: datetime,
+        parser_version: str,
+        interval_minutes: int,
+        asset_type: AssetType = AssetType.UNKNOWN,
+    ) -> MarketObservationBatch:
+        symbol = str(payload.get("symbol") or "").strip()
+        if not symbol:
+            raise ValueError("Schwab intraday history is missing its symbol")
+        external_key = f"market:{symbol}"
+        bars: list[UnderlyingIntradayBar] = []
+        raw_candles = payload.get("candles") or []
+        if not isinstance(raw_candles, Sequence) or isinstance(raw_candles, (str, bytes)):
+            raise ValueError("Schwab intraday candles are not a list")
+        for candle in raw_candles:
+            if not isinstance(candle, Mapping):
+                continue
+            bars.append(
+                UnderlyingIntradayBar(
+                    instrument=InstrumentRef(source="schwab", external_key=external_key),
+                    started_at=_epoch_millis(candle.get("datetime"), fallback=observed_at),
+                    interval_minutes=interval_minutes,
+                    open=_required_market_decimal(candle.get("open")),
+                    high=_required_market_decimal(candle.get("high")),
+                    low=_required_market_decimal(candle.get("low")),
+                    close=_required_market_decimal(candle.get("close")),
+                    volume=_optional_int(candle.get("volume")) or 0,
+                )
+            )
+        return MarketObservationBatch(
+            source="schwab",
+            external_event_key=(
+                f"intraday:{interval_minutes}m:{symbol}:{observed_at.isoformat()}"
+            ),
+            observed_at=observed_at,
+            parser_version=parser_version,
+            raw_payload=dict(payload),
+            instruments=(
+                InstrumentRecord(
+                    source="schwab",
+                    external_key=external_key,
+                    symbol=symbol,
+                    asset_type=asset_type,
+                    observed_at=observed_at,
+                ),
+            ),
+            intraday_bars=tuple(bars),
         )
 
 

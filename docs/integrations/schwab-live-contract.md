@@ -10,8 +10,9 @@ amounts.
 - Trader API account numbers and accounts with positions;
 - Trader API transactions in non-overlapping 59-day windows over a rolling year;
 - Market Data quotes for held underlyings;
-- Market Data option chains bounded to the expirations of open short calls;
-- Market Data one-year daily price history for covered-call underlyings.
+- Market Data option chains for open short calls and short puts;
+- Market Data one-year daily price history for every held market symbol;
+- Market Data one-year daily SPY history for the optional price-only reference.
 
 The clients expose GET operations only. There is no order-entry, replacement, cancellation, or
 preview method in the adapter.
@@ -20,9 +21,12 @@ preview method in the adapter.
 
 The live local server schedules a full read-only refresh after startup and every 15 minutes by
 default. Manual CLI and browser refreshes use the same coordinator and cannot overlap an active
-run. A full refresh is considered current only after accounts/positions, transaction history, and
-market observations all finish; failed full runs are persisted separately from the last successful
-snapshot and surfaced as an attention state. Closing the local server stops the schedule.
+run. Quotes and bounded option chains refresh on that cadence. Daily price histories use a separate
+one-hour process-local throttle so normal 15-minute refreshes do not repeatedly download unchanged
+one-year series. A restart makes each history symbol immediately eligible again. A full refresh is
+considered current only after accounts/positions, transaction history, and market observations all
+finish; failed full runs are persisted separately from the last successful snapshot and surfaced
+as an attention state. Closing the local server stops the schedule.
 
 ## Observed transaction contract
 
@@ -49,7 +53,8 @@ Normalization rules:
 Underlying quotes expose bid, ask, last, mark, prior close, and exchange quote time. Option-chain
 contracts expose bid/ask/mark, implied volatility, delta, gamma, theta, vega, rho, volume, open
 interest, multiplier, strike, expiry, and source quote time. Daily history exposes real OHLCV
-candles.
+candles. Performance comparisons use these persisted candles; they never fabricate missing held
+symbols or a partial SPY reference.
 
 Exchange timestamps and retrieval timestamps remain separate. Repeated after-hours quotes with an
 unchanged exchange timestamp are versioned by retrieval event; the latest projection returns one

@@ -1,5 +1,36 @@
 {% if snapshot.performance_windows %}
 {% set cadence_series = snapshot.cash_chart_series | rejectattr('key', 'equalto', 'month') | list %}
+{% set comparison = snapshot.performance_comparison %}
+{% if comparison %}
+<section class="workspace-panel performance-compare" id="performance-comparison" data-performance-compare>
+  <header class="workspace-panel-heading">
+    <div><p class="eyebrow">BOOK VS BASELINE</p><h2>Did the management help?</h2></div>
+    <span>{{ comparison.range_label | upper }} &middot; {{ comparison.methodology_version | upper }}</span>
+  </header>
+  <div class="performance-compare-tape">
+    <div class="actual"><span>MANAGED BOOK</span><strong class="{{ comparison.actual.return_percent | pnl_class }}">{{ comparison.actual.return_percent | percent(2) }}</strong><small>{{ comparison.actual.status | replace('_', ' ') | upper }}</small></div>
+    <div class="shares"><span>STARTING SHARES / NO OPTIONS</span><strong>{{ comparison.shares_without_options.return_percent | percent(2) }}</strong><small>{{ comparison.shares_without_options.status | replace('_', ' ') | upper }}</small></div>
+    <div><span>EXECUTED OPTION CASH</span><strong>{{ comparison.option_overlay.return_percent | percent(2) }}</strong><small>{{ comparison.option_overlay.status | replace('_', ' ') | upper }}</small></div>
+    <div class="market"><span>SPY PRICE REFERENCE</span><strong>{{ comparison.market_reference.return_percent | percent(2) }}</strong><small>{{ comparison.market_reference.status | replace('_', ' ') | upper }}</small></div>
+  </div>
+  <div class="performance-compare-chart" data-performance-compare-chart role="img" aria-label="Normalized cumulative performance series">
+    <svg viewBox="0 0 100 36" preserveAspectRatio="none" aria-hidden="true" data-performance-compare-svg></svg>
+    <div class="performance-compare-axis" aria-hidden="true"><span data-performance-start></span><span data-performance-end></span></div>
+    <div class="performance-compare-empty" data-performance-compare-empty>More daily valuation history is needed before the return line becomes useful.</div>
+  </div>
+  <script type="application/json" data-performance-comparison-payload>{{ performance_comparison_payload | tojson }}</script>
+  <div class="performance-method-grid">
+    <p><b>ACTUAL BOOK</b>{{ comparison.actual.method_note }}</p>
+    <p><b>SHARES BASELINE</b>{{ comparison.shares_without_options.method_note }}</p>
+    <p><b>OPTION OVERLAY</b>{{ comparison.option_overlay.method_note }}</p>
+    <p><b>MARKET REFERENCE</b>{{ comparison.market_reference.method_note }}</p>
+  </div>
+  <footer class="performance-compare-footer">
+    <span>{% if comparison.external_flows_excluded %}{{ comparison.external_flows_excluded | money }} OWNER CASH FLOW EXCLUDED{% else %}NO OWNER CASH FLOW IN COVERAGE{% endif %}</span>
+    <span>{% if comparison.warnings %}{{ comparison.warnings | join(' / ') }}{% else %}OBSERVED DAILY VALUES ONLY{% endif %}</span>
+  </footer>
+</section>
+{% endif %}
 <section class="workspace-metric-strip operator-strip" aria-label="Results summary">
   <div><span>LAST 4 WEEKS</span><strong class="{{ snapshot.performance_windows[0].option_cash | pnl_class }}">{{ snapshot.performance_windows[0].option_cash | money }}</strong><small>Net option cash</small></div>
   <div><span>{{ 'R365 FULL-MONTH AVG' if snapshot.operator_metrics.completed_months >= 12 else 'OBSERVED FULL-MONTH AVG' }}</span><strong>{{ snapshot.operator_metrics.rolling_year_monthly_average | money }}</strong><small>{{ snapshot.operator_metrics.completed_months }} complete month{{ '' if snapshot.operator_metrics.completed_months == 1 else 's' }}</small></div>

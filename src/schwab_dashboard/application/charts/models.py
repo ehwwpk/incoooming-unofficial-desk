@@ -1,0 +1,93 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import date, datetime
+from decimal import Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class ChartBar:
+    time: date | datetime
+    value: Decimal
+    open: Decimal | None = None
+    high: Decimal | None = None
+    low: Decimal | None = None
+    close: Decimal | None = None
+    volume: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ChartInterval:
+    key: str
+    label: str
+    minutes: int
+    bars: tuple[ChartBar, ...]
+    extended_hours: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ChartLeg:
+    id: str
+    sequence: int
+    campaign_id: str
+    campaign_label: str
+    leg_index: int
+    time: date
+    underlying_price: Decimal
+    event_type: str
+    outcome: str
+    option_side: str
+    strike: Decimal
+    expiration: date
+    contracts: int
+    net_cash: Decimal
+    campaign_net_cash: Decimal
+    detail: str
+    confidence: str
+    is_open: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ChartCampaign:
+    id: str
+    label: str
+    option_side: str
+    status: str
+    confidence: str
+    opened_on: date
+    latest_on: date
+    net_cash: Decimal
+    legs: tuple[ChartLeg, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ChartShareEvent:
+    time: date
+    action: str
+    shares: int
+    price: Decimal
+    detail: str
+
+
+@dataclass(frozen=True, slots=True)
+class ChartAudit:
+    campaigns: int
+    events: int
+    exact_campaigns: int
+    inferred_campaigns: int
+    unknown_campaigns: int
+    needs_review_campaigns: int
+    removal_gate_passed: bool
+
+
+@dataclass(frozen=True, slots=True)
+class CampaignChart:
+    version: str
+    symbol: str
+    as_of: date
+    bars: tuple[ChartBar, ...]
+    intervals: tuple[ChartInterval, ...]
+    default_interval: str
+    campaigns: tuple[ChartCampaign, ...]
+    share_events: tuple[ChartShareEvent, ...]
+    audit: ChartAudit

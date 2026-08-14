@@ -19,14 +19,13 @@
     {% set item = row.underlying %}
     {% set active_window = item.performance_windows[0] %}
     <details id="{{ item.symbol | lower }}-workspace" class="underlying-card position-book {{ item.tone }}-edge" data-underlying-card="{{ item.symbol }}" data-position-details>
-      <summary class="position-row-summary">
-        <div class="position-identity"><strong>{{ item.symbol }}</strong><span>{{ item.company_name }}</span><small>{{ item.current_price | money }} · {{ item.market_value | money(0) }} value</small></div>
+      <summary class="position-row-summary" aria-label="Open {{ item.symbol }} option details">
+        <div class="position-identity"><div class="position-ticker-line"><strong>{{ item.symbol }}</strong>{% if row.alert_count %}<small class="position-alert-pill">{{ row.alert_count }} NOTE{{ '' if row.alert_count == 1 else 'S' }}</small>{% endif %}</div><span>{{ item.company_name }}</span><small>{{ item.current_price | money }} · {{ item.market_value | money(0) }} value</small></div>
         <div><span>SHARES</span><strong>{{ item.shares }}</strong><small>{{ item.contract_capacity }} total 100-share lots</small></div>
         <div class="position-income"><span data-name-option-label>NET OPTION INCOME / 4 WEEKS</span><strong data-name-option-cash>{{ active_window.option_cash | money }}</strong><small><b data-name-dividends>{{ active_window.dividends | money }}</b> dividends</small></div>
-        <div><span>OPEN OPTION LINES</span><strong>{{ row.open_positions }}</strong><small>{{ item.active_contracts }} call contracts{% if row.live_underlying and row.live_underlying.open_put_contracts %} · {{ row.live_underlying.open_put_contracts }} put contracts{% endif %} · {{ item.coverage_percent | percent }} covered</small></div>
+        <div class="position-contracts"><span>OPEN OPTION LINES</span><strong>{{ row.open_positions }}</strong><small>{{ item.active_contracts }} call contracts{% if row.live_underlying and row.live_underlying.open_put_contracts %} · {{ row.live_underlying.open_put_contracts }} put contracts{% endif %} · {{ item.coverage_percent | percent }} covered</small></div>
         <div class="position-nearest"><span>NEAREST STRIKE</span>{% if row.nearest_call %}<strong>${{ '%g' | format(row.nearest_call.strike) }}C</strong>{% if row.nearest_call.strike_distance_per_share >= 0 %}<small>{{ row.nearest_call.strike_distance_percent | percent }} above · {{ row.nearest_call.days_to_expiration }} DTE</small>{% else %}<small class="negative">{{ (-row.nearest_call.strike_distance_percent) | percent }} past · {{ row.nearest_call.days_to_expiration }} DTE</small>{% endif %}{% else %}<strong>NONE</strong><small>No open call</small>{% endif %}</div>
         <div><span>OPEN MARK P/L</span><strong class="{{ row.open_mark_profit_loss | pnl_class }}">{{ row.open_mark_profit_loss | money }}</strong><small>Unrealized estimate</small></div>
-        <div class="position-open-control"><b><span class="position-open-label">OPEN DETAILS</span><span class="position-close-label">CLOSE DETAILS</span></b>{% if row.alert_count %}<small class="position-alert">{{ row.alert_count }} NOTE{{ '' if row.alert_count == 1 else 'S' }}</small>{% else %}<small>NO DESK NOTE</small>{% endif %}</div>
       </summary>
 
       <div hidden aria-hidden="true">
@@ -54,54 +53,58 @@
 
       <div class="underlying-decision-grid" data-workspace-grid>
         <section id="{{ item.symbol | lower }}-price-pane" class="price-map" data-chart-workspace aria-label="{{ item.symbol }} verified daily close history and normalized option events">
-          <div class="price-map-heading">
-            <div class="price-map-title"><span data-chart-heading>16W DAILY CLOSES</span><small data-chart-metadata>{{ item.price_points[0].label }}–{{ item.price_points[-1].label }} · {{ item.price_points | length }} MARKET SESSIONS <i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i></small></div>
-            <div class="price-map-tools">
-              <div class="chart-range-controls" role="group" aria-label="{{ item.symbol }} chart range">
-                <button type="button" data-chart-range="16w" aria-pressed="true">16W</button>
-                <button type="button" data-chart-range="8w" aria-pressed="false">8W</button>
-                <button type="button" data-chart-range="4w" aria-pressed="false">4W</button>
+          <div class="campaign-chart-shell" data-campaign-chart data-symbol="{{ item.symbol }}" data-endpoint="/api/v1/charts/{{ item.symbol }}" hidden>
+            <header class="campaign-chart-header">
+              <div class="campaign-chart-identity"><span data-campaign-chart-title>{{ item.symbol }} CAMPAIGN MAP</span><small data-campaign-chart-meta>Loading reconciled history&hellip;</small></div>
+              <div class="campaign-chart-controls campaign-toolbar">
+                <div role="group" aria-label="Market chart style">
+                  <button type="button" data-campaign-style="candles" aria-pressed="true">CANDLES</button>
+                  <button type="button" data-campaign-style="line" aria-pressed="false">LINE</button>
+                </div>
+                <div role="group" aria-label="Option campaign visibility">
+                  <button type="button" data-campaign-mode="active" aria-pressed="false">ACTIVE</button>
+                  <button type="button" data-campaign-mode="all" aria-pressed="true">ALL</button>
+                </div>
+                <div role="group" aria-label="Chart range">
+                  <button type="button" data-campaign-range="4w" aria-pressed="false">4W</button>
+                  <button type="button" data-campaign-range="8w" aria-pressed="false">8W</button>
+                  <button type="button" data-campaign-range="16w" aria-pressed="true">16W</button>
+                  <button type="button" data-campaign-range="1y" aria-pressed="false">1Y</button>
+                  <button type="button" data-campaign-range="max" aria-pressed="false">MAX</button>
+                </div>
+                <div role="group" aria-label="Bar interval">
+                  <button type="button" data-campaign-interval="auto" aria-pressed="true">AUTO</button>
+                  <button type="button" data-campaign-interval="1h" aria-pressed="false">1H</button>
+                  <button type="button" data-campaign-interval="4h" aria-pressed="false">4H</button>
+                  <button type="button" data-campaign-interval="1d" aria-pressed="false">1D</button>
+                </div>
+                <div role="group" aria-label="Technical indicators">
+                  <button type="button" data-campaign-indicator="rsi" aria-pressed="false">RSI</button>
+                  <button type="button" data-campaign-indicator="macd" aria-pressed="false">MACD</button>
+                </div>
+                <button type="button" data-campaign-shares aria-pressed="false">SHARES OFF</button>
+                <button type="button" data-campaign-fit>FIT</button>
+                <button type="button" data-campaign-focus aria-pressed="false">FOCUS</button>
               </div>
-              <button type="button" class="chart-focus-button" data-chart-focus aria-pressed="false">FOCUS</button>
-              <button type="button" class="chart-focus-button chart-share-toggle" data-chart-shares aria-pressed="false">SHARES OFF</button>
-              <b class="{{ item.thirteen_week_change_percent | pnl_class }}" data-chart-move>{{ item.thirteen_week_change_percent | percent }} MOVE</b>
+            </header>
+            <div class="campaign-chart-readout" data-campaign-chart-readout>DRAG TO PAN &middot; WHEEL TO ZOOM &middot; DRAG PRICE AXIS TO SCALE</div>
+            <div class="campaign-chart-stage" data-campaign-chart-stage>
+              <div class="campaign-chart-canvas" data-campaign-chart-canvas></div>
+              <svg class="campaign-chart-lifecycle" data-campaign-chart-lifecycle aria-hidden="true"></svg>
+              <div class="campaign-chart-popover" data-campaign-chart-popover hidden></div>
             </div>
-          </div>
-          <div class="price-context-strip">
-            <div><span>NOW</span><b data-chart-now-price>{{ item.current_price | money }}</b></div>
-            <div><span>RANGE POSITION</span><b data-chart-range-position>{{ item.range_position_percent | percent }}</b></div>
-            <div><span data-chart-high-label>FROM FULL HIGH</span><b data-chart-from-high>{{ item.distance_from_high_percent | percent }}</b></div>
-          </div>
-          <div class="price-path-chart">
-            <span class="price-axis high" data-chart-axis="high">{{ item.thirteen_week_high | money }}</span>
-            <span class="price-axis mid" data-chart-axis="mid">{{ item.thirteen_week_mid | money }}</span>
-            <span class="price-axis low" data-chart-axis="low">{{ item.thirteen_week_low | money }}</span>
-            <div class="price-path-canvas">
-              {% for point in item.price_points %}{% if point.is_friday %}<i class="friday-guide" data-chart-guide data-date="{{ point.date.isoformat() }}" style="--event-x: {{ point.x_percent }}%" aria-hidden="true"></i>{% endif %}{% endfor %}
-              <svg class="price-series" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                <defs>
-                  <linearGradient id="{{ item.symbol | lower }}-price-fill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="var(--card-accent)" stop-opacity=".24" />
-                    <stop offset="100%" stop-color="var(--card-accent)" stop-opacity="0" />
-                  </linearGradient>
-                </defs>
-                <polygon class="price-area" data-chart-area fill="url(#{{ item.symbol | lower }}-price-fill)" points="0,96 {% for point in item.price_points %}{{ point.x_percent }},{{ point.y_percent }} {% endfor %}100,96" />
-                <polyline class="price-line" data-chart-line points="{% for point in item.price_points %}{{ point.x_percent }},{{ point.y_percent }} {% endfor %}" />
-              </svg>
-              <svg class="event-leaders" data-event-leaders aria-hidden="true"></svg>
-              <svg class="lifecycle-links" data-lifecycle-links aria-hidden="true"></svg>
-              {% for point in item.price_points %}<i class="daily-point" data-chart-point data-date="{{ point.date.isoformat() }}" data-price="{{ point.price }}" style="--event-x: {{ point.x_percent }}%; --event-y: {{ point.y_percent }}%" aria-hidden="true"></i>{% endfor %}
-              {% include "partials/_chart_events.html" %}
-              {% set last_point = item.price_points[-1] %}<i class="price-now-event" data-chart-now data-date="{{ last_point.date.isoformat() }}" data-price="{{ last_point.price }}" style="--event-x: {{ last_point.x_percent }}%; --event-y: {{ last_point.y_percent }}%"><b>NOW</b></i>
+            <div class="campaign-story-strip" data-campaign-story>
+              <span>CAMPAIGN MAP</span><p>Squares are calls. Diamonds are puts. Click one to isolate its path.</p>
             </div>
-            {% set midpoint = ((item.price_points | length) / 2) | int %}<div class="price-date-axis"><span data-chart-date="start">{{ item.price_points[0].label }}</span><span data-chart-date="mid">{{ item.price_points[midpoint].label }}</span><span data-chart-date="end">{{ item.price_points[-1].label }}</span></div>
+            <footer class="campaign-chart-footer">
+              <span data-campaign-chart-audit>RECONCILING CAMPAIGNS</span>
+              <span>PRICE SERIES: <b data-campaign-series-label>SCHWAB 1D OHLC</b></span>
+              <a href="https://www.tradingview.com/" target="_blank" rel="noopener">CHARTS BY TRADINGVIEW</a>
+            </footer>
           </div>
-          <div class="price-map-legend"><span><i></i> <b data-chart-session-count>{{ item.price_points | length }}</b> MARKET SESSIONS</span><span><b class="sale">S</b> SOLD</span><span><b class="expired">X</b> EXPIRED</span><span><b class="closed">C</b> CLOSED</span><span><b class="rolled">R</b> ROLLED</span><span><b class="assigned">A</b> ASSIGNED</span><span><b class="share-trade">±</b> SHARES</span><small><b data-chart-event-count>{{ item.price_events | length + item.share_trade_events | length }}</b> VISIBLE EVENTS · {{ 'FROZEN DEMO CLOSES · SIMULATED CALLS' if snapshot.is_demo else 'SCHWAB DAILY CLOSES · NORMALIZED LEDGER' }}</small></div>
-          <div class="price-event-ledger campaign-index" aria-label="{{ item.symbol }} option campaign index">
-              {% for campaign in item.price_events | groupby('campaign_id') %}
-                {% set legs = campaign.list %}{% set latest = legs[-1] %}
-                <button type="button" class="{{ latest.event_type }}" data-chart-ledger-event data-event-sequence="{{ latest.sequence }}" data-campaign-id="{{ latest.campaign_id }}" data-lifecycle-id="{{ latest.lifecycle_id }}" data-lifecycle-slot="{{ latest.campaign_slot }}" data-date="{{ latest.date.isoformat() }}" aria-label="Open {{ latest.campaign_label }} campaign details"><b>{{ latest.campaign_label }}</b><span><i>{{ latest.option_side | upper }} · {{ legs | length }} LEG{{ '' if legs | length == 1 else 'S' }} · {{ latest.campaign_confidence | upper }}</i><strong>{{ latest.outcome }} · {{ latest.campaign_net_cash | money }} NET · {{ latest.detail }}</strong></span></button>
-              {% endfor %}
+          <div class="campaign-chart-fallback" data-campaign-chart-fallback hidden>
+            <b>CAMPAIGN MAP UNAVAILABLE</b>
+            <span>The ledger is intact. Refresh this page to retry the chart.</span>
           </div>
         </section>
 

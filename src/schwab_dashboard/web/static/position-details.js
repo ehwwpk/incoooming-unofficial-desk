@@ -56,7 +56,7 @@
     revealTarget(targetFromHash(), behavior);
   };
 
-  window.addEventListener("hashchange", openHashTarget);
+  window.addEventListener("hashchange", () => openHashTarget());
   window.addEventListener("popstate", () => openHashTarget("auto"));
   document.addEventListener("click", (event) => {
     if (!(event.target instanceof Element)) return;

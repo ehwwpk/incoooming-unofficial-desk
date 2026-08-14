@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from schwab_dashboard.application.ports.market import (
     OptionMarketSnapshotWrite,
     UnderlyingDailyBarWrite,
+    UnderlyingIntradayBarWrite,
     UnderlyingMarketSnapshotWrite,
 )
 from schwab_dashboard.infrastructure.database.repositories.idempotency import (
@@ -20,6 +21,7 @@ from schwab_dashboard.infrastructure.database.tables.market import (
     OptionMarketSnapshotTable,
     RawMarketEventTable,
     UnderlyingDailyBarTable,
+    UnderlyingIntradayBarTable,
     UnderlyingMarketSnapshotTable,
 )
 
@@ -39,6 +41,20 @@ class SqlRawMarketEventRepository:
     ) -> str:
         canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
         payload_hash = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        if external_event_key.startswith(("history:", "intraday:")):
+            unchanged_history = self._session.scalar(
+                select(RawMarketEventTable)
+                .where(
+                    RawMarketEventTable.source == source,
+                    RawMarketEventTable.external_event_key.like("history:%"),
+                    RawMarketEventTable.parser_version == parser_version,
+                    RawMarketEventTable.payload_hash == payload_hash,
+                )
+                .order_by(RawMarketEventTable.observed_at.desc())
+                .limit(1)
+            )
+            if unchanged_history is not None:
+                return unchanged_history.id
         row = self._session.scalar(
             select(RawMarketEventTable).where(
                 RawMarketEventTable.source == source,
@@ -166,6 +182,21 @@ class SqlUnderlyingDailyBarRepository:
         if row is not None:
             ensure_immutable_match(row, expected, identity=f"daily-bar:{row.id}")
             return row.id
+        # Schwab returns a rolling year on every history request. Reuse an
+        # identical observation from an earlier raw response rather than
+        # copying hundreds of immutable candles on each refresh. A changed
+        # current-day candle remains a new point-in-time observation.
+        prior = self._session.scalar(
+            select(UnderlyingDailyBarTable)
+            .where(
+                UnderlyingDailyBarTable.instrument_id == item.instrument_id,
+                UnderlyingDailyBarTable.trade_date == bar.trade_date,
+            )
+            .order_by(UnderlyingDailyBarTable.created_at.desc())
+            .limit(1)
+        )
+        if prior is not None and _daily_bar_values(prior) == expected:
+            return prior.id
         row = UnderlyingDailyBarTable(
             raw_event_id=item.raw_event_id,
             instrument_id=item.instrument_id,
@@ -175,3 +206,71 @@ class SqlUnderlyingDailyBarRepository:
         self._session.add(row)
         self._session.flush()
         return row.id
+
+
+class SqlUnderlyingIntradayBarRepository:
+    def __init__(self, session: Session) -> None:
+        self._session = session
+
+    def add(self, item: UnderlyingIntradayBarWrite) -> str:
+        bar = item.bar
+        expected = {
+            "open": bar.open,
+            "high": bar.high,
+            "low": bar.low,
+            "close": bar.close,
+            "volume": bar.volume,
+        }
+        row = self._session.scalar(
+            select(UnderlyingIntradayBarTable).where(
+                UnderlyingIntradayBarTable.raw_event_id == item.raw_event_id,
+                UnderlyingIntradayBarTable.instrument_id == item.instrument_id,
+                UnderlyingIntradayBarTable.started_at == bar.started_at,
+                UnderlyingIntradayBarTable.interval_minutes == bar.interval_minutes,
+            )
+        )
+        if row is not None:
+            ensure_immutable_match(row, expected, identity=f"intraday-bar:{row.id}")
+            return row.id
+        prior = self._session.scalar(
+            select(UnderlyingIntradayBarTable)
+            .where(
+                UnderlyingIntradayBarTable.instrument_id == item.instrument_id,
+                UnderlyingIntradayBarTable.started_at == bar.started_at,
+                UnderlyingIntradayBarTable.interval_minutes == bar.interval_minutes,
+            )
+            .order_by(UnderlyingIntradayBarTable.created_at.desc())
+            .limit(1)
+        )
+        if prior is not None and _intraday_bar_values(prior) == expected:
+            return prior.id
+        row = UnderlyingIntradayBarTable(
+            raw_event_id=item.raw_event_id,
+            instrument_id=item.instrument_id,
+            started_at=bar.started_at,
+            interval_minutes=bar.interval_minutes,
+            **expected,
+        )
+        self._session.add(row)
+        self._session.flush()
+        return row.id
+
+
+def _daily_bar_values(row: UnderlyingDailyBarTable) -> dict[str, object]:
+    return {
+        "open": row.open,
+        "high": row.high,
+        "low": row.low,
+        "close": row.close,
+        "volume": row.volume,
+    }
+
+
+def _intraday_bar_values(row: UnderlyingIntradayBarTable) -> dict[str, object]:
+    return {
+        "open": row.open,
+        "high": row.high,
+        "low": row.low,
+        "close": row.close,
+        "volume": row.volume,
+    }

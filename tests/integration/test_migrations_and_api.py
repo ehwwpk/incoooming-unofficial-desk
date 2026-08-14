@@ -31,6 +31,7 @@ def test_initial_migration_supports_local_api(tmp_path: Path) -> None:
             "raw_market_events",
             "reconciliation_issues",
             "sync_runs",
+            "underlying_intraday_bars",
             "underlying_market_snapshots",
             "workspace_preferences",
         } <= set(inspect(container.engine).get_table_names())
@@ -144,10 +145,9 @@ def test_demo_mode_renders_operator_plan_without_credentials(tmp_path: Path) -> 
         assert "OPEN OPTIONS" in page.text
         assert "RESULTS" in page.text
         assert "2,000</b> SHARES" in page.text
-        assert page.text.count("data-chart-point") == 174
-        assert page.text.count("data-chart-event-trigger") == 32
-        assert page.text.count("data-chart-event-popover") == 3
-        assert page.text.count("data-underlying-at-resolution") == 22
+        assert page.text.count("data-campaign-chart data-symbol") == 3
+        assert page.text.count("data-campaign-chart-fallback") == 3
+        assert page.text.count("data-campaign-chart-legacy") == 0
         assert page.text.count("data-cash-activity-window") == 4
         assert page.text.count("data-cash-event-target") == 12
         assert page.text.count("data-workspace-splitter") == 3

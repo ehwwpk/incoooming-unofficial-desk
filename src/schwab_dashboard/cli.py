@@ -108,6 +108,7 @@ def sync() -> None:
                 f"{activity.transaction_count} transaction(s), "
                 f"{market.option_quote_count} option quote(s), "
                 f"{market.daily_bar_count} daily price bar(s), "
+                f"{market.intraday_bar_count} intraday price bar(s), "
                 f"{result.warning_count} warning(s)."
             )
         except AuthenticationRequiredError as exc:

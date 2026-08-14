@@ -9,6 +9,7 @@ from schwab_dashboard.application.ports.ledger import InstrumentRepository
 from schwab_dashboard.domain.market import (
     OptionMarketSnapshot,
     UnderlyingDailyBar,
+    UnderlyingIntradayBar,
     UnderlyingMarketSnapshot,
 )
 
@@ -46,6 +47,13 @@ class UnderlyingDailyBarWrite:
     bar: UnderlyingDailyBar
 
 
+@dataclass(frozen=True, slots=True)
+class UnderlyingIntradayBarWrite:
+    raw_event_id: str
+    instrument_id: str
+    bar: UnderlyingIntradayBar
+
+
 class UnderlyingMarketSnapshotRepository(Protocol):
     def add(self, item: UnderlyingMarketSnapshotWrite) -> str: ...
 
@@ -58,12 +66,17 @@ class UnderlyingDailyBarRepository(Protocol):
     def add(self, item: UnderlyingDailyBarWrite) -> str: ...
 
 
+class UnderlyingIntradayBarRepository(Protocol):
+    def add(self, item: UnderlyingIntradayBarWrite) -> str: ...
+
+
 class MarketUnitOfWork(Protocol):
     instruments: InstrumentRepository
     raw_market_events: RawMarketEventRepository
     underlying_market_snapshots: UnderlyingMarketSnapshotRepository
     option_market_snapshots: OptionMarketSnapshotRepository
     underlying_daily_bars: UnderlyingDailyBarRepository
+    underlying_intraday_bars: UnderlyingIntradayBarRepository
 
     def __enter__(self) -> MarketUnitOfWork: ...
 

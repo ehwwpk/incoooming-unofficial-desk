@@ -13,6 +13,7 @@ from schwab_dashboard.infrastructure.database.repositories.market import (
     SqlOptionMarketSnapshotRepository,
     SqlRawMarketEventRepository,
     SqlUnderlyingDailyBarRepository,
+    SqlUnderlyingIntradayBarRepository,
     SqlUnderlyingMarketSnapshotRepository,
 )
 from schwab_dashboard.infrastructure.database.repositories.reconciliation import (
@@ -38,6 +39,7 @@ __all__ = [
     "SqlReconciliationRepository",
     "SqlSyncRunRepository",
     "SqlUnderlyingDailyBarRepository",
+    "SqlUnderlyingIntradayBarRepository",
     "SqlUnderlyingMarketSnapshotRepository",
     "SqlWorkspaceRepository",
 ]

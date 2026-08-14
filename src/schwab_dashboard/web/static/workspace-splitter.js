@@ -1,12 +1,12 @@
 (() => {
   "use strict";
 
-  const STORAGE_KEY = "incoooming:workspace-chart-percent";
-  const DEFAULT_PERCENT = 44;
-  const MIN_PERCENT = 36;
-  const MAX_PERCENT = 64;
-  const MIN_PRICE_WIDTH = 360;
-  const MIN_CALL_WIDTH = 520;
+  const STORAGE_KEY = "incoooming:workspace-chart-percent:v2";
+  const DEFAULT_PERCENT = 54;
+  const MIN_PERCENT = 42;
+  const MAX_PERCENT = 72;
+  const MIN_PRICE_WIDTH = 520;
+  const MIN_CALL_WIDTH = 480;
   const HANDLE_WIDTH = 9;
   const STACKED_QUERY = window.matchMedia("(max-width: 1100px)");
 

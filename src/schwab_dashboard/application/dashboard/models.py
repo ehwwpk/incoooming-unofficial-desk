@@ -24,6 +24,7 @@ from schwab_dashboard.application.dashboard.performance import (
     QuarterPerformanceSummary,
     StrategyAttributionSummary,
 )
+from schwab_dashboard.application.performance.models import PerformanceComparison
 from schwab_dashboard.application.policy.models import UnderlyingPolicy
 from schwab_dashboard.application.ports.repositories import SyncRunSummary
 from schwab_dashboard.application.rolls.models import RollQuote
@@ -281,6 +282,7 @@ class DashboardSnapshot:
     risk: RiskSummary
     live_position_book: LivePositionBook | None = None
     latest_sync_attempt: SyncRunSummary | None = None
+    performance_comparison: PerformanceComparison | None = None
 
     @property
     def is_demo(self) -> bool:

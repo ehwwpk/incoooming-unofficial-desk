@@ -1,16 +1,28 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 import httpx
 from sqlalchemy import inspect
 
 from schwab_dashboard.application.errors import AuthenticationRequiredError
 from schwab_dashboard.application.ports.dashboard import DashboardReader
 from schwab_dashboard.application.ports.opportunity_market import OpportunityMarketGateway
+from schwab_dashboard.application.services.cached_campaign_chart import (
+    CachedCampaignChartReader,
+)
 from schwab_dashboard.application.services.full_sync import (
     FullSyncCoordinator,
     FullSyncResult,
 )
 from schwab_dashboard.application.services.import_csv_dataset import ImportCsvDataset
+from schwab_dashboard.application.services.market_history_refresh import (
+    MarketHistoryRefreshPolicy,
+)
+from schwab_dashboard.application.services.read_campaign_chart import (
+    ReadLiveCampaignChart,
+    ReadSnapshotCampaignChart,
+)
 from schwab_dashboard.application.services.read_dashboard import ReadDashboard
 from schwab_dashboard.application.services.record_ledger_activity import RecordLedgerActivity
 from schwab_dashboard.application.services.record_market_observations import (
@@ -20,6 +32,10 @@ from schwab_dashboard.application.services.run_premium_radar import (
     AuthorizationRequiredOpportunityMarketGateway,
     RadarDefaults,
     RunPremiumRadar,
+)
+from schwab_dashboard.application.services.runtime_cache import (
+    CachedDashboardReader,
+    GenerationCache,
 )
 from schwab_dashboard.application.services.sync_accounts import SyncAccountsAndPositions
 from schwab_dashboard.application.services.sync_market import SyncSchwabMarketData
@@ -76,8 +92,31 @@ class Container:
         self._market_http = httpx.Client(timeout=30.0, follow_redirects=False)
         self._radar_http = httpx.Client(timeout=30.0, follow_redirects=False)
         self.oauth = self._build_oauth()
+        self._runtime_cache = GenerationCache()
+        self._analytics_reader = SqlLiveAnalyticsReader(self.session_factory)
+        self._live_dashboard_reader = CachedDashboardReader(
+            delegate=ReadDashboard(
+                uow_factory=self.uow_factory,
+                analytics_reader=self._analytics_reader,
+                credentials_configured=self.settings.schwab_credentials_configured,
+                token_available=(self.oauth.token_available() if self.oauth is not None else False),
+            ),
+            cache=self._runtime_cache,
+            key=("dashboard", "schwab"),
+        )
+        self._live_campaign_chart_reader = CachedCampaignChartReader(
+            delegate=ReadLiveCampaignChart(
+                uow_factory=self.uow_factory,
+                analytics_reader=self._analytics_reader,
+            ),
+            cache=self._runtime_cache,
+            key_prefix=("campaign-chart", "schwab"),
+        )
         self.opportunity_store = SqlOpportunityStore(self.session_factory)
         self.source_store = SqlSourceDatasetStore(self.session_factory)
+        self.market_history_refresh = MarketHistoryRefreshPolicy(
+            minimum_interval=timedelta(hours=1)
+        )
         self._radar_service = self._build_radar_service()
         self.sync_coordinator = FullSyncCoordinator(
             accounts_factory=self.sync_accounts,
@@ -112,6 +151,7 @@ class Container:
                 "sync_runs",
                 "underlying_market_snapshots",
                 "underlying_daily_bars",
+                "underlying_intraday_bars",
                 "workspace_preferences",
             }
             return required <= tables
@@ -119,18 +159,32 @@ class Container:
             return False
 
     def read_dashboard(self, source_key: str | None = None) -> DashboardReader:
-        if self.settings.demo_mode or source_key == "demo":
-            return DemoDashboardReader()
-        if source_key and source_key.startswith("csv:"):
-            return CsvDashboardReader(
-                store=self.source_store,
-                dataset_id=source_key.removeprefix("csv:"),
+        normalized_source = source_key or "schwab"
+        if self.settings.demo_mode or normalized_source == "demo":
+            return CachedDashboardReader(
+                delegate=DemoDashboardReader(),
+                cache=self._runtime_cache,
+                key=("dashboard", "demo"),
             )
-        return ReadDashboard(
-            uow_factory=self.uow_factory,
-            analytics_reader=SqlLiveAnalyticsReader(self.session_factory),
-            credentials_configured=self.settings.schwab_credentials_configured,
-            token_available=self.oauth.token_available() if self.oauth is not None else False,
+        if normalized_source.startswith("csv:"):
+            return CachedDashboardReader(
+                delegate=CsvDashboardReader(
+                    store=self.source_store,
+                    dataset_id=normalized_source.removeprefix("csv:"),
+                ),
+                cache=self._runtime_cache,
+                key=("dashboard", normalized_source),
+            )
+        return self._live_dashboard_reader
+
+    def read_campaign_chart(self, source_key: str | None = None) -> CachedCampaignChartReader:
+        normalized_source = source_key or "schwab"
+        if normalized_source == "schwab" and not self.settings.demo_mode:
+            return self._live_campaign_chart_reader
+        return CachedCampaignChartReader(
+            delegate=ReadSnapshotCampaignChart(self.read_dashboard(normalized_source)),
+            cache=self._runtime_cache,
+            key_prefix=("campaign-chart", normalized_source),
         )
 
     def sync_accounts(self) -> SyncAccountsAndPositions:
@@ -182,10 +236,13 @@ class Container:
             recorder=self.record_market_observations(),
             uow_factory=self.uow_factory,
             parser_version=self.settings.market_parser_version,
+            history_refresh_policy=self.market_history_refresh,
         )
 
     def sync_full(self, *, trigger: str) -> FullSyncResult:
-        return self.sync_coordinator.execute(trigger=trigger)
+        result = self.sync_coordinator.execute(trigger=trigger)
+        self._runtime_cache.invalidate()
+        return result
 
     def token_available(self) -> bool:
         return self.oauth.token_available() if self.oauth is not None else False
