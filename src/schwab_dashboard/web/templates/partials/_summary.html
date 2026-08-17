@@ -68,20 +68,32 @@
         {% else %}<strong>NONE</strong><small>No open short calls</small>{% endif %}
       </a>
       <div>
-        <span>MODEL TIME DECAY / DAY</span>
+        <span>CURRENT MODEL THETA / DAY</span>
         <strong class="positive">+{{ desk_overview.daily_theta | money }}</strong>
-        <small>All open short options · estimate, not cash</small>
+        <small>Point-in-time sensitivity · not cash or a pace</small>
       </div>
     </div>
     <footer class="live-book-footer">
       <div><span>NEXT EXPIRATION</span>{% if desk_overview.next_expiring_option %}<b>{{ desk_overview.next_expiring_option.expires_on | short_date }}</b><small>{{ desk_overview.next_expiring_option.symbol }} ${{ '%g' | format(desk_overview.next_expiring_option.strike) }}{{ desk_overview.next_expiring_option.option_type[0] }} · {{ desk_overview.next_expiring_option.days_to_expiration }} DTE</small>{% else %}<b>NONE</b><small>No expiry on deck</small>{% endif %}</div>
       <div><span>OPEN MARK P/L</span><b class="{{ desk_overview.open_mark_profit_loss | pnl_class }}">{{ desk_overview.open_mark_profit_loss | money }}</b><small>Unrealized · changes with the market</small></div>
-      <div><span>DIVIDEND OVERLAP</span><b>{{ desk_overview.dividend_overlap_contracts }} CONTRACTS</b><small>Calls open across an ex-dividend date</small></div>
       {% if snapshot.alerts %}
       <button type="button" data-nibwick-summary aria-expanded="false" aria-controls="nibwick-note-popover"><span>NIBWICK NOTES</span><b data-nibwick-summary-count>{{ snapshot.alerts | length }} ACTIVE</b><small data-nibwick-summary-detail>{{ snapshot.alerts | length }} NEW · {{ snapshot.alerts[0].symbol }} · {{ snapshot.alerts[0].headline }}</small></button>
       {% else %}
       <div class="all-clear"><span>NIBWICK NOTES</span><b>QUIET DESK</b><small>Nibwick found nothing worth interrupting you for</small></div>
       {% endif %}
+      {% set premium_pace = snapshot.open_premium_pace %}
+      <div title="Gross opening credits divided by each live short option lot's original calendar term; same-day contracts count as one session. Assumes no closing debit, roll, early assignment, or exercise. This is an average pace, not cash received today.">
+        <span>AVG PREMIUM PACE / DAY</span>
+        {% if premium_pace and premium_pace.total_contracts == 0 %}
+        <b>$0.00</b><small>No live short options</small>
+        {% elif premium_pace and premium_pace.is_complete and premium_pace.daily_pace is not none %}
+        <b class="positive">+{{ premium_pace.daily_pace | money }}</b><small>{{ premium_pace.opening_credit | money }} credit / {{ premium_pace.weighted_term_days | number(1) }} weighted days</small>
+        {% elif premium_pace %}
+        <b>&mdash;</b><small>{{ premium_pace.timed_contracts }}/{{ premium_pace.total_contracts }} contracts timed &middot; history incomplete</small>
+        {% else %}
+        <b>&mdash;</b><small>Opening-term history unavailable</small>
+        {% endif %}
+      </div>
     </footer>
   </article>
 </section>

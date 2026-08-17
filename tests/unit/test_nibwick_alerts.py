@@ -10,6 +10,7 @@ from schwab_dashboard.application.alerts.rules import (
     evaluate_short_put_pressure,
 )
 from schwab_dashboard.application.dashboard.models import LiveOpenOptionPosition
+from schwab_dashboard.application.market_time import OptionSessionState
 from schwab_dashboard.infrastructure.demo.dashboard import DemoDashboardReader
 
 D = Decimal
@@ -92,6 +93,35 @@ def test_fast_move_alert_names_the_sale_and_keeps_the_personality_brief() -> Non
 def test_short_put_rule_stays_quiet_when_strike_has_room_or_time() -> None:
     assert evaluate_short_put_pressure(_short_put(dte=30, spot="55")) is None
     assert evaluate_short_put_pressure(_short_put(dte=10, spot="55")) is None
+
+
+def test_nibwick_stops_offering_expired_friday_trading_actions() -> None:
+    snapshot = DemoDashboardReader().execute()
+    ktos = next(item for item in snapshot.underlyings if item.symbol == "KTOS")
+    closed_call = replace(
+        ktos.open_call_clocks[0],
+        days_to_expiration=0,
+        strike_distance_per_share=D("0.50"),
+        strike_distance_percent=D("0.8"),
+        session_state=OptionSessionState.CLOSED_PENDING_SETTLEMENT,
+    )
+    closed_underlying = replace(ktos, open_call_clocks=(closed_call,))
+    closed_put = replace(
+        _short_put(dte=0, spot="49.75"),
+        session_state=OptionSessionState.CLOSED_PENDING_SETTLEMENT,
+    )
+
+    assert evaluate_call_expiration_pressure(closed_underlying) is None
+    assert evaluate_fast_move(closed_underlying) is None
+    assert evaluate_short_put_pressure(closed_put) is None
+    assert (
+        build_desk_alerts(
+            (closed_underlying,),
+            as_of=snapshot.as_of.date(),
+            put_positions=(closed_put,),
+        )
+        == ()
+    )
 
 
 def test_alert_identity_changes_only_across_material_state_bands() -> None:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from decimal import Decimal
 
 from schwab_dashboard.application.alerts.context import build_call_review_context
@@ -17,13 +18,14 @@ D = Decimal
 
 
 def evaluate_fast_move(underlying: UnderlyingCallStats) -> DeskAlert | None:
-    if not underlying.open_call_clocks or len(underlying.price_points) < 6:
+    actionable_calls = tuple(call for call in underlying.open_call_clocks if call.can_close_or_roll)
+    if not actionable_calls or len(underlying.price_points) < 6:
         return None
 
     five_sessions_ago = underlying.price_points[-6].price
     move = (underlying.current_price / five_sessions_ago - 1) * D("100")
     context = build_call_review_context(
-        underlying,
+        replace(underlying, open_call_clocks=actionable_calls),
         five_session_move_percent=move,
     )
     closest = context.call

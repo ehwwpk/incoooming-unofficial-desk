@@ -5,12 +5,14 @@ from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 from decimal import Decimal
 
+from schwab_dashboard.application.dashboard.live_option_clocks import remaining_open_lot_date
 from schwab_dashboard.application.dashboard.models import (
     LiveOpenOptionPosition,
     LivePositionBook,
     LiveUnderlyingPosition,
     PositionSummary,
 )
+from schwab_dashboard.application.market_time import market_date, option_session_state
 from schwab_dashboard.application.rolls.models import RollQuote
 
 ZERO = Decimal("0")
@@ -20,10 +22,15 @@ HUNDRED = Decimal("100")
 def build_live_position_book(
     positions: Sequence[PositionSummary],
     *,
-    as_of: date,
+    as_of: date | datetime,
+    evaluated_at: date | datetime | None = None,
     option_market: Sequence[Mapping[str, object]] = (),
     underlying_market: Sequence[Mapping[str, object]] = (),
+    daily_bars: Sequence[Mapping[str, object]] = (),
+    executions: Sequence[Mapping[str, object]] = (),
 ) -> LivePositionBook:
+    as_of_date = market_date(as_of)
+    session_clock = evaluated_at if evaluated_at is not None else as_of
     option_quotes = {_canonical(str(row["symbol"])): row for row in option_market}
     underlying_quotes = {_canonical(str(row["symbol"])): row for row in underlying_market}
     holdings = {
@@ -52,6 +59,8 @@ def build_live_position_book(
         )
         quote = option_quotes.get(_canonical(position.symbol), {})
         option_type = str(position.option_type or "").upper()
+        session_state = option_session_state(position.expiration_date, session_clock)
+        opened_on = remaining_open_lot_date(position.symbol, executions)
         distance = (
             position.strike - underlying_price
             if option_type == "CALL" and underlying_price is not None
@@ -70,7 +79,7 @@ def build_live_position_book(
             underlying_symbol=position.underlying_symbol,
             contracts=contracts,
             expires_on=position.expiration_date,
-            days_to_expiration=max(0, (position.expiration_date - as_of).days),
+            days_to_expiration=max(0, (position.expiration_date - as_of_date).days),
             strike=position.strike,
             entry_credit_per_share=position.average_price,
             estimated_mark_per_share=_optional_decimal(quote.get("mark")) or position.mark,
@@ -95,12 +104,29 @@ def build_live_position_book(
             option_type=option_type,
             contract_multiplier=position.contract_multiplier or HUNDRED,
             multiplier_source=position.multiplier_source,
-            roll_quote_candidates=_roll_quotes(
-                underlying_symbol=position.underlying_symbol,
-                option_type=option_type,
-                source_expiration=position.expiration_date,
-                source_strike=position.strike,
-                option_market=option_market,
+            roll_quote_candidates=(
+                _roll_quotes(
+                    underlying_symbol=position.underlying_symbol,
+                    option_type=option_type,
+                    source_expiration=position.expiration_date,
+                    source_strike=position.strike,
+                    option_market=option_market,
+                )
+                if session_state.can_close_or_roll
+                else ()
+            ),
+            session_state=session_state,
+            underlying_previous_close=_optional_decimal(underlying_quote.get("previous_close")),
+            underlying_week_reference_price=_weekly_reference_price(
+                position.underlying_symbol,
+                daily_bars=daily_bars,
+                as_of=as_of_date,
+            ),
+            opened_on=opened_on,
+            original_days_to_expiration=(
+                max(0, (position.expiration_date - opened_on).days)
+                if opened_on is not None
+                else None
             ),
         )
         if option_type == "CALL":
@@ -150,9 +176,7 @@ def build_live_position_book(
         )
         day_profit_loss = (
             (current_price - previous_close) * share_quantity
-            if quoted_price is not None
-            and current_price is not None
-            and previous_close is not None
+            if quoted_price is not None and current_price is not None and previous_close is not None
             else holding.day_profit_loss
             if holding is not None
             else None
@@ -196,6 +220,7 @@ def build_live_position_book(
                         * call.contract_multiplier
                         * Decimal(call.contracts)
                         for call in ordered_calls
+                        if call.can_close_or_roll
                     ),
                     ZERO,
                 ),
@@ -206,6 +231,7 @@ def build_live_position_book(
                         * put.contract_multiplier
                         * Decimal(put.contracts)
                         for put in ordered_puts
+                        if put.can_close_or_roll
                     ),
                     ZERO,
                 ),
@@ -260,6 +286,34 @@ def _session_change_percent(
     return (current_price / previous_close - Decimal("1")) * HUNDRED
 
 
+def _weekly_reference_price(
+    symbol: str,
+    *,
+    daily_bars: Sequence[Mapping[str, object]],
+    as_of: date,
+) -> Decimal | None:
+    rows = sorted(
+        (
+            row
+            for row in daily_bars
+            if _canonical(str(row.get("symbol") or "")) == _canonical(symbol)
+            and row.get("trade_date") is not None
+        ),
+        key=lambda row: _date(row.get("trade_date")),
+    )
+    if not rows:
+        return None
+
+    expected_session = as_of
+    while expected_session.weekday() >= 5:
+        expected_session = expected_session.fromordinal(expected_session.toordinal() - 1)
+    latest_date = _date(rows[-1].get("trade_date"))
+    offset = 6 if latest_date >= expected_session else 5
+    if len(rows) < offset:
+        return None
+    return _optional_decimal(rows[-offset].get("close"))
+
+
 def _optional_datetime(value: object) -> datetime | None:
     return value if isinstance(value, datetime) else None
 
@@ -309,9 +363,7 @@ def _roll_quotes(
 ) -> tuple[RollQuote, ...]:
     quotes: list[RollQuote] = []
     for row in option_market:
-        if _canonical(str(row.get("underlying_symbol") or "")) != _canonical(
-            underlying_symbol
-        ):
+        if _canonical(str(row.get("underlying_symbol") or "")) != _canonical(underlying_symbol):
             continue
         if str(row.get("option_side") or "").upper() != option_type:
             continue

@@ -1,0 +1,51 @@
+{% set risk = open_book.risk %}
+{% set price_time = snapshot.live_position_book.price_time_read if snapshot.live_position_book else none %}
+<details class="workspace-panel open-book-section risk-lens" data-open-book-section="risk-lens">
+  <summary class="workspace-panel-heading risk-lens-heading">
+    <div><p class="eyebrow">RISK LENS</p><h2>Carry, exposure, and IV pressure</h2></div>
+    <div class="risk-lens-headline">
+      {% if risk %}
+      <span>DELTA / NEXT +$1</span>
+      <b class="{{ price_time.up_one_dollar_effect | pnl_class if price_time and price_time.up_one_dollar_effect is not none else '' }}">{% if price_time and price_time.up_one_dollar_effect is not none %}{{ '+' if price_time.up_one_dollar_effect > 0 else '' }}{{ price_time.up_one_dollar_effect | money }}{% else %}PARTIAL{% endif %}</b>
+      <span>TIME / DAY</span>
+      <b class="{{ risk.theta_estimate_per_day | pnl_class }}">{% if risk.theta_estimate_per_day is not none %}{{ '+' if risk.theta_estimate_per_day > 0 else '' }}{{ risk.theta_estimate_per_day | money }}{% else %}PARTIAL{% endif %}</b>
+      <small>{{ risk.greek_coverage_percent | percent(0) }} MODEL COVERAGE</small>
+      {% else %}<small>MODEL DATA NOT AVAILABLE</small>{% endif %}
+      <i aria-hidden="true"></i>
+    </div>
+  </summary>
+  {% if risk %}
+  <div class="risk-lens-grid" role="group" aria-label="Position-adjusted option sensitivities">
+    <article>
+      <span>DELTA &middot; NEXT $1 STOCK MOVE</span>
+      {% if price_time and price_time.up_one_dollar_effect is not none %}<strong class="price-time-pair"><em>UP</em> <em class="{{ price_time.up_one_dollar_effect | pnl_class }}">{{ '+' if price_time.up_one_dollar_effect > 0 else '' }}{{ price_time.up_one_dollar_effect | money }}</em> <em>&middot; DOWN</em> <em class="{{ price_time.down_one_dollar_effect | pnl_class }}">{{ '+' if price_time.down_one_dollar_effect > 0 else '' }}{{ price_time.down_one_dollar_effect | money }}</em></strong><small>{% if price_time.price_effect is not none %}Last session: {{ '+' if price_time.price_effect > 0 else '' }}{{ price_time.price_effect | money }}. {{ price_time.consequence }}{% else %}The next-$1 read is live; prior-session context is unavailable.{% endif %}</small>{% else %}<strong>&mdash;</strong><small>Live position delta is missing</small>{% endif %}
+    </article>
+    <article>
+      <span>MODEL TIME CARRY / DAY</span>
+      {% if risk.theta_estimate_per_day is not none %}<strong class="{{ risk.theta_estimate_per_day | pnl_class }}">{{ '+' if risk.theta_estimate_per_day > 0 else '' }}{{ risk.theta_estimate_per_day | money }}</strong><small>Current theta; not cash received or a forecast</small>{% else %}<strong>&mdash;</strong><small>Theta is missing from the live book</small>{% endif %}
+    </article>
+    <article>
+      <span>ONE-POINT IV POP</span>
+      {% if risk.vega_per_volatility_point is not none %}<strong class="{{ risk.vega_per_volatility_point | pnl_class }}">{{ risk.vega_per_volatility_point | money }}</strong><small>{% if risk.iv_point_in_theta_days is not none %}About {{ risk.iv_point_in_theta_days | number(1) }} days of current theta{% else %}Estimated option-value change; all else held still{% endif %}</small>{% else %}<strong>&mdash;</strong><small>Vega is missing from the live book</small>{% endif %}
+    </article>
+    <article class="risk-lens-read">
+      <span>NIBWICK'S BOOK READ</span>
+      <p>{% if price_time %}{{ price_time.book_read }}{% elif risk.vega_per_volatility_point is not none and risk.vega_per_volatility_point < 0 and risk.iv_point_in_theta_days is not none %}A one-point IV rise costs about {{ risk.iv_point_in_theta_days | number(1) }} days of current model decay. {{ risk.largest_absolute_vega_symbol }} carries the largest volatility hit.{% elif risk.vega_per_volatility_point is not none and risk.vega_per_volatility_point >= 0 %}Higher IV currently helps the open option book. The rows below show where.{% else %}The pressure read is partial. Missing model inputs stay blank instead of being guessed.{% endif %}</p>
+    </article>
+  </div>
+  <div class="risk-lens-register">
+    <header><span>UNDERLYING</span><span>NET STOCK EXPOSURE</span><span>NAME +1%</span><span>TIME / DAY</span><span>IV +1 POINT</span><span>IV COST IN THETA DAYS</span></header>
+    {% for row in risk.underlyings %}
+    <div>
+      <b>{{ row.symbol }}{% if row.greek_coverage_percent < 100 %}<small>{{ row.greek_coverage_percent | percent(0) }} MODEL COVERAGE</small>{% endif %}</b>
+      <span>{% if row.net_share_exposure_percent is not none %}<strong>{{ row.net_share_exposure_percent | percent(0) }}</strong><small>{{ row.net_delta_share_equivalent | number(0) }} SH EQ / {{ row.shares | number(0) }} HELD</small>{% else %}&mdash;{% endif %}</span>
+      <span class="{{ row.estimated_value_change_for_one_percent_move | pnl_class }}">{% if row.estimated_value_change_for_one_percent_move is not none %}{{ row.estimated_value_change_for_one_percent_move | money }}{% else %}&mdash;{% endif %}</span>
+      <span class="{{ row.theta_estimate_per_day | pnl_class }}">{% if row.theta_estimate_per_day is not none %}{{ row.theta_estimate_per_day | money }}{% else %}&mdash;{% endif %}</span>
+      <span class="{{ row.vega_per_volatility_point | pnl_class }}">{% if row.vega_per_volatility_point is not none %}{{ row.vega_per_volatility_point | money }}{% else %}&mdash;{% endif %}</span>
+      <span>{% if row.iv_point_in_theta_days is not none %}{{ row.iv_point_in_theta_days | number(1) }} DAYS{% else %}&mdash;{% endif %}</span>
+    </div>
+    {% endfor %}
+  </div>
+  <footer class="risk-lens-audit"><span>POSITION-ADJUSTED &middot; SHARES + SHORT CALLS + SHORT PUTS</span><span>PRIMARY GREEKS {{ risk.greek_coverage_percent | percent(0) }} COVERED &middot; QUOTES {{ risk.quote_coverage_percent | percent(0) }} COMPLETE &middot; OLDEST {{ risk.oldest_quote_at | short_date }}</span></footer>
+  {% else %}<p class="empty-state">No active short-option Greeks are available yet.</p>{% endif %}
+</details>

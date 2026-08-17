@@ -1,6 +1,11 @@
+from dataclasses import replace
 from decimal import Decimal
 
 from schwab_dashboard.application.dashboard.cashflows import build_call_cash_events
+from schwab_dashboard.application.dashboard.expiration_calendar import (
+    build_expiration_calendar,
+)
+from schwab_dashboard.application.market_time import OptionSessionState
 from schwab_dashboard.infrastructure.demo.dashboard import DemoDashboardReader
 
 D = Decimal
@@ -93,6 +98,22 @@ def test_expiration_calendar_reconciles_every_open_obligation() -> None:
     )
     assert snapshot.expiration_calendar[0].days_to_expiration == 7
     assert snapshot.expiration_calendar[1].event_labels == ("CVX ex-dividend Aug 19",)
+
+
+def test_expiration_calendar_names_post_close_inventory_without_calling_it_tradable() -> None:
+    snapshot = DemoDashboardReader().execute()
+    underlying = snapshot.underlyings[0]
+    closed = replace(
+        underlying.open_call_clocks[0],
+        session_state=OptionSessionState.CLOSED_PENDING_SETTLEMENT,
+    )
+    bucket = build_expiration_calendar(
+        (replace(underlying, open_call_clocks=(closed,)),),
+        snapshot.as_of.date(),
+    )[0]
+
+    assert not bucket.can_close_or_roll
+    assert bucket.session_label == "TRADING CLOSED · SETTLEMENT PENDING"
 
 
 def test_attribution_refuses_unsupported_long_history() -> None:

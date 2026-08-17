@@ -1,0 +1,120 @@
+{% from "partials/_price_time_fact.html" import price_time_fact %}
+
+{% macro open_put_row(row) -%}
+<details class="open-option-row open-put-row {{ 'post-close' if not row.can_close_or_roll }}" data-context-symbol-row="{{ row.symbol }}" data-option-symbol="{{ row.option_symbol }}">
+  <summary aria-label="{{ row.symbol }} {{ row.contracts }} contract {{ row.strike | number(2) }} short put, {{ row.days_to_expiration }} days to expiration">
+    <span class="option-contract put-contract">
+      <b>{{ row.contracts }}x ${{ row.strike | number(2) }}P</b>
+      <small>{% if row.can_close_or_roll %}{{ row.symbol }} CASH-SECURED PUT{% else %}{{ row.session_label }}{% endif %}</small>
+    </span>
+    <span class="option-term put-term">
+      <small>TIME LEFT</small>
+      <b>{% if row.can_close_or_roll %}{{ row.days_to_expiration }} DTE{% else %}CLOSED{% endif %}</b>
+      <em>{{ row.expires_on | short_date }}</em>
+    </span>
+    <span>
+      <small>{{ row.strike_state_label }}</small>
+      {% if row.strike_distance_available %}
+      <b class="{{ row.strike_distance_per_share | pnl_class }}">{{ row.strike_distance_display | money }}</b>
+      <em>{{ row.strike_distance_percent_display | percent }} cushion</em>
+      {% else %}
+      <b>&mdash;</b><em>Spot mark unavailable</em>
+      {% endif %}
+    </span>
+    <span>
+      <small>PREMIUM / BUYBACK</small>
+      <b class="put-cash-pair"><i class="positive">+{{ row.entry_credit | money }}</i><i class="negative">&minus;{{ row.estimated_close_cost | money }}</i></b>
+      <em>Received / {{ row.close_cost_basis | lower }}</em>
+    </span>
+    <span>
+      <small>OPEN P/L</small>
+      <b class="{{ row.open_profit_loss | pnl_class }}">{{ row.open_profit_loss | money }}</b>
+      <em>{% if row.can_close_or_roll %}{{ row.theta_estimate_per_day | money }}/day model decay{% else %}No live theta after trading close{% endif %}</em>
+    </span>
+    <i class="option-row-toggle put-row-toggle" aria-hidden="true"></i>
+  </summary>
+
+  <div class="open-option-detail open-put-detail">
+    <div class="contract-clocks" role="group" aria-label="Contract time and value clocks">
+      <section class="contract-clock calendar-clock {{ 'clock-unavailable' if row.elapsed_time_percent is none }}">
+        <header>
+          <span>CALENDAR CLOCK</span>
+          <b>{{ row.days_to_expiration }} DTE</b>
+        </header>
+        {% if row.elapsed_time_percent is not none %}
+        <div class="clock-track" role="img" aria-label="{{ row.elapsed_time_percent | percent }} of the original contract term has elapsed">
+          <span style="--clock-fill: {{ row.elapsed_time_percent | number(1) }}%"></span>
+        </div>
+        <footer>
+          <span>SOLD {{ row.sold_on | short_date }}</span>
+          <strong>{{ row.elapsed_time_percent | percent }} USED</strong>
+          <span>EXPIRES {{ row.expires_on | short_date }}</span>
+        </footer>
+        {% else %}
+        <div class="clock-track" role="img" aria-label="Opening date unavailable; elapsed contract time is not estimated"><span></span></div>
+        <footer><span>OPENING DATE UNAVAILABLE</span><strong>TERM NOT GUESSED</strong><span>EXPIRES {{ row.expires_on | short_date }}</span></footer>
+        {% endif %}
+      </section>
+
+      <section class="contract-clock value-clock {{ 'value-overrun' if row.option_value_overrun_percent > 0 else 'value-contained' }}">
+        <header>
+          <span>OPTION VALUE / PREMIUM</span>
+          <b>{{ row.option_value_vs_credit_percent | percent }}</b>
+        </header>
+        <div class="clock-track" role="img" aria-label="Current put value is {{ row.option_value_vs_credit_percent | percent }} of premium received">
+          <span style="--clock-fill: {{ row.option_value_track_percent | number(1) }}%"></span>
+          <i aria-hidden="true"></i>
+        </div>
+        <footer>
+          <span>{{ row.current_liability | money }} VALUE NOW</span>
+          {% if row.option_value_overrun_percent > 0 %}
+          <strong class="negative">+{{ row.option_value_overrun_percent | percent }} ABOVE CREDIT</strong>
+          {% else %}
+          <strong class="positive">{{ row.credit_capture_percent | percent }} CAPTURED</strong>
+          {% endif %}
+          <span>{{ row.entry_credit | money }} RECEIVED</span>
+        </footer>
+      </section>
+    </div>
+
+    <div class="option-fact-strip put-fact-strip">
+      <div>
+        <span>QUOTE / SHARE</span>
+        <b>{{ row.bid_per_share | money }} / {{ row.mark_per_share | money }} / {{ row.close_ask_per_share | money }}</b>
+        <small>Bid / mark / ask · {{ row.spread_per_share | money }} spread</small>
+      </div>
+      <div>
+        {{ price_time_fact(row.price_time_read, row.theta_estimate_per_day, row.position_vega_per_volatility_point, row.can_close_or_roll) }}
+      </div>
+      <div>
+        <span>EFFECTIVE ENTRY</span>
+        <b>{% if row.effective_entry_per_share is not none %}{{ row.effective_entry_per_share | money }}/share{% else %}&mdash;{% endif %}</b>
+        <small>{{ row.intrinsic_value | money }} intrinsic · {{ row.remaining_extrinsic_value | money }} time value</small>
+      </div>
+      <div>
+        <span>LIQUIDITY</span>
+        <b>{{ row.volume if row.volume is not none else '—' }} volume · {{ row.open_interest if row.open_interest is not none else '—' }} OI</b>
+        <small>{{ row.quote_status }} {{ row.quote_observed_on | short_date if row.quote_observed_on else '—' }}</small>
+      </div>
+    </div>
+
+    <details class="contract-model-disclosure">
+      <summary>MODEL INPUTS <span>PER SHARE / RAW CONTRACT QUOTE</span></summary>
+      <div>
+        <span>IV <b>{% if row.implied_volatility_percent is not none %}{{ row.implied_volatility_percent | percent }}{% else %}&mdash;{% endif %}</b></span>
+        <span>DELTA <b>{% if row.delta is not none %}{{ row.delta | number(3) }}{% else %}&mdash;{% endif %}</b></span>
+        <span>GAMMA <b>{% if row.gamma is not none %}{{ row.gamma | number(4) }}{% else %}&mdash;{% endif %}</b></span>
+        <span>THETA <b>{% if row.theta_per_share is not none %}{{ row.theta_per_share | number(4) }}{% else %}&mdash;{% endif %}</b></span>
+        <span>VEGA <b>{% if row.vega is not none %}{{ row.vega | number(4) }}{% else %}&mdash;{% endif %}</b></span>
+        <span>QUOTE <b>{{ row.quote_status }} {{ row.quote_observed_on | short_date if row.quote_observed_on else '—' }}</b></span>
+      </div>
+    </details>
+
+    <footer class="option-context-line put-context-line">
+      <span><b>{{ row.decay_stage }}</b>{% if row.original_days_to_expiration is not none %} · {{ row.original_days_to_expiration }} original days{% endif %}</span>
+      <span>BREAKEVEN AT EXPIRY · {% if row.effective_entry_per_share is not none %}{{ row.effective_entry_per_share | money }}/SH{% else %}NOT AVAILABLE{% endif %}</span>
+      <span>{{ row.strike_state_label }}{% if row.strike_distance_available %} · {{ row.strike_distance_percent_display | percent }} CUSHION{% endif %}</span>
+    </footer>
+  </div>
+</details>
+{%- endmacro %}

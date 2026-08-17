@@ -1,10 +1,26 @@
 {% from "partials/_option_value_meter.html" import option_value_meter %}
+{% from "partials/_price_time_fact.html" import five_session_pressure %}
 
 {% macro underlying_call_card(call, item, snapshot) -%}
-<article id="{{ call.record_id | option_anchor }}" class="call-position {{ call.open_profit_loss | pnl_class }}" tabindex="-1" data-option-contract="{{ call.record_id }}">
+{% set price_time = call.price_time_read %}
+<article
+  id="{{ call.record_id | option_anchor }}"
+  class="call-position {{ call.open_profit_loss | pnl_class }}"
+  role="button"
+  tabindex="0"
+  aria-pressed="false"
+  aria-label="Highlight {{ item.symbol }} {{ call.expires_on.strftime('%b %d, %Y') }} ${{ '%g' | format(call.strike) }} call lifecycle on the chart"
+  data-option-contract="{{ call.record_id }}"
+  data-option-lifecycle
+  data-option-campaign="{{ call.campaign_id }}"
+  data-option-side="call"
+  data-option-expiration="{{ call.expires_on.isoformat() }}"
+  data-option-strike="{{ call.strike }}"
+>
   <header>
     <div>
       <strong>-{{ call.contracts }} {{ call.expires_on.strftime('%b %d') | upper }} ${{ '%g' | format(call.strike) }}C</strong>
+      {% if call.campaign_label %}<span class="call-campaign-chip" title="This live position belongs to chart campaign {{ call.campaign_label }}">{{ call.campaign_label }}</span>{% endif %}
       <span>{{ call.decay_stage }}</span>
       {% if call.strike_distance_per_share >= 0 %}
       <span class="call-strike-distance positive">{{ call.strike_distance_per_share | money }} / {{ call.strike_distance_percent | percent }} TO STRIKE</span>
@@ -40,14 +56,27 @@
   <div class="call-context-strip">
     <span>TIME VALUE NOW <b>{{ call.remaining_extrinsic_value | money(0) }}</b></span>
     {% if call.intrinsic_value > 0 %}<span class="negative">INTRINSIC <b>{{ call.intrinsic_value | money(0) }}</b></span>{% else %}<span>INTRINSIC <b>$0 / OTM</b></span>{% endif %}
-    <span>THETA <i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i> <b class="positive">+{{ call.short_theta_per_day | money }}/DAY</b></span>
-    <span>TIME-VALUE PACE <b>~{{ call.theta_days_of_time_value | number(1) }} DAYS</b><small>at today's theta; not a forecast</small></span>
+    <span>THETA / DAY <i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i> <b class="positive">+{{ call.short_theta_per_day | money }}</b><small>Time decay if price and IV hold still</small></span>
+    <span title="Gamma-adjusted dollar consequence of this position's delta for the next $1 underlying move. {{ price_time.gamma_note if price_time else '' }}">DELTA &middot; NEXT $1 MOVE <b class="price-time-pair">{% if price_time and price_time.up_one_dollar_effect is not none %}<em>UP</em> <em class="{{ price_time.up_one_dollar_effect | pnl_class }}">{{ '+' if price_time.up_one_dollar_effect > 0 else '' }}{{ price_time.up_one_dollar_effect | money }}</em> <em>&middot; DOWN</em> <em class="{{ price_time.down_one_dollar_effect | pnl_class }}">{{ '+' if price_time.down_one_dollar_effect > 0 else '' }}{{ price_time.down_one_dollar_effect | money }}</em>{% else %}<em>&mdash;</em>{% endif %}</b><small>{% if price_time and price_time.price_effect is not none %}LAST SESSION {{ '+' if price_time.price_effect > 0 else '' }}{{ price_time.price_effect | money }}{% else %}LAST SESSION UNAVAILABLE{% endif %}</small>{{ five_session_pressure(price_time) }}</span>
   </div>
 </article>
 {%- endmacro %}
 
 {% macro underlying_put_card(put, item) -%}
-<article id="{{ put.option_symbol | option_anchor }}" class="call-position put-position {{ put.open_profit_loss | pnl_class }}" tabindex="-1" data-option-contract="{{ put.option_symbol }}">
+{% set price_time = put.price_time_read %}
+<article
+  id="{{ put.option_symbol | option_anchor }}"
+  class="call-position put-position {{ put.open_profit_loss | pnl_class }}"
+  role="button"
+  tabindex="0"
+  aria-pressed="false"
+  aria-label="Highlight {{ item.symbol }} {{ put.expires_on.strftime('%b %d, %Y') }} ${{ '%g' | format(put.strike) }} put lifecycle on the chart"
+  data-option-contract="{{ put.option_symbol }}"
+  data-option-lifecycle
+  data-option-side="put"
+  data-option-expiration="{{ put.expires_on.isoformat() }}"
+  data-option-strike="{{ put.strike }}"
+>
   <header>
     <div>
       <strong>-{{ put.contracts }} {{ put.expires_on.strftime('%b %d') | upper }} ${{ '%g' | format(put.strike) }}P</strong>
@@ -63,8 +92,8 @@
   <div class="call-context-strip put-context-strip">
     <span>MARK <b>{{ put.estimated_mark_per_share | money }}</b><small>{{ put.bid_per_share | money }} bid &middot; {{ put.ask_per_share | money }} ask</small></span>
     <span>OPEN P/L <b class="{{ put.open_profit_loss | pnl_class }}">{{ put.open_profit_loss | money }}</b></span>
-    <span>IV / DELTA <b>{{ put.implied_volatility_percent | percent }} / {{ put.delta | number(2) }}</b></span>
-    <span>THETA / DAY <b class="positive">+{{ (-(put.theta_per_share or 0) * put.contracts * 100) | money }}</b></span>
+    <span>THETA / DAY <b class="positive">+{{ (-(put.theta_per_share or 0) * put.position_scale) | money }}</b><small>Time decay if price and IV hold still</small></span>
+    <span title="Gamma-adjusted dollar consequence of this position's delta for the next $1 underlying move. {{ price_time.gamma_note }}">DELTA &middot; NEXT $1 MOVE <b class="price-time-pair">{% if price_time.up_one_dollar_effect is not none %}<em>UP</em> <em class="{{ price_time.up_one_dollar_effect | pnl_class }}">{{ '+' if price_time.up_one_dollar_effect > 0 else '' }}{{ price_time.up_one_dollar_effect | money }}</em> <em>&middot; DOWN</em> <em class="{{ price_time.down_one_dollar_effect | pnl_class }}">{{ '+' if price_time.down_one_dollar_effect > 0 else '' }}{{ price_time.down_one_dollar_effect | money }}</em>{% else %}<em>&mdash;</em>{% endif %}</b><small>{% if price_time.price_effect is not none %}LAST SESSION {{ '+' if price_time.price_effect > 0 else '' }}{{ price_time.price_effect | money }}{% else %}LAST SESSION UNAVAILABLE{% endif %}</small>{{ five_session_pressure(price_time) }}</span>
   </div>
 </article>
 {%- endmacro %}

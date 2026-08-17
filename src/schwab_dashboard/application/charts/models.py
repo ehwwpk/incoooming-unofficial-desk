@@ -32,7 +32,8 @@ class ChartLeg:
     campaign_id: str
     campaign_label: str
     leg_index: int
-    time: date
+    time: date | datetime
+    time_precision: str
     underlying_price: Decimal
     event_type: str
     outcome: str
@@ -58,6 +59,21 @@ class ChartCampaign:
     latest_on: date
     net_cash: Decimal
     legs: tuple[ChartLeg, ...]
+    risk_reference: ChartRiskReference | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ChartRiskReference:
+    spot: Decimal
+    strike: Decimal
+    expiration: date
+    days_to_expiration: int
+    implied_volatility_percent: Decimal | None
+    expected_move: Decimal | None
+    expected_move_low: Decimal | None
+    expected_move_high: Decimal | None
+    quote_observed_on: date | None
+    source: str
 
 
 @dataclass(frozen=True, slots=True)

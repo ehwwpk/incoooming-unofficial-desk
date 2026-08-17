@@ -16,6 +16,7 @@ from schwab_dashboard.application.dashboard.models import (
     IncomeSummary,
     LivePositionBook,
 )
+from schwab_dashboard.application.dashboard.option_activity import count_rolled_contracts
 from schwab_dashboard.application.dashboard.performance import (
     CashActivityItem,
     CashActivityWindow,
@@ -55,10 +56,14 @@ def build_live_performance(
     option_executions = tuple(row for row in executions if _is_covered_call_cash(row))
     dividends = tuple(row for row in cash_movements if str(row.get("movement_type")) == "dividend")
     assignments = tuple(
-        row for row in lifecycle_events if str(row.get("event_type")) == "assignment"
+        row
+        for row in lifecycle_events
+        if str(row.get("event_type")) == "assignment" and str(row.get("option_side")) == "call"
     )
     expirations = tuple(
-        row for row in lifecycle_events if str(row.get("event_type")) == "expiration"
+        row
+        for row in lifecycle_events
+        if str(row.get("event_type")) == "expiration" and str(row.get("option_side")) == "call"
     )
     windows = tuple(
         _window(
@@ -342,7 +347,7 @@ def _covered_call_summary(
             (int(_decimal(row.get("option_quantity"))) for row in expirations), 0
         ),
         closed_contracts=sum((int(_decimal(row.get("quantity"))) for row in closings), 0),
-        rolled_contracts=0,
+        rolled_contracts=count_rolled_contracts(executions),
         assigned_contracts=assigned_contracts,
         called_away_shares=assigned_contracts * 100,
         gross_premium=gross,

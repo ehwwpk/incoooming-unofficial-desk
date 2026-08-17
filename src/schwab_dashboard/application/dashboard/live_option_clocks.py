@@ -4,6 +4,8 @@ from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 from decimal import Decimal
 
+from schwab_dashboard.application.campaigns import reconcile_option_campaigns
+from schwab_dashboard.application.campaigns.models import CampaignLedger
 from schwab_dashboard.application.dashboard.covered_calls import (
     OpenCallClock,
     RollQuoteCandidate,
@@ -12,7 +14,6 @@ from schwab_dashboard.application.dashboard.models import LiveOpenOptionPosition
 
 ZERO = Decimal("0")
 HUNDRED = Decimal("100")
-CONTRACT_MULTIPLIER = Decimal("100")
 
 
 def build_open_call_clocks(
@@ -24,10 +25,12 @@ def build_open_call_clocks(
     option_market: Sequence[Mapping[str, object]] = (),
     as_of: date,
 ) -> tuple[OpenCallClock, ...]:
+    campaign_ledger = reconcile_option_campaigns(executions, ())
     return tuple(
         _clock(
             call,
-            opening_rows=_remaining_opening_rows(call.option_symbol, executions),
+            opening_rows=remaining_opening_rows(call.option_symbol, executions),
+            campaign_ledger=campaign_ledger,
             daily_bars=daily_bars,
             option_market=option_market,
             as_of=as_of,
@@ -41,10 +44,16 @@ def _clock(
     call: LiveOpenOptionPosition,
     *,
     opening_rows: Sequence[Mapping[str, object]],
+    campaign_ledger: CampaignLedger,
     daily_bars: Sequence[Mapping[str, object]],
     option_market: Sequence[Mapping[str, object]],
     as_of: date,
 ) -> OpenCallClock:
+    campaign_id, campaign_label = _campaign_identity(
+        opening_rows,
+        fallback=call.option_symbol,
+        campaign_ledger=campaign_ledger,
+    )
     sold_on = min((_row_date(row) for row in opening_rows), default=as_of)
     underlying_at_sale = (
         _close_on_or_before(
@@ -65,8 +74,9 @@ def _clock(
     mark = call.estimated_mark_per_share or ZERO
     entry = call.entry_credit_per_share or ZERO
     contracts = Decimal(call.contracts)
-    entry_credit = entry * CONTRACT_MULTIPLIER * contracts
-    current_value = mark * CONTRACT_MULTIPLIER * contracts
+    multiplier = call.contract_multiplier
+    entry_credit = entry * multiplier * contracts
+    current_value = mark * multiplier * contracts
     open_profit_loss = (
         call.open_profit_loss if call.open_profit_loss is not None else entry_credit - current_value
     )
@@ -74,12 +84,14 @@ def _clock(
         ZERO,
         (call.underlying_price or ZERO) - call.strike,
     )
-    intrinsic_value = intrinsic_per_share * CONTRACT_MULTIPLIER * contracts
+    intrinsic_value = intrinsic_per_share * multiplier * contracts
     time_value = max(ZERO, current_value - intrinsic_value)
     short_theta = max(
         ZERO,
-        -(call.theta_per_share or ZERO) * CONTRACT_MULTIPLIER * contracts,
+        -(call.theta_per_share or ZERO) * multiplier * contracts,
     )
+    if not call.can_close_or_roll:
+        short_theta = ZERO
     spread = max(ZERO, (call.ask_per_share or mark) - (call.bid_per_share or mark))
     spread_percent = spread / mark * HUNDRED if mark else ZERO
     remaining_percent = (
@@ -87,7 +99,8 @@ def _clock(
     )
     return OpenCallClock(
         record_id=call.option_symbol,
-        campaign_id=_campaign_id(opening_rows, call.option_symbol),
+        campaign_id=campaign_id,
+        campaign_label=campaign_label,
         policy_id="observed-live-position",
         sold_on=sold_on,
         expires_on=call.expires_on,
@@ -108,7 +121,9 @@ def _clock(
         vega=call.vega,
         volume=call.volume,
         open_interest=call.open_interest,
-        roll_quote_candidates=_roll_candidates(call, option_market),
+        roll_quote_candidates=(
+            _roll_candidates(call, option_market) if call.can_close_or_roll else ()
+        ),
         original_days_to_expiration=original_dte,
         elapsed_days=elapsed_days,
         elapsed_time_percent=elapsed_percent,
@@ -135,11 +150,18 @@ def _clock(
         ),
         theta_days_of_time_value=(time_value / short_theta if short_theta else ZERO),
         time_remaining_percent=max(ZERO, min(HUNDRED, remaining_percent)),
-        decay_stage=_decay_stage(call.days_to_expiration, elapsed_percent),
+        decay_stage=(
+            _decay_stage(call.days_to_expiration, elapsed_percent)
+            if call.can_close_or_roll
+            else call.session_label
+        ),
+        session_state=call.session_state,
+        contract_multiplier=call.contract_multiplier,
+        price_time_read=call.price_time_read,
     )
 
 
-def _remaining_opening_rows(
+def remaining_opening_rows(
     option_symbol: str,
     executions: Sequence[Mapping[str, object]],
 ) -> tuple[Mapping[str, object], ...]:
@@ -171,12 +193,52 @@ def _remaining_opening_rows(
     return tuple(lot[0] for lot in lots)  # type: ignore[misc]
 
 
-def _campaign_id(rows: Sequence[Mapping[str, object]], fallback: str) -> str:
-    for row in reversed(rows):
-        value = str(row.get("order_external_key") or row.get("external_key") or "")
-        if value:
-            return value
-    return fallback
+def remaining_open_lot_date(
+    option_symbol: str,
+    executions: Sequence[Mapping[str, object]],
+) -> date | None:
+    """Return the oldest still-open short lot date for an option contract.
+
+    Opening sells are matched FIFO against closing buys.  Keeping this logic in
+    one place prevents call and put clocks from disagreeing after partial closes.
+    """
+
+    rows = remaining_opening_rows(option_symbol, executions)
+    return min((_row_date(row) for row in rows), default=None)
+
+
+def _campaign_identity(
+    rows: Sequence[Mapping[str, object]],
+    *,
+    fallback: str,
+    campaign_ledger: CampaignLedger,
+) -> tuple[str, str]:
+    """Return the reconciled identity of the lot that is still open.
+
+    A live option series can have historical legs in several campaigns. Using
+    the latest order id (the former behavior) does not identify which campaign
+    still owns the position and forces the chart UI to guess by strike/date.
+    Resolve the surviving opening rows against the same ledger that draws the
+    chart instead. When one aggregated position genuinely spans several
+    campaigns, do not claim that any single path owns the whole line.
+    """
+
+    identities: dict[str, str] = {}
+    for row in rows:
+        annotation = campaign_ledger.annotation_for(_record_key(row))
+        if annotation is not None:
+            identities[annotation.campaign_id] = annotation.campaign_label
+    if len(identities) == 1:
+        return next(iter(identities.items()))
+    if len(identities) > 1:
+        return fallback, f"{len(identities)} CAMPAIGNS"
+    return fallback, ""
+
+
+def _record_key(row: Mapping[str, object]) -> str:
+    external_key = str(row.get("external_key") or "")
+    account_mask = str(row.get("account_mask") or "")
+    return f"{account_mask}:{external_key}" if account_mask else external_key
 
 
 def _roll_candidates(

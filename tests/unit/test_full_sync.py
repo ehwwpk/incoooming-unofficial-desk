@@ -65,6 +65,98 @@ def _coordinator(
     )
 
 
+def test_successful_full_sync_notifies_on_success_after_commit() -> None:
+    calls: list[str] = []
+    coordinator = FullSyncCoordinator(
+        accounts_factory=lambda: _Service(
+            SyncResult(
+                run_id="accounts",
+                account_count=1,
+                position_count=24,
+                warning_count=0,
+                completed_at=NOW,
+            ),
+            calls,
+            "accounts",
+        ),  # type: ignore[arg-type]
+        activity_factory=lambda: _Service(
+            TransactionSyncResult(
+                run_id="activity",
+                account_count=1,
+                transaction_count=189,
+                execution_count=155,
+                cash_movement_count=20,
+                lifecycle_event_count=8,
+                completed_at=NOW,
+            ),
+            calls,
+            "activity",
+        ),  # type: ignore[arg-type]
+        market_factory=lambda: _Service(
+            MarketSyncResult(
+                underlying_quote_count=6,
+                option_quote_count=789,
+                daily_bar_count=753,
+                completed_at=NOW,
+            ),
+            calls,
+            "market",
+        ),  # type: ignore[arg-type]
+        enabled=True,
+        interval_seconds=900,
+        on_success=lambda: calls.append("invalidate"),
+    )
+
+    coordinator.execute(trigger="auto")
+
+    assert calls == ["accounts", "activity", "market", "invalidate"]
+
+
+def test_failed_full_sync_keeps_the_prior_dashboard_generation() -> None:
+    calls: list[str] = []
+
+    class _BrokenMarket:
+        def execute(self) -> MarketSyncResult:
+            calls.append("market")
+            raise RuntimeError("quotes unavailable")
+
+    coordinator = FullSyncCoordinator(
+        accounts_factory=lambda: _Service(
+            SyncResult(
+                run_id="accounts",
+                account_count=1,
+                position_count=24,
+                warning_count=0,
+                completed_at=NOW,
+            ),
+            calls,
+            "accounts",
+        ),  # type: ignore[arg-type]
+        activity_factory=lambda: _Service(
+            TransactionSyncResult(
+                run_id="activity",
+                account_count=1,
+                transaction_count=189,
+                execution_count=155,
+                cash_movement_count=20,
+                lifecycle_event_count=8,
+                completed_at=NOW,
+            ),
+            calls,
+            "activity",
+        ),  # type: ignore[arg-type]
+        market_factory=lambda: _BrokenMarket(),  # type: ignore[arg-type]
+        enabled=True,
+        interval_seconds=900,
+        on_success=lambda: calls.append("invalidate"),
+    )
+
+    with pytest.raises(RuntimeError, match="quotes unavailable"):
+        coordinator.execute(trigger="auto")
+
+    assert "invalidate" not in calls
+
+
 def test_full_sync_runs_one_serialized_pipeline_and_records_status() -> None:
     calls: list[str] = []
     coordinator = _coordinator(calls)

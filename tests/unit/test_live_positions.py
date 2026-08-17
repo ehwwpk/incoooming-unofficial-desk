@@ -1,11 +1,14 @@
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from schwab_dashboard.application.dashboard.calculations import summarize_portfolio
 from schwab_dashboard.application.dashboard.live_positions import build_live_position_book
 from schwab_dashboard.application.dashboard.models import PositionSummary
+from schwab_dashboard.application.market_time import OptionSessionState
 
 D = Decimal
+PACIFIC = ZoneInfo("America/Los_Angeles")
 
 
 def _position(**overrides: object) -> PositionSummary:
@@ -97,9 +100,9 @@ def test_live_book_prefers_market_quote_over_stale_account_position_mark() -> No
     assert underlying.previous_close == D("197.70")
     assert underlying.market_value == D("160640.00")
     assert underlying.day_profit_loss == D("2480.00")
-    assert underlying.current_session_change_percent == (
-        D("200.80") / D("197.70") - D("1")
-    ) * D("100")
+    assert underlying.current_session_change_percent == (D("200.80") / D("197.70") - D("1")) * D(
+        "100"
+    )
     assert underlying.quote_observed_at == observed_at
     assert underlying.quote_quality == "complete"
     assert book.calls[0].underlying_price == D("200.80")
@@ -324,6 +327,54 @@ def test_short_puts_share_the_existing_underlying_group() -> None:
     assert book.estimated_put_theta_per_day == D("0")
 
 
+def test_short_put_clock_uses_the_oldest_remaining_open_lot_after_partial_close() -> None:
+    stock = _position()
+    put = _position(
+        symbol="KTOS  260918P00050000",
+        asset_type="OPTION",
+        quantity=D("-1"),
+        underlying_symbol="KTOS",
+        option_type="PUT",
+        expiration_date=date(2026, 9, 18),
+        strike=D("50"),
+    )
+    executions = (
+        {
+            "symbol": put.symbol,
+            "asset_type": "option",
+            "side": "sell",
+            "position_effect": "opening",
+            "quantity": D("1"),
+            "occurred_at": date(2026, 8, 1),
+        },
+        {
+            "symbol": put.symbol,
+            "asset_type": "option",
+            "side": "sell",
+            "position_effect": "opening",
+            "quantity": D("1"),
+            "occurred_at": date(2026, 8, 5),
+        },
+        {
+            "symbol": put.symbol,
+            "asset_type": "option",
+            "side": "buy",
+            "position_effect": "closing",
+            "quantity": D("1"),
+            "occurred_at": date(2026, 8, 8),
+        },
+    )
+
+    book = build_live_position_book(
+        (stock, put),
+        as_of=date(2026, 8, 10),
+        executions=executions,
+    )
+
+    assert book.puts[0].opened_on == date(2026, 8, 5)
+    assert book.puts[0].original_days_to_expiration == 44
+
+
 def test_option_theta_uses_exported_contract_multiplier() -> None:
     stock = _position(quantity=D("450"))
     call = _position(
@@ -347,3 +398,69 @@ def test_option_theta_uses_exported_contract_multiplier() -> None:
     assert book.contract_capacity == 3
     assert book.covered_contracts == 2
     assert book.underlyings[0].estimated_theta_per_day == D("15.00")
+
+
+def test_expired_friday_inventory_stays_visible_but_loses_trading_actions() -> None:
+    stock = _position()
+    call = _position(
+        symbol="KTOS  260814C00064000",
+        asset_type="OPTION",
+        quantity=D("-1"),
+        average_price=D("0.30"),
+        mark=D("0.10"),
+        market_value=D("-10"),
+        underlying_symbol="KTOS",
+        option_type="CALL",
+        expiration_date=date(2026, 8, 14),
+        strike=D("64"),
+    )
+    put = _position(
+        symbol="KTOS  260814P00060000",
+        asset_type="OPTION",
+        quantity=D("-1"),
+        average_price=D("0.30"),
+        mark=D("0.10"),
+        market_value=D("-10"),
+        underlying_symbol="KTOS",
+        option_type="PUT",
+        expiration_date=date(2026, 8, 14),
+        strike=D("60"),
+    )
+    option_market = (
+        {"symbol": call.symbol, "theta": D("-0.30")},
+        {"symbol": put.symbol, "theta": D("-0.20")},
+        {
+            "symbol": "KTOS  260821C00068000",
+            "underlying_symbol": "KTOS",
+            "option_side": "CALL",
+            "expiration_date": date(2026, 8, 21),
+            "strike": D("68"),
+            "bid": D("0.25"),
+        },
+        {
+            "symbol": "KTOS  260821P00056000",
+            "underlying_symbol": "KTOS",
+            "option_side": "PUT",
+            "expiration_date": date(2026, 8, 21),
+            "strike": D("56"),
+            "bid": D("0.20"),
+        },
+    )
+
+    book = build_live_position_book(
+        (stock, call, put),
+        as_of=date(2026, 8, 14),
+        evaluated_at=datetime(2026, 8, 14, 18, 28, tzinfo=PACIFIC),
+        option_market=option_market,
+    )
+
+    assert book.open_call_positions == 1
+    assert book.open_put_positions == 1
+    assert all(
+        option.session_state is OptionSessionState.CLOSED_PENDING_SETTLEMENT
+        for option in (*book.calls, *book.puts)
+    )
+    assert all(not option.can_close_or_roll for option in (*book.calls, *book.puts))
+    assert all(not option.roll_quote_candidates for option in (*book.calls, *book.puts))
+    assert book.underlyings[0].estimated_theta_per_day == D("0")
+    assert book.underlyings[0].estimated_put_theta_per_day == D("0")

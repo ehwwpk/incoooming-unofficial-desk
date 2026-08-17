@@ -351,7 +351,7 @@
       ["PREMIUM APR · SIMPLE", `${number(candidate.simple_annualized_rate_percent, 1)}%`],
       ["EXPECTED MOVE", candidate.expected_move === null ? "—" : money(candidate.expected_move)],
       ["ROOM / MOVE", candidate.strike_distance_in_moves === null ? "—" : `${number(candidate.strike_distance_in_moves, 2)}×`],
-      ["DELTA", candidate.delta === null ? "—" : number(candidate.delta, 2)],
+      ["CONTRACT DELTA", candidate.delta === null ? "—" : number(candidate.delta, 2)],
       ["IV", candidate.implied_volatility === null ? "—" : `${number(candidate.implied_volatility, 1)}%`],
       ["BID / ASK WIDTH", `${number(candidate.spread_percent, 1)}%`],
       ["OPEN INTEREST", candidate.open_interest ?? "—"],

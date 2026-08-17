@@ -1,8 +1,8 @@
 <section class="cash-activity-panel" id="income" aria-labelledby="cash-activity-title">
   <header class="cash-activity-heading">
     <div>
-      <h2 id="cash-activity-title">Cash activity</h2>
-      <span data-cash-activity-label>4 WEEKS · LATEST EXECUTIONS</span>
+      <h2 id="cash-activity-title">Cash &amp; recent moves</h2>
+      <span data-cash-activity-label>4 WEEKS · EXECUTED CASH</span>
     </div>
     <a href="/workspaces/attribution">RESULTS →</a>
   </header>
@@ -18,20 +18,27 @@
       <span class="cash-activity-dividend"><small>DIVIDENDS RECEIVED</small><b>{{ window.dividends | money }}</b></span>
     </div>
 
-    <ol class="cash-activity-events" aria-label="Latest nonzero cash events in {{ window.label }}">
-      {% for event in window.events %}
-      <li class="{{ event.tone }}">
-        <time datetime="{{ event.occurred_on.isoformat() }}">{{ event.occurred_on.strftime('%b %d') | upper }}</time>
-        <a href="#{{ event.anchor_id }}" data-cash-event-target="{{ event.anchor_id }}">{{ event.symbol }}</a>
-        <span>{{ event.action_label }}{% if event.contracts %} · {{ event.contracts }}C{% endif %}</span>
-        <strong class="{{ event.amount | pnl_class }}">{{ event.amount | money }}</strong>
-      </li>
-      {% else %}
-      <li class="cash-activity-empty"><span>No cash reached the ledger in this window.</span></li>
-      {% endfor %}
-    </ol>
   </div>
   {% else %}
   <p class="cash-activity-empty">Connect a broker or import a file to start the cash ledger.</p>
   {% endfor %}
+
+  <section class="option-activity-tape" aria-labelledby="option-activity-title">
+    <header>
+      <div><span>OPTION TAPE</span><h3 id="option-activity-title">Latest broker actions</h3></div>
+      <b>{{ snapshot.recent_option_activity | length }} SHOWN</b>
+    </header>
+    <ol>
+      {% for event in snapshot.recent_option_activity %}
+      <li class="{{ event.tone }}">
+        <time datetime="{{ event.occurred_at.isoformat() }}">{{ event.date_label }}</time>
+        <a href="#{{ event.anchor_id }}" data-cash-event-target="{{ event.anchor_id }}">{{ event.symbol }}</a>
+        <div><b>{{ event.action_label }}</b><span>{{ event.detail }}</span></div>
+        <strong class="{{ event.amount | pnl_class }}">{{ event.amount | money }}</strong>
+      </li>
+      {% else %}
+      <li class="cash-activity-empty"><span>No option orders are recorded yet.</span></li>
+      {% endfor %}
+    </ol>
+  </section>
 </section>

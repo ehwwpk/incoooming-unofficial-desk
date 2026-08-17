@@ -81,6 +81,7 @@ def _call_roll_result(
             volume=quote.volume,
         )
         for quote in call.roll_quote_candidates
+        if call.can_close_or_roll
     )
     return select_roll_candidates(source, quotes, limit=limit)
 
@@ -98,7 +99,11 @@ def _put_roll_result(put: LiveOpenOptionPosition, *, limit: int) -> RollSearchRe
         quote_status=(put.quote_quality or "unavailable").upper(),
         contract_multiplier=put.contract_multiplier,
     )
-    return select_roll_candidates(source, put.roll_quote_candidates, limit=limit)
+    return select_roll_candidates(
+        source,
+        put.roll_quote_candidates if put.can_close_or_roll else (),
+        limit=limit,
+    )
 
 
 def _scenario(source: RollSource, candidate: RollCandidate) -> RollScenario:

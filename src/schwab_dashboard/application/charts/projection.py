@@ -13,9 +13,11 @@ from schwab_dashboard.application.charts.models import (
     ChartCampaign,
     ChartInterval,
     ChartLeg,
+    ChartRiskReference,
     ChartShareEvent,
 )
 from schwab_dashboard.application.dashboard.covered_calls import UnderlyingCallStats
+from schwab_dashboard.application.opportunities.quote_math import expected_move
 
 
 def build_campaign_chart(
@@ -42,7 +44,12 @@ def build_campaign_chart(
                 campaign_id=event.campaign_id,
                 campaign_label=event.campaign_label,
                 leg_index=event.campaign_leg_index,
-                time=event.date,
+                time=(
+                    event.occurred_at
+                    if event.time_precision == "exact" and event.occurred_at is not None
+                    else event.date
+                ),
+                time_precision=event.time_precision,
                 underlying_price=event.price,
                 event_type=event.event_type,
                 outcome=event.outcome,
@@ -58,11 +65,18 @@ def build_campaign_chart(
             )
         )
 
+    risk_references = _risk_references(underlying)
+    _add_strike_spot_fallbacks(underlying, grouped, risk_references)
     campaigns = tuple(
-        _campaign(campaign_id, legs)
+        _campaign(
+            campaign_id,
+            legs,
+            risk_references.get(campaign_id)
+            or risk_references.get(_risk_key(_latest_leg(legs))),
+        )
         for campaign_id, legs in sorted(
             grouped.items(),
-            key=lambda item: (item[1][0].time, item[1][0].campaign_label, item[0]),
+            key=lambda item: (_time_sort_key(item[1][0].time), item[1][0].campaign_label, item[0]),
         )
     )
     confidence = Counter(item.confidence for item in campaigns)
@@ -83,7 +97,7 @@ def build_campaign_chart(
         )
     intervals = _chart_intervals(underlying.symbol, bars, intraday_bars)
     return CampaignChart(
-        version="campaign-chart-v4",
+        version="campaign-chart-v5",
         symbol=underlying.symbol,
         as_of=bars[-1].time,
         bars=bars,
@@ -116,8 +130,14 @@ def build_campaign_chart(
     )
 
 
-def _campaign(campaign_id: str, legs: list[ChartLeg]) -> ChartCampaign:
-    ordered = tuple(sorted(legs, key=lambda item: (item.time, item.sequence, item.leg_index)))
+def _campaign(
+    campaign_id: str,
+    legs: list[ChartLeg],
+    risk_reference: ChartRiskReference | None,
+) -> ChartCampaign:
+    ordered = tuple(
+        sorted(legs, key=lambda item: (_time_sort_key(item.time), item.sequence, item.leg_index))
+    )
     latest = ordered[-1]
     # Opening sales remain part of the lifecycle after a campaign resolves.
     # Only the latest reconciled leg owns the campaign's current state.
@@ -128,14 +148,98 @@ def _campaign(campaign_id: str, legs: list[ChartLeg]) -> ChartCampaign:
         option_side=ordered[0].option_side,
         status="OPEN" if is_open else latest.outcome.upper(),
         confidence=_lowest_confidence(item.confidence for item in ordered),
-        opened_on=ordered[0].time,
-        latest_on=latest.time,
+        opened_on=_date(ordered[0].time),
+        latest_on=_date(latest.time),
         # The lifecycle reconciler owns campaign cash. Do not re-derive it from
         # display legs: assignments, partial closes, and multi-event rolls can
         # otherwise be counted twice by a presentation projection.
         net_cash=latest.campaign_net_cash,
         legs=ordered,
+        risk_reference=risk_reference if is_open else None,
     )
+
+
+def _risk_references(underlying: UnderlyingCallStats) -> dict[str, ChartRiskReference]:
+    references: dict[str, ChartRiskReference] = {}
+    for clock in underlying.open_call_clocks:
+        dte = max(0, clock.days_to_expiration)
+        move = expected_move(
+            underlying.current_price,
+            clock.implied_volatility_percent,
+            dte,
+        )
+        reference = ChartRiskReference(
+            spot=underlying.current_price,
+            strike=clock.strike,
+            expiration=clock.expires_on,
+            days_to_expiration=dte,
+            implied_volatility_percent=clock.implied_volatility_percent,
+            expected_move=move,
+            expected_move_low=(underlying.current_price - move if move is not None else None),
+            expected_move_high=(underlying.current_price + move if move is not None else None),
+            quote_observed_on=clock.quote_observed_on,
+            source="SCHWAB OPTION IV" if move is not None else "STRIKE / SPOT ONLY",
+        )
+        references[clock.campaign_id] = reference
+        references[f"call:{clock.expires_on.isoformat()}:{clock.strike.normalize()}"] = reference
+    return references
+
+
+def _add_strike_spot_fallbacks(
+    underlying: UnderlyingCallStats,
+    grouped: Mapping[str, Sequence[ChartLeg]],
+    references: dict[str, ChartRiskReference],
+) -> None:
+    """Keep focus context useful when the broker has no IV-bearing call clock.
+
+    This fallback deliberately supplies only observed spot, strike, and time. It
+    never fabricates an expected-move band, and it also covers short puts and
+    imported ledgers that do not have a live Schwab option quote.
+    """
+
+    observed_on = max(
+        (item.date for item in underlying.price_points),
+        default=max(
+            (_date(leg.time) for legs in grouped.values() for leg in legs),
+            default=date.today(),
+        ),
+    )
+    for legs in grouped.values():
+        if not legs:
+            continue
+        latest = _latest_leg(legs)
+        key = _risk_key(latest)
+        if key in references:
+            continue
+        references[key] = ChartRiskReference(
+            spot=underlying.current_price,
+            strike=latest.strike,
+            expiration=latest.expiration,
+            days_to_expiration=max(0, (latest.expiration - observed_on).days),
+            implied_volatility_percent=None,
+            expected_move=None,
+            expected_move_low=None,
+            expected_move_high=None,
+            quote_observed_on=None,
+            source="STRIKE / SPOT ONLY",
+        )
+
+
+def _risk_key(leg: ChartLeg) -> str:
+    return f"{leg.option_side}:{leg.expiration.isoformat()}:{leg.strike.normalize()}"
+
+
+def _latest_leg(legs: Sequence[ChartLeg]) -> ChartLeg:
+    return max(
+        legs,
+        key=lambda item: (_time_sort_key(item.time), item.sequence, item.leg_index),
+    )
+
+
+def _time_sort_key(value: date | datetime) -> datetime:
+    if isinstance(value, datetime):
+        return value.replace(tzinfo=None)
+    return datetime(value.year, value.month, value.day)
 
 
 def _lowest_confidence(values: Iterable[str]) -> str:
@@ -212,9 +316,7 @@ def _intraday_rows(
     rows: Sequence[Mapping[str, object]],
 ) -> tuple[dict[str, object], ...]:
     normalized = symbol.upper()
-    selected = (
-        row for row in rows if str(row.get("symbol") or "").upper() == normalized
-    )
+    selected = (row for row in rows if str(row.get("symbol") or "").upper() == normalized)
     return tuple(
         {
             "started_at": _datetime(row.get("started_at")),

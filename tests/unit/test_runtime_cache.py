@@ -4,7 +4,10 @@ from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
 from time import sleep
 
-from schwab_dashboard.application.services.runtime_cache import GenerationCache
+from schwab_dashboard.application.services.runtime_cache import (
+    CachedDashboardReader,
+    GenerationCache,
+)
 
 
 def test_generation_cache_reuses_value_until_invalidated() -> None:
@@ -46,3 +49,28 @@ def test_generation_cache_coalesces_concurrent_cold_loads() -> None:
 
     assert loads == 1
     assert all(value is values[0] for value in values)
+
+
+def test_dashboard_cache_reloads_when_market_session_partition_changes() -> None:
+    cache = GenerationCache()
+    phase = "open"
+    loads = 0
+
+    class Reader:
+        def execute(self) -> object:
+            nonlocal loads
+            loads += 1
+            return object()
+
+    reader = CachedDashboardReader(  # type: ignore[arg-type]
+        delegate=Reader(),
+        cache=cache,
+        key=("dashboard", "schwab"),
+        cache_partition=lambda: phase,
+    )
+
+    first = reader.execute()
+    assert reader.execute() is first
+    phase = "post_close"
+    assert reader.execute() is not first
+    assert loads == 2

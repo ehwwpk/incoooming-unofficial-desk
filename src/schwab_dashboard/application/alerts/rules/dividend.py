@@ -29,7 +29,9 @@ def evaluate_dividend_overlap(
         return None
 
     crossing_calls = tuple(
-        call for call in underlying.open_call_clocks if call.expires_on >= ex_date
+        call
+        for call in underlying.open_call_clocks
+        if call.can_close_or_roll and call.expires_on >= ex_date
     )
     if not crossing_calls:
         return None

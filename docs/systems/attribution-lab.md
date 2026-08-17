@@ -48,6 +48,30 @@ Use a named rate series and matching dates. "Beat 4%" must never be a hard-coded
 - Net and gross of fees are distinct.
 - Period return is primary; annualized pace is secondary and only shown when meaningful.
 
+## Current performance spine
+
+The Results workspace now ships a conservative first accounting spine:
+
+- daily linked return from broker net-liquidation values, anchored on the first stored market close;
+- owner deposits and withdrawals removed before daily returns are geometrically linked;
+- every persisted UTC timestamp mapped back to its U.S. market date before daily grouping;
+- a frozen starting-share counterfactual with a cash residual and observed dividends;
+- fee-net executed option cash separated from completed-campaign P/L and live option mark P/L;
+- maximum drawdown, daily-return volatility, positive-day share, and worst day;
+- average net liquidation, account maintenance, buying power, and available funds;
+- assignment counts plus a clearly labelled period-end called-away-upside reference;
+- explicit benchmark policy that leaves unmatched total-return and buy-write indexes blank.
+
+This is deliberately not the final attribution model. The first stored close is the common origin
+for managed and comparison series, so Schwab's opening balance from that first day is not counted as
+an extra unmatched return session. A true intraday sub-period return around a large external flow
+would require a portfolio valuation at the flow instant; the current daily method removes the flow
+from that market day's broker opening-to-close result.
+
+Slippage remains unmeasured until execution-time bid/ask snapshots are stored. SPY close history is
+price context only, not a total-return benchmark. Sharpe and Sortino remain withheld until a matched
+risk-free series and enough daily observations exist.
+
 ## Denominator discipline
 
 APR/yield results must name their capital base:

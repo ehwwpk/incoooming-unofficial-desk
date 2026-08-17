@@ -1,0 +1,39 @@
+{% macro five_session_pressure(price_time) -%}
+{% if price_time and price_time.five_session_move_percent is not none and price_time.absolute_pressure_change is not none %}
+<small
+  class="price-pressure-line pressure-{{ price_time.pressure_trend_label | lower }}"
+  title="{{ price_time.pressure_summary }} This is a price-direction cue using the actual five-session stock move and today's local gamma. Time and IV can also change delta; this is not observed delta history, a probability, or a timing signal."
+>
+  5D STOCK {{ '+' if price_time.five_session_move_percent > 0 else '' }}{{ price_time.five_session_move_percent | percent }}
+  &middot; {% if price_time.adverse_move_direction %}{{ price_time.adverse_move_direction }}-MOVE {% endif %}RISK
+  &middot; {{ price_time.pressure_trend_label }}
+</small>
+{% endif %}
+{%- endmacro %}
+
+{% macro price_time_fact(price_time, theta_per_day, vega_effect, can_close_or_roll) -%}
+<span>DELTA &middot; NEXT $1</span>
+{% if can_close_or_roll and price_time %}
+<b
+  class="price-time-pair"
+  title="Gamma-adjusted estimated change in this open position's value for the next $1 move in the underlying. Model sensitivity, not a forecast."
+>
+  {% if price_time.up_one_dollar_effect is not none %}
+  <em>UP</em>
+  <em class="{{ price_time.up_one_dollar_effect | pnl_class }}">{{ '+' if price_time.up_one_dollar_effect > 0 else '' }}{{ price_time.up_one_dollar_effect | money }}</em>
+  <em>&middot; DOWN</em>
+  <em class="{{ price_time.down_one_dollar_effect | pnl_class }}">{{ '+' if price_time.down_one_dollar_effect > 0 else '' }}{{ price_time.down_one_dollar_effect | money }}</em>
+  {% else %}
+  <em>PRICE SENSITIVITY UNAVAILABLE</em>
+  {% endif %}
+</b>
+<small>
+  THETA +{{ theta_per_day | money }}/DAY
+  {% if vega_effect is not none %}&middot; IV +1 {{ '+' if vega_effect > 0 else '' }}{{ vega_effect | money }}{% endif %}
+</small>
+{{ five_session_pressure(price_time) }}
+{% else %}
+<b>CLOSED</b>
+<small>No live price or time sensitivity after trading close</small>
+{% endif %}
+{%- endmacro %}

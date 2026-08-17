@@ -236,6 +236,7 @@ def _open_call_clock(record: CallSaleRecord, current_price: Decimal, as_of: date
     return OpenCallClock(
         record_id=record.record_id,
         campaign_id=record.campaign_id,
+        campaign_label="",
         policy_id=record.policy_id,
         sold_on=record.sold_on,
         expires_on=record.expires_on,

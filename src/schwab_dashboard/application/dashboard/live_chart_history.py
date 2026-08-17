@@ -59,10 +59,17 @@ def build_option_events(
     if not points:
         return ()
     start, end = points[0].date, points[-1].date
+    current_option_keys = {_option_key(value) for value in current_option_symbols}
     option_rows = [
         _execution_event(row, symbol=symbol, points=points)
         for row in executions
-        if _is_chart_option_execution(row, symbol=symbol, start=start, end=end)
+        if _is_chart_option_execution(
+            row,
+            symbol=symbol,
+            start=start,
+            end=end,
+            current_option_keys=current_option_keys,
+        )
     ]
     lifecycle_rows = [
         _lifecycle_event(row, symbol=symbol, points=points)
@@ -71,18 +78,13 @@ def build_option_events(
     ]
     rows = [row for row in (*option_rows, *lifecycle_rows) if row is not None]
     campaign_ledger = reconcile_option_campaigns(executions, lifecycle_events)
-    rows = [
-        row
-        for row in rows
-        if campaign_ledger.exclusion_for(str(row["stable_key"])) is None
-    ]
+    rows = [row for row in rows if campaign_ledger.exclusion_for(str(row["stable_key"])) is None]
     rows.sort(key=lambda row: (row["date"], row["sort_order"], row["stable_key"]))
     _mark_roll_openings(rows)
     _link_contract_lifecycles(rows)
     _assign_collision_offsets(rows)
     campaign_slots = {
-        campaign.campaign_id: index % 6
-        for index, campaign in enumerate(campaign_ledger.campaigns)
+        campaign.campaign_id: index % 6 for index, campaign in enumerate(campaign_ledger.campaigns)
     }
 
     events: list[PriceEvent] = []
@@ -112,6 +114,8 @@ def build_option_events(
                 record_id=str(row["stable_key"]),
                 campaign_id=(annotation.campaign_id if annotation else str(row["stable_key"])),
                 date=event_date,
+                occurred_at=_optional_datetime(row.get("occurred_at")),
+                time_precision=str(row.get("time_precision") or "date_only"),
                 label=event_date.strftime("%m/%d"),
                 event_type=str(row["event_type"]),
                 glyph=str(row["glyph"]),
@@ -142,9 +146,7 @@ def build_option_events(
                 campaign_leg_index=(annotation.leg_index if annotation else 1),
                 campaign_net_cash=(annotation.net_cash_to_date if annotation else ZERO),
                 option_side=str(row["option_side"]),
-                campaign_slot=(
-                    campaign_slots.get(annotation.campaign_id, 0) if annotation else 0
-                ),
+                campaign_slot=(campaign_slots.get(annotation.campaign_id, 0) if annotation else 0),
             )
         )
     return _mark_campaign_endpoints(tuple(events))
@@ -240,7 +242,8 @@ def _execution_event(
     closing = str(row.get("side")) == "buy" and str(row.get("position_effect")) == "closing"
     if not (opening or closing):
         return None
-    occurred_on = _row_date(row)
+    occurred_at = _row_datetime(row)
+    occurred_on = occurred_at.date()
     stock_price = _price_on_or_before(occurred_on, points)
     strike = _decimal(row.get("strike"))
     expires_on = _date(row.get("expiration_date"))
@@ -254,6 +257,8 @@ def _execution_event(
         "option_symbol": str(row.get("symbol")),
         "option_side": option_side,
         "date": occurred_on,
+        "occurred_at": occurred_at,
+        "time_precision": _time_precision(occurred_at),
         "sort_order": 0 if closing else 1,
         "event_type": "sale" if opening else "closed",
         "glyph": "S" if opening else "C",
@@ -292,7 +297,8 @@ def _lifecycle_event(
     event_type = str(row.get("event_type"))
     if event_type not in {"expiration", "assignment"}:
         return None
-    occurred_on = _row_date(row)
+    occurred_at = _row_datetime(row)
+    occurred_on = occurred_at.date()
     stock_price = _price_on_or_before(occurred_on, points)
     strike = _decimal(row.get("strike"))
     expires_on = _date(row.get("expiration_date") or occurred_on)
@@ -306,6 +312,8 @@ def _lifecycle_event(
         "option_symbol": str(row.get("symbol")),
         "option_side": option_side,
         "date": occurred_on,
+        "occurred_at": occurred_at,
+        "time_precision": _time_precision(occurred_at),
         "sort_order": 2,
         "event_type": "expired" if event_type == "expiration" else "assigned",
         "glyph": "X" if event_type == "expiration" else "A",
@@ -427,15 +435,29 @@ def _assign_collision_offsets(rows: list[dict[str, object]]) -> None:
 
 
 def _is_chart_option_execution(
-    row: Mapping[str, object], *, symbol: str, start: date, end: date
+    row: Mapping[str, object],
+    *,
+    symbol: str,
+    start: date,
+    end: date,
+    current_option_keys: set[str],
 ) -> bool:
     occurred_on = _row_date(row)
+    # The stored price archive and the live position book do not always end on
+    # the same session. Keep every execution for a contract that is open now so
+    # its card can still resolve to an honest lifecycle at either chart edge.
+    # Unrelated history remains bounded to the plotted archive.
+    belongs_to_current_contract = _option_key(str(row.get("symbol") or "")) in current_option_keys
     return (
-        start <= occurred_on <= end
+        (start <= occurred_on <= end or belongs_to_current_contract)
         and str(row.get("asset_type")) == "option"
         and str(row.get("option_side")) in {"call", "put"}
         and str(row.get("underlying_symbol")) == symbol
     )
+
+
+def _option_key(value: str) -> str:
+    return "".join(value.upper().split())
 
 
 def _is_chart_lifecycle(row: Mapping[str, object], *, symbol: str, start: date, end: date) -> bool:
@@ -489,6 +511,24 @@ def _row_date(row: Mapping[str, object]) -> date:
     return _date(row.get("occurred_at"))
 
 
+def _row_datetime(row: Mapping[str, object]) -> datetime:
+    value = row.get("occurred_at")
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, date):
+        return datetime(value.year, value.month, value.day)
+    return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+
+
+def _time_precision(value: datetime) -> str:
+    clock = value.timetz()
+    return (
+        "date_only"
+        if (clock.hour, clock.minute, clock.second, clock.microsecond) == (0, 0, 0, 0)
+        else "exact"
+    )
+
+
 def _record_key(row: Mapping[str, object]) -> str:
     external_key = str(row.get("external_key"))
     account_mask = str(row.get("account_mask") or "")
@@ -505,6 +545,16 @@ def _date(value: object) -> date:
 
 def _optional_date(value: object) -> date | None:
     return None if value is None else _date(value)
+
+
+def _optional_datetime(value: object) -> datetime | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, date):
+        return datetime(value.year, value.month, value.day)
+    return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
 
 
 def _decimal(value: object) -> Decimal:

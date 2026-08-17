@@ -11,13 +11,30 @@
     muted: "#747a7f",
   };
   const number = (value) => Number(value || 0);
-  const dayKey = (value) => String(value || "").slice(0, 10);
+  const dayKey = (value) => {
+    if (typeof value === "number") return new Date(value * 1000).toISOString().slice(0, 10);
+    if (value && typeof value === "object" && "year" in value) {
+      return `${value.year}-${String(value.month).padStart(2, "0")}-${String(value.day).padStart(2, "0")}`;
+    }
+    return String(value || "").slice(0, 10);
+  };
   const chartTime = (value) => {
     const text = String(value || "");
     if (!text.includes("T")) return text;
     return Math.floor(Date.parse(text) / 1000);
   };
   const epochDay = (value) => Date.parse(`${dayKey(value)}T00:00:00Z`);
+  const easternClock = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  });
+  const easternMinute = (value) => {
+    const instant = typeof value === "number" ? new Date(value * 1000) : new Date(value);
+    const parts = Object.fromEntries(easternClock.formatToParts(instant).map((part) => [part.type, part.value]));
+    return Number(parts.hour) * 60 + Number(parts.minute);
+  };
 
   class CampaignMarketLayer {
     constructor(container, payload, readout) {
@@ -158,11 +175,100 @@
 
     rebuildDateMap() {
       this.dateTimes = new Map();
-      this.bars().forEach((bar) => this.dateTimes.set(dayKey(bar.time), chartTime(bar.time)));
+      this.timesByDate = new Map();
+      this.bars().forEach((bar) => {
+        const key = dayKey(bar.time);
+        const time = chartTime(bar.time);
+        const rows = this.timesByDate.get(key) || [];
+        rows.push(time);
+        this.timesByDate.set(key, rows);
+      });
+      this.timesByDate.forEach((times, key) => {
+        const regularSession = this.interval === "1d"
+          ? times
+          : times.filter((time) => {
+            const minute = easternMinute(time);
+            // A bar stamped 16:00 ET begins after-hours. Date-only records
+            // belong on the final bar that ends at the regular-session close.
+            return minute >= 570 && minute < 960;
+          });
+        this.dateTimes.set(key, (regularSession.length ? regularSession : times).at(-1));
+      });
+      this.coverageDates = [...this.dateTimes.keys()].sort();
     }
 
     timeForDate(value) {
-      return this.dateTimes.get(dayKey(value)) ?? value;
+      return this.resolveEventTime(value).time;
+    }
+
+    resolveEventTime(value) {
+      const event = value && typeof value === "object" && "time" in value ? value : null;
+      const raw = event?.time ?? value;
+      const precision = event?.time_precision || "date_only";
+      const key = dayKey(raw);
+      if (precision === "exact" && String(raw).includes("T") && this.interval !== "1d") {
+        const execution = chartTime(raw);
+        const candidates = (this.timesByDate.get(key) || []).slice().sort((a, b) => a - b);
+        if (candidates.length) {
+          const containing = candidates.filter((time) => time <= execution).at(-1) ?? candidates[0];
+          return {
+            time: containing,
+            exact: true,
+            executionExact: true,
+            executionTime: execution,
+            intervalAnchored: containing !== execution,
+            dateAnchored: false,
+            edge: null,
+          };
+        }
+      }
+      const exact = this.dateTimes.get(key);
+      if (exact !== undefined) {
+        return {
+          time: exact,
+          exact: true,
+          executionExact: precision === "exact",
+          executionTime: precision === "exact" && String(raw).includes("T") ? chartTime(raw) : null,
+          intervalAnchored: precision === "exact",
+          dateAnchored: precision !== "exact" && this.interval !== "1d",
+          edge: null,
+        };
+      }
+      const first = this.coverageDates?.[0];
+      const last = this.coverageDates?.at(-1);
+      if (!first || !last) return { time: null, exact: false, dateAnchored: false, edge: null };
+      if (key < first) return { time: this.dateTimes.get(first), exact: false, dateAnchored: false, edge: "before" };
+      if (key > last) return { time: this.dateTimes.get(last), exact: false, dateAnchored: false, edge: "after" };
+      const nearest = this.coverageDates.reduce((best, candidate) => (
+        Math.abs(epochDay(candidate) - epochDay(key)) < Math.abs(epochDay(best) - epochDay(key))
+          ? candidate
+          : best
+      ), first);
+      return {
+        time: this.dateTimes.get(nearest),
+        exact: false,
+        dateAnchored: false,
+        edge: null,
+      };
+    }
+
+    xForEvent(value) {
+      const resolved = this.resolveEventTime(value);
+      if (resolved.time === null) return null;
+      return this.chart.timeScale().timeToCoordinate(resolved.time);
+    }
+
+    visibleDateRange() {
+      const visible = this.chart.timeScale().getVisibleRange();
+      if (!visible) return null;
+      return { from: dayKey(visible.from), to: dayKey(visible.to) };
+    }
+
+    coverage() {
+      return {
+        from: this.coverageDates?.[0] || null,
+        to: this.coverageDates?.at(-1) || null,
+      };
     }
 
     activeSeries() {

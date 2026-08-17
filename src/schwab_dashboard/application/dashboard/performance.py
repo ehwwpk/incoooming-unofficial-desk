@@ -137,6 +137,8 @@ class ExpirationBucket:
     event_labels: tuple[str, ...]
     call_contracts: int = 0
     put_contracts: int = 0
+    session_label: str = "OPEN"
+    can_close_or_roll: bool = True
 
 
 @dataclass(frozen=True, slots=True)

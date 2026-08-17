@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 import httpx
 from sqlalchemy import inspect
 
 from schwab_dashboard.application.errors import AuthenticationRequiredError
+from schwab_dashboard.application.market_time import option_session_cache_partition
 from schwab_dashboard.application.ports.dashboard import DashboardReader
 from schwab_dashboard.application.ports.opportunity_market import OpportunityMarketGateway
 from schwab_dashboard.application.services.cached_campaign_chart import (
@@ -103,6 +104,7 @@ class Container:
             ),
             cache=self._runtime_cache,
             key=("dashboard", "schwab"),
+            cache_partition=_live_option_session_partition,
         )
         self._live_campaign_chart_reader = CachedCampaignChartReader(
             delegate=ReadLiveCampaignChart(
@@ -111,6 +113,7 @@ class Container:
             ),
             cache=self._runtime_cache,
             key_prefix=("campaign-chart", "schwab"),
+            cache_partition=_live_option_session_partition,
         )
         self.opportunity_store = SqlOpportunityStore(self.session_factory)
         self.source_store = SqlSourceDatasetStore(self.session_factory)
@@ -125,6 +128,7 @@ class Container:
             enabled=self.settings.auto_sync_enabled and not self.settings.demo_mode,
             interval_seconds=self.settings.auto_sync_interval_seconds,
             uow_factory=self.uow_factory,
+            on_success=self._runtime_cache.invalidate,
         )
 
     def database_ready(self) -> bool:
@@ -326,3 +330,9 @@ class Container:
             token_store=self.token_store,
             http_client=self._oauth_http,
         )
+
+
+def _live_option_session_partition() -> tuple[object, ...]:
+    """Keep cached live views from crossing an expiration-session boundary."""
+
+    return option_session_cache_partition(datetime.now(UTC))

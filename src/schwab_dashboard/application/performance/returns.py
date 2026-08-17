@@ -6,6 +6,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
+from schwab_dashboard.application.market_time import market_date
 from schwab_dashboard.application.performance.flows import external_flow_on
 from schwab_dashboard.application.performance.models import ReturnPoint
 
@@ -23,7 +24,11 @@ def build_time_weighted_returns(
         observed_at = row.get("observed_at")
         if observed_at is None:
             continue
-        day = observed_at.date()
+        # Snapshots are persisted as normalized UTC instants.  A Friday-evening
+        # sync is already Saturday in UTC, but it still belongs to Friday's U.S.
+        # market session.  Grouping on ``datetime.date()`` double-counted that
+        # same broker opening balance as a second return day.
+        day = market_date(observed_at)
         account = str(row.get("account_mask") or "ACCOUNT")
         existing = grouped[day].get(account)
         if existing is None or existing["observed_at"] <= observed_at:
@@ -41,14 +46,21 @@ def build_time_weighted_returns(
         initial_values = [
             _optional_decimal(row.get("initial_liquidation_value")) for row in rows
         ]
-        opening = (
-            sum((item for item in initial_values if item is not None), ZERO)
-            if initial_values and all(item is not None for item in initial_values)
-            else previous_value
-        )
         flow = external_flow_on(cash_movements, day)
         daily_return: Decimal | None = None
-        quality = "observed"
+        quality = "observed_anchor"
+        # The first stored value is the comparison anchor. Counting Schwab's
+        # opening balance on that first day would make the managed series begin
+        # before the frozen-share and market series, overstating management's
+        # difference by one unmatched session.
+        if previous_value is not None:
+            opening = (
+                sum((item for item in initial_values if item is not None), ZERO)
+                if initial_values and all(item is not None for item in initial_values)
+                else previous_value
+            )
+        else:
+            opening = None
         if opening is not None and opening != ZERO:
             daily_return = (value - opening - flow) / opening * HUNDRED
             cumulative_factor *= Decimal("1") + daily_return / HUNDRED

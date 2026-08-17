@@ -24,6 +24,11 @@ from schwab_dashboard.application.dashboard.models import (
     PositionSummary,
     RiskSummary,
 )
+from schwab_dashboard.application.dashboard.option_activity import (
+    build_option_outcomes,
+    build_recent_option_activity,
+)
+from schwab_dashboard.application.dashboard.premium_pace import build_open_premium_pace
 from schwab_dashboard.application.ports.source_store import SourceDatasetStore
 
 ZERO = Decimal("0")
@@ -55,7 +60,12 @@ class CsvDashboardReader:
         )
         as_of = dataset.created_at
         portfolio = summarize_portfolio(positions)
-        live_book = build_live_position_book(positions, as_of=as_of.date())
+        live_book = build_live_position_book(
+            positions,
+            as_of=as_of.date(),
+            executions=executions,
+        )
+        open_premium_pace = build_open_premium_pace(live_book, executions)
         covered_capital = sum(
             (abs(item.market_value or ZERO) for item in live_book.underlyings), ZERO
         )
@@ -81,7 +91,7 @@ class CsvDashboardReader:
         base_risk = summarize_risk(positions)
         risk = RiskSummary(
             buying_power_used_percent=ZERO,
-            portfolio_delta=Decimal(live_book.total_shares),
+            portfolio_delta=None,
             daily_theta=ZERO,
             short_contracts=live_book.open_call_contracts + live_book.open_put_contracts,
             next_expiration=min(
@@ -147,6 +157,18 @@ class CsvDashboardReader:
             allocations=summarize_allocations(positions),
             risk=risk,
             live_position_book=live_book,
+            recent_option_activity=build_recent_option_activity(
+                executions,
+                as_of=as_of.date(),
+            ),
+            option_outcomes=build_option_outcomes(
+                executions,
+                lifecycle_events,
+                as_of=as_of.date(),
+                open_call_contracts=live_book.open_call_contracts,
+                open_put_contracts=live_book.open_put_contracts,
+            ),
+            open_premium_pace=open_premium_pace,
         )
 
 

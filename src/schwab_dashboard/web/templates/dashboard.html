@@ -6,9 +6,9 @@
     <meta name="color-scheme" content="dark">
     <title>Incoooming · Options Income</title>
     <link rel="icon" href="{{ url_for('static', path='/nibwick-favicon.svg') }}?v=2" type="image/svg+xml">
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=73">
-    <link rel="stylesheet" href="{{ url_for('static', path='/campaign-chart.css') }}?v=8">
-    <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=7">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=78">
+    <link rel="stylesheet" href="{{ url_for('static', path='/campaign-chart.css') }}?v=11">
+    <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=9">
   </head>
   <body data-workspace-key="desk" data-demo-mode="{{ 'true' if snapshot.is_demo else 'false' }}" data-snapshot-as-of="{{ snapshot.as_of.isoformat() }}" data-page-built-at="{{ page_built_at.isoformat() }}" data-workspace-context='{"account":"{{ snapshot.accounts[0].account_mask if snapshot.accounts else "---" }}","symbol":"ALL","asOf":"{{ snapshot.as_of.date().isoformat() }}"}'>
     <header class="topbar desk-topbar">
@@ -95,10 +95,20 @@
       {% include "partials/_underlyings.html" %}
 
       {% include "partials/_income.html" %}
-      <section class="desk-exit-links" aria-label="Detailed workspaces">
-        <a href="/workspaces/risk"><b>OPEN OPTIONS</b><span>Contracts, expirations, policy fit, and quote detail →</span></a>
-        <a href="/workspaces/attribution"><b>RESULTS</b><span>Monthly cash, campaigns, and strategy comparison →</span></a>
-      </section>
+      <nav class="desk-exit-links" aria-label="Detailed workspaces">
+        <a href="/workspaces/risk">
+          <span class="desk-exit-index">01</span>
+          <span class="desk-exit-copy"><small>LIVE OBLIGATIONS</small><b>Open options</b><em>Strikes, DTE, marks, and roll paths.</em></span>
+          <span class="desk-exit-status"><strong>{{ snapshot.risk.short_contracts }}</strong><small>CONTRACTS</small>{% if snapshot.risk.next_expiration %}<i>NEXT {{ snapshot.risk.next_expiration.strftime('%b %d') | upper }}</i>{% endif %}</span>
+          <span class="desk-exit-arrow" aria-hidden="true">&rarr;</span>
+        </a>
+        <a href="/workspaces/attribution">
+          <span class="desk-exit-index">02</span>
+          <span class="desk-exit-copy"><small>RECORDED PERFORMANCE</small><b>Results</b><em>Monthly cash, outcomes, and book comparisons.</em></span>
+          <span class="desk-exit-status"><strong class="{{ snapshot.performance_windows[0].option_cash | pnl_class if snapshot.performance_windows else 'muted' }}">{{ snapshot.performance_windows[0].option_cash | money(0) if snapshot.performance_windows else '—' }}</strong><small>LAST 4 WEEKS</small><i>{{ snapshot.operator_metrics.completed_months }} FULL MONTHS</i></span>
+          <span class="desk-exit-arrow" aria-hidden="true">&rarr;</span>
+        </a>
+      </nav>
 
       <footer>
         <span>LOCALHOST / PRIVATE / READ-ONLY / {{ active_source_label | upper }}</span>
@@ -113,13 +123,15 @@
     <script src="{{ url_for('static', path='/nibwick.js') }}?v=6" defer></script>
     <script src="{{ url_for('static', path='/position-details.js') }}?v=4" defer></script>
     <script src="{{ url_for('static', path='/vendor/lightweight-charts/lightweight-charts.standalone.production.js') }}?v=5.2.0" defer></script>
-    <script src="{{ url_for('static', path='/charts/campaign-layout.js') }}?v=5" defer></script>
-    <script src="{{ url_for('static', path='/charts/campaign-market-layer.js') }}?v=3" defer></script>
+    <script src="{{ url_for('static', path='/charts/campaign-layout.js') }}?v=7" defer></script>
+    <script src="{{ url_for('static', path='/charts/campaign-market-layer.js') }}?v=6" defer></script>
     <script src="{{ url_for('static', path='/charts/campaign-indicators.js') }}?v=1" defer></script>
-    <script src="{{ url_for('static', path='/charts/campaign-lifecycle-layer.js') }}?v=8" defer></script>
+    <script src="{{ url_for('static', path='/charts/campaign-context-layer.js') }}?v=3" defer></script>
+    <script src="{{ url_for('static', path='/charts/campaign-lifecycle-layer.js') }}?v=10" defer></script>
     <script src="{{ url_for('static', path='/charts/campaign-focus.js') }}?v=3" defer></script>
-    <script src="{{ url_for('static', path='/charts/campaign-story.js') }}?v=2" defer></script>
-    <script src="{{ url_for('static', path='/charts/campaign-chart.js') }}?v=10" defer></script>
+    <script src="{{ url_for('static', path='/charts/campaign-story.js') }}?v=5" defer></script>
+    <script src="{{ url_for('static', path='/charts/campaign-rail.js') }}?v=2" defer></script>
+    <script src="{{ url_for('static', path='/charts/campaign-chart.js') }}?v=15" defer></script>
     <script src="{{ url_for('static', path='/workspace-navigation.js') }}?v=2" defer></script>
     <script src="{{ url_for('static', path='/workspace-channel.js') }}?v=1" defer></script>
     {% if snapshot.mode == 'live' %}<script src="{{ url_for('static', path='/auto-sync.js') }}?v=5" defer></script>{% endif %}

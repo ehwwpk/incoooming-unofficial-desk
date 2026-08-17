@@ -38,7 +38,8 @@ def evaluate_call_expiration_pressures(
     alerts = tuple(
         _build_call_expiration_alert(underlying, call=call, level=level)
         for call in underlying.open_call_clocks
-        if (
+        if call.can_close_or_roll
+        and (
             level := _proximity_level(
                 distance_percent=call.strike_distance_percent,
                 days_to_expiration=call.days_to_expiration,
@@ -132,6 +133,7 @@ def _build_call_expiration_alert(
 def evaluate_short_put_pressure(put: LiveOpenOptionPosition) -> DeskAlert | None:
     if (
         put.option_type.upper() != "PUT"
+        or not put.can_close_or_roll
         or put.underlying_price is None
         or put.strike_distance_per_share is None
         or put.strike_distance_percent is None
