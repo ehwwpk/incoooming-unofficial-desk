@@ -4,10 +4,13 @@
   const NS = "http://www.w3.org/2000/svg";
   const DAY = 86_400_000;
   const SERIES = [
-    { key: "actual", source: "actual", label: "Managed book", color: "#72cf91", shape: "circle" },
-    { key: "shares", source: "shares_without_options", label: "Same starting shares", color: "#e1bd58", shape: "square" },
-    { key: "market", source: "market_reference", label: "SPY price context", color: "#9ca3a8", shape: "diamond" },
+    { key: "actual", source: "actual", label: "Managed book", short: "MANAGED", color: "#72cf91", shape: "circle" },
+    { key: "shares", source: "shares_without_options", label: "Same starting shares", short: "STARTING SHARES", color: "#e1bd58", shape: "square" },
+    { key: "market", source: "market_reference", label: "SPY unlevered", short: "SPY", color: "#9ca3a8", shape: "diamond" },
+    { key: "levered", source: "levered_market_reference", label: "SPY at your exposure", short: "SPY × EXPOSURE", color: "#a98cd8", shape: "triangle" },
   ];
+  const END_LABEL_BOX = 26;
+  const END_LABEL_GAP = 10;
 
   const svgNode = (name, attributes = {}) => {
     const node = document.createElementNS(NS, name);
@@ -127,6 +130,8 @@
       marker = svgNode("rect", { x: cx - 3.3, y: cy - 3.3, width: 6.6, height: 6.6, rx: 0.7 });
     } else if (series.shape === "diamond") {
       marker = svgNode("path", { d: `M${cx},${cy - 4} L${cx + 4},${cy} L${cx},${cy + 4} L${cx - 4},${cy} Z` });
+    } else if (series.shape === "triangle") {
+      marker = svgNode("path", { d: `M${cx},${cy - 4.1} L${cx + 3.9},${cy + 3} L${cx - 3.9},${cy + 3} Z` });
     } else {
       marker = svgNode("circle", { cx, cy, r: 3.4 });
     }
@@ -136,18 +141,24 @@
     group.append(marker);
   };
 
-  const spreadEndLabels = (labels, top, bottom) => {
-    const gap = 31;
+  const packEndLabels = (labels, top, bottom) => {
+    // Pack the label *boxes*, not the series endpoints. A 31px gap between
+    // anchors still collides when each callout is a two-line block with a
+    // paint-order halo — which is exactly how SPY and levered SPY stacked.
+    const stride = END_LABEL_BOX + END_LABEL_GAP;
     const sorted = [...labels].sort((left, right) => left.naturalY - right.naturalY);
     sorted.forEach((item, index) => {
-      item.y = Math.max(top, item.naturalY, index ? sorted[index - 1].y + gap : top);
+      const preferred = item.naturalY - END_LABEL_BOX / 2;
+      item.y = Math.max(index ? sorted[index - 1].y + stride : top, top, preferred);
     });
-    if (sorted.at(-1)?.y > bottom) {
-      const shift = sorted.at(-1).y - bottom;
-      sorted.forEach((item) => { item.y -= shift; });
-      for (let index = sorted.length - 2; index >= 0; index -= 1) {
-        sorted[index].y = Math.min(sorted[index].y, sorted[index + 1].y - gap);
-      }
+    const last = sorted.at(-1);
+    if (last && last.y + END_LABEL_BOX > bottom) {
+      const overflow = last.y + END_LABEL_BOX - bottom;
+      sorted.forEach((item) => { item.y -= overflow; });
+      sorted.forEach((item, index) => {
+        const floor = index ? sorted[index - 1].y + stride : top;
+        if (item.y < floor) item.y = floor;
+      });
     }
     return labels;
   };
@@ -245,7 +256,16 @@
     const render = () => {
       const width = Math.max(640, Math.round(chart.clientWidth));
       const height = Math.max(270, Math.round(chart.clientHeight));
-      const margin = { top: 28, right: Math.min(168, width * 0.17), bottom: 38, left: 54 };
+      const showEndLabels = width >= 860;
+      const margin = {
+        top: 28,
+        // Gutter is the callout width plus a 12px frame buffer — not a
+        // percentage of the plot. A 17% right pad left a dead strip that
+        // read as an unfinished alignment.
+        right: showEndLabels ? 122 : 16,
+        bottom: 38,
+        left: 54,
+      };
       const plot = { left: margin.left, right: width - margin.right, top: margin.top, bottom: height - margin.bottom };
       const domain = yDomain(allValues);
       const x = (at) => plot.left + ((at - startAt) / dateSpan) * (plot.right - plot.left);
@@ -311,25 +331,30 @@
         svg.append(tag);
       });
 
-      const endLabels = spreadEndLabels(series.map((item) => {
-        const last = item.valued.at(-1);
-        return { item, last, naturalY: y(last.value) };
-      }), plot.top + 10, plot.bottom - 10);
-      endLabels.forEach(({ item, last, y: labelY }) => {
-        const lastX = x(last.at);
-        const lastY = y(last.value);
-        const labelX = plot.right + 16;
-        const group = svgNode("g", { class: `performance-end-label performance-${item.key}-end` });
-        group.append(svgNode("path", { d: `M${lastX + 5},${lastY} L${labelX - 6},${labelY}` }));
-        const name = svgNode("text", { x: labelX, y: labelY - 4 });
-        name.textContent = item.label.toUpperCase();
-        const value = svgNode("text", { x: labelX, y: labelY + 10, class: "performance-end-value" });
-        value.textContent = percent(last.value);
-        const through = svgNode("text", { x: labelX, y: labelY + 22, class: "performance-end-through" });
-        through.textContent = `${last.at < endAt ? "ENDS" : "THROUGH"} ${dateFormatter.format(new Date(last.at)).toUpperCase()}`;
-        group.append(name, value, through);
-        svg.append(group);
-      });
+      if (showEndLabels) {
+        const endLabels = packEndLabels(series.map((item) => {
+          const last = item.valued.at(-1);
+          return { item, last, naturalY: y(last.value) };
+        }), plot.top + 2, plot.bottom - 2);
+        endLabels.forEach(({ item, last, y: boxTop }) => {
+          const lastX = x(last.at);
+          const lastY = y(last.value);
+          const labelX = plot.right + 10;
+          const midY = boxTop + END_LABEL_BOX / 2;
+          const displaced = Math.abs(midY - lastY) > 5;
+          const group = svgNode("g", { class: `performance-end-label performance-${item.key}-end` });
+          const elbow = displaced
+            ? `M${lastX + 5},${lastY} H${labelX - 16} V${midY} H${labelX - 5}`
+            : `M${lastX + 5},${lastY} H${labelX - 5}`;
+          group.append(svgNode("path", { d: elbow }));
+          const name = svgNode("text", { x: labelX, y: boxTop + 9 });
+          name.textContent = item.short;
+          const value = svgNode("text", { x: labelX, y: boxTop + 22, class: "performance-end-value" });
+          value.textContent = percent(last.value);
+          group.append(name, value);
+          svg.append(group);
+        });
+      }
 
       const cursor = svgNode("line", { x1: 0, x2: 0, y1: plot.top, y2: plot.bottom, class: "performance-scrub-line" });
       cursor.hidden = true;

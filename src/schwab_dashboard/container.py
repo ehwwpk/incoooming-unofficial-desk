@@ -101,6 +101,7 @@ class Container:
                 analytics_reader=self._analytics_reader,
                 credentials_configured=self.settings.schwab_credentials_configured,
                 token_available=(self.oauth.token_available() if self.oauth is not None else False),
+                margin_interest_rate_percent=self.settings.margin_interest_rate_percent,
             ),
             cache=self._runtime_cache,
             key=("dashboard", "schwab"),

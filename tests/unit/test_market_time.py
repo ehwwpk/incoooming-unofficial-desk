@@ -3,12 +3,17 @@ from zoneinfo import ZoneInfo
 
 from schwab_dashboard.application.market_time import (
     OptionSessionState,
+    QuoteSession,
     market_date,
     option_session_cache_partition,
     option_session_state,
+    quote_session_stamp,
+    quote_session_state,
 )
 
 PACIFIC = ZoneInfo("America/Los_Angeles")
+EASTERN = ZoneInfo("America/New_York")
+FRIDAY_CLOSE = datetime(2026, 8, 14, 16, 0, tzinfo=EASTERN)
 
 
 def test_market_date_converts_utc_midnight_to_prior_eastern_day() -> None:
@@ -61,6 +66,67 @@ def test_prior_expiration_is_stale_while_date_only_snapshot_stays_clock_neutral(
         )
         is OptionSessionState.EXPIRED_STALE
     )
+
+
+def test_friday_close_is_prior_session_for_a_pacific_reader_on_monday_morning() -> None:
+    """The exact failure this classifier exists for: a green sync over old tape."""
+
+    monday_pre_open = datetime(2026, 8, 17, 6, 40, tzinfo=PACIFIC)
+
+    assert (
+        quote_session_state(FRIDAY_CLOSE, evaluated_at=monday_pre_open)
+        is QuoteSession.PRIOR_SESSION
+    )
+
+
+def test_late_friday_print_does_not_roll_into_saturday_through_its_utc_date() -> None:
+    friday_evening = datetime(2026, 8, 14, 20, 0, tzinfo=EASTERN)
+
+    assert market_date(friday_evening) == date(2026, 8, 14)
+    assert (
+        quote_session_state(
+            friday_evening,
+            evaluated_at=datetime(2026, 8, 14, 21, 0, tzinfo=EASTERN),
+        )
+        is QuoteSession.CURRENT_SESSION
+    )
+
+
+def test_sunday_night_pacific_reader_is_judged_against_the_monday_market_date() -> None:
+    sunday_night = datetime(2026, 8, 16, 22, 0, tzinfo=PACIFIC)
+
+    assert market_date(sunday_night) == date(2026, 8, 17)
+    assert (
+        quote_session_state(FRIDAY_CLOSE, evaluated_at=sunday_night) is QuoteSession.PRIOR_SESSION
+    )
+
+
+def test_quote_printed_in_the_open_session_is_current() -> None:
+    assert (
+        quote_session_state(
+            datetime(2026, 8, 17, 9, 31, tzinfo=EASTERN),
+            evaluated_at=datetime(2026, 8, 17, 9, 35, tzinfo=EASTERN),
+        )
+        is QuoteSession.CURRENT_SESSION
+    )
+
+
+def test_unclocked_quote_is_unknown_rather_than_assumed_current() -> None:
+    assert (
+        quote_session_state(None, evaluated_at=datetime(2026, 8, 17, 9, 35, tzinfo=EASTERN))
+        is QuoteSession.UNKNOWN
+    )
+    assert QuoteSession.UNKNOWN.is_prior_session is False
+
+
+def test_quote_stamp_reads_as_an_absolute_eastern_session_time() -> None:
+    assert quote_session_stamp(FRIDAY_CLOSE) == "FRI 4:00 PM ET"
+    assert quote_session_stamp(datetime(2026, 8, 14, 20, 0)) == "FRI 4:00 PM ET"
+
+
+def test_quote_stamp_names_a_date_once_the_weekday_could_mean_two_sessions() -> None:
+    assert quote_session_stamp(FRIDAY_CLOSE, evaluated_at=date(2026, 8, 20)) == "FRI 4:00 PM ET"
+    assert quote_session_stamp(FRIDAY_CLOSE, evaluated_at=date(2026, 8, 21)) == "AUG 14 4:00 PM ET"
 
 
 def test_live_cache_partition_turns_over_at_the_option_close_boundary() -> None:

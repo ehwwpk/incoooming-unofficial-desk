@@ -43,6 +43,17 @@ class Settings(BaseSettings):
         le=300,
     )
 
+    # Charged to the leverage-matched market reference so borrowed exposure is not
+    # free there while it is billed in the real account. Schwab does not publish a
+    # per-account rate through the API, so this stays operator-supplied and is
+    # printed on the tile rather than assumed silently.
+    margin_interest_rate_percent: Decimal = Field(
+        default=Decimal("11"),
+        alias="SCHWAB_DASHBOARD_MARGIN_INTEREST_RATE_PERCENT",
+        ge=Decimal("0"),
+        le=Decimal("50"),
+    )
+
     token_service_name: str = "schwab-options-dashboard"
     token_account_name: str = "personal-schwab-oauth"
     trader_base_url: str = "https://api.schwabapi.com/trader/v1"

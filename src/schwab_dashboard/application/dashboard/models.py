@@ -28,7 +28,12 @@ from schwab_dashboard.application.dashboard.performance import (
     QuarterPerformanceSummary,
     StrategyAttributionSummary,
 )
-from schwab_dashboard.application.market_time import OptionSessionState
+from schwab_dashboard.application.market_time import (
+    OptionSessionState,
+    QuoteSession,
+    market_day_label,
+    quote_session_stamp,
+)
 from schwab_dashboard.application.performance.models import PerformanceComparison
 from schwab_dashboard.application.policy.models import UnderlyingPolicy
 from schwab_dashboard.application.ports.repositories import SyncRunSummary
@@ -245,10 +250,40 @@ class LiveUnderlyingPosition:
     current_session_change_percent: Decimal | None = None
     quote_observed_at: datetime | None = None
     quote_quality: str | None = None
+    quote_session: QuoteSession = QuoteSession.UNKNOWN
+    quote_evaluated_at: datetime | None = None
 
     @property
     def open_put_contracts(self) -> int:
         return sum(put.contracts for put in self.puts)
+
+    @property
+    def is_prior_session_quote(self) -> bool:
+        return self.quote_session.is_prior_session
+
+    @property
+    def quote_stamp(self) -> str | None:
+        """Absolute Eastern stamp for the last print, or nothing when unclocked."""
+
+        if self.quote_observed_at is None:
+            return None
+        return quote_session_stamp(
+            self.quote_observed_at,
+            evaluated_at=self.quote_evaluated_at,
+        )
+
+    @property
+    def session_move_label(self) -> str:
+        """Caption for the move cell, which must never read ``DAY`` for old tape.
+
+        Labelling a Friday close as ``DAY`` on Monday morning was the exact
+        failure this replaces: the number was defensible, the caption was not.
+        """
+
+        if not self.is_prior_session_quote or self.quote_observed_at is None:
+            return "DAY"
+        day = market_day_label(self.quote_observed_at, evaluated_at=self.quote_evaluated_at)
+        return f"{day} CLOSE"
 
     @property
     def total_open_mark_profit_loss(self) -> Decimal:
@@ -393,3 +428,17 @@ class DashboardSnapshot:
     @property
     def is_demo(self) -> bool:
         return self.mode == "demo"
+
+    @property
+    def prior_session_quote_symbols(self) -> tuple[str, ...]:
+        """Live names still priced from an earlier session than this read.
+
+        The header can report a sync that genuinely succeeded while individual
+        names carry older tape, so it needs the roster of laggards rather than
+        just the job's exit status.
+        """
+
+        book = self.live_position_book
+        if book is None:
+            return ()
+        return tuple(item.symbol for item in book.underlyings if item.is_prior_session_quote)

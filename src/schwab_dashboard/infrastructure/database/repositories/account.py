@@ -20,6 +20,8 @@ from schwab_dashboard.infrastructure.database.tables.account import (
 )
 from schwab_dashboard.infrastructure.database.tables.sync import SyncRunTable
 
+NON_MARKET_ASSET_TYPES = ("OPTION", "CASH", "FIXED_INCOME", "CURRENCY")
+
 
 class SqlAccountRepository:
     def __init__(self, session: Session) -> None:
@@ -106,6 +108,25 @@ class SqlPositionSnapshotRepository:
         self._session.add(row)
         self._session.flush()
         return row.id
+
+    def list_recent_market_symbols(self, *, since: datetime) -> Sequence[str]:
+        """Tradable symbols seen in any snapshot since a cutoff, held or not.
+
+        A counterfactual that freezes the book keeps holding a position after
+        the real account exits it, so its daily closes must keep arriving. Only
+        the latest snapshot drives quotes and chains; this wider set exists so
+        price history does not stop the day a position is closed.
+        """
+
+        rows = self._session.execute(
+            select(PositionSnapshotTable.symbol)
+            .where(
+                PositionSnapshotTable.observed_at >= since,
+                PositionSnapshotTable.asset_type.notin_(NON_MARKET_ASSET_TYPES),
+            )
+            .distinct()
+        ).scalars()
+        return sorted({symbol.strip().upper() for symbol in rows if symbol and symbol.strip()})
 
     def list_latest(self) -> Sequence[dict[str, Any]]:
         latest_run_id = self._session.scalar(

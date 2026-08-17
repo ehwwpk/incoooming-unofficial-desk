@@ -2,6 +2,7 @@
 {% set latest_success = snapshot.latest_sync %}
 {% set attempt_failed = latest_attempt and latest_attempt.status == 'failed' %}
 {% set interval_seconds = sync_runtime.interval_seconds | default(900) %}
+{% set prior_session_names = snapshot.prior_session_quote_symbols %}
 <div class="session-state" data-sync-status-root>
   <div class="sync-state-line">
     <i class="server-health-dot" data-server-health title="Local server health is being checked" aria-label="Local server health is being checked"></i>
@@ -27,4 +28,11 @@
     <span class="source-label">{{ active_source_label | upper }}</span>
     <span data-sync-detail>{% if snapshot.is_demo %}SIMULATION{% elif snapshot.mode == 'csv' %}IMPORTED {{ snapshot.as_of | short_date }}{% elif latest_success %}{{ snapshot.as_of | short_date }} / AUTO {{ (interval_seconds / 60) | int }}M{% else %}NO SUCCESSFUL SNAPSHOT{% endif %}</span>
   </small>
+  {# Held outside [data-sync-state] and [data-sync-detail], which the status poller rewrites on every tick. #}
+  {% if prior_session_names %}
+  <small class="quote-lag-note" data-quote-lag title="The sync itself succeeded. These names simply have no print in the current session, so their prices are prior-session closes.">
+    {{ prior_session_names | length }} NAME{{ '' if prior_session_names | length == 1 else 'S' }} ON PRIOR-SESSION TAPE
+    <b>{{ prior_session_names[:4] | join(' · ') }}{% if prior_session_names | length > 4 %} +{{ prior_session_names | length - 4 }}{% endif %}</b>
+  </small>
+  {% endif %}
 </div>

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 import httpx
@@ -143,7 +143,17 @@ class SchwabReadOnlyMarketDataClient:
             },
         )
 
-    def get_daily_price_history(self, symbol: str) -> Mapping[str, Any]:
+    def get_daily_price_history(
+        self,
+        symbol: str,
+        *,
+        end_at: datetime | None = None,
+    ) -> Mapping[str, Any]:
+        # Schwab defaults endDate to the previous trading day, so the session
+        # that closed today is withheld until tomorrow unless the window says
+        # otherwise. Every close-derived series would then sit a day behind the
+        # live book for the whole evening.
+        window_end = end_at or datetime.now(UTC)
         return self._get_mapping(
             "/pricehistory",
             params={
@@ -153,6 +163,7 @@ class SchwabReadOnlyMarketDataClient:
                 "frequencyType": "daily",
                 "frequency": "1",
                 "needExtendedHoursData": "false",
+                "endDate": str(int(window_end.timestamp() * 1000)),
             },
         )
 

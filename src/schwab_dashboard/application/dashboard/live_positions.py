@@ -12,7 +12,11 @@ from schwab_dashboard.application.dashboard.models import (
     LiveUnderlyingPosition,
     PositionSummary,
 )
-from schwab_dashboard.application.market_time import market_date, option_session_state
+from schwab_dashboard.application.market_time import (
+    market_date,
+    option_session_state,
+    quote_session_state,
+)
 from schwab_dashboard.application.rolls.models import RollQuote
 
 ZERO = Decimal("0")
@@ -31,6 +35,7 @@ def build_live_position_book(
 ) -> LivePositionBook:
     as_of_date = market_date(as_of)
     session_clock = evaluated_at if evaluated_at is not None else as_of
+    quote_clock = session_clock if isinstance(session_clock, datetime) else None
     option_quotes = {_canonical(str(row["symbol"])): row for row in option_market}
     underlying_quotes = {_canonical(str(row["symbol"])): row for row in underlying_market}
     holdings = {
@@ -239,6 +244,11 @@ def build_live_position_book(
                 current_session_change_percent=current_session_change_percent,
                 quote_observed_at=quote_observed_at,
                 quote_quality=str(underlying_quote.get("quote_quality") or "") or None,
+                quote_session=quote_session_state(
+                    quote_observed_at,
+                    evaluated_at=session_clock,
+                ),
+                quote_evaluated_at=quote_clock,
             )
         )
 

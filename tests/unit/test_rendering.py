@@ -1,10 +1,15 @@
 from dataclasses import replace
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from schwab_dashboard.application.dashboard.live_positions import build_live_position_book
-from schwab_dashboard.application.dashboard.models import PositionSummary
+from schwab_dashboard.application.dashboard.models import (
+    LivePositionBook,
+    LiveUnderlyingPosition,
+    PositionSummary,
+)
 from schwab_dashboard.application.dashboard.overview import build_desk_overview
+from schwab_dashboard.application.market_time import QuoteSession
 from schwab_dashboard.application.rolls.board import build_roll_board
 from schwab_dashboard.application.workspaces.projections import build_open_book
 from schwab_dashboard.infrastructure.demo.dashboard import DemoDashboardReader
@@ -155,6 +160,105 @@ def test_open_call_workspace_keeps_exact_dte_in_expanded_contract_context() -> N
     assert "OBSERVED POSITION / NOT EVALUATED" not in rendered.upper()
     for row in open_book.rows:
         assert rendered.count(f"{row.days_to_expiration} DTE") >= 2
+
+
+def _prior_session_underlying(stats) -> LiveUnderlyingPosition:
+    return LiveUnderlyingPosition(
+        symbol=stats.symbol,
+        description=stats.company_name,
+        shares=stats.shares,
+        average_price=stats.average_cost,
+        current_price=stats.current_price,
+        market_value=stats.market_value,
+        day_profit_loss=Decimal("0"),
+        contract_capacity=stats.contract_capacity,
+        open_call_contracts=stats.active_contracts,
+        covered_contracts=stats.active_contracts,
+        uncovered_contracts=0,
+        coverage_percent=stats.coverage_percent,
+        open_mark_profit_loss=Decimal("0"),
+        calls=(),
+        previous_close=stats.current_price,
+        current_session_change_percent=Decimal("0"),
+        quote_observed_at=datetime(2026, 8, 14, 20, 0, tzinfo=UTC),
+        quote_quality="complete",
+        quote_session=QuoteSession.PRIOR_SESSION,
+        quote_evaluated_at=datetime(2026, 8, 17, 13, 40, tzinfo=UTC),
+    )
+
+
+def _snapshot_with_prior_session_tape():
+    """A demo book re-stamped as Friday tape read on Monday morning."""
+
+    snapshot = DemoDashboardReader().execute()
+    underlyings = tuple(_prior_session_underlying(item) for item in snapshot.underlyings)
+    return replace(
+        snapshot,
+        mode="live",
+        live_position_book=LivePositionBook(
+            underlyings=underlyings,
+            calls=(),
+            total_shares=sum(item.shares for item in underlyings),
+            contract_capacity=sum(item.contract_capacity for item in underlyings),
+            open_call_positions=0,
+            open_call_contracts=0,
+            covered_contracts=0,
+            uncovered_contracts=0,
+            coverage_percent=Decimal("0"),
+            open_mark_profit_loss=Decimal("0"),
+        ),
+    )
+
+
+def test_prior_session_tape_never_renders_a_name_row_captioned_day() -> None:
+    snapshot = _snapshot_with_prior_session_tape()
+
+    rendered = templates.env.get_template("partials/_underlyings.html").render(
+        snapshot=snapshot,
+        desk_overview=build_desk_overview(snapshot),
+    )
+
+    assert "<small>FRI CLOSE</small>" in rendered
+    assert "<small>DAY</small>" not in rendered
+    assert rendered.count("PRIOR SESSION · FRI 4:00 PM ET") == len(snapshot.underlyings)
+
+
+def test_demo_book_keeps_the_day_caption_and_invents_no_quote_clock() -> None:
+    snapshot = DemoDashboardReader().execute()
+
+    rendered = templates.env.get_template("partials/_underlyings.html").render(
+        snapshot=snapshot,
+        desk_overview=build_desk_overview(snapshot),
+    )
+
+    assert "<small>DAY</small>" in rendered
+    assert "PRIOR SESSION" not in rendered
+    assert "position-quote-stamp" not in rendered
+
+
+def test_header_flags_prior_session_names_outside_the_elements_the_poller_rewrites() -> None:
+    snapshot = _snapshot_with_prior_session_tape()
+
+    rendered = templates.env.get_template("partials/_sync_state.html").render(
+        snapshot=snapshot,
+        active_source_label="Schwab",
+        sync_runtime={"interval_seconds": 900},
+    )
+    lag_note = rendered[rendered.index("data-quote-lag") :]
+
+    assert "ON PRIOR-SESSION TAPE" in lag_note
+    assert "data-sync-state" not in lag_note
+    assert "data-sync-detail" not in lag_note
+
+
+def test_header_stays_quiet_when_every_name_is_on_current_session_tape() -> None:
+    rendered = templates.env.get_template("partials/_sync_state.html").render(
+        snapshot=DemoDashboardReader().execute(),
+        active_source_label="Demo",
+        sync_runtime={"interval_seconds": 900},
+    )
+
+    assert "data-quote-lag" not in rendered
 
 
 def test_short_put_row_pairs_received_premium_with_estimated_buyback_cost() -> None:
