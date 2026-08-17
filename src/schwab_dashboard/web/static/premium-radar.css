@@ -1,19 +1,19 @@
 .radar-console { margin-top: 10px; border: 1px solid var(--line-strong); background: #0a0b0d; }
 .radar-query-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; min-height: 58px; border-bottom: 1px solid var(--line-strong); background: #0d0f11; }
 .radar-query { display: grid; grid-template-columns: auto minmax(150px, 250px) minmax(220px, 330px) minmax(150px, 1fr); align-items: center; gap: 9px; padding: 9px 11px; }
-.radar-query > label, .radar-symbol-shelf span, .radar-rules label { color: var(--subtle); font: 750 .43rem var(--mono); letter-spacing: .07em; }
+.radar-query > label, .radar-symbol-shelf span, .radar-rules label { color: var(--text-tertiary); font: 750 var(--type-micro) var(--mono); letter-spacing: .07em; }
 .radar-query > input { height: 34px; border: 1px solid var(--line-strong); padding: 0 10px; background: #070809; color: var(--text); font: 800 .72rem var(--mono); text-transform: uppercase; outline: 0; }
 .radar-query > input:focus { border-color: var(--gold); box-shadow: inset 2px 0 var(--gold); }
 .radar-mode { display: flex; height: 34px; margin: 0; border: 1px solid var(--line-strong); padding: 0; }
 .radar-mode label { display: flex; min-width: 0; flex: 1; cursor: pointer; }
 .radar-mode input { position: absolute; opacity: 0; pointer-events: none; }
-.radar-mode span { display: grid; width: 100%; min-width: 0; place-items: center; border-right: 1px solid var(--line); padding: 0 10px; color: var(--subtle); font: 750 .43rem var(--mono); }
+.radar-mode span { display: grid; width: 100%; min-width: 0; place-items: center; border-right: 1px solid var(--line); padding: 0 10px; color: var(--text-tertiary); font: 750 var(--type-control) var(--mono); }
 .radar-mode label:last-child span { border-right: 0; }
 .radar-mode input:checked + span { background: var(--gold); color: #090a0b; }
 .radar-query button { height: 34px; border-color: var(--gold-soft); padding: 0 13px; background: #17140b; font-size: .48rem; }
 .radar-query button:hover, .radar-query button:focus-visible { border-color: var(--gold); background: var(--gold); color: #090a0b; outline: 0; }
 .radar-query-status { display: grid; min-width: 182px; align-content: center; gap: 4px; padding: 8px 11px; border-left: 1px solid var(--line); text-align: right; }
-.radar-query-status span, .radar-query-status b { font: 700 .4rem var(--mono); letter-spacing: .04em; }
+.radar-query-status span, .radar-query-status b { font: 700 var(--type-micro) var(--mono); letter-spacing: .04em; }
 .radar-query-status span { color: var(--green); }
 .radar-query-status i { display: inline-block; width: 5px; height: 5px; margin-right: 5px; background: var(--green); box-shadow: 0 0 7px rgb(107 216 154 / 60%); }
 .radar-query-status b { color: var(--subtle); }
@@ -23,27 +23,27 @@
 .radar-symbol-shelf button:not(.radar-rules-toggle):hover { background: #1a170d; color: var(--gold); }
 .radar-rules-toggle { min-width: 120px; border: 0; padding: 0 11px; background: transparent; color: var(--gold); font-size: .44rem; }
 .radar-rules-toggle span { margin-left: 7px; color: inherit; font-size: .68rem; }
-.radar-roll-entry { position: relative; min-width: 150px; border-right: 1px solid var(--line); color: var(--gold); font: 750 .42rem var(--mono); }
+.radar-roll-entry { position: relative; min-width: 150px; border-right: 1px solid var(--line); color: var(--gold); font: 750 var(--type-micro) var(--mono); }
 .radar-roll-entry summary { display: flex; height: 100%; align-items: center; justify-content: space-between; gap: 12px; padding: 0 11px; cursor: pointer; list-style: none; }
 .radar-roll-entry summary::-webkit-details-marker { display: none; }
 .radar-roll-entry[open] summary { background: #17140b; }
 .radar-roll-entry > div { position: absolute; z-index: 8; right: 0; top: 100%; display: grid; width: min(520px, 80vw); grid-template-columns: minmax(0, 1fr) auto; gap: 7px; border: 1px solid var(--gold-soft); padding: 9px; background: #0d0f11; box-shadow: 0 12px 28px rgb(0 0 0 / 45%); }
-.radar-roll-entry label { grid-column: 1 / -1; color: var(--subtle); font: 700 .39rem var(--mono); letter-spacing: .06em; }
+.radar-roll-entry label { grid-column: 1 / -1; color: var(--text-tertiary); font: 700 var(--type-micro) var(--mono); letter-spacing: .06em; }
 .radar-roll-entry select { min-width: 0; height: 31px; border: 1px solid var(--line-strong); padding: 0 8px; background: #070809; color: var(--text); font: 700 .48rem var(--mono); }
 .radar-roll-entry button { height: 31px; border: 1px solid var(--gold-soft) !important; padding: 0 10px !important; background: #17140b !important; color: var(--gold) !important; white-space: nowrap; }
 .radar-roll-handoff { border-bottom: 1px solid var(--gold-soft); background: #0d0f11; }
 .radar-roll-handoff > header { display: flex; min-height: 27px; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); padding: 4px 10px; }
-.radar-roll-handoff > header span { color: var(--gold); font: 780 .43rem var(--mono); letter-spacing: .06em; }
-.radar-roll-handoff > header a { color: var(--muted); font: 700 .39rem var(--mono); text-decoration: none; }
+.radar-roll-handoff > header span { color: var(--gold); font: 780 var(--type-micro) var(--mono); letter-spacing: .06em; }
+.radar-roll-handoff > header a { color: var(--muted); font: 700 var(--type-control) var(--mono); text-decoration: none; }
 .radar-roll-handoff > header a:hover, .radar-roll-handoff > header a:focus-visible { color: var(--gold); outline: 0; }
-.radar-roll-handoff > header strong { margin-left: auto; color: var(--muted); font: 720 .4rem var(--mono); }
-.radar-roll-handoff > header button { border: 0; border-left: 1px solid var(--line); padding: 2px 0 2px 10px; background: transparent; color: var(--subtle); font: 700 .39rem var(--mono); }
+.radar-roll-handoff > header strong { margin-left: auto; color: var(--muted); font: 720 var(--type-micro) var(--mono); }
+.radar-roll-handoff > header button { border: 0; border-left: 1px solid var(--line); padding: 2px 0 2px 10px; background: transparent; color: var(--text-tertiary); font: 700 var(--type-control) var(--mono); }
 .radar-roll-handoff > header button:hover, .radar-roll-handoff > header button:focus-visible { color: var(--gold); outline: 0; }
 .radar-roll-handoff > div { display: grid; grid-template-columns: .85fr .85fr 1fr minmax(250px, 1.35fr); }
 .radar-roll-handoff section, .radar-roll-handoff p { display: grid; min-width: 0; min-height: 54px; align-content: center; gap: 4px; margin: 0; border-right: 1px solid var(--line); padding: 7px 10px; }
-.radar-roll-handoff section span { color: var(--subtle); font: 680 .38rem var(--mono); letter-spacing: .045em; }
+.radar-roll-handoff section span { color: var(--text-tertiary); font: 680 var(--type-micro) var(--mono); letter-spacing: .045em; }
 .radar-roll-handoff section b { overflow: hidden; color: var(--text); font: 760 .57rem var(--mono); text-overflow: ellipsis; white-space: nowrap; }
-.radar-roll-handoff section small { color: var(--muted); font: .39rem var(--mono); }
+.radar-roll-handoff section small { color: var(--muted); font: var(--type-micro) var(--mono); }
 .radar-roll-handoff p { border-right: 0; color: var(--muted); font: .45rem/1.45 var(--mono); }
 .radar-roll-handoff[data-roll-status="matched"] > header strong, .radar-roll-handoff[data-roll-status="matched"] [data-radar-roll-net] { color: var(--green); }
 .radar-roll-handoff[data-roll-status="unavailable"] > header strong, .radar-roll-handoff[data-roll-status="unavailable"] [data-radar-roll-net] { color: var(--red); }
@@ -68,7 +68,7 @@
 .radar-idle li { display: grid; min-width: 104px; gap: 8px; border-left: 1px solid var(--line); padding: 9px 15px; }
 .radar-idle li:last-child { border-right: 1px solid var(--line); }
 .radar-idle li b { color: var(--gold); font: 800 .48rem var(--mono); }
-.radar-idle li span { color: var(--subtle); font: 750 .42rem var(--mono); letter-spacing: .06em; }
+.radar-idle li span { color: var(--text-tertiary); font: 750 var(--type-micro) var(--mono); letter-spacing: .06em; }
 .radar-loading { display: flex; min-height: 260px; align-items: center; justify-content: center; gap: 14px; color: var(--muted); }
 .radar-loading > span { width: 8px; height: 38px; background: var(--gold); animation: radar-pulse 900ms ease-in-out infinite alternate; }
 .radar-loading div { display: grid; gap: 5px; }
@@ -78,36 +78,36 @@
 .radar-verdict { display: grid; grid-template-columns: 110px minmax(0, 1fr) auto; min-height: 92px; border-bottom: 1px solid var(--line-strong); background: #101216; }
 .radar-verdict-code { display: grid; place-content: center; gap: 5px; border-right: 1px solid var(--line); text-align: center; }
 .radar-verdict-code span { color: var(--gold); font: 850 .78rem var(--mono); letter-spacing: .08em; }
-.radar-verdict-code small { color: var(--subtle); font: 700 .4rem var(--mono); }
+.radar-verdict-code small { color: var(--text-tertiary); font: 700 var(--type-micro) var(--mono); }
 .radar-verdict-copy { align-self: center; padding: 12px 15px; }
 .radar-verdict-copy h2 { margin: 0; font-size: .92rem; }
 .radar-verdict-copy > p:last-child { margin: 6px 0 0; color: var(--muted); font-size: .57rem; line-height: 1.45; }
 .radar-verdict-actions { display: grid; min-width: 170px; align-content: center; gap: 7px; padding: 10px 13px; border-left: 1px solid var(--line); text-align: right; }
-.radar-verdict-actions button { border: 0; padding: 0; background: transparent; color: var(--gold); font-size: .43rem; text-align: right; }
-.radar-verdict-actions span { color: var(--subtle); font: .41rem var(--mono); }
+.radar-verdict-actions button { border: 0; padding: 0; background: transparent; color: var(--gold); font-size: var(--type-control); text-align: right; }
+.radar-verdict-actions span { color: var(--text-tertiary); font: var(--type-micro) var(--mono); }
 .radar-context-strip { display: grid; grid-template-columns: repeat(6, 1fr); border-bottom: 1px solid var(--line-strong); }
 .radar-context-strip > div { display: grid; min-height: 82px; align-content: center; gap: 6px; padding: 9px 11px; border-right: 1px solid var(--line); }
 .radar-context-strip > div:last-child { border-right: 0; }
-.radar-context-strip span, .radar-context-strip small { color: var(--subtle); font: .4rem var(--mono); }
+.radar-context-strip span, .radar-context-strip small { color: var(--text-tertiary); font: var(--type-micro) var(--mono); }
 .radar-context-strip strong { font: 750 .76rem var(--mono); }
 .radar-warning { border-bottom: 1px solid var(--gold-soft); padding: 7px 11px; background: #151208; color: var(--gold); font: .45rem/1.5 var(--mono); }
 .radar-map-panel { scroll-margin-top: 46px; border-bottom: 1px solid var(--line-strong); background: #090b0d; }
 .radar-map-panel > header { display: flex; min-height: 54px; align-items: center; justify-content: space-between; gap: 18px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: #0d0f11; }
 .radar-map-panel h2 { margin: 0; font-size: .76rem; }
 .radar-map-controls { display: flex; align-items: center; gap: 8px; }
-.radar-map-controls > span { color: var(--subtle); font: .4rem var(--mono); }
+.radar-map-controls > span { color: var(--text-tertiary); font: var(--type-micro) var(--mono); }
 .radar-indicator-controls { display: none; height: 28px; align-items: center; border: 1px solid var(--line-strong); background: #090a0c; }
-.radar-indicator-controls button { height: 100%; border: 0; border-right: 1px solid var(--line); padding: 0 10px; background: transparent; color: var(--subtle); font: 750 .39rem var(--mono); letter-spacing: .025em; }
+.radar-indicator-controls button { height: 100%; border: 0; border-right: 1px solid var(--line); padding: 0 10px; background: transparent; color: var(--text-tertiary); font: 750 var(--type-control) var(--mono); letter-spacing: .025em; }
 .radar-indicator-controls button:last-child { border-right: 0; }
 .radar-indicator-controls button:hover, .radar-indicator-controls button:focus-visible { background: #14171a; color: var(--text); outline: 0; }
 .radar-indicator-controls button.is-active { background: #17140b; color: var(--gold); box-shadow: inset 0 -2px var(--gold); }
 .radar-map-stepper { display: flex; height: 28px; align-items: center; border: 1px solid var(--line-strong); background: #090a0c; }
-.radar-map-stepper button, .radar-map-expand { height: 100%; border: 0; background: transparent; color: var(--muted); font: 750 .42rem var(--mono); }
+.radar-map-stepper button, .radar-map-expand { height: 100%; border: 0; background: transparent; color: var(--muted); font: 750 var(--type-control) var(--mono); }
 .radar-map-stepper button { width: 29px; padding: 0; }
 .radar-map-stepper button:hover, .radar-map-stepper button:focus-visible { background: var(--gold); color: #090a0b; outline: 0; }
 .radar-map-stepper button:disabled { color: #3f4449; cursor: default; }
 .radar-map-stepper button:disabled:hover { background: transparent; color: #3f4449; }
-.radar-map-stepper b { min-width: 43px; color: var(--subtle); font: 700 .4rem var(--mono); text-align: center; }
+.radar-map-stepper b { min-width: 43px; color: var(--text-tertiary); font: 700 var(--type-micro) var(--mono); text-align: center; }
 .radar-map-expand { height: 28px; border: 1px solid var(--gold-soft); padding: 0 10px; color: var(--gold); }
 .radar-map-expand:hover, .radar-map-expand:focus-visible { border-color: var(--gold); background: #17140b; outline: 0; }
 .radar-map-layout { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(250px, .66fr); }
@@ -116,7 +116,7 @@
 .radar-expiry-svg { display: block; width: 100%; height: 100%; overflow: visible; font-family: var(--mono); }
 .map-history-zone { fill: #090a0c; }
 .map-forward-zone { fill: #0c0f12; }
-.map-zone-label { fill: #4d565e; font-size: 6.5px; font-weight: 700; letter-spacing: .08em; }
+.map-zone-label { fill: #737b82; font-size: 7px; font-weight: 700; letter-spacing: .08em; }
 .map-time-grid { stroke: #1b1f23; stroke-width: .7; }
 .map-grid { stroke: #24282d; stroke-width: .7; stroke-dasharray: 2 6; }
 .map-axis-label, .map-date-label, .map-today-label { fill: var(--subtle); font-size: 8px; font-weight: 650; letter-spacing: .03em; }
@@ -142,9 +142,9 @@
 .map-contract-number.selected { fill: #08090a; }
 .map-contract-label { fill: var(--muted); font-size: 8px; font-weight: 700; }
 .map-contract-label.selected { fill: var(--gold); }
-.map-contract-date { fill: var(--subtle); font-size: 6.5px; font-weight: 650; letter-spacing: .04em; }
+.map-contract-date { fill: var(--text-tertiary); font-size: 7px; font-weight: 650; letter-spacing: .04em; }
 .map-contract-date.selected { fill: #c9b87d; }
-.map-session-label { fill: #596168; font-size: 6.5px; font-weight: 650; letter-spacing: .04em; }
+.map-session-label { fill: #737b82; font-size: 7px; font-weight: 650; letter-spacing: .04em; }
 .map-spot-dot { fill: #0a0c0d; stroke: #f0f3ef; stroke-width: 1.7; }
 .map-spot-label { fill: #f0f3ef; font-size: 8px; font-weight: 800; }
 .map-itm-label { fill: #bd716c; font-size: 7px; font-weight: 800; letter-spacing: .08em; }
@@ -155,9 +155,9 @@
 .radar-indicator-pane { border-bottom: 1px solid var(--line-strong); background: #0a0c0e; }
 .radar-indicator-pane:last-child { border-bottom: 0; }
 .radar-indicator-pane > header { display: grid; grid-template-columns: minmax(130px, auto) auto 1fr; min-height: 30px; align-items: center; gap: 12px; padding: 4px 12px; border-bottom: 1px solid var(--line); }
-.radar-indicator-pane > header span { color: var(--text); font: 780 .42rem var(--mono); }
+.radar-indicator-pane > header span { color: var(--text); font: 780 var(--type-micro) var(--mono); }
 .radar-indicator-pane > header b { color: var(--gold); font: 780 .45rem var(--mono); }
-.radar-indicator-pane > header small { color: var(--subtle); font: .37rem var(--mono); text-align: right; }
+.radar-indicator-pane > header small { color: var(--text-tertiary); font: var(--type-micro) var(--mono); text-align: right; }
 .radar-indicator-stage { height: 112px; }
 .radar-indicator-stage svg { display: block; width: 100%; height: 100%; overflow: visible; font-family: var(--mono); }
 .indicator-forward-zone { fill: #0c0f12; }
@@ -174,7 +174,7 @@
 .radar-map-readout { display: grid; grid-template-rows: repeat(5, 1fr); background: #0d0f11; }
 .radar-map-readout > div { display: grid; min-height: 72px; align-content: center; gap: 5px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
 .radar-map-readout > div:last-child { border-bottom: 0; }
-.radar-map-readout span, .radar-map-readout small { color: var(--subtle); font: .4rem/1.35 var(--mono); }
+.radar-map-readout span, .radar-map-readout small { color: var(--text-tertiary); font: var(--type-micro)/1.35 var(--mono); }
 .radar-map-readout strong { color: var(--text); font: 780 .61rem var(--mono); }
 .radar-map-selection { box-shadow: inset 2px 0 var(--gold); }
 .radar-map-selection strong { color: var(--gold); }
@@ -184,7 +184,7 @@
 .radar-map-decision-tape { display: none; margin: 0; border-top: 1px solid var(--line-strong); }
 .radar-map-decision-tape > div { min-width: 0; padding: 9px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .radar-map-decision-tape > div:nth-child(2n) { border-right: 0; }
-.radar-map-decision-tape dt { color: var(--subtle); font: 650 .38rem var(--mono); }
+.radar-map-decision-tape dt { color: var(--text-tertiary); font: 650 var(--type-micro) var(--mono); }
 .radar-map-decision-tape dd { margin: 5px 0 0; color: var(--text); font: 750 .5rem var(--mono); }
 .radar-map-panel.is-expanded { border-top: 1px solid var(--gold-soft); border-bottom-color: var(--gold-soft); box-shadow: 0 14px 40px rgb(0 0 0 / 24%); }
 .radar-map-panel.is-expanded .radar-indicator-controls { display: flex; }
@@ -195,10 +195,10 @@
 .radar-map-panel.is-expanded .radar-map-decision-tape { display: grid; grid-template-columns: 1fr 1fr; align-self: end; }
 .radar-map-panel > footer { display: flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 42px; padding: 7px 12px; border-top: 1px solid var(--line); background: #0b0d0f; }
 .radar-map-panel > footer p { margin: 0; color: var(--muted); font: .44rem/1.45 var(--mono); }
-.radar-map-panel > footer span { flex: 0 0 auto; color: var(--gold); font: 700 .38rem var(--mono); }
+.radar-map-panel > footer span { flex: 0 0 auto; color: var(--gold); font: 700 var(--type-micro) var(--mono); }
 .radar-candidate-panel > header { display: flex; min-height: 50px; align-items: center; justify-content: space-between; gap: 20px; padding: 9px 12px; border-bottom: 1px solid var(--line); }
 .radar-candidate-panel h2 { margin: 0; font-size: .78rem; }
-.radar-candidate-panel > header > span { color: var(--subtle); font: .41rem var(--mono); }
+.radar-candidate-panel > header > span { color: var(--text-tertiary); font: var(--type-micro) var(--mono); }
 .radar-candidates { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .radar-candidate { min-width: 0; border-right: 1px solid var(--line-strong); border-bottom: 1px solid var(--line); background: #0d0f11; cursor: pointer; outline: 0; transition: background 100ms ease, box-shadow 100ms ease; }
 .radar-candidate:hover, .radar-candidate:focus-visible { background: #111419; box-shadow: inset 0 0 0 1px var(--line-bright); }
@@ -211,11 +211,11 @@
 .radar-candidate.research-only > header { border-top-color: var(--line-bright); }
 .radar-candidate.research-only > header b { color: var(--muted); }
 .radar-candidate > header b { color: var(--gold); font: 800 .51rem var(--mono); }
-.radar-candidate > header span { color: var(--subtle); font: .42rem var(--mono); }
+.radar-candidate > header span { color: var(--text-tertiary); font: var(--type-micro) var(--mono); }
 .radar-candidate-hero { display: grid; grid-template-columns: 1fr 1fr; }
 .radar-candidate-hero > div { display: grid; min-height: 80px; align-content: center; gap: 5px; padding: 9px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .radar-candidate-hero > div:last-child { border-right: 0; }
-.radar-candidate span, .radar-candidate small { color: var(--subtle); font: .4rem var(--mono); }
+.radar-candidate span, .radar-candidate small { color: var(--text-tertiary); font: var(--type-micro) var(--mono); }
 .radar-candidate strong { font: 800 .82rem var(--mono); }
 .radar-candidate .radar-credit-pace { color: var(--gold); font-weight: 750; letter-spacing: .025em; }
 .radar-candidate-roll { display: grid; grid-template-columns: 1.35fr .65fr; border-bottom: 1px solid var(--line-strong); background: #0b0e0f; }
@@ -230,20 +230,20 @@
 .radar-candidate-grid > div { display: grid; min-height: 57px; align-content: center; gap: 5px; padding: 8px 9px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .radar-candidate-grid > div:nth-child(3n) { border-right: 0; }
 .radar-candidate-grid b { font: 700 .53rem var(--mono); }
-.radar-candidate > footer { display: block; margin: 0; border: 0; padding: 8px 10px; color: var(--muted); font: .43rem/1.45 var(--mono); }
+.radar-candidate > footer { display: block; margin: 0; border: 0; padding: 8px 10px; color: var(--muted); font: var(--type-micro)/1.45 var(--mono); }
 .radar-empty-result { min-height: 130px; padding: 24px; color: var(--muted); font-size: .67rem; line-height: 1.6; }
 .radar-method { border-top: 1px solid var(--line-strong); }
 .radar-method summary { display: flex; min-height: 42px; align-items: center; justify-content: space-between; padding: 7px 11px; cursor: pointer; list-style: none; }
 .radar-method summary::-webkit-details-marker { display: none; }
 .radar-method summary span { display: grid; gap: 3px; }
 .radar-method summary b { color: var(--gold); font: 750 .44rem var(--mono); }
-.radar-method summary small { color: var(--subtle); font: .4rem var(--mono); }
+.radar-method summary small { color: var(--text-tertiary); font: var(--type-micro) var(--mono); }
 .radar-method summary i::before { content: "+"; color: var(--gold); font: 700 .7rem var(--mono); }
 .radar-method[open] summary i::before { content: "−"; }
 .radar-method > div { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); }
 .radar-evidence { padding: 9px 11px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .radar-evidence b { color: var(--text); font: 700 .46rem var(--mono); }
-.radar-evidence span { display: block; margin-top: 4px; color: var(--muted); font: .42rem/1.45 var(--mono); }
+.radar-evidence span { display: block; margin-top: 4px; color: var(--muted); font: var(--type-micro)/1.45 var(--mono); }
 .radar-evidence.pass b { color: var(--green); }
 .radar-evidence.fail b { color: var(--red); }
 .radar-evidence.unknown b { color: var(--gold); }

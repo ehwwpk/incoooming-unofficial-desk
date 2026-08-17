@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 
+from schwab_dashboard.application.market_time import market_date
 from schwab_dashboard.application.performance.flows import movement_date
 from schwab_dashboard.application.performance.models import ComparisonSeries, ReturnPoint
 
@@ -149,7 +150,7 @@ def _snapshots_by_observation(
     for row in rows:
         observed = row.get("observed_at")
         if observed is not None:
-            grouped[(str(row.get("sync_run_id") or observed), observed.date())].append(row)
+            grouped[(str(row.get("sync_run_id") or observed), market_date(observed))].append(row)
     return sorted(
         ((day, tuple(items)) for (_, day), items in grouped.items()),
         key=lambda item: item[0],

@@ -71,6 +71,37 @@ def test_open_event_compares_current_mark_with_original_credit() -> None:
     assert events[0].option_value_vs_credit_percent == D("150.0")
 
 
+def test_current_contract_remains_in_chart_outside_price_archive() -> None:
+    points = build_price_points("KTOS", _bars())
+    current_sale = _option_execution(
+        key="current-after-bars",
+        occurred_at=datetime(2026, 8, 20, 15, tzinfo=UTC),
+        side="sell",
+        position_effect="opening",
+        net_cash=D("200"),
+    )
+    unrelated_sale = {
+        **current_sale,
+        "external_key": "unrelated-after-bars",
+        "order_external_key": "unrelated-after-bars",
+        "symbol": "KTOS  260918C00070000",
+        "strike": D("70"),
+    }
+
+    events = build_option_events(
+        "KTOS",
+        executions=(current_sale, unrelated_sale),
+        lifecycle_events=(),
+        points=points,
+        current_option_symbols={"KTOS 260918C00065000"},
+    )
+
+    assert len(events) == 1
+    assert events[0].record_id == "current-after-bars"
+    assert events[0].outcome == "OPEN"
+    assert events[0].x_percent == D("100")
+
+
 def test_share_fills_net_to_one_marker_per_day() -> None:
     points = build_price_points("KTOS", _bars())
     occurred_at = datetime(2026, 8, 6, 15, tzinfo=UTC)

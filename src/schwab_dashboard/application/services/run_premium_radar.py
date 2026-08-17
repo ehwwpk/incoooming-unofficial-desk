@@ -366,7 +366,7 @@ def _find_open_roll_source(
             ),
             None,
         )
-        if call is None:
+        if call is None or not call.can_close_or_roll:
             return None
         current_price = underlying.current_price if underlying is not None else Decimal("0")
         return RollSource(
@@ -391,7 +391,7 @@ def _find_open_roll_source(
         ),
         None,
     )
-    if put is None:
+    if put is None or not put.can_close_or_roll:
         return None
     return RollSource(
         symbol=symbol,

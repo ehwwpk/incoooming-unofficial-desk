@@ -16,6 +16,8 @@ from schwab_dashboard.application.dashboard.models import (
     LiveOpenCallPosition,
     LiveUnderlyingPosition,
 )
+from schwab_dashboard.application.risk.models import UnderlyingRiskView
+from schwab_dashboard.application.risk.projection import build_open_risk_summary
 
 ZERO = Decimal("0")
 
@@ -32,6 +34,7 @@ class DeskOptionFocus:
     days_to_expiration: int
     expires_on: date
     anchor_id: str
+    can_close_or_roll: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,6 +47,7 @@ class DeskPositionRow:
     open_mark_profit_loss: Decimal
     alert_count: int
     live_underlying: LiveUnderlyingPosition | None
+    risk: UnderlyingRiskView | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,6 +88,10 @@ def build_desk_overview(snapshot: DashboardSnapshot) -> DeskOverview:
     all_puts = [
         _live_option_focus(put) for put in (live_book.puts if live_book is not None else ())
     ]
+    risk_summary = build_open_risk_summary(snapshot)
+    risk_by_symbol = {
+        item.symbol: item for item in (risk_summary.underlyings if risk_summary else ())
+    }
 
     for underlying in snapshot.underlyings:
         calls = tuple(underlying.open_call_clocks)
@@ -103,6 +111,7 @@ def build_desk_overview(snapshot: DashboardSnapshot) -> DeskOverview:
                 + sum((put.open_profit_loss or ZERO for put in put_positions), ZERO),
                 alert_count=alert_counts[underlying.symbol],
                 live_underlying=live_underlying,
+                risk=risk_by_symbol.get(underlying.symbol),
             )
         )
 
@@ -118,7 +127,7 @@ def build_desk_overview(snapshot: DashboardSnapshot) -> DeskOverview:
             open_mark_profit_loss=live_book.total_open_mark_profit_loss,
             nearest_call=_nearest_call(all_calls),
             next_expiring_option=min(
-                all_options,
+                (option for option in all_options if option.can_close_or_roll),
                 key=lambda option: option.expires_on,
                 default=None,
             ),
@@ -150,7 +159,7 @@ def build_desk_overview(snapshot: DashboardSnapshot) -> DeskOverview:
         ),
         nearest_call=_nearest_call(all_calls),
         next_expiring_option=min(
-            all_options,
+            (option for option in all_options if option.can_close_or_roll),
             key=lambda option: option.expires_on,
             default=None,
         ),
@@ -177,6 +186,7 @@ def _call_focus(symbol: str, call: OpenCallClock) -> DeskOptionFocus:
         days_to_expiration=call.days_to_expiration,
         expires_on=call.expires_on,
         anchor_id=option_contract_anchor(call.record_id),
+        can_close_or_roll=call.can_close_or_roll,
     )
 
 
@@ -190,8 +200,13 @@ def _live_option_focus(option: LiveOpenCallPosition) -> DeskOptionFocus:
         days_to_expiration=option.days_to_expiration,
         expires_on=option.expires_on,
         anchor_id=option_contract_anchor(option.option_symbol),
+        can_close_or_roll=option.can_close_or_roll,
     )
 
 
 def _nearest_call(calls: Sequence[DeskOptionFocus]) -> DeskOptionFocus | None:
-    return min(calls, key=lambda call: call.strike_distance_percent, default=None)
+    return min(
+        (call for call in calls if call.can_close_or_roll),
+        key=lambda call: call.strike_distance_percent,
+        default=None,
+    )

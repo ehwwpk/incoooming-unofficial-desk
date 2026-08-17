@@ -46,6 +46,10 @@ class SqlLiveAnalyticsReader:
                 "initial_liquidation_value": balance.initial_liquidation_value,
                 "equity": balance.equity,
                 "cash_balance": balance.cash_balance,
+                "margin_balance": balance.margin_balance,
+                "buying_power": balance.buying_power,
+                "available_funds": balance.available_funds,
+                "maintenance_requirement": balance.maintenance_requirement,
                 "long_market_value": balance.long_market_value,
                 "short_market_value": balance.short_market_value,
                 "long_option_market_value": balance.long_option_market_value,
@@ -71,7 +75,14 @@ class SqlLiveAnalyticsReader:
                 "symbol": position.symbol,
                 "asset_type": position.asset_type,
                 "net_quantity": position.long_quantity - position.short_quantity,
+                "average_price": position.average_price,
                 "market_value": position.market_value,
+                "long_open_profit_loss": position.long_open_profit_loss,
+                "short_open_profit_loss": position.short_open_profit_loss,
+                "underlying_symbol": position.underlying_symbol,
+                "option_type": position.option_type,
+                "expiration_date": position.expiration_date,
+                "strike": position.strike,
             }
             for position, account in rows
         )

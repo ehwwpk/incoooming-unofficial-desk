@@ -26,13 +26,27 @@ def test_time_weighted_return_excludes_deposit_before_chaining() -> None:
 
     assert comparison.external_flows_excluded == D("25000")
     assert [point.daily_return_percent for point in comparison.actual.points] == [
-        D("1.010101010101010101010101010"),
+        None,
         D("1.00"),
         D("1.00"),
     ]
-    assert comparison.actual.return_percent == D("3.040404040404040404040404000")
+    assert comparison.actual.return_percent == D("2.0100")
     assert comparison.shares_without_options.status == "not_available"
     assert comparison.market_reference.return_percent is None
+
+
+def test_utc_after_hours_snapshots_stay_on_the_same_market_day() -> None:
+    comparison = build_performance_comparison(
+        balance_history=(
+            _balance("2026-08-14T20:00:00+00:00", "101000", "100000"),
+            _balance("2026-08-15T02:00:00+00:00", "101000", "100000"),
+        ),
+        cash_movements=(),
+    )
+
+    assert len(comparison.actual.points) == 1
+    assert comparison.actual.points[0].date.isoformat() == "2026-08-14"
+    assert comparison.actual.return_percent is None
 
 
 def test_comparison_refuses_to_invent_missing_benchmarks() -> None:

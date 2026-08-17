@@ -12,6 +12,10 @@ from schwab_dashboard.application.dashboard.covered_calls import (
     CoveredCallPortfolioSummary,
     UnderlyingCallStats,
 )
+from schwab_dashboard.application.dashboard.option_activity import (
+    OptionOutcomeSummary,
+    RecentOptionActivityItem,
+)
 from schwab_dashboard.application.dashboard.performance import (
     BasisLensSummary,
     CashActivityItem,
@@ -24,9 +28,15 @@ from schwab_dashboard.application.dashboard.performance import (
     QuarterPerformanceSummary,
     StrategyAttributionSummary,
 )
+from schwab_dashboard.application.market_time import OptionSessionState
 from schwab_dashboard.application.performance.models import PerformanceComparison
 from schwab_dashboard.application.policy.models import UnderlyingPolicy
 from schwab_dashboard.application.ports.repositories import SyncRunSummary
+from schwab_dashboard.application.risk.price_time import (
+    PriceTimeRead,
+    aggregate_price_time_reads,
+    build_price_time_read,
+)
 from schwab_dashboard.application.rolls.models import RollQuote
 
 
@@ -153,6 +163,57 @@ class LiveOpenOptionPosition:
     contract_multiplier: Decimal = Decimal("100")
     multiplier_source: str | None = None
     roll_quote_candidates: tuple[RollQuote, ...] = ()
+    session_state: OptionSessionState = OptionSessionState.ACTIVE
+    underlying_previous_close: Decimal | None = None
+    underlying_week_reference_price: Decimal | None = None
+    opened_on: date | None = None
+    original_days_to_expiration: int | None = None
+
+    @property
+    def can_close_or_roll(self) -> bool:
+        return self.session_state.can_close_or_roll
+
+    @property
+    def session_label(self) -> str:
+        return self.session_state.label
+
+    @property
+    def position_scale(self) -> Decimal:
+        """Return the Greek scale for this aggregated short position."""
+
+        return abs(self.contract_multiplier) * Decimal(self.contracts)
+
+    @property
+    def position_delta_share_equivalent(self) -> Decimal | None:
+        """Current option-only price exposure expressed as equivalent shares."""
+
+        return -(self.delta * self.position_scale) if self.delta is not None else None
+
+    @property
+    def position_gamma_delta_change_per_dollar(self) -> Decimal | None:
+        return -(self.gamma * self.position_scale) if self.gamma is not None else None
+
+    @property
+    def position_vega_per_volatility_point(self) -> Decimal | None:
+        return -(self.vega * self.position_scale) if self.vega is not None else None
+
+    @property
+    def price_time_read(self) -> PriceTimeRead:
+        return build_price_time_read(
+            position_delta=self.position_delta_share_equivalent,
+            position_gamma=self.position_gamma_delta_change_per_dollar,
+            theta_per_day=(
+                max(
+                    Decimal("0"),
+                    -(self.theta_per_share or Decimal("0")) * self.position_scale,
+                )
+                if self.can_close_or_roll and self.theta_per_share is not None
+                else None
+            ),
+            current_underlying_price=self.underlying_price,
+            previous_close=self.underlying_previous_close,
+            weekly_reference_price=self.underlying_week_reference_price,
+        )
 
 
 # Compatibility name retained while the interface moves from a call-only book to
@@ -200,6 +261,16 @@ class LiveUnderlyingPosition:
     def estimated_option_theta_per_day(self) -> Decimal:
         return self.estimated_theta_per_day + self.estimated_put_theta_per_day
 
+    @property
+    def price_time_read(self) -> PriceTimeRead | None:
+        return aggregate_price_time_reads(
+            tuple(
+                option.price_time_read
+                for option in (*self.calls, *self.puts)
+                if option.can_close_or_roll
+            )
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class LivePositionBook:
@@ -225,11 +296,24 @@ class LivePositionBook:
         )
 
     @property
+    def price_time_read(self) -> PriceTimeRead | None:
+        return aggregate_price_time_reads(
+            tuple(
+                option.price_time_read
+                for option in (*self.calls, *self.puts)
+                if option.can_close_or_roll
+            )
+        )
+
+    @property
     def estimated_put_theta_per_day(self) -> Decimal:
         return sum(
             (
-                -(put.theta_per_share or Decimal("0")) * Decimal("100") * Decimal(put.contracts)
+                -(put.theta_per_share or Decimal("0"))
+                * put.contract_multiplier
+                * Decimal(put.contracts)
                 for put in self.puts
+                if put.can_close_or_roll
             ),
             Decimal("0"),
         )
@@ -246,12 +330,27 @@ class AllocationSlice:
 @dataclass(frozen=True, slots=True)
 class RiskSummary:
     buying_power_used_percent: Decimal
-    portfolio_delta: Decimal
+    portfolio_delta: Decimal | None
     daily_theta: Decimal
     short_contracts: int
     next_expiration: date | None
     largest_position_percent: Decimal
     open_campaigns: int
+
+
+@dataclass(frozen=True, slots=True)
+class OpenPremiumPace:
+    """Opening credits normalized across each live short lot's original term."""
+
+    daily_pace: Decimal | None
+    opening_credit: Decimal
+    weighted_term_days: Decimal | None
+    timed_contracts: int
+    total_contracts: int
+
+    @property
+    def is_complete(self) -> bool:
+        return self.total_contracts > 0 and self.timed_contracts == self.total_contracts
 
 
 @dataclass(frozen=True, slots=True)
@@ -287,6 +386,9 @@ class DashboardSnapshot:
     live_position_book: LivePositionBook | None = None
     latest_sync_attempt: SyncRunSummary | None = None
     performance_comparison: PerformanceComparison | None = None
+    recent_option_activity: Sequence[RecentOptionActivityItem] = ()
+    option_outcomes: OptionOutcomeSummary | None = None
+    open_premium_pace: OpenPremiumPace | None = None
 
     @property
     def is_demo(self) -> bool:

@@ -55,6 +55,7 @@ class FullSyncCoordinator:
         enabled: bool,
         interval_seconds: int,
         uow_factory: UnitOfWorkFactory | None = None,
+        on_success: Callable[[], None] | None = None,
     ) -> None:
         self._accounts_factory = accounts_factory
         self._activity_factory = activity_factory
@@ -62,6 +63,7 @@ class FullSyncCoordinator:
         self._enabled = enabled
         self._interval_seconds = interval_seconds
         self._uow_factory = uow_factory
+        self._on_success = on_success
         self._execution_lock = Lock()
         self._state_lock = Lock()
         self._running = False
@@ -98,6 +100,8 @@ class FullSyncCoordinator:
                 position_count=accounts.position_count,
             )
             self._set_succeeded(completed_at)
+            if self._on_success is not None:
+                self._on_success()
             return result
         except Exception as exc:
             self._fail_run(run_id, exc)

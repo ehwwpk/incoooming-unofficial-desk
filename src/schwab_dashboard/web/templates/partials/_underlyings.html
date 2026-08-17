@@ -18,6 +18,7 @@
     {% for row in desk_overview.position_rows %}
     {% set item = row.underlying %}
     {% set active_window = item.performance_windows[0] %}
+    {% set price_time = row.live_underlying.price_time_read if row.live_underlying else none %}
     <details id="{{ item.symbol | lower }}-workspace" class="underlying-card position-book {{ item.tone }}-edge" data-underlying-card="{{ item.symbol }}" data-position-details>
       <summary class="position-row-summary" aria-label="Open {{ item.symbol }} option details">
         <div class="position-identity">
@@ -61,7 +62,7 @@
           <div><span data-name-option-apr-label>OPTION INCOME APR / 4W</span><b data-name-option-apr>{{ active_window.option_apr | percent }}</b></div>
           <div><span data-name-dividend-label>DIVIDENDS / 4W</span><b data-name-dividends>{{ active_window.dividends | money }}</b></div>
           <div><span>AVG OPEN IV <i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i></span><b>{{ item.average_open_call_iv_percent | percent }}</b></div>
-          <div><span>AVG CALL DELTA</span><b>{{ item.average_open_call_delta | number(2) }}</b></div>
+          <div class="name-price-time" title="Gamma-adjusted dollar consequence of this name's open-option delta for the next $1 underlying move. {{ price_time.pressure_summary if price_time else '' }} This is a local sensitivity estimate, not cash or a forecast."><span>DELTA &middot; NEXT $1 / OPEN BOOK <i>MODEL</i></span>{% if price_time and price_time.up_one_dollar_effect is not none %}<b class="price-time-pair"><em>UP</em> <em class="{{ price_time.up_one_dollar_effect | pnl_class }}">{{ '+' if price_time.up_one_dollar_effect > 0 else '' }}{{ price_time.up_one_dollar_effect | money }}</em> <em>&middot; DOWN</em> <em class="{{ price_time.down_one_dollar_effect | pnl_class }}">{{ '+' if price_time.down_one_dollar_effect > 0 else '' }}{{ price_time.down_one_dollar_effect | money }}</em></b><small>{% if price_time.price_effect is not none %}LAST SESSION {{ '+' if price_time.price_effect > 0 else '' }}{{ price_time.price_effect | money }}{% else %}LAST SESSION UNAVAILABLE{% endif %}{% if price_time.delta_pressure_label %} &middot; {{ price_time.compact_pressure }}{% endif %}</small>{% else %}<b>&mdash;</b><small>NEEDS LIVE DELTA</small>{% endif %}</div>
           <div><span>STRIKE BUFFER</span><b>{{ item.current_strike_buffer_percent | percent }}</b></div>
           <div><span data-name-capture-label>CAPTURE / 4W</span><b data-name-capture>{{ active_window.premium_capture_percent | percent }}</b></div>
           <div title="Theoretical one-day option value decay across this stock's open short calls, holding other inputs constant."><span>MODEL THETA / DAY</span><b class="positive">+{{ item.open_call_theta_per_day | money }}</b></div>
@@ -106,11 +107,13 @@
             <div class="campaign-chart-readout" data-campaign-chart-readout>DRAG TO PAN &middot; WHEEL TO ZOOM &middot; DRAG PRICE AXIS TO SCALE</div>
             <div class="campaign-chart-stage" data-campaign-chart-stage>
               <div class="campaign-chart-canvas" data-campaign-chart-canvas></div>
+              <svg class="campaign-chart-context" data-campaign-chart-context aria-hidden="true"></svg>
               <svg class="campaign-chart-lifecycle" data-campaign-chart-lifecycle aria-hidden="true"></svg>
               <div class="campaign-chart-popover" data-campaign-chart-popover hidden></div>
             </div>
+            <section class="campaign-rail" data-campaign-rail aria-label="Option campaign timeline" hidden></section>
             <div class="campaign-story-strip" data-campaign-story>
-              <span>CAMPAIGN MAP</span><p>Squares are calls. Diamonds are puts. Click one to isolate its path.</p>
+              <span>CAMPAIGN MAP</span><p>Squares are calls. Diamonds are puts. Paths run left to right; an edge bracket means the story began earlier.</p>
             </div>
             <footer class="campaign-chart-footer">
               <span data-campaign-chart-audit>RECONCILING CAMPAIGNS</span>

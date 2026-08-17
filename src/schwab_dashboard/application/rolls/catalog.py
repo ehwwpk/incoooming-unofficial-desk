@@ -39,7 +39,7 @@ class RollSourceChoice:
 
 
 def build_roll_source_catalog(snapshot: DashboardSnapshot) -> tuple[RollSourceChoice, ...]:
-    """List all open short calls and puts, not only positions in an alert zone."""
+    """List every short option that can still be closed or rolled."""
 
     choices: list[RollSourceChoice] = []
     for underlying in snapshot.underlyings:
@@ -55,6 +55,7 @@ def build_roll_source_catalog(snapshot: DashboardSnapshot) -> tuple[RollSourceCh
                 strike_distance_percent=call.strike_distance_percent,
             )
             for call in underlying.open_call_clocks
+            if call.can_close_or_roll
         )
     if snapshot.live_position_book is not None:
         choices.extend(
@@ -69,6 +70,7 @@ def build_roll_source_catalog(snapshot: DashboardSnapshot) -> tuple[RollSourceCh
                 strike_distance_percent=put.strike_distance_percent,
             )
             for put in snapshot.live_position_book.puts
+            if put.can_close_or_roll
         )
     return tuple(
         sorted(

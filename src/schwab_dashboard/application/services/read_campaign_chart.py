@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime
 
 from schwab_dashboard.application.charts import build_campaign_chart
@@ -24,9 +24,11 @@ class ReadLiveCampaignChart:
         *,
         uow_factory: UnitOfWorkFactory,
         analytics_reader: LiveAnalyticsReader,
+        clock: Callable[[], datetime] | None = None,
     ) -> None:
         self._uow_factory = uow_factory
         self._analytics_reader = analytics_reader
+        self._clock = clock or _utc_now
 
     def execute(self, symbol: str) -> CampaignChart:
         normalized = symbol.strip().upper()
@@ -58,16 +60,20 @@ class ReadLiveCampaignChart:
         )
         daily_bars = self._analytics_reader.list_daily_bars(symbols=(normalized,))
         intraday_bars = self._analytics_reader.list_intraday_bars(symbols=(normalized,))
+        evaluated_at = self._clock()
         as_of = market_date(
             latest_sync.completed_at
             if latest_sync is not None and latest_sync.completed_at is not None
-            else datetime.now(UTC)
+            else evaluated_at
         )
         live_book = build_live_position_book(
             positions,
             as_of=as_of,
+            evaluated_at=evaluated_at,
             option_market=option_market,
             underlying_market=underlying_market,
+            daily_bars=daily_bars,
+            executions=executions,
         )
         underlyings = build_live_underlying_stats(
             live_book=live_book,
@@ -122,3 +128,7 @@ def _matching_rows(
         for row in rows
         if str(row.get("underlying_symbol") or row.get("symbol") or "").upper() == symbol
     )
+
+
+def _utc_now() -> datetime:
+    return datetime.now(UTC)

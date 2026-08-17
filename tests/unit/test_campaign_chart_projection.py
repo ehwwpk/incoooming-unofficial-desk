@@ -16,7 +16,7 @@ def test_campaign_chart_uses_one_reconciled_campaign_identity() -> None:
 
     chart = build_campaign_chart(underlying)
 
-    assert chart.version == "campaign-chart-v4"
+    assert chart.version == "campaign-chart-v5"
     assert chart.symbol == underlying.symbol
     assert len(chart.bars) == len(underlying.price_points)
     assert sum(len(item.legs) for item in chart.campaigns) == len(underlying.price_events)
@@ -104,6 +104,76 @@ def test_campaign_chart_prefers_ohlc_rows_and_projects_intraday_intervals() -> N
     assert hourly.bars[0].close == Decimal("104")
     assert hourly.bars[0].volume == 300
     assert hourly.extended_hours is True
+
+
+def test_campaign_chart_preserves_verified_execution_time_without_inventing_csv_time() -> None:
+    snapshot = DemoDashboardReader().execute()
+    underlying = snapshot.underlyings[0]
+    exact_at = datetime(2026, 8, 12, 14, 37, tzinfo=UTC)
+    exact = replace(
+        underlying.price_events[0],
+        date=exact_at.date(),
+        occurred_at=exact_at,
+        time_precision="exact",
+    )
+    date_only = replace(
+        underlying.price_events[1],
+        occurred_at=None,
+        time_precision="date_only",
+    )
+    changed = replace(
+        underlying,
+        price_events=(exact, date_only, *underlying.price_events[2:]),
+    )
+
+    chart = build_campaign_chart(changed)
+    legs = {
+        leg.sequence: leg for campaign in chart.campaigns for leg in campaign.legs
+    }
+
+    assert legs[exact.sequence].time == exact_at
+    assert legs[exact.sequence].time_precision == "exact"
+    assert legs[date_only.sequence].time == date_only.date
+    assert legs[date_only.sequence].time_precision == "date_only"
+
+
+def test_open_campaigns_receive_sourced_risk_reference_only_while_open() -> None:
+    snapshot = DemoDashboardReader().execute()
+    underlying = snapshot.underlyings[0]
+
+    chart = build_campaign_chart(underlying)
+    open_with_reference = [
+        campaign
+        for campaign in chart.campaigns
+        if campaign.status == "OPEN" and campaign.risk_reference is not None
+    ]
+
+    assert open_with_reference
+    assert all(
+        item.risk_reference.source in {"SCHWAB OPTION IV", "STRIKE / SPOT ONLY"}
+        for item in open_with_reference
+    )
+    assert all(
+        campaign.risk_reference is None for campaign in chart.campaigns if campaign.status != "OPEN"
+    )
+
+
+def test_open_campaigns_fall_back_to_strike_and_spot_without_inventing_iv() -> None:
+    snapshot = DemoDashboardReader().execute()
+    underlying = replace(snapshot.underlyings[0], open_call_clocks=())
+
+    chart = build_campaign_chart(underlying)
+    open_campaigns = [campaign for campaign in chart.campaigns if campaign.status == "OPEN"]
+
+    assert open_campaigns
+    assert all(campaign.risk_reference is not None for campaign in open_campaigns)
+    assert all(
+        campaign.risk_reference.source == "STRIKE / SPOT ONLY"
+        and campaign.risk_reference.expected_move is None
+        and campaign.risk_reference.implied_volatility_percent is None
+        for campaign in open_campaigns
+        if campaign.risk_reference is not None
+    )
 
 
 def _events_by_campaign(events: Sequence[PriceEvent]) -> dict[str, list[PriceEvent]]:

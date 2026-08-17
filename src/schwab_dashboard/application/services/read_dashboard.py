@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -24,7 +25,12 @@ from schwab_dashboard.application.dashboard.models import (
     IncomeSummary,
     RiskSummary,
 )
+from schwab_dashboard.application.dashboard.option_activity import (
+    build_option_outcomes,
+    build_recent_option_activity,
+)
 from schwab_dashboard.application.dashboard.performance import OperatorMetricsSummary
+from schwab_dashboard.application.dashboard.premium_pace import build_open_premium_pace
 from schwab_dashboard.application.market_time import market_date
 from schwab_dashboard.application.performance.projection import build_performance_comparison
 from schwab_dashboard.application.ports.analytics import LiveAnalyticsReader
@@ -41,11 +47,13 @@ class ReadDashboard:
         analytics_reader: LiveAnalyticsReader,
         credentials_configured: bool,
         token_available: bool,
+        clock: Callable[[], datetime] | None = None,
     ) -> None:
         self._uow_factory = uow_factory
         self._analytics_reader = analytics_reader
         self._credentials_configured = credentials_configured
         self._token_available = token_available
+        self._clock = clock or _utc_now
 
     def execute(self) -> DashboardSnapshot:
         with self._uow_factory() as uow:
@@ -93,10 +101,11 @@ class ReadDashboard:
         daily_bars = self._analytics_reader.list_daily_bars(symbols=daily_bar_symbols)
         balance_history = self._analytics_reader.list_balance_history()
 
+        evaluated_at = self._clock()
         as_of = (
             latest_sync.completed_at
             if latest_sync is not None and latest_sync.completed_at is not None
-            else datetime.now(UTC)
+            else evaluated_at
         )
         as_of_market_date = market_date(as_of)
 
@@ -109,9 +118,13 @@ class ReadDashboard:
         live_book = build_live_position_book(
             positions,
             as_of=as_of_market_date,
+            evaluated_at=evaluated_at,
             option_market=option_market,
             underlying_market=underlying_market,
+            daily_bars=daily_bars,
+            executions=executions,
         )
+        open_premium_pace = build_open_premium_pace(live_book, executions)
         covered_capital = sum(
             (abs(item.market_value or ZERO) for item in live_book.underlyings), ZERO
         )
@@ -138,29 +151,53 @@ class ReadDashboard:
             as_of=as_of_market_date,
             put_positions=live_book.puts,
         )
+        recent_option_activity = build_recent_option_activity(
+            executions,
+            as_of=as_of_market_date,
+        )
+        option_outcomes = build_option_outcomes(
+            executions,
+            lifecycle_events,
+            as_of=as_of_market_date,
+            open_call_contracts=live_book.open_call_contracts,
+            open_put_contracts=live_book.open_put_contracts,
+        )
         has_live_records = bool(positions or executions or cash_movements or lifecycle_events)
         base_risk = summarize_risk(positions)
+        active_risk_options = tuple(
+            option for option in (*live_book.calls, *live_book.puts) if option.can_close_or_roll
+        )
+        portfolio_delta = (
+            Decimal(live_book.total_shares)
+            + sum(
+                (
+                    -option.delta * option.contract_multiplier * Decimal(option.contracts)
+                    for option in active_risk_options
+                    if option.delta is not None
+                ),
+                ZERO,
+            )
+            if all(option.delta is not None for option in active_risk_options)
+            else None
+        )
         risk = RiskSummary(
             buying_power_used_percent=(
                 (portfolio.maintenance_requirement or ZERO) / portfolio.total_value * Decimal("100")
                 if portfolio.total_value
                 else ZERO
             ),
-            portfolio_delta=Decimal(live_book.total_shares)
-            + sum(
-                (
-                    -(option.delta or ZERO) * Decimal("100") * Decimal(option.contracts)
-                    for option in (*live_book.calls, *live_book.puts)
-                ),
-                ZERO,
-            ),
+            portfolio_delta=portfolio_delta,
             daily_theta=sum(
                 (item.estimated_option_theta_per_day for item in live_book.underlyings),
                 ZERO,
             ),
             short_contracts=live_book.open_call_contracts + live_book.open_put_contracts,
             next_expiration=min(
-                (option.expires_on for option in (*live_book.calls, *live_book.puts)),
+                (
+                    option.expires_on
+                    for option in (*live_book.calls, *live_book.puts)
+                    if option.can_close_or_roll
+                ),
                 default=None,
             ),
             largest_position_percent=base_risk.largest_position_percent,
@@ -218,7 +255,11 @@ class ReadDashboard:
                 position_history=position_history,
                 daily_bars=daily_bars,
                 executions=executions,
+                lifecycle_events=lifecycle_events,
             ),
+            recent_option_activity=recent_option_activity,
+            option_outcomes=option_outcomes,
+            open_premium_pace=open_premium_pace,
         )
 
 
@@ -249,6 +290,10 @@ def _empty_covered_calls() -> CoveredCallPortfolioSummary:
         annualized_total_cash_yield=ZERO,
         premium_capture_percent=ZERO,
     )
+
+
+def _utc_now() -> datetime:
+    return datetime.now(UTC)
 
 
 def _empty_operator_metrics() -> OperatorMetricsSummary:

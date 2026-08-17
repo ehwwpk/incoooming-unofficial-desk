@@ -37,12 +37,12 @@
   padding: 2px 3px;
   background: #11100c;
   color: var(--gold);
-  font: 750 .34rem/1 var(--mono);
+  font: 750 var(--type-micro)/1 var(--mono);
   box-shadow: 0 2px 8px rgb(0 0 0 / 45%);
   transform-origin: 20% 80%;
   animation: nibwick-badge-bob 1800ms ease-in-out infinite;
 }
-.nibwick-alert-plaque b { font-size: .42rem; }
+.nibwick-alert-plaque b { font-size: var(--type-micro); }
 .nibwick-alert-badge[data-new-count="0"] .nibwick-alert-plaque b { color: var(--muted); }
 .nibwick-alert-badge:hover .nibwick-alert-plaque,
 .nibwick-alert-badge:focus-visible .nibwick-alert-plaque {
@@ -115,7 +115,7 @@ body[data-nibwick-popover-open="true"] .nibwick-stage .nibwick-obstacle { animat
 .nibwick-popover-heading > .nibwick-popover-copy { display: grid; min-width: 0; align-content: center; gap: 2px; padding: 5px var(--note-pad) 6px; }
 .nibwick-popover-meta { display: flex; min-width: 0; align-items: center; gap: 5px; }
 .nibwick-popover-meta > strong { color: var(--gold); font: 800 7.5px/1 var(--mono); letter-spacing: .08em; }
-.nibwick-popover-level { border-left: 1px solid var(--gold); padding-left: 5px; color: var(--gold); font: 700 6.75px/1 var(--mono); letter-spacing: .05em; }
+.nibwick-popover-level { border-left: 1px solid var(--gold); padding-left: 5px; color: var(--gold); font: 700 var(--type-micro)/1 var(--mono); letter-spacing: .05em; }
 .nibwick-popover-level.attention { border-color: var(--red); color: var(--red); }
 .nibwick-popover-level.watch { border-color: var(--green); color: #7fc79c; }
 .nibwick-popover-heading h2 { min-width: 0; margin: 0; overflow: hidden; color: #e4e7e3; font: 620 11px/13px var(--sans); letter-spacing: 0; text-overflow: ellipsis; white-space: nowrap; }
@@ -190,7 +190,7 @@ body[data-nibwick-popover-open="true"] .nibwick-stage .nibwick-obstacle { animat
 .nibwick-alert-roster button[aria-current="true"] { background: #171811; color: #e4e7e3; box-shadow: inset 0 -1px var(--gold); }
 .nibwick-alert-roster button:hover, .nibwick-alert-roster button:focus-visible { background: #17150e; color: var(--text); outline: 1px solid var(--gold); outline-offset: -1px; }
 .nibwick-alert-roster strong { margin-right: auto; font: 760 7.25px/1 var(--mono); letter-spacing: .05em; }
-.nibwick-alert-roster small { color: #6f7776; font: 680 5.75px/1 var(--mono); letter-spacing: .04em; }
+.nibwick-alert-roster small { color: var(--text-tertiary); font: 680 var(--type-micro)/1 var(--mono); letter-spacing: .04em; }
 .nibwick-alert-roster button[data-review-state="new"] small { color: #c9a94f; }
 .nibwick-popover-notes { min-width: 0; background: var(--note-bg); }
 .nibwick-note { display: block; }
@@ -209,22 +209,22 @@ body[data-nibwick-popover-open="true"] .nibwick-stage .nibwick-obstacle { animat
 .nibwick-note dl > div { display: grid; min-width: 0; min-height: 40px; align-content: center; gap: 2px; padding: 5px var(--note-pad) 6px; }
 .nibwick-note dl > div + div { border-left: 1px solid var(--note-line); }
 .nibwick-note dl.four-up { grid-template-columns: repeat(4, 1fr); }
-.nibwick-note dt { margin: 0; overflow: hidden; color: #7f8789; font: 700 6.75px/8px var(--mono); letter-spacing: .055em; text-overflow: ellipsis; white-space: nowrap; }
+.nibwick-note dt { margin: 0; overflow: hidden; color: var(--text-tertiary); font: 700 var(--type-micro)/8px var(--mono); letter-spacing: .055em; text-overflow: ellipsis; white-space: nowrap; }
 .nibwick-note dd { display: grid; min-width: 0; gap: 1px; margin: 0; }
 .nibwick-note dd strong { color: #e4e7e3; font: 680 10px/12px var(--mono); overflow-wrap: anywhere; }
-.nibwick-note dd span { color: #858d8f; font: 650 6.75px/8px var(--mono); letter-spacing: .02em; }
+.nibwick-note dd span { color: var(--text-tertiary); font: 650 var(--type-micro)/8px var(--mono); letter-spacing: .02em; }
 .nibwick-roll-ladder { background: var(--note-bg); }
 .nibwick-roll-ladder > header { display: flex; min-height: 22px; align-items: center; justify-content: space-between; gap: 6px; padding: 4px var(--note-pad); border-top: 1px solid var(--note-rule); border-bottom: 1px solid var(--note-rule); }
 .nibwick-roll-ladder > header strong { color: #c7a44f; font: 750 7.25px/1 var(--mono); letter-spacing: .065em; }
-.nibwick-roll-ladder > header > span { color: #727a7c; font: 650 6.5px/1 var(--mono); letter-spacing: .02em; text-align: right; }
+.nibwick-roll-ladder > header > span { color: var(--text-tertiary); font: 650 var(--type-micro)/1 var(--mono); letter-spacing: .02em; text-align: right; }
 .nibwick-roll-preview { display: grid; }
 .nibwick-roll-row { display: grid; width: 100%; min-width: 0; min-height: 34px; grid-template-columns: 1.25fr .95fr .78fr; align-items: center; border: 0; border-bottom: 1px solid var(--note-line); padding: 0; background: transparent; color: inherit; cursor: pointer; text-align: left; text-decoration: none; }
 .nibwick-roll-row:hover, .nibwick-roll-row:focus-visible { background: #17150e; box-shadow: inset 2px 0 #c7a44f; outline: 0; }
 .nibwick-roll-row > div { display: grid; min-width: 0; gap: 1px; padding: 4px var(--note-pad) 5px; }
 .nibwick-roll-row b { overflow: hidden; color: #d9ddda; font: 680 8.25px/10px var(--mono); text-overflow: ellipsis; white-space: nowrap; }
-.nibwick-roll-row small { color: #7f8789; font: 620 6.5px/8px var(--mono); letter-spacing: .015em; }
+.nibwick-roll-row small { color: var(--text-tertiary); font: 620 var(--type-micro)/8px var(--mono); letter-spacing: .015em; }
 .nibwick-roll-cash { justify-items: end; text-align: right; }
-.nibwick-roll-cash span { color: #c7a44f; font: 720 5.75px/7px var(--mono); letter-spacing: .045em; }
+.nibwick-roll-cash span { color: #d8b760; font: 720 var(--type-micro)/7px var(--mono); letter-spacing: .045em; }
 .nibwick-note-actions { display: flex; min-height: 25px; align-items: stretch; justify-content: flex-end; gap: 0; margin: 0; padding: 0; background: var(--note-band); }
 .nibwick-popover-nav {
   display: flex;
@@ -240,7 +240,7 @@ body[data-nibwick-popover-open="true"] .nibwick-stage .nibwick-obstacle { animat
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  font: 700 6.75px/8px var(--mono);
+  font: 700 var(--type-micro)/8px var(--mono);
 }
 .nibwick-popover-nav button:hover, .nibwick-popover-nav button:focus-visible { background: #17150e; color: var(--gold); outline: 1px solid var(--gold); outline-offset: -1px; }
 .nibwick-note-actions > a { display: flex; min-width: 84px; align-items: center; justify-content: center; border-left: 1px solid var(--note-rule); padding: 0 9px; color: #d0ad52; font: 750 7.5px/9px var(--mono); letter-spacing: .035em; text-decoration: none; }
@@ -288,7 +288,7 @@ body[data-nibwick-popover-open="true"] .nibwick-stage .nibwick-obstacle { animat
   .nibwick-roll-row > div:nth-child(2) { display: none; }
 }
 .nibwick-no-roll { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 7px var(--note-pad); border-top: 1px solid var(--note-rule); border-bottom: 1px solid var(--note-rule); background: #171311; }
-.nibwick-no-roll b { color: var(--red); font: 730 6.8px var(--mono); }
+.nibwick-no-roll b { color: var(--red); font: 730 var(--type-micro) var(--mono); }
 .nibwick-no-roll span { color: #9ca29f; font: 430 8.5px/11px var(--sans); }
-.nibwick-no-roll a { color: var(--gold); font: 720 6.8px var(--mono); text-decoration: none; white-space: nowrap; }
+.nibwick-no-roll a { color: var(--gold); font: 720 var(--type-control) var(--mono); text-decoration: none; white-space: nowrap; }
 .nibwick-no-roll > div { display: flex; align-items: center; gap: 9px; }

@@ -31,6 +31,7 @@ class RollBoardRow:
 @dataclass(frozen=True, slots=True)
 class RollBoardProjection:
     rows: tuple[RollBoardRow, ...]
+    total_contracts: int
     attention_count: int
     clean_roll_count: int
     no_clean_count: int
@@ -72,6 +73,7 @@ def build_roll_board(snapshot: DashboardSnapshot) -> RollBoardProjection:
     )
     return RollBoardProjection(
         rows=tuple(rows),
+        total_contracts=sum((row.source.contracts for row in rows), 0),
         attention_count=attention_count,
         clean_roll_count=len(rows) - no_clean_count,
         no_clean_count=no_clean_count,
@@ -88,6 +90,8 @@ def _call_row(
     current_price: Decimal,
     call: OpenCallClock,
 ) -> RollBoardRow | None:
+    if not call.can_close_or_roll:
+        return None
     urgency = _urgency(call.strike_distance_percent, call.days_to_expiration)
     if urgency is None:
         return None
@@ -134,7 +138,11 @@ def _call_row(
 
 
 def _put_row(put: LiveOpenOptionPosition) -> RollBoardRow | None:
-    if put.strike_distance_percent is None or put.strike_distance_per_share is None:
+    if (
+        not put.can_close_or_roll
+        or put.strike_distance_percent is None
+        or put.strike_distance_per_share is None
+    ):
         return None
     urgency = _urgency(put.strike_distance_percent, put.days_to_expiration)
     if urgency is None:

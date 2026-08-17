@@ -43,11 +43,46 @@ def test_open_book_projection_reconciles_to_dashboard_open_mark() -> None:
     assert projection.current_liability == snapshot.covered_calls.open_call_mark_value
     assert projection.open_profit_loss == snapshot.covered_calls.open_mark_profit_loss
     assert projection.theta_estimate_per_day == snapshot.risk.daily_theta
+    assert (
+        projection.same_day_theta_estimate_per_day + projection.later_theta_estimate_per_day
+        == projection.theta_estimate_per_day
+    )
     assert projection.obligated_shares == snapshot.covered_calls.active_contracts * 100
     assert tuple(row for group in projection.groups for row in group.rows) == projection.rows
     assert {group.symbol for group in projection.groups} == {
         item.symbol for item in snapshot.underlyings if item.open_call_clocks
     }
+    assert projection.risk is not None
+    assert projection.risk.context.method == "signed-open-option-greek-aggregation"
+    assert projection.risk.theta_estimate_per_day == projection.theta_estimate_per_day
+
+
+def test_open_book_risk_normalizes_naive_sqlite_sync_timestamps() -> None:
+    snapshot = DemoDashboardReader().execute()
+    underlying = snapshot.underlyings[0]
+    clock_without_quote_time = replace(
+        underlying.open_call_clocks[0],
+        quote_observed_on=None,
+    )
+    sqlite_shaped_snapshot = replace(
+        snapshot,
+        as_of=snapshot.as_of.replace(tzinfo=None),
+        underlyings=(
+            replace(
+                underlying,
+                open_call_clocks=(
+                    clock_without_quote_time,
+                    *underlying.open_call_clocks[1:],
+                ),
+            ),
+            *snapshot.underlyings[1:],
+        ),
+    )
+
+    projection = build_open_book(sqlite_shaped_snapshot)
+
+    assert projection.risk is not None
+    assert projection.risk.context.as_of.tzinfo is not None
 
 
 def test_open_book_exposes_exact_contract_clocks_and_bounded_value_track() -> None:
@@ -62,12 +97,51 @@ def test_open_book_exposes_exact_contract_clocks_and_bounded_value_track() -> No
         assert row.option_value_overrun_percent == max(
             Decimal(0), row.option_value_vs_credit_percent - Decimal(100)
         )
+        if row.delta is not None:
+            assert row.position_delta_share_equivalent == (
+                -row.delta * Decimal(row.obligated_shares)
+            )
+        if row.vega is not None:
+            assert row.position_vega_per_volatility_point == (
+                -row.vega * Decimal(row.obligated_shares)
+            )
+        assert row.price_time_read is not None
+        assert row.price_time_read.theta_per_day == row.theta_estimate_per_day
     for group in projection.groups:
         assert group.contract_count == sum(row.contracts for row in group.rows)
         assert group.next_expiration_dte == min(row.days_to_expiration for row in group.rows)
         assert abs(group.nearest_buffer_percent) == min(
             abs(row.strike_distance_percent) for row in group.rows
         )
+
+
+def test_open_book_uses_the_exact_contract_multiplier_for_position_greeks() -> None:
+    snapshot = DemoDashboardReader().execute()
+    underlying = snapshot.underlyings[0]
+    adjusted_clock = replace(
+        underlying.open_call_clocks[0],
+        contract_multiplier=Decimal("25"),
+    )
+    adjusted_snapshot = replace(
+        snapshot,
+        underlyings=(
+            replace(
+                underlying,
+                open_call_clocks=(adjusted_clock, *underlying.open_call_clocks[1:]),
+            ),
+            *snapshot.underlyings[1:],
+        ),
+    )
+
+    projection = build_open_book(adjusted_snapshot)
+    row = next(item for item in projection.rows if item.record_id == adjusted_clock.record_id)
+
+    assert row.obligated_shares == adjusted_clock.contracts * 25
+    assert row.position_delta_share_equivalent == (
+        -adjusted_clock.delta * Decimal(row.obligated_shares)
+        if adjusted_clock.delta is not None
+        else None
+    )
 
 
 def test_desk_overview_prioritizes_the_nearest_live_call_without_losing_totals() -> None:
@@ -85,6 +159,7 @@ def test_desk_overview_prioritizes_the_nearest_live_call_without_losing_totals()
     assert overview.nearest_call.anchor_id.startswith("option-")
     assert len(overview.position_rows) == len(snapshot.underlyings)
     assert sum(row.open_positions for row in overview.position_rows) == overview.open_positions
+    assert all(row.risk is not None for row in overview.position_rows)
 
 
 def test_desk_overview_includes_short_puts_without_corrupting_call_coverage() -> None:
@@ -126,8 +201,23 @@ def test_desk_overview_includes_short_puts_without_corrupting_call_coverage() ->
     assert open_book.call_contracts == snapshot.covered_calls.active_contracts
     assert open_book.total_contracts == snapshot.covered_calls.active_contracts + 1
     assert open_book.total_positions == len(open_book.rows) + 1
+    assert (
+        open_book.same_day_theta_estimate_per_day + open_book.later_theta_estimate_per_day
+        == open_book.theta_estimate_per_day
+    )
     assert open_book.put_rows[0].symbol == "URNM"
     assert open_book.put_rows[0].days_to_expiration == 42
+    assert open_book.put_rows[0].obligated_shares == 100
+    assert open_book.put_rows[0].assignment_notional == Decimal("5000")
+    assert open_book.put_rows[0].entry_credit_per_share == Decimal("1.20")
+    assert open_book.put_rows[0].entry_credit == Decimal("120")
+    assert open_book.put_rows[0].estimated_close_cost == Decimal("170")
+    assert open_book.put_rows[0].close_cost_basis == "MARK ESTIMATE"
+    assert open_book.put_rows[0].effective_entry_per_share == Decimal("48.80")
+    assert open_book.put_rows[0].strike_state_label == "OTM BUFFER"
+    assert open_book.put_rows[0].strike_distance_display == abs(
+        open_book.put_rows[0].strike_distance_per_share
+    )
 
 
 def test_volatility_projection_uses_daily_closes_and_refuses_to_invent_iv_rank() -> None:

@@ -45,10 +45,15 @@ class CachedDashboardReader:
         delegate: DashboardReader,
         cache: GenerationCache,
         key: Hashable,
+        cache_partition: Callable[[], Hashable] | None = None,
     ) -> None:
         self._delegate = delegate
         self._cache = cache
         self._key = key
+        self._cache_partition = cache_partition
 
     def execute(self) -> DashboardSnapshot:
-        return self._cache.get_or_load(self._key, self._delegate.execute)
+        key = (
+            (self._key, self._cache_partition()) if self._cache_partition is not None else self._key
+        )
+        return self._cache.get_or_load(key, self._delegate.execute)

@@ -139,6 +139,8 @@ def build_price_events(
                 record_id=action.record.record_id,
                 campaign_id=action.record.campaign_id,
                 date=action.event_date,
+                occurred_at=None,
+                time_precision="date_only",
                 label=action.event_date.strftime("%m/%d"),
                 event_type=action.event_type,
                 glyph=action.glyph,

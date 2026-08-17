@@ -16,6 +16,11 @@ from schwab_dashboard.application.dashboard.models import (
     PortfolioSummary,
     RiskSummary,
 )
+from schwab_dashboard.application.dashboard.option_activity import (
+    OptionOutcomeSummary,
+    RecentOptionActivityItem,
+)
+from schwab_dashboard.application.dashboard.premium_pace import build_demo_premium_pace
 from schwab_dashboard.infrastructure.demo.fixtures.call_history import build_call_history
 from schwab_dashboard.infrastructure.demo.fixtures.call_stats import (
     build_covered_call_summary,
@@ -87,6 +92,34 @@ class DemoDashboardReader:
             performance_windows,
             as_of,
         )
+        recent_option_activity = tuple(
+            RecentOptionActivityItem(
+                event_id=event.event_id,
+                occurred_at=datetime(
+                    event.occurred_on.year,
+                    event.occurred_on.month,
+                    event.occurred_on.day,
+                    16,
+                    tzinfo=UTC,
+                ),
+                occurred_on=event.occurred_on,
+                date_label=(
+                    "TODAY"
+                    if event.occurred_on == as_of
+                    else event.occurred_on.strftime("%b %d").upper()
+                ),
+                symbol=event.symbol,
+                action_label=event.action_label,
+                detail=f"{event.contracts} {'CONTRACT' if event.contracts == 1 else 'CONTRACTS'}",
+                amount=event.amount,
+                contracts=event.contracts,
+                tone="roll" if "ROLLED" in event.action_label else event.tone,
+                anchor_id=event.anchor_id,
+                leg_count=2 if "ROLLED" in event.action_label else 1,
+            )
+            for event in cash_events
+            if event.contracts
+        )[:8]
         policies = build_policies()
         campaigns = build_campaigns(call_history, underlyings, policies, as_of)
         windows_by_key = {window.key: window for window in performance_windows}
@@ -163,4 +196,18 @@ class DemoDashboardReader:
                 largest_position_percent=D("58.8"),
                 open_campaigns=sum(campaign.status == "OPEN" for campaign in campaigns),
             ),
+            recent_option_activity=recent_option_activity,
+            option_outcomes=OptionOutcomeSummary(
+                recorded_from=min(record.sold_on for record in call_history),
+                recorded_through=as_of,
+                expired_contracts=covered_calls.expired_contracts,
+                bought_back_contracts=covered_calls.closed_contracts,
+                rolled_contracts=covered_calls.rolled_contracts,
+                roll_orders=sum(record.outcome == "Rolled" for record in call_history),
+                assigned_contracts=covered_calls.assigned_contracts,
+                assignment_shares=covered_calls.called_away_shares,
+                open_call_contracts=covered_calls.active_contracts,
+                open_put_contracts=0,
+            ),
+            open_premium_pace=build_demo_premium_pace(underlyings),
         )

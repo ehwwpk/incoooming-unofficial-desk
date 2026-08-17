@@ -7,6 +7,7 @@ from schwab_dashboard.application.dashboard.models import (
     LiveOpenOptionPosition,
     LivePositionBook,
 )
+from schwab_dashboard.application.market_time import OptionSessionState
 from schwab_dashboard.application.rolls import RollQuote
 from schwab_dashboard.application.rolls.board import build_roll_board
 from schwab_dashboard.application.rolls.catalog import build_roll_source_catalog
@@ -46,6 +47,7 @@ def test_roll_board_ranks_an_urgent_call_and_exposes_candidates() -> None:
     assert row.days_to_expiration == 2
     assert row.urgency == "NEEDS ATTENTION"
     assert row.candidates[0].option_symbol == "NEXT CALL"
+    assert projection.total_contracts == sum(item.source.contracts for item in projection.rows)
     assert projection.posture == "AT THE DESK"
 
 
@@ -119,9 +121,32 @@ def test_radar_roll_catalog_includes_every_open_call_without_requiring_an_alert(
 
     catalog = build_roll_source_catalog(snapshot)
 
-    expected_calls = sum(
-        len(underlying.open_call_clocks) for underlying in snapshot.underlyings
-    )
+    expected_calls = sum(len(underlying.open_call_clocks) for underlying in snapshot.underlyings)
     assert len(catalog) == expected_calls
     assert {choice.option_side for choice in catalog} == {OptionSide.CALL}
     assert {choice.symbol for choice in catalog} == {"CVX", "KTOS", "URNM"}
+
+
+def test_roll_board_excludes_broker_inventory_after_the_last_trading_session() -> None:
+    snapshot = DemoDashboardReader().execute()
+    underlying = snapshot.underlyings[0]
+    call = replace(
+        underlying.open_call_clocks[0],
+        session_state=OptionSessionState.CLOSED_PENDING_SETTLEMENT,
+    )
+    updated = replace(
+        underlying,
+        open_call_clocks=(call, *underlying.open_call_clocks[1:]),
+    )
+
+    projection = build_roll_board(
+        replace(snapshot, underlyings=(updated, *snapshot.underlyings[1:]))
+    )
+
+    assert call.record_id not in {row.source.option_symbol for row in projection.rows}
+    assert call.record_id not in {
+        choice.option_symbol
+        for choice in build_roll_source_catalog(
+            replace(snapshot, underlyings=(updated, *snapshot.underlyings[1:]))
+        )
+    }

@@ -139,18 +139,18 @@ def test_demo_mode_renders_operator_plan_without_credentials(tmp_path: Path) -> 
         assert 'data-period="quarter"' in page.text
         assert 'data-period="ytd"' in page.text
         assert 'data-period="r365"' in page.text
-        assert "Cash activity" in page.text
+        assert "Cash &amp; recent moves" in page.text
         assert "Cash timeline" not in page.text
         assert "EXECUTED CLOSE / ROLL DEBITS" in page.text
         assert "Transaction records" not in page.text
-        assert "OPEN OPTIONS" in page.text
-        assert "RESULTS" in page.text
+        assert "Open options" in page.text
+        assert "Results" in page.text
         assert "2,000</b> SHARES" in page.text
         assert page.text.count("data-campaign-chart data-symbol") == 3
         assert page.text.count("data-campaign-chart-fallback") == 3
         assert page.text.count("data-campaign-chart-legacy") == 0
         assert page.text.count("data-cash-activity-window") == 4
-        assert page.text.count("data-cash-event-target") == 12
+        assert page.text.count("data-cash-event-target") == len(payload["recent_option_activity"])
         assert page.text.count("data-workspace-splitter") == 3
         assert page.text.count("data-nibwick-note\n      data-alert-id") == 1
         assert page.text.count("data-nibwick-note-jump") == 1

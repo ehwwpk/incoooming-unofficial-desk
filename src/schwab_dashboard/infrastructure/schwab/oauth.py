@@ -110,10 +110,27 @@ class SchwabOAuthClient:
             headers={"Accept": "application/json"},
         )
         if response.status_code in {400, 401}:
+            # Schwab's OAuth error code is safe and materially distinguishes an
+            # expired/consumed grant from invalid app credentials. Do not echo
+            # the provider's free-form description because it is external text
+            # and could contain request details.
+            provider_error = "unknown_oauth_error"
+            try:
+                error_payload = response.json()
+                candidate = (
+                    error_payload.get("error")
+                    if isinstance(error_payload, dict)
+                    else None
+                )
+                if isinstance(candidate, str) and candidate.replace("_", "").isalnum():
+                    provider_error = candidate
+            except (ValueError, TypeError):
+                pass
             raise AuthenticationRequiredError(
-                "Schwab rejected the OAuth token request. The authorization code may be "
-                "expired, the callback URL may not match exactly, or re-authorization "
-                "may be required."
+                "Schwab rejected the OAuth token request "
+                f"(HTTP {response.status_code}, {provider_error}). "
+                "The authorization code may be expired or consumed, the callback URL may "
+                "not match exactly, or the app credentials may need review."
             )
         response.raise_for_status()
         payload: Any = response.json()

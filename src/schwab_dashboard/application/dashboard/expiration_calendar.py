@@ -47,6 +47,13 @@ def _bucket(
     call_contracts = sum(clock.contracts for _, clock in rows)
     put_contracts = sum(put.contracts for put in puts)
     contracts = call_contracts + put_contracts
+    session_states = tuple(clock.session_state for _, clock in rows) + tuple(
+        put.session_state for put in puts
+    )
+    can_close_or_roll = any(state.can_close_or_roll for state in session_states)
+    session_label = (
+        "OPEN" if can_close_or_roll else session_states[0].label if session_states else "OPEN"
+    )
     events = {
         f"{underlying.symbol} ex-dividend {underlying.next_ex_dividend_date:%b %d}"
         for underlying, _ in rows
@@ -90,4 +97,6 @@ def _bucket(
         event_labels=tuple(sorted(events)),
         call_contracts=call_contracts,
         put_contracts=put_contracts,
+        session_label=session_label,
+        can_close_or_roll=can_close_or_roll,
     )

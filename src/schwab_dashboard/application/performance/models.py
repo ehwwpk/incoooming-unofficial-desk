@@ -26,6 +26,86 @@ class ComparisonSeries:
 
 
 @dataclass(frozen=True, slots=True)
+class ManagementEdge:
+    status: str
+    return_difference_percent: Decimal | None
+    method_note: str
+
+
+@dataclass(frozen=True, slots=True)
+class RiskStatistics:
+    status: str
+    observations: int
+    measured_days: int
+    max_drawdown_percent: Decimal | None
+    annualized_volatility_percent: Decimal | None
+    positive_day_percent: Decimal | None
+    worst_day_percent: Decimal | None
+    method_note: str
+
+
+@dataclass(frozen=True, slots=True)
+class OptionEconomics:
+    status: str
+    opening_credits: Decimal
+    closing_debits: Decimal
+    fees: Decimal
+    net_executed_cash: Decimal
+    closed_campaign_result: Decimal | None
+    closed_campaigns: int
+    exact_closed_campaigns: int
+    inferred_closed_campaigns: int
+    open_mark_profit_loss: Decimal | None
+    current_option_liability: Decimal | None
+    campaign_cash_variance: Decimal
+    slippage_status: str
+    method_note: str
+
+
+@dataclass(frozen=True, slots=True)
+class CapitalEfficiency:
+    status: str
+    average_net_liquidation: Decimal | None
+    latest_net_liquidation: Decimal | None
+    option_cash_on_average_capital_percent: Decimal | None
+    maintenance_requirement: Decimal | None
+    maintenance_to_net_liquidation_percent: Decimal | None
+    buying_power: Decimal | None
+    available_funds: Decimal | None
+    method_note: str
+
+
+@dataclass(frozen=True, slots=True)
+class AssignmentImpact:
+    status: str
+    assigned_call_contracts: int
+    called_away_shares: int
+    assigned_put_contracts: int
+    acquired_shares: int
+    period_end_upside_reference: Decimal | None
+    method_note: str
+
+
+@dataclass(frozen=True, slots=True)
+class BenchmarkPolicyItem:
+    key: str
+    label: str
+    role: str
+    status: str
+    method_note: str
+
+
+@dataclass(frozen=True, slots=True)
+class PerformanceSpine:
+    management_edge: ManagementEdge
+    risk: RiskStatistics
+    option_economics: OptionEconomics
+    capital_efficiency: CapitalEfficiency
+    assignment_impact: AssignmentImpact
+    benchmark_policy: tuple[BenchmarkPolicyItem, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class PerformanceComparison:
     methodology_version: str
     range_label: str
@@ -36,4 +116,5 @@ class PerformanceComparison:
     shares_without_options: ComparisonSeries
     option_overlay: ComparisonSeries
     market_reference: ComparisonSeries
+    spine: PerformanceSpine
     warnings: tuple[str, ...]

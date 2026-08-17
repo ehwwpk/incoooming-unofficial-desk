@@ -373,7 +373,7 @@
     setText(root, "[data-radar-map-economic]", isCall
       ? money(Number(candidate.strike) + Number(candidate.bid), 2)
       : money(candidate.effective_entry, 2));
-    setText(root, "[data-radar-map-volatility]", `Δ ${nullableMetric(candidate.delta, (value) => number(value, 2))} · IV ${nullableMetric(candidate.implied_volatility, (value) => `${number(value, 1)}%`)}`);
+    setText(root, "[data-radar-map-volatility]", `|Δ| ${nullableMetric(candidate.delta, (value) => number(Math.abs(value), 2))} · IV ${nullableMetric(candidate.implied_volatility, (value) => `${number(value, 1)}%`)}`);
     setText(root, "[data-radar-map-market]", `${money(candidate.bid)} / ${money(candidate.ask)} · ${number(candidate.spread_percent, 1)}%`);
     setText(root, "[data-radar-map-liquidity]", `${nullableMetric(candidate.open_interest, (value) => number(value, 0))} / ${nullableMetric(candidate.volume, (value) => number(value, 0))}`);
     setText(root, "[data-radar-map-summary]", isCall

@@ -1,3 +1,5 @@
+{% from "partials/_price_time_fact.html" import five_session_pressure %}
+
 <div class="live-position-grid" aria-label="Live Schwab short-option positions">
   {% for item in live_book.underlyings %}
   <article class="live-position-card">
@@ -15,22 +17,24 @@
     </div>
     <div class="live-call-rows">
       {% for call in item.calls %}
+      {% set price_time = call.price_time_read %}
       <div id="{{ call.option_symbol | option_anchor }}" class="live-call-row" tabindex="-1" data-option-contract="{{ call.option_symbol }}">
         <div><strong>-{{ call.contracts }} &nbsp;{{ call.expires_on | short_date }} &nbsp;${{ '%g' | format(call.strike) }}C</strong><small>{{ call.days_to_expiration }} DTE</small></div>
         <div><span>TO STRIKE</span>{% if call.strike_distance_per_share is not none %}<b class="{{ call.strike_distance_per_share | pnl_class }}">{{ call.strike_distance_per_share | money }} / {{ call.strike_distance_percent | percent }}</b>{% else %}<b>—</b>{% endif %}<small>From current underlying mark</small></div>
         <div><span>AVG CREDIT</span><b>{{ call.entry_credit_per_share | money if call.entry_credit_per_share is not none else '—' }}</b><small>Per share · Schwab average</small></div>
         <div><span>MARK / MARKET</span><b>{{ call.estimated_mark_per_share | money if call.estimated_mark_per_share is not none else '—' }}</b><small>{% if call.bid_per_share is not none and call.ask_per_share is not none %}{{ call.bid_per_share | money }} bid · {{ call.ask_per_share | money }} ask{% else %}Position-derived mark{% endif %}</small></div>
-        <div><span>IV / DELTA</span><b>{% if call.implied_volatility_percent is not none %}{{ call.implied_volatility_percent | percent }} / {{ call.delta | number }}{% else %}—{% endif %}</b><small>{% if call.theta_per_share is not none %}{{ call.theta_per_share | money }} theta/share/day{% else %}Chain data still loading{% endif %}</small></div>
+        <div title="Gamma-adjusted dollar consequence of this position's delta for the next $1 underlying move. {{ price_time.gamma_note }}"><span>DELTA &middot; NEXT $1</span><b class="price-time-pair">{% if price_time.up_one_dollar_effect is not none %}<em>UP</em> <em class="{{ price_time.up_one_dollar_effect | pnl_class }}">{{ '+' if price_time.up_one_dollar_effect > 0 else '' }}{{ price_time.up_one_dollar_effect | money }}</em> <em>&middot; DOWN</em> <em class="{{ price_time.down_one_dollar_effect | pnl_class }}">{{ '+' if price_time.down_one_dollar_effect > 0 else '' }}{{ price_time.down_one_dollar_effect | money }}</em>{% else %}<em>&mdash;</em>{% endif %}</b><small>TIME {% if price_time.theta_per_day is not none %}+{{ price_time.theta_per_day | money }}/DAY{% else %}UNAVAILABLE{% endif %}{% if price_time.price_effect is not none %} &middot; LAST {{ '+' if price_time.price_effect > 0 else '' }}{{ price_time.price_effect | money }}{% endif %}</small>{{ five_session_pressure(price_time) }}</div>
         <div><span>OPEN P/L</span><b class="{{ call.open_profit_loss | pnl_class }}">{{ call.open_profit_loss | money if call.open_profit_loss is not none else '—' }}</b><small>Schwab open-position P/L</small></div>
       </div>
       {% endfor %}
       {% for put in item.puts %}
+      {% set price_time = put.price_time_read %}
       <div id="{{ put.option_symbol | option_anchor }}" class="live-call-row live-put-row" tabindex="-1" data-option-contract="{{ put.option_symbol }}">
         <div><strong>-{{ put.contracts }} &nbsp;{{ put.expires_on | short_date }} &nbsp;${{ '%g' | format(put.strike) }}P</strong><small>{{ put.days_to_expiration }} DTE · SHORT PUT</small></div>
         <div><span>TO STRIKE</span>{% if put.strike_distance_per_share is not none %}<b class="{{ put.strike_distance_per_share | pnl_class }}">{{ put.strike_distance_per_share | money }} / {{ put.strike_distance_percent | percent }}</b>{% else %}<b>—</b>{% endif %}<small>Downside cushion from spot</small></div>
         <div><span>AVG CREDIT</span><b>{{ put.entry_credit_per_share | money if put.entry_credit_per_share is not none else '—' }}</b><small>Per share · Schwab average</small></div>
         <div><span>MARK / MARKET</span><b>{{ put.estimated_mark_per_share | money if put.estimated_mark_per_share is not none else '—' }}</b><small>{% if put.bid_per_share is not none and put.ask_per_share is not none %}{{ put.bid_per_share | money }} bid · {{ put.ask_per_share | money }} ask{% else %}Position-derived mark{% endif %}</small></div>
-        <div><span>IV / DELTA</span><b>{% if put.implied_volatility_percent is not none %}{{ put.implied_volatility_percent | percent }} / {{ put.delta | number }}{% else %}—{% endif %}</b><small>{% if put.theta_per_share is not none %}{{ put.theta_per_share | money }} theta/share/day{% else %}Chain data still loading{% endif %}</small></div>
+        <div title="Gamma-adjusted dollar consequence of this position's delta for the next $1 underlying move. {{ price_time.gamma_note }}"><span>DELTA &middot; NEXT $1</span><b class="price-time-pair">{% if price_time.up_one_dollar_effect is not none %}<em>UP</em> <em class="{{ price_time.up_one_dollar_effect | pnl_class }}">{{ '+' if price_time.up_one_dollar_effect > 0 else '' }}{{ price_time.up_one_dollar_effect | money }}</em> <em>&middot; DOWN</em> <em class="{{ price_time.down_one_dollar_effect | pnl_class }}">{{ '+' if price_time.down_one_dollar_effect > 0 else '' }}{{ price_time.down_one_dollar_effect | money }}</em>{% else %}<em>&mdash;</em>{% endif %}</b><small>TIME {% if price_time.theta_per_day is not none %}+{{ price_time.theta_per_day | money }}/DAY{% else %}UNAVAILABLE{% endif %}{% if price_time.price_effect is not none %} &middot; LAST {{ '+' if price_time.price_effect > 0 else '' }}{{ price_time.price_effect | money }}{% endif %}</small>{{ five_session_pressure(price_time) }}</div>
         <div><span>OPEN P/L</span><b class="{{ put.open_profit_loss | pnl_class }}">{{ put.open_profit_loss | money if put.open_profit_loss is not none else '—' }}</b><small>Schwab open-position P/L</small></div>
       </div>
       {% endfor %}

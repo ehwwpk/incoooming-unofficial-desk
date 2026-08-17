@@ -3,7 +3,9 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import httpx
+import pytest
 
+from schwab_dashboard.application.errors import AuthenticationRequiredError
 from schwab_dashboard.application.ports.tokens import OAuthTokenSet
 from schwab_dashboard.infrastructure.schwab.oauth import SchwabOAuthClient
 from tests.fakes import MemoryTokenStore
@@ -75,3 +77,22 @@ def test_expired_access_token_is_refreshed_without_losing_refresh_token() -> Non
     assert store.token is not None
     assert store.token.refresh_token == "refresh-original"
     assert store.token.refresh_issued_at == previous.refresh_issued_at
+
+
+def test_token_rejection_reports_safe_provider_code_without_description() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            400,
+            json={"error": "invalid_grant", "error_description": "do not echo this detail"},
+        )
+
+    oauth, client = _oauth(httpx.MockTransport(handler), MemoryTokenStore())
+    try:
+        with pytest.raises(AuthenticationRequiredError) as caught:
+            oauth.exchange_callback_url("https://127.0.0.1:8182/?code=spent")
+    finally:
+        client.close()
+
+    message = str(caught.value)
+    assert "HTTP 400, invalid_grant" in message
+    assert "do not echo" not in message

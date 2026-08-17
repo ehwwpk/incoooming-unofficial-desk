@@ -59,9 +59,20 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "Next expirations" in risk.text
         assert "CALENDAR CLOCK" in risk.text
         assert "STOCKS ·" in risk.text
-        assert risk.text.count("data-open-book-section=") == 3
+        assert risk.text.count("data-open-book-section=") == 4
+        assert "RISK LENS" in risk.text
+        assert "Carry, exposure, and IV pressure" in risk.text
+        assert "NET STOCK EXPOSURE" in risk.text
+        assert "IV COST IN THETA DAYS" in risk.text
+        assert "POSITION-ADJUSTED" in risk.text
+        assert "DELTA &middot; NEXT $1" in risk.text
+        assert "5D STOCK" in risk.text
+        assert "MOVE RISK" in risk.text
+        assert "IV +1" in risk.text
+        assert "MODEL INPUTS" in risk.text
         assert 'data-open-book-section="calendar" open' in risk.text
-        assert "MODEL TIME DECAY / DAY" in risk.text
+        assert "CURRENT MODEL THETA / DAY" in risk.text
+        assert "later expiries" in risk.text
         assert "EARNINGS DATE UNAVAILABLE" in risk.text
         assert "OPEN OWN WINDOW" in risk.text
         assert 'data-workspace-key="risk"' in risk.text
@@ -84,6 +95,7 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert 'data-results-cash-period="quarter"' in review.text
         assert 'data-results-cash-period="ytd"' in review.text
         assert 'data-results-cash-period="r365"' in review.text
+        assert "/static/performance-compare.js" in review.text
         assert "DAILY CASH" not in review.text
 
         assert radar.status_code == 200

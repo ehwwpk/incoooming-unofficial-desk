@@ -3,7 +3,11 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date as Date
+from datetime import datetime
 from decimal import Decimal
+
+from schwab_dashboard.application.market_time import OptionSessionState
+from schwab_dashboard.application.risk.price_time import PriceTimeRead
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,6 +27,8 @@ class PriceEvent:
     record_id: str
     campaign_id: str
     date: Date
+    occurred_at: datetime | None
+    time_precision: str
     label: str
     event_type: str
     glyph: str
@@ -103,6 +109,7 @@ class RollQuoteCandidate:
 class OpenCallClock:
     record_id: str
     campaign_id: str
+    campaign_label: str
     policy_id: str
     sold_on: Date
     expires_on: Date
@@ -143,6 +150,39 @@ class OpenCallClock:
     theta_days_of_time_value: Decimal
     time_remaining_percent: Decimal
     decay_stage: str
+    session_state: OptionSessionState = OptionSessionState.ACTIVE
+    contract_multiplier: Decimal = Decimal("100")
+    price_time_read: PriceTimeRead | None = None
+
+    @property
+    def can_close_or_roll(self) -> bool:
+        return self.session_state.can_close_or_roll
+
+    @property
+    def session_label(self) -> str:
+        return self.session_state.label
+
+    @property
+    def position_scale(self) -> Decimal:
+        return abs(self.contract_multiplier) * Decimal(self.contracts)
+
+    @property
+    def obligated_shares(self) -> int:
+        return int(self.position_scale)
+
+    @property
+    def position_delta_share_equivalent(self) -> Decimal | None:
+        """Current short-call price exposure expressed as equivalent shares."""
+
+        return -(self.delta * self.position_scale) if self.delta is not None else None
+
+    @property
+    def position_gamma_delta_change_per_dollar(self) -> Decimal | None:
+        return -(self.gamma * self.position_scale) if self.gamma is not None else None
+
+    @property
+    def position_vega_per_volatility_point(self) -> Decimal | None:
+        return -(self.vega * self.position_scale) if self.vega is not None else None
 
 
 @dataclass(frozen=True, slots=True)

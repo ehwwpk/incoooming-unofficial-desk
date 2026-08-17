@@ -1,32 +1,37 @@
 {% from "partials/_open_call_row.html" import open_call_row %}
+{% from "partials/_open_put_row.html" import open_put_row %}
 
 <section class="workspace-metric-strip operator-strip" aria-label="Open option summary">
-  <div><span>OPEN OBLIGATIONS</span><strong>{{ open_book.total_positions }} <small>OPTION LINES</small></strong><small>{{ open_book.total_contracts }} contracts · {{ open_book.obligated_shares }} shares committed</small></div>
+  <div><span>BROKER-REPORTED OBLIGATIONS</span><strong>{{ open_book.total_positions }} <small>OPTION LINES</small></strong><small>{{ open_book.total_contracts }} contracts{% if open_book.pending_settlement_positions %} · {{ open_book.pending_settlement_positions }} trading closed{% endif %}</small></div>
   <div><span>PREMIUM RECEIVED</span><strong>{{ open_book.entry_credit | money }}</strong><small>Opening cash on live short options</small></div>
   <div><span>OPEN MARK P/L</span><strong class="{{ open_book.open_profit_loss | pnl_class }}">{{ open_book.open_profit_loss | money }}</strong><small>Unrealized · option value now {{ open_book.current_liability | money }}</small></div>
-  <div title="Theoretical one-day option value decay, holding other pricing inputs constant. Not cash income."><span>MODEL TIME DECAY / DAY</span><strong class="positive">+{{ open_book.theta_estimate_per_day | money }}</strong><small>Estimate, not cash received</small></div>
+  <div title="Current theoretical theta across the open short-option book. It reprices with spot, implied volatility, and time; it is not cash income or a four-week pace."><span>CURRENT MODEL THETA / DAY</span><strong class="positive">+{{ open_book.theta_estimate_per_day | money }}</strong><small>0 DTE {{ open_book.same_day_theta_estimate_per_day | money }} · later expiries {{ open_book.later_theta_estimate_per_day | money }}</small></div>
 </section>
+
+{% include "partials/_risk_lens.html" %}
 
 <details class="workspace-panel open-book-section roll-board" data-open-book-section="roll-board" open>
   <summary class="workspace-panel-heading">
     <div><p class="eyebrow">NIBWICK ROLL BOARD</p><h2>{{ roll_board.posture | title }}</h2></div>
-    <div class="open-book-section-control"><span>{{ roll_board.rows | length }} CONTRACTS · {{ roll_board.attention_count }} NEED ATTENTION · {{ roll_board.total_assignment_notional | money(0) }} AT STRIKE</span><i aria-hidden="true"></i></div>
+    <div class="open-book-section-control"><span>{{ roll_board.rows | length }} POSITIONS · {{ roll_board.total_contracts }} CONTRACTS · {{ roll_board.attention_count }} NEED ATTENTION · {{ roll_board.total_assignment_notional | money(0) }} AT STRIKE</span><i aria-hidden="true"></i></div>
   </summary>
   <div class="roll-board-register">
     {% for row in roll_board.rows %}
     <article id="{{ row.anchor_id }}" class="roll-board-row {{ 'attention' if row.urgency_rank == 0 else 'check' if row.urgency_rank == 1 else 'watch' }}" data-roll-board-contract="{{ row.source.option_symbol }}" tabindex="-1">
-      <header>
-        <div><b>{{ row.symbol }} · {{ row.source.contracts }}x ${{ row.source.strike | number(2) }}{{ 'C' if row.source.option_side.value == 'call' else 'P' }}</b><small>{{ row.days_to_expiration }} DTE · {{ row.source.expires_on | short_date }} · {{ row.source.quote_status }}</small></div>
-        <div><span>{{ row.urgency }}</span><strong class="{{ row.strike_distance_per_share | pnl_class }}">{{ row.strike_distance_per_share | money }} / {{ row.strike_distance_percent | percent }}</strong><small>{{ row.assignment_notional | money(0) }} STRIKE NOTIONAL</small></div>
+      <header class="roll-board-position-head">
+        <b class="roll-board-contract">{{ row.symbol }} · {{ row.source.contracts }}x ${{ row.source.strike | number(2) }}{{ 'C' if row.source.option_side.value == 'call' else 'P' }}</b>
+        <span class="roll-board-clock">{{ row.days_to_expiration }} DTE · {{ row.source.expires_on | short_date }} · {{ row.source.quote_status }}</span>
+        <span class="roll-board-urgency">{{ row.urgency }}</span>
+        <strong class="roll-board-distance {{ row.strike_distance_per_share | pnl_class }}">{{ row.strike_distance_per_share | money }} / {{ row.strike_distance_percent | percent }}</strong>
+        <small class="roll-board-notional">{{ row.assignment_notional | money(0) }} AT STRIKE</small>
       </header>
       {% if row.candidates %}
       <div class="roll-board-candidates">
         {% for choice in row.candidates %}
         <a href="/workspaces/radar?symbol={{ row.symbol | urlencode }}&amp;mode={{ 'covered_call' if row.source.option_side.value == 'call' else 'cash_secured_put' }}&amp;review=roll&amp;source={{ row.source.option_symbol | urlencode }}&amp;targetExpiration={{ choice.expires_on }}&amp;targetStrike={{ choice.strike }}&amp;from=roll-board&amp;returnAnchor={{ row.anchor_id | urlencode }}">
           <span>{{ choice.family_label }}</span>
-          <b>${{ choice.strike | number(2) }}{{ 'C' if choice.option_side.value == 'call' else 'P' }} · {{ choice.expires_on | short_date }}</b>
+          <div class="roll-board-choice-line"><b>${{ choice.strike | number(2) }}{{ 'C' if choice.option_side.value == 'call' else 'P' }} · {{ choice.expires_on | short_date }}</b><strong class="{{ choice.net_roll_cash | pnl_class }}">{{ choice.net_roll_cash | money }} TOTAL</strong></div>
           <small>{{ choice.added_days }} MORE DAYS · {{ choice.cost_label }}</small>
-          <strong class="{{ choice.net_roll_cash | pnl_class }}">{{ choice.net_roll_cash | money }} TOTAL</strong>
         </a>
         {% endfor %}
       </div>
@@ -50,8 +55,8 @@
   </summary>
   <div class="expiration-buckets">
     {% for bucket in snapshot.expiration_calendar %}
-    <article>
-      <time datetime="{{ bucket.expires_on.isoformat() }}"><b>{{ bucket.expires_on.strftime('%b %d') | upper }}</b><span>{{ bucket.days_to_expiration }} DTE</span></time>
+    <article class="{{ 'post-close' if not bucket.can_close_or_roll }}">
+      <time datetime="{{ bucket.expires_on.isoformat() }}"><b>{{ bucket.expires_on.strftime('%b %d') | upper }}</b><span>{% if bucket.can_close_or_roll %}{{ bucket.days_to_expiration }} DTE{% else %}{{ bucket.session_label }}{% endif %}</span></time>
       <div><strong>{% if bucket.call_contracts %}{{ bucket.call_contracts }} CALLS{% endif %}{% if bucket.call_contracts and bucket.put_contracts %} · {% endif %}{% if bucket.put_contracts %}{{ bucket.put_contracts }} PUTS{% endif %} / {{ bucket.committed_shares }} SHARES</strong><span>{{ bucket.opening_credit | money }} received · {{ bucket.estimated_close_value | money }} value now</span></div>
       <div><strong class="{{ bucket.nearest_strike_buffer_percent | pnl_class }}">{{ bucket.nearest_strike_buffer_percent | percent }} NEAREST BUFFER</strong><span>{{ bucket.event_labels | join(' · ') if bucket.event_labels else 'No known dividend event before expiry' }}</span></div>
     </article>
@@ -86,14 +91,9 @@
   {% if open_book.put_rows %}
   <section class="open-put-register" aria-label="Open short puts">
     <header><b>SHORT PUTS</b><span>{{ open_book.put_rows | length }} LINES · {{ open_book.put_contracts }} CONTRACTS</span></header>
-    {% for row in open_book.put_rows %}
-    <article class="open-put-row" data-context-symbol-row="{{ row.symbol }}">
-      <div><b>{{ row.contracts }}x ${{ row.strike | number(2) }}P</b><small>{{ row.symbol }} · {{ row.days_to_expiration }} DTE · {{ row.expires_on | short_date }}</small></div>
-      <div><span>TO STRIKE</span><b class="{{ row.strike_distance_per_share | pnl_class }}">{{ row.strike_distance_per_share | money }} / {{ row.strike_distance_percent | percent }}</b></div>
-      <div><span>VALUE / PREMIUM</span><b>{{ row.option_value_vs_credit_percent | percent }}</b><small>{{ row.current_liability | money }} now / {{ row.entry_credit | money }} received</small></div>
-      <div><span>OPEN P/L</span><b class="{{ row.open_profit_loss | pnl_class }}">{{ row.open_profit_loss | money }}</b><small>+{{ row.theta_estimate_per_day | money }}/day model decay</small></div>
-    </article>
-    {% endfor %}
+    <div class="open-put-group-rows">
+      {% for row in open_book.put_rows %}{{ open_put_row(row) }}{% endfor %}
+    </div>
   </section>
   {% endif %}
 </details>
