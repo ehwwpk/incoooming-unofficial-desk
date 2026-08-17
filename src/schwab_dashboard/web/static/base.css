@@ -87,6 +87,8 @@ kbd { border: 1px solid var(--line-strong); padding: 2px 3px; background: var(--
 .session-state { display: grid; min-width: 190px; max-width: 300px; align-content: center; gap: 3px; padding: 4px 10px; text-align: right; }
 .session-state b { font: 700 .52rem var(--mono); }
 .session-state small { overflow: hidden; color: var(--text-tertiary); font: var(--type-micro) var(--mono); text-overflow: ellipsis; white-space: nowrap; }
+.session-state .quote-lag-note { color: var(--gold); }
+.session-state .quote-lag-note b { color: var(--gold); font: 700 var(--type-micro) var(--mono); letter-spacing: .04em; }
 .source-switch { border: 1px solid var(--gold-soft); padding: 3px 5px; color: var(--gold); font: 700 var(--type-control) var(--mono); }
 .source-switch:hover, .source-switch:focus-visible { border-color: var(--gold); background: #1b170d; color: var(--text); outline: 0; }
 .source-label { margin-right: 7px; color: var(--gold); }

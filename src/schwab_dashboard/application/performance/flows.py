@@ -27,6 +27,31 @@ def external_flow_on(
     )
 
 
+def external_flow_between(
+    cash_movements: Sequence[dict[str, Any]],
+    *,
+    after: date,
+    through: date,
+) -> Decimal:
+    """Net owner transfers in the span that ends on one valuation date.
+
+    A chained sub-period covers more than a single calendar day whenever a
+    session is skipped or a transfer settles over a weekend. Counting only
+    same-day transfers would leave that cash sitting inside the sub-period
+    return, reporting the owner's funding as performance.
+    """
+    return sum(
+        (
+            _decimal(movement.get("amount"))
+            for movement in cash_movements
+            if str(movement.get("movement_type") or "").lower() == "transfer"
+            and (day := movement_date(movement.get("occurred_at"))) is not None
+            and after < day <= through
+        ),
+        ZERO,
+    )
+
+
 def carried_external_flow(
     cash_movements: Sequence[dict[str, Any]],
     *,

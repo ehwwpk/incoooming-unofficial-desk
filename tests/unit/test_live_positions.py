@@ -4,8 +4,11 @@ from zoneinfo import ZoneInfo
 
 from schwab_dashboard.application.dashboard.calculations import summarize_portfolio
 from schwab_dashboard.application.dashboard.live_positions import build_live_position_book
-from schwab_dashboard.application.dashboard.models import PositionSummary
-from schwab_dashboard.application.market_time import OptionSessionState
+from schwab_dashboard.application.dashboard.models import (
+    LiveUnderlyingPosition,
+    PositionSummary,
+)
+from schwab_dashboard.application.market_time import OptionSessionState, QuoteSession
 
 D = Decimal
 PACIFIC = ZoneInfo("America/Los_Angeles")
@@ -107,6 +110,75 @@ def test_live_book_prefers_market_quote_over_stale_account_position_mark() -> No
     assert underlying.quote_quality == "complete"
     assert book.calls[0].underlying_price == D("200.80")
     assert book.calls[0].strike_distance_per_share == D("4.20")
+
+
+def _quoted_book(
+    *,
+    observed_at: datetime | None,
+    evaluated_at: datetime | None,
+) -> LiveUnderlyingPosition:
+    quote: dict[str, object] = {
+        "symbol": "CVX",
+        "mark": D("200.80"),
+        "previous_close": D("200.80"),
+        "quote_quality": "complete",
+    }
+    if observed_at is not None:
+        quote["observed_at"] = observed_at
+    book = build_live_position_book(
+        (
+            _position(symbol="CVX", description="Chevron", mark=D("200.80")),
+            _position(
+                symbol="CVX   260918C00205000",
+                asset_type="OPTION",
+                quantity=D("-1"),
+                underlying_symbol="CVX",
+                option_type="CALL",
+                expiration_date=date(2026, 9, 18),
+                strike=D("205"),
+            ),
+        ),
+        as_of=date(2026, 8, 14),
+        evaluated_at=evaluated_at,
+        underlying_market=(quote,),
+    )
+    return book.underlyings[0]
+
+
+def test_monday_reader_sees_a_friday_print_labelled_as_prior_session() -> None:
+    """Reproduces the live incident: sync succeeds, tape is still Friday's."""
+
+    underlying = _quoted_book(
+        observed_at=datetime(2026, 8, 14, 20, 0, tzinfo=UTC),
+        evaluated_at=datetime(2026, 8, 17, 6, 40, tzinfo=PACIFIC),
+    )
+
+    assert underlying.quote_session is QuoteSession.PRIOR_SESSION
+    assert underlying.is_prior_session_quote
+    assert underlying.session_move_label == "FRI CLOSE"
+    assert underlying.quote_stamp == "FRI 4:00 PM ET"
+
+
+def test_quote_from_the_open_session_keeps_the_plain_day_caption() -> None:
+    underlying = _quoted_book(
+        observed_at=datetime(2026, 8, 17, 13, 31, tzinfo=UTC),
+        evaluated_at=datetime(2026, 8, 17, 6, 40, tzinfo=PACIFIC),
+    )
+
+    assert underlying.quote_session is QuoteSession.CURRENT_SESSION
+    assert underlying.is_prior_session_quote is False
+    assert underlying.session_move_label == "DAY"
+
+
+def test_book_without_broker_quote_times_claims_no_session_at_all() -> None:
+    """CSV imports and demo fixtures must not be handed a fabricated clock."""
+
+    underlying = _quoted_book(observed_at=None, evaluated_at=None)
+
+    assert underlying.quote_session is QuoteSession.UNKNOWN
+    assert underlying.is_prior_session_quote is False
+    assert underlying.quote_stamp is None
+    assert underlying.session_move_label == "DAY"
 
 
 def test_portfolio_uses_liquidation_value_not_gross_positions() -> None:

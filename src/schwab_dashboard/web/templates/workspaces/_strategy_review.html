@@ -7,11 +7,16 @@
     <div><p class="eyebrow">PERFORMANCE SPINE</p><h2>Did the premium work earn its keep?</h2></div>
     <span>{{ comparison.range_label | upper }} &middot; {{ comparison.methodology_version | upper }}</span>
   </header>
+  {% set matched = comparison.matched %}
+  {% if matched and matched.as_of %}
+  <p class="performance-matched-note" title="{{ matched.method_note }}">ALL FIGURES READ {{ matched.as_of.strftime('%b %d, %Y') | upper }} &middot; LAST SESSION EVERY SERIES COVERS</p>
+  {% endif %}
   <div class="performance-compare-tape">
-    <div class="actual"><span>MANAGED BOOK &middot; TWR</span><strong class="{{ comparison.actual.return_percent | pnl_class }}">{{ comparison.actual.return_percent | percent(2) }}</strong><small>OWNER CASH FLOWS NEUTRALIZED</small></div>
-    <div class="shares"><span>SAME STARTING SHARES</span><strong class="{{ comparison.shares_without_options.return_percent | pnl_class }}">{{ comparison.shares_without_options.return_percent | percent(2) }}</strong><small>{{ comparison.shares_without_options.status | replace('_', ' ') | upper }}</small></div>
+    <div class="actual"><span>MANAGED BOOK &middot; TWR</span><strong class="{{ matched.managed_return_percent | pnl_class }}">{{ matched.managed_return_percent | percent(2) }}</strong><small>OWNER CASH FLOWS NEUTRALIZED{% if comparison.actual.return_percent is not none and comparison.actual.points and comparison.actual.points[-1].date != matched.as_of %} &middot; {{ comparison.actual.return_percent | percent(2) }} THROUGH {{ comparison.actual.points[-1].date.strftime('%b %d') | upper }}{% endif %}</small></div>
+    <div class="shares"><span>SAME STARTING SHARES</span><strong class="{{ matched.shares_return_percent | pnl_class }}">{{ matched.shares_return_percent | percent(2) }}</strong><small>{{ comparison.shares_without_options.status | replace('_', ' ') | upper }}</small></div>
     <div class="edge"><span>MANAGEMENT DIFFERENCE</span><strong class="{{ comparison.spine.management_edge.return_difference_percent | pnl_class }}">{{ comparison.spine.management_edge.return_difference_percent | percent(2) }}</strong><small>MANAGED MINUS FROZEN SHARES</small></div>
-    <div class="market"><span>SPY PRICE CONTEXT</span><strong class="{{ comparison.market_reference.return_percent | pnl_class }}">{{ comparison.market_reference.return_percent | percent(2) }}</strong><small>NOT A TOTAL-RETURN BENCHMARK</small></div>
+    <div class="market"><span>SPY UNLEVERED</span><strong class="{{ matched.market_return_percent | pnl_class }}">{{ matched.market_return_percent | percent(2) }}</strong><small>NOT A TOTAL-RETURN BENCHMARK</small></div>
+    <div class="levered" title="{{ comparison.levered_market_reference.method_note }}"><span>SPY AT YOUR EXPOSURE</span><strong class="{{ matched.levered_market_return_percent | pnl_class }}">{{ matched.levered_market_return_percent | percent(2) }}</strong><small>{% if comparison.levered_market_reference.status == 'derived_levered' %}SAME STARTING LEVERAGE, FINANCED{% else %}{{ comparison.levered_market_reference.status | replace('_', ' ') | upper }}{% endif %}</small></div>
   </div>
   <div class="performance-chart-heading">
     <div><span>NORMALIZED RETURN PATH</span><strong>FIRST OBSERVED VALUE = 0.00%</strong></div>
@@ -101,6 +106,7 @@
       <p><b>SHARES COUNTERFACTUAL</b>{{ comparison.shares_without_options.method_note }}</p>
       <p><b>MANAGEMENT DIFFERENCE</b>{{ comparison.spine.management_edge.method_note }}</p>
       <p><b>MARKET CONTEXT</b>{{ comparison.market_reference.method_note }}</p>
+      <p><b>MARKET AT YOUR EXPOSURE</b>{{ comparison.levered_market_reference.method_note }}</p>
     </div>
   </details>
   <footer class="performance-compare-footer"><span>{% if comparison.warnings %}{{ comparison.warnings | join(' / ') }}{% else %}OBSERVED DAILY VALUES ONLY{% endif %}</span><span>SHARPE / SORTINO WITHHELD UNTIL A MATCHED RISK-FREE SERIES AND SUFFICIENT HISTORY EXIST</span></footer>

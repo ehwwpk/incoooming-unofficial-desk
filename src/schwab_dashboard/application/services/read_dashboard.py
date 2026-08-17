@@ -48,12 +48,14 @@ class ReadDashboard:
         credentials_configured: bool,
         token_available: bool,
         clock: Callable[[], datetime] | None = None,
+        margin_interest_rate_percent: Decimal = Decimal("11"),
     ) -> None:
         self._uow_factory = uow_factory
         self._analytics_reader = analytics_reader
         self._credentials_configured = credentials_configured
         self._token_available = token_available
         self._clock = clock or _utc_now
+        self._margin_interest_rate_percent = margin_interest_rate_percent
 
     def execute(self) -> DashboardSnapshot:
         with self._uow_factory() as uow:
@@ -256,6 +258,7 @@ class ReadDashboard:
                 daily_bars=daily_bars,
                 executions=executions,
                 lifecycle_events=lifecycle_events,
+                margin_interest_rate_percent=self._margin_interest_rate_percent,
             ),
             recent_option_activity=recent_option_activity,
             option_outcomes=option_outcomes,

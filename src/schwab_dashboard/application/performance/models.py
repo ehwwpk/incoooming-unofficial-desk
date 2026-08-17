@@ -26,6 +26,26 @@ class ComparisonSeries:
 
 
 @dataclass(frozen=True, slots=True)
+class MatchedComparison:
+    """Every series read on the last date all of them actually cover.
+
+    Series end on different dates by construction: the managed book is valued
+    from live broker snapshots through today, while price-derived comparisons
+    cannot exist past the last published close. Reading each series' own final
+    value and subtracting compares unequal windows, which reports the extra
+    days of market drift as though management produced them.
+    """
+
+    status: str
+    as_of: date | None
+    managed_return_percent: Decimal | None
+    shares_return_percent: Decimal | None
+    market_return_percent: Decimal | None
+    levered_market_return_percent: Decimal | None
+    method_note: str
+
+
+@dataclass(frozen=True, slots=True)
 class ManagementEdge:
     status: str
     return_difference_percent: Decimal | None
@@ -116,5 +136,7 @@ class PerformanceComparison:
     shares_without_options: ComparisonSeries
     option_overlay: ComparisonSeries
     market_reference: ComparisonSeries
+    levered_market_reference: ComparisonSeries
     spine: PerformanceSpine
     warnings: tuple[str, ...]
+    matched: MatchedComparison

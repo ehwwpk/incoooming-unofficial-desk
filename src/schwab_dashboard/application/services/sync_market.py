@@ -21,6 +21,9 @@ from schwab_dashboard.infrastructure.schwab.market_mapper import SchwabMarketMap
 
 MARKET_REFERENCE_SYMBOLS = frozenset({"SPY"})
 INTRADAY_LOOKBACK = timedelta(days=60)
+# Closed positions keep costing one throttled history call each, so the
+# counterfactual's reach is deliberately bounded rather than unbounded.
+EXITED_HISTORY_LOOKBACK = timedelta(days=120)
 logger = logging.getLogger(__name__)
 
 
@@ -54,6 +57,11 @@ class SyncSchwabMarketData:
     def execute(self) -> MarketSyncResult:
         with self._uow_factory() as uow:
             positions = tuple(uow.positions.list_latest())
+            recently_held = tuple(
+                uow.positions.list_recent_market_symbols(
+                    since=datetime.now(UTC) - EXITED_HISTORY_LOOKBACK
+                )
+            )
 
         held_assets = _held_market_assets(positions)
         symbols = sorted(held_assets)
@@ -105,7 +113,9 @@ class SyncSchwabMarketData:
         # Daily history is a portfolio input, not merely an option-chain input.
         # Store it for every held market symbol so the frozen-shares baseline can
         # represent the whole book, plus the explicit price-only market reference.
-        for symbol in _history_symbols(symbols):
+        # Recently exited symbols stay in this set because the frozen-share
+        # counterfactual never sold them and still needs their closes.
+        for symbol in _history_symbols(symbols, recently_held=recently_held):
             requested_at = datetime.now(UTC)
             if self._history_refresh_policy is not None and not self._history_refresh_policy.is_due(
                 symbol,
@@ -182,8 +192,12 @@ def _held_market_assets(
     return assets
 
 
-def _history_symbols(held_symbols: list[str]) -> list[str]:
-    return sorted(set(held_symbols) | MARKET_REFERENCE_SYMBOLS)
+def _history_symbols(
+    held_symbols: list[str],
+    *,
+    recently_held: Sequence[str] = (),
+) -> list[str]:
+    return sorted(set(held_symbols) | set(recently_held) | MARKET_REFERENCE_SYMBOLS)
 
 
 def _asset_type(value: str) -> AssetType:

@@ -32,6 +32,33 @@ def test_history_selection_covers_whole_market_book_and_reference() -> None:
     assert _history_symbols(sorted(assets)) == ["CVX", "NEE", "SPY", "URNM"]
 
 
+def test_history_selection_keeps_recently_exited_symbols() -> None:
+    assert _history_symbols(["CVX"], recently_held=("CVX", "INTC")) == ["CVX", "INTC", "SPY"]
+
+
+def test_sync_keeps_pulling_daily_bars_for_an_exited_holding() -> None:
+    positions = (
+        {"symbol": "CVX", "asset_type": "EQUITY"},
+        {"symbol": "NEE", "asset_type": "EQUITY"},
+    )
+    client = _MarketClient()
+    service = SyncSchwabMarketData(
+        client=client,  # type: ignore[arg-type]
+        mapper=SchwabMarketMapper(),
+        recorder=_Recorder(),  # type: ignore[arg-type]
+        uow_factory=lambda: _Uow(positions, ("CVX", "INTC", "NEE")),  # type: ignore[arg-type]
+        parser_version="test",
+    )
+
+    service.execute()
+
+    # The frozen-shares counterfactual never sold INTC, so its closes must keep
+    # arriving even though no live quote or chain is fetched for it.
+    assert client.history_calls == ["CVX", "INTC", "NEE", "SPY"]
+    assert client.intraday_calls == ["CVX", "NEE"]
+    assert client.chain_calls == []
+
+
 def test_sync_refreshes_short_calls_puts_all_holdings_and_spy() -> None:
     positions = (
         {"symbol": "CVX", "asset_type": "EQUITY"},
@@ -70,8 +97,15 @@ def test_sync_refreshes_short_calls_puts_all_holdings_and_spy() -> None:
 
 
 class _Uow:
-    def __init__(self, positions: tuple[dict[str, object], ...]) -> None:
-        self.positions = SimpleNamespace(list_latest=lambda: positions)
+    def __init__(
+        self,
+        positions: tuple[dict[str, object], ...],
+        recently_held: tuple[str, ...] = (),
+    ) -> None:
+        self.positions = SimpleNamespace(
+            list_latest=lambda: positions,
+            list_recent_market_symbols=lambda *, since: recently_held,
+        )
 
     def __enter__(self) -> _Uow:
         return self

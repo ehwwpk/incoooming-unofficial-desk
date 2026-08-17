@@ -18,7 +18,9 @@
     {% for row in desk_overview.position_rows %}
     {% set item = row.underlying %}
     {% set active_window = item.performance_windows[0] %}
-    {% set price_time = row.live_underlying.price_time_read if row.live_underlying else none %}
+    {% set live_name = row.live_underlying %}
+    {% set price_time = live_name.price_time_read if live_name else none %}
+    {% set prior_session = live_name.is_prior_session_quote if live_name else false %}
     <details id="{{ item.symbol | lower }}-workspace" class="underlying-card position-book {{ item.tone }}-edge" data-underlying-card="{{ item.symbol }}" data-position-details>
       <summary class="position-row-summary" aria-label="Open {{ item.symbol }} option details">
         <div class="position-identity">
@@ -26,11 +28,12 @@
             <div class="position-ticker-line"><strong>{{ item.symbol }}</strong>{% if row.alert_count %}<small class="position-alert-pill">{{ row.alert_count }} NOTE{{ '' if row.alert_count == 1 else 'S' }}</small>{% endif %}</div>
             <span>{{ item.company_name }}</span>
             <small class="position-price-value">{{ item.current_price | money }} · {{ item.market_value | money(0) }} value</small>
+            {% if prior_session %}<small class="position-quote-stamp" title="Schwab's last print for {{ item.symbol }} is from an earlier session, so this price is a close rather than a live quote.">PRIOR SESSION · {{ live_name.quote_stamp }}</small>{% endif %}
           </div>
           <div class="position-move-tape" aria-label="{{ item.symbol }} price changes">
-            <span title="{% if item.current_session_change_percent is not none %}Current market-session change from Schwab{% else %}Latest close versus the prior market-session close{% endif %}">
-              <small>DAY</small>
-              {% if item.daily_price_change_percent is not none %}<b class="{{ item.daily_price_change_percent | pnl_class }}">{{ '+' if item.daily_price_change_percent > 0 else '' }}{{ item.daily_price_change_percent | percent(2) }}</b>{% else %}<b class="muted">—</b>{% endif %}
+            <span title="{% if prior_session %}{{ item.symbol }} has no print in the current session. Last trade {{ live_name.quote_stamp }}.{% elif item.current_session_change_percent is not none %}Current market-session change from Schwab{% else %}Latest close versus the prior market-session close{% endif %}">
+              <small>{{ live_name.session_move_label if live_name else 'DAY' }}</small>
+              {% if prior_session %}<b class="muted">—</b>{% elif item.daily_price_change_percent is not none %}<b class="{{ item.daily_price_change_percent | pnl_class }}">{{ '+' if item.daily_price_change_percent > 0 else '' }}{{ item.daily_price_change_percent | percent(2) }}</b>{% else %}<b class="muted">—</b>{% endif %}
             </span>
             <span title="Current price versus five market sessions earlier">
               <small>WEEK</small>

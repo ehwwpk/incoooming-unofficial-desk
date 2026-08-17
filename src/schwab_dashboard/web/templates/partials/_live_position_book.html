@@ -12,7 +12,11 @@
       <div><span>AVG SHARE COST</span><b>{{ item.average_price | money if item.average_price is not none else '—' }}</b><small>Schwab position average</small></div>
       <div><span>OPEN OPTIONS</span><b>{{ item.open_call_contracts + item.open_put_contracts }}</b><small>{{ item.open_call_contracts }} calls{% if item.open_put_contracts %} · {{ item.open_put_contracts }} puts{% endif %} · {{ item.coverage_percent | percent }} covered</small></div>
       <div><span>OPEN OPTION P/L</span><b class="{{ item.total_open_mark_profit_loss | pnl_class }}">{{ item.total_open_mark_profit_loss | money }}</b><small>All short options on {{ item.symbol }}</small></div>
+      {% if item.is_prior_session_quote %}
+      <div title="{{ item.symbol }} has no print in the current session. Last trade {{ item.quote_stamp }}."><span>STOCK {{ item.session_move_label }}</span><b class="muted">&mdash;</b><small>Prior session · {{ item.quote_stamp }}</small></div>
+      {% else %}
       <div><span>STOCK DAY P/L</span><b class="{{ item.day_profit_loss | pnl_class }}">{{ item.day_profit_loss | money if item.day_profit_loss is not none else '—' }}</b><small>Current session</small></div>
+      {% endif %}
       <div><span>THETA / DAY</span><b class="positive">{{ item.estimated_option_theta_per_day | money }}</b><small>Calls{% if item.open_put_contracts %} + puts{% endif %} · model estimate</small></div>
     </div>
     <div class="live-call-rows">

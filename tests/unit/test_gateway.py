@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date, datetime
 
 import httpx
 
@@ -99,3 +99,29 @@ def test_market_client_requests_the_explicit_side_and_bounded_chain_size() -> No
     assert request.url.params["strikeCount"] == "250"
     assert request.url.params["fromDate"] == "2026-08-25"
     assert request.url.params["toDate"] == "2026-10-10"
+
+
+def test_daily_history_asks_for_a_window_that_reaches_the_session_just_closed() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"symbol": "SPY", "candles": []})
+
+    oauth = StubOAuth()
+    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
+        client = SchwabReadOnlyMarketDataClient(
+            base_url="https://broker.test/marketdata/v1",
+            oauth=oauth,  # type: ignore[arg-type]
+            http_client=http_client,
+        )
+        client.get_daily_price_history(
+            "SPY",
+            end_at=datetime(2026, 8, 17, 21, 0, tzinfo=UTC),
+        )
+
+    # Schwab withholds the current session from a period-only request, so the
+    # end of the window has to be stated or every close-derived series trails
+    # the live book by a day.
+    assert requests[0].url.params["endDate"] == "1787000400000"
+    assert requests[0].url.params["frequencyType"] == "daily"
