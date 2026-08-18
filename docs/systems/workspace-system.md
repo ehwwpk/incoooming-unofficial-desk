@@ -8,19 +8,19 @@ turning the desk into an unreadable wall of equally weighted boxes.
 
 ## Information architecture
 
-Three primary surfaces and three tools share a consistent shell:
+Four primary surfaces share a consistent shell. Two maintenance identities stay off the rail:
 
 - **Desk:** option income, dividends, observed pace, live covered-call inventory, and Nibwick exceptions.
 - **Open Options:** short-call and short-put obligations, the Nibwick Roll Board, strike pressure, marks, and time decay.
+- **Premium Radar:** book-first call or put research and roll-chain refresh. Visiting the tab does not fetch.
 - **Results:** cash reconciliation, capture, lifecycle economics, outcomes, and basis.
-- **Premium Radar** (Tools): ticker-first call or put research and roll-chain refresh.
-- **Volatility Lab** (Tools): realized movement, current option IV context, and data-quality boundaries.
-- **Data Health** (Tools): executions, cash, positions, lifecycle events, source readiness, and provenance.
+- **Data Health** (`records`): executions, cash, positions, lifecycle events, source readiness, and provenance. Reached from BOOK and header sync, not a tab.
+- **Volatility** (`volatility`): calculation identity only. The former lab page redirects to Radar. Pulse facts live on Radar idle chips and Open Options name headers.
 
 The default Desk is an inverted pyramid: headline decisions first, supporting evidence second, raw
-records last. Its F1-F4 rail is local page navigation, not a second application hierarchy. Less
-frequent analytical routes sit behind one `TOOLS` disclosure. Nibwick is an optional friendly
-exception interface, not a parallel navigation system.
+records last. Product tabs are the application hierarchy. Radar sits third because selling and rolling
+are weekday work. Nibwick occupies the Desk's left corridor as an optional friendly exception
+interface, not a parallel navigation system.
 
 ## Desk compression contract
 
@@ -35,7 +35,7 @@ answer four questions without opening another panel:
 The inventory uses one compact row per stock. Charts, event maps, individual contracts, Greeks, and
 lifetime basis calculations remain available inside a single-stock disclosure, with only one stock
 open at a time. The Desk may summarize specialist calculations, but their canonical detail lives in
-Open Options, Results, Volatility Lab, or Data Health. This prevents repeated values from
+Open Options, Results, Radar, or Data Health. This prevents repeated values from
 competing with the two daily jobs: monitoring live obligations and measuring realized income.
 
 ## Layout model

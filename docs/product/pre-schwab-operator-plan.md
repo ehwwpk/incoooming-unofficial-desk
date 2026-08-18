@@ -18,13 +18,13 @@ The Incoooming desk serves a covered-call seller and dividend collector. It is n
 
 ## Primary information architecture
 
-Only three surfaces are primary:
+Only three surfaces were primary in that phase:
 
 - **Desk:** selected-period cash, observed pace, live obligations, per-name state, and one actionable exception.
 - **Open Options:** the call and put register with expandable obligation, market, economics, event, and campaign detail.
 - **Results:** monthly ledger, campaign outcomes, assignments, capital recovery, and stock-only attribution.
 
-Volatility research, the complete activity ledger, imports, and Data Health remain tools. Data Health is maintenance reached from source status or the Tools menu; it is not a daily peer of the operator surfaces.
+Shipping IA later promoted Radar onto the rail (Desk · Options · Radar · Results) and moved Data Health onto BOOK and header sync. Volatility research remains a calculation module, not a daily tab.
 
 ## Period decision
 

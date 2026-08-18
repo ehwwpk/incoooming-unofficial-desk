@@ -1,4 +1,35 @@
 <section class="radar-console" data-radar-console>
+  <div class="radar-symbol-shelf">
+    <div>
+      <span>IN YOUR BOOK</span>
+      {% for symbol in radar_held_symbols %}
+      {% set pulse = radar_book_pulse.get(symbol) if radar_book_pulse else none %}
+      <button type="button" data-radar-symbol-chip="{{ symbol }}"{% if pulse %} title="{{ symbol }} realized vol {{ pulse.realized_volatility_percent | percent if pulse.realized_volatility_percent is not none else 'unavailable' }} · range {{ pulse.range_position_percent | percent }}"{% endif %}>
+        <b>{{ symbol }}</b>
+        {% if pulse %}<small>RV {{ pulse.realized_volatility_percent | percent if pulse.realized_volatility_percent is not none else '—' }} · RNG {{ pulse.range_position_percent | percent }}</small>{% endif %}
+      </button>
+      {% else %}<small>NO NORMALIZED HOLDINGS</small>{% endfor %}
+    </div>
+    {% if radar_roll_sources %}
+    <div class="radar-roll-entry">
+      <label for="radar-roll-source">ROLL AN OPEN OPTION</label>
+      <select id="radar-roll-source" data-radar-roll-source-picker>
+        {% for source in radar_roll_sources %}
+        <option value="{{ source.option_symbol }}" data-symbol="{{ source.symbol }}" data-mode="{{ source.mode.value }}">{{ source.symbol }} · {{ source.contracts }}x ${{ '%g' | format(source.strike) }}{{ source.side_code }} · {{ source.days_to_expiration }} DTE{% if source.strike_distance_percent is not none %} · {{ source.strike_distance_percent | abs | percent }} {{ 'OTM' if source.strike_distance_percent >= 0 else 'ITM' }}{% endif %}</option>
+        {% endfor %}
+      </select>
+      <button type="button" data-radar-roll-source-run>CHECK ROLLS →</button>
+    </div>
+    {% endif %}
+    <div>
+      <span>SAVED LOOKUPS</span>
+      <div data-radar-saved-list>
+        {% for symbol in radar_saved_symbols %}<button type="button" data-radar-symbol-chip="{{ symbol }}">{{ symbol }}</button>{% else %}<small>NONE YET</small>{% endfor %}
+      </div>
+    </div>
+    <button type="button" class="radar-rules-toggle" data-radar-rules-toggle aria-expanded="false" aria-controls="radar-rules">SELLER RULES <span>+</span></button>
+  </div>
+
   <header class="radar-query-bar">
     <form class="radar-query" data-radar-form>
       <label for="radar-symbol">TICKER</label>
@@ -14,26 +45,6 @@
       <b>SEPARATE FROM ACCOUNT SYNC</b>
     </div>
   </header>
-
-  <div class="radar-symbol-shelf">
-    <div><span>IN YOUR BOOK</span>{% for symbol in radar_held_symbols %}<button type="button" data-radar-symbol-chip="{{ symbol }}">{{ symbol }}</button>{% else %}<small>NO NORMALIZED HOLDINGS</small>{% endfor %}</div>
-    <div><span>SAVED LOOKUPS</span><div data-radar-saved-list>{% for symbol in radar_saved_symbols %}<button type="button" data-radar-symbol-chip="{{ symbol }}">{{ symbol }}</button>{% else %}<small>NONE YET</small>{% endfor %}</div></div>
-    {% if radar_roll_sources %}
-    <details class="radar-roll-entry">
-      <summary>ROLL AN OPEN OPTION <span>+</span></summary>
-      <div>
-        <label for="radar-roll-source">CURRENT SHORT OPTION</label>
-        <select id="radar-roll-source" data-radar-roll-source-picker>
-          {% for source in radar_roll_sources %}
-          <option value="{{ source.option_symbol }}" data-symbol="{{ source.symbol }}" data-mode="{{ source.mode.value }}">{{ source.symbol }} · {{ source.contracts }}x ${{ '%g' | format(source.strike) }}{{ source.side_code }} · {{ source.days_to_expiration }} DTE{% if source.strike_distance_percent is not none %} · {{ source.strike_distance_percent | abs | percent }} {{ 'OTM' if source.strike_distance_percent >= 0 else 'ITM' }}{% endif %}</option>
-          {% endfor %}
-        </select>
-        <button type="button" data-radar-roll-source-run>CHECK ROLLS →</button>
-      </div>
-    </details>
-    {% endif %}
-    <button type="button" class="radar-rules-toggle" data-radar-rules-toggle aria-expanded="false" aria-controls="radar-rules">SELLER RULES <span>+</span></button>
-  </div>
 
   <aside class="radar-roll-handoff" data-radar-roll-handoff hidden aria-live="polite">
     <header><span data-radar-roll-origin>ROLL REVIEW</span><a href="/workspaces/risk" data-radar-roll-return hidden>← BACK TO CONTRACT</a><strong data-radar-roll-status>VERIFYING OPEN OPTION</strong><button type="button" data-radar-roll-clear>CLEAR</button></header>
@@ -66,8 +77,8 @@
   </aside>
 
   <section class="radar-idle" data-radar-idle>
-    <div><p class="eyebrow">ON-DEMAND CHAIN</p><h2>Enter one ticker.</h2><p>Radar checks its calls or puts against your saved rules. It cannot place an order or change the ledger.</p></div>
-    <ol aria-label="Radar lookup sequence"><li><b>01</b><span>CHAIN</span></li><li><b>02</b><span>RULES</span></li><li><b>03</b><span>TRADE-OFFS</span></li></ol>
+    <div><p class="eyebrow">STORED BOOK</p><h2>Start from a name you hold.</h2><p>Pick a chip, check a roll, or type a ticker. Visiting Radar does not fetch a chain.</p></div>
+    <ol aria-label="Radar lookup sequence"><li><b>01</b><span>BOOK</span></li><li><b>02</b><span>ROLL</span></li><li><b>03</b><span>LOOKUP</span></li></ol>
   </section>
 
   <section class="radar-loading" data-radar-loading hidden aria-live="polite">

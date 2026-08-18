@@ -86,7 +86,7 @@ Required before trusting live performance:
 
 1. **Truth Engine:** transaction/lifecycle schema, reconciliation, and source drill-through.
 2. **Open Risk Board:** contract grid, scenarios, catalysts, and portfolio exposure redesign.
-3. **Volatility Lab:** snapshot collection, normalized IV history, skew/term structure, and cohorts.
+3. **Volatility collector:** snapshot collection, normalized IV history, skew/term structure, and cohorts. The former lab tab is retired until this collector exists.
 4. **Attribution Lab:** stock-only baseline, capped upside, campaign economics, and professional returns.
 5. **Workspace System:** customizable dense tables, saved layouts, accessibility controls, and exports.
 

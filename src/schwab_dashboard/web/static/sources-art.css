@@ -4,33 +4,6 @@
  * without turning the functional gateway stylesheet into a single god file.
  */
 
-.brand-nibwick-mark {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  place-items: center;
-  overflow: hidden;
-  border: 1px solid #5a4a26;
-  background: #0b0c0e;
-  color: var(--gateway-accent);
-  box-shadow: none;
-}
-
-.brand-nibwick-mark::before,
-.brand-nibwick-mark::after { content: none; }
-
-.brand-nibwick-mark img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.sources-topbar .brand:hover .brand-nibwick-mark img,
-.sources-topbar .brand:focus-visible .brand-nibwick-mark img {
-  animation: gateway-nibwick-check .64s steps(2, end) 1;
-}
-
 .sources-hero {
   display: grid;
   min-height: 0;
@@ -493,11 +466,6 @@
 @keyframes gateway-operator-right-arrive {
   from { transform: translateX(12px); }
   to { transform: translateX(0); }
-}
-
-@keyframes gateway-nibwick-check {
-  0%, 100% { transform: translateY(0) rotate(0); }
-  50% { transform: translateY(-1px) rotate(-4deg); }
 }
 
 @media (max-width: 920px) {

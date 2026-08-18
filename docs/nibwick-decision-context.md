@@ -45,7 +45,7 @@ The note also reports exact strike distance per share, strike distance percent, 
 
 ### From a note to Radar
 
-A displayed roll comparison is one analysis action, not a generic link to Tools. Choosing `CHECK FRESH CHAIN` carries only the verified open-call identifier and the displayed later/higher strike and expiration into Premium Radar. Radar then:
+A displayed roll comparison is one analysis action, not a generic Radar search. Choosing `CHECK FRESH CHAIN` carries only the verified open-call identifier and the displayed later/higher strike and expiration into Premium Radar. Radar then:
 
 1. verifies that the source call is still open in the selected book;
 2. releases only that call's covered lots for the comparison;

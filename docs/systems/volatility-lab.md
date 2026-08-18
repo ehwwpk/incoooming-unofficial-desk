@@ -1,5 +1,10 @@
 # Incoooming Volatility Lab
 
+Status: calculation module. The former Volatility Lab page is no longer a destination;
+`/workspaces/volatility` redirects to Radar. Realized-vol and range-position pulse facts from stored
+closes appear on Radar idle chips and Open Options name headers. Rebuild a lab only after end-of-day
+ATM snapshots exist. Keep `application/volatility` and the `volatility` workspace key.
+
 ## Job to be done
 
 Incoooming's Volatility Lab tests whether the operator is being paid enough for the volatility and

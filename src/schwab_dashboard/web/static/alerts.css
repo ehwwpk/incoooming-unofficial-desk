@@ -63,9 +63,8 @@
     nibwick-badge-bob 1800ms ease-in-out infinite,
     nibwick-alert-ping 900ms ease-out 2;
 }
-.nibwick-stage[data-reaction] .nibwick-patrol-group,
-.nibwick-stage[data-paused="true"] .nibwick-patrol-group,
-body[data-nibwick-popover-open="true"] .nibwick-stage .nibwick-patrol-group,
+.nibwick-stage[data-reaction] .nibwick-obstacle,
+.nibwick-stage[data-paused="true"] .nibwick-obstacle,
 body[data-nibwick-popover-open="true"] .nibwick-stage .nibwick-obstacle { animation-play-state: paused; }
 .nibwick-stage[data-attention="true"] .nibwick { color: var(--gold); }
 .nibwick-announcement { position: fixed; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

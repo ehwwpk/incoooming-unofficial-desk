@@ -74,7 +74,7 @@
       <header>
         <div class="open-call-group-title">
           <button class="symbol-focus" type="button" data-set-symbol="{{ group.symbol }}">{{ group.symbol }}</button>
-          <span>{{ group.position_count }} POSITION{{ '' if group.position_count == 1 else 'S' }} · {{ group.contract_count }} CONTRACT{{ '' if group.contract_count == 1 else 'S' }}</span>
+          <span>{{ group.position_count }} POSITION{{ '' if group.position_count == 1 else 'S' }} · {{ group.contract_count }} CONTRACT{{ '' if group.contract_count == 1 else 'S' }}{% if group.realized_volatility_percent is not none %} · RV {{ group.realized_volatility_percent | percent }}{% endif %}</span>
         </div>
         <div><span>NEAREST BUFFER</span><b class="{{ group.nearest_buffer_percent | pnl_class }}">{{ group.nearest_buffer_percent | percent }}</b></div>
         <div><span>NEXT EXPIRY</span><b>{{ group.next_expiration_dte }} DTE</b><small>{{ group.next_expiration | short_date }}</small></div>

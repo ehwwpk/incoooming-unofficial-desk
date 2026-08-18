@@ -1,6 +1,6 @@
-@import url("./base.css?v=29");
+@import url("./base.css?v=39");
 @import url("./components.css?v=48");
-@import url("./alerts.css?v=29");
+@import url("./alerts.css?v=30");
 @import url("./performance.css?v=27");
 @import url("./dashboard.css?v=24");
 @import url("./desk-overview.css?v=16");
@@ -46,10 +46,12 @@
   .market-tape > span:nth-last-child(-n + 2) { display: none; }
   .terminal-shell { grid-template-columns: 1fr; }
   .function-rail { position: static; display: flex; height: auto; overflow-x: auto; flex-direction: row; border-right: 0; border-bottom: 1px solid var(--line-strong); }
-  .function-rail a { min-width: 62px; border-right: 1px solid var(--line); border-bottom: 0; }
-  .nibwick-stage { display: block; min-width: 64px; min-height: 55px; max-height: 55px; flex: 0 0 64px; border-top: 0; border-left: 1px solid var(--line); }
+  .nibwick-stage { display: block; min-width: 64px; min-height: 55px; max-height: 55px; flex: 0 0 64px; border-left: 0; }
   .nibwick-stage .nibwick-patrol-group { animation: none; transform: none; }
-  .nibwick-stage .nibwick-obstacle { display: none; }
+  .nibwick-stage .nibwick-obstacle,
+  .nibwick-stage .nibwick-aisle,
+  .nibwick-stage .nibwick-glare,
+  .nibwick-stage .nibwick-lantern { display: none; }
   .shell { width: min(100% - 18px, 1540px); padding-top: 15px; }
   .demo-banner { flex-direction: column; padding-block: 4px; }
   .demo-banner > * { padding: 3px 0; border-right: 0; }

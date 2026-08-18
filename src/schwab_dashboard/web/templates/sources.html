@@ -6,23 +6,23 @@
     <meta name="color-scheme" content="dark">
     <meta name="theme-color" content="#0b0c0e">
     <title>Get Incoooming</title>
-    <link rel="icon" href="{{ url_for('static', path='/nibwick-favicon.svg') }}?v=2" type="image/svg+xml">
+    <link rel="icon" href="{{ url_for('static', path='/nibwick-favicon.svg') }}?v=3" type="image/svg+xml">
     <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=71">
-    <link rel="stylesheet" href="{{ url_for('static', path='/sources.css') }}?v=14">
-    <link rel="stylesheet" href="{{ url_for('static', path='/sources-art.css') }}?v=19">
+    <link rel="stylesheet" href="{{ url_for('static', path='/sources.css') }}?v=16">
+    <link rel="stylesheet" href="{{ url_for('static', path='/sources-art.css') }}?v=21">
     <script defer src="{{ url_for('static', path='/sources.js') }}?v=2"></script>
   </head>
   <body class="sources-page">
     {% set schwab_ready = schwab_credentials_configured and schwab_token_available %}
     <header class="sources-topbar">
       <a class="brand" href="/sources" aria-label="Incoooming source gateway">
-        {% include "partials/_brand_mark.html" %}
         <span><strong>INCOOOMING</strong></span>
       </a>
       <div class="gateway-trust" aria-label="Session safeguards">
         <span><i></i>LOCAL SESSION</span>
         <span>READ ONLY</span>
         <span>NO ORDER PATH</span>
+        <a href="/workspaces/records" class="gateway-data-health">DATA HEALTH</a>
       </div>
     </header>
 

@@ -8,8 +8,8 @@ puts. It answers one question without turning the product into an order ticket:
 > Given the shares or cash already in this account, what is worth reviewing now—and when is waiting
 > the better answer?
 
-It is the first item in the existing `Tools` menu, keeping Desk, Open Options, and Results reserved
-for the user's live book. It is not a news feed, a generic option scanner, or an automatic
+It is a primary tab beside Desk, Open Options, and Results. Data Health stays off the rail.
+It is not a news feed, a generic option scanner, or an automatic
 recommendation engine. Incoooming remains read-only.
 
 The product contract is completed by two focused documents:
@@ -19,8 +19,9 @@ The product contract is completed by two focused documents:
 
 ## Operator flow
 
-The default view is deliberately quiet: one ticker field, a covered-call/cash-secured-put mode
-control, and optional shortcuts for held or explicitly saved symbols. Visiting Radar never fetches
+The default view is deliberately quiet: names already in the book, an always-visible roll picker,
+a ticker field, a covered-call/cash-secured-put mode
+control, and optional shortcuts for explicitly saved symbols. Visiting Radar never fetches
 chains. A lookup starts only when the user submits a ticker or deliberately chooses a shortcut.
 
 After a lookup, calls and puts are modes within the same symbol workspace so the underlying is never

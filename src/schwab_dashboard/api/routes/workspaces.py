@@ -41,6 +41,8 @@ def workspace_page(
     page_built_at = datetime.now(UTC)
     if workspace_key is WorkspaceKey.DESK:
         return RedirectResponse(url="/", status_code=303)
+    if workspace_key is WorkspaceKey.VOLATILITY:
+        return RedirectResponse(url="/workspaces/radar", status_code=303)
     source_key = selected_source_key(request)
     if source_key is None:
         return RedirectResponse(url="/sources", status_code=303)
@@ -68,14 +70,15 @@ def workspace_page(
     if workspace_key is WorkspaceKey.RISK:
         context["open_book"] = build_open_book(snapshot)
         context["roll_board"] = build_roll_board(snapshot)
-    elif workspace_key is WorkspaceKey.VOLATILITY:
-        context["volatility_rows"] = build_volatility_rows(snapshot)
     elif workspace_key is WorkspaceKey.RECORDS:
         context["source_profiles"] = planned_source_profiles()
     elif workspace_key is WorkspaceKey.RADAR:
         context["radar_held_symbols"] = container.premium_radar().held_symbols(snapshot)
         context["radar_saved_symbols"] = container.premium_radar().saved_symbols()
         context["radar_roll_sources"] = build_roll_source_catalog(snapshot)
+        context["radar_book_pulse"] = {
+            row.symbol: row for row in build_volatility_rows(snapshot)
+        }
     elif workspace_key is WorkspaceKey.ATTRIBUTION and snapshot.performance_comparison:
         context["performance_comparison_payload"] = jsonable_encoder(
             asdict(snapshot.performance_comparison)

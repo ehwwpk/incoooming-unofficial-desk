@@ -175,7 +175,8 @@ projection includes:
 - chart context only when requested.
 
 Workspace routing must build only the projection for the requested workspace. It must not build Desk,
-Options, Results, Volatility, Data Health, and Radar projections on every request.
+Options, Results, Data Health, and Radar projections on every request. The retired Volatility Lab
+route redirects to Radar instead of building a lab page.
 
 ## Failure and recovery behavior
 

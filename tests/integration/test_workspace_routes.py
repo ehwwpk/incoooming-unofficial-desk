@@ -38,9 +38,49 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert len({item["window_name"] for item in catalog.json()}) == 6
 
         assert desk.status_code == 200
-        assert desk.text.count("data-tools-toggle") == 1
+        nav_start = desk.text.index('class="product-nav"')
+        nav = desk.text[nav_start : desk.text.index("</nav>", nav_start)]
+        assert nav.find("/workspaces/risk") < nav.find("/workspaces/radar") < nav.find(
+            "/workspaces/attribution"
+        )
+        assert "CHAIN RESEARCH" in nav
+        assert "data-tools-toggle" not in desk.text
+        assert "TOOLS" not in nav
+        assert 'href="/workspaces/records"' in desk.text
         assert "desk-workspace-launcher" not in desk.text
         assert "function-rail" in desk.text
+        assert "data-nibwick-stage" in desk.text
+        assert "data-nibwick-lantern" in desk.text
+        assert "data-nibwick-glare" in desk.text
+        assert "nibwick-lantern-core" in desk.text
+        assert "nibwick-lantern-glass" not in desk.text
+        assert "data-nibwick-beam" not in desk.text
+        nibwick_js = (
+            Path(__file__)
+            .resolve()
+            .parents[2]
+            .joinpath("src/schwab_dashboard/web/static/nibwick.js")
+            .read_text(encoding="utf-8")
+        )
+        assert '["flare"' not in nibwick_js
+        assert 'praying ? "PRAY"' in nibwick_js
+        assert "atFloorHold(ms) && !compactRail.matches" in nibwick_js
+        assert "sillFace" in nibwick_js
+        assert "SILL_MS" in nibwick_js
+        assert "BASE_CYCLE" in nibwick_js
+        assert "SILL_START_MS" in nibwick_js
+        assert "UP_SPAN" not in nibwick_js
+        assert "SILL_UP_START" not in nibwick_js
+        assert "SILL_PLANT" not in nibwick_js
+        assert '["along", 1200]' not in nibwick_js
+        assert '["away", 1400]' in nibwick_js
+        assert '["camera", 1600]' in nibwick_js
+        assert "PEER" not in nibwick_js
+        assert 'status.textContent = praying ? "PRAY" : studying ? "STUDY" : clearing ? "CLEAR" : "PATROL"' in nibwick_js
+        assert "data-rail-link" not in desk.text
+        assert "<kbd>F1</kbd>" not in desk.text
+        assert "<kbd>F2</kbd>" not in desk.text
+        assert "<kbd>F3</kbd>" not in desk.text
         assert "data-campaign-chart" in desk.text
         assert "/static/charts/campaign-chart.js" in desk.text
         assert "data-campaign-chart-fallback" in desk.text
@@ -79,12 +119,14 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "EARNINGS DATE UNAVAILABLE" in risk.text
         assert "OPEN OWN WINDOW" in risk.text
         assert 'data-workspace-key="risk"' in risk.text
-        assert risk.text.count("data-tools-toggle") == 1
+        assert "data-tools-toggle" not in risk.text
+        assert ">TOOLS<" not in risk.text
         assert "workspace-tabs" not in risk.text
         assert "workspace-directory" not in risk.text
         assert 'class="workspace-breadcrumb"' in risk.text
         assert "BACK TO DESK" in risk.text
         assert "data-roll-board-contract=" in risk.text
+        assert " · RV " in risk.text
 
         assert review.status_code == 200
         assert "What the strategy paid" in review.text
@@ -102,7 +144,7 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "DAILY CASH" not in review.text
 
         assert radar.status_code == 200
-        assert "ON-DEMAND CHAIN" in radar.text
+        assert "ON-DEMAND LOOKUP" in radar.text
         assert "SEPARATE FROM ACCOUNT SYNC" in radar.text
         assert "COVERED CALL" in radar.text
         assert "CASH-SECURED PUT" in radar.text
@@ -125,12 +167,21 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert 'data-radar-symbol-chip="CVX"' in radar.text
         assert 'data-radar-symbol-chip="KTOS"' in radar.text
         assert 'data-radar-symbol-chip="URNM"' in radar.text
+        assert "Start from a name you hold" in radar.text
+        assert "Enter one ticker" not in radar.text
+        assert "Visiting Radar does not fetch a chain" in radar.text
+        assert "RV " in radar.text
+        assert "RNG " in radar.text
+        assert "data-tools-toggle" not in radar.text
+        assert ">TOOLS<" not in radar.text
 
-        assert volatility.status_code == 200
-        assert "Historical IV is not yet collected" in volatility.text
-        assert "WAITING FOR IV HISTORY" in volatility.text
+        assert volatility.status_code == 303
+        assert volatility.headers["location"].endswith("/workspaces/radar")
+        assert "Historical IV is not yet collected" not in volatility.text
 
         assert records.status_code == 200
+        assert 'href="/sources">BOOK</a>' in records.text
+        assert ">TOOLS<" not in records.text
         assert "Broker portability without fake parity" in records.text
         assert "Multi-broker aggregator" in records.text
         assert "CONDITIONAL" in records.text
@@ -343,8 +394,8 @@ def test_empty_live_ledger_keeps_workspaces_available_before_broker_auth(tmp_pat
         assert results.status_code == 200
         assert "No performance ledger is available yet" in results.text
         assert "Unsupported results remain blank" in results.text
-        assert volatility.status_code == 200
-        assert "Historical IV is not yet collected" in volatility.text
+        assert volatility.status_code == 303
+        assert volatility.headers["location"].endswith("/workspaces/radar")
         assert "DEMO SOURCE" not in volatility.text
     finally:
         container.close()
