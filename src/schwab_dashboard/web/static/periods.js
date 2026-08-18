@@ -104,16 +104,12 @@ const setupPeriodConsole = () => {
     if (["input", "textarea", "select"].includes(tag) || event.target?.isContentEditable) return;
     const periodShortcuts = { "1": "month", "2": "quarter", "3": "ytd", "4": "r365" };
     const annualShortcuts = { y: "ytd", r: "r365" };
-    const sectionShortcuts = { F1: "portfolio", F2: "underlyings", F3: "income" };
     if (periodShortcuts[event.key]) {
       selectedPeriod = periodShortcuts[event.key];
       activate();
     } else if (annualShortcuts[event.key.toLowerCase()]) {
       selectedPeriod = annualShortcuts[event.key.toLowerCase()];
       activate();
-    } else if (sectionShortcuts[event.key]) {
-      event.preventDefault();
-      document.getElementById(sectionShortcuts[event.key])?.scrollIntoView({ behavior: "smooth" });
     }
   });
 

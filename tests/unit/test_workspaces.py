@@ -31,6 +31,8 @@ def test_workspace_catalog_keeps_stable_keys_separate_from_labels() -> None:
     assert get_workspace(WorkspaceKey.ATTRIBUTION).label == "Results"
     assert get_workspace(WorkspaceKey.RECORDS).label == "Data Health"
     assert get_workspace(WorkspaceKey.RADAR).label == "Premium Radar"
+    assert get_workspace(WorkspaceKey.VOLATILITY).key is WorkspaceKey.VOLATILITY
+    assert get_workspace(WorkspaceKey.VOLATILITY).route == "/workspaces/volatility"
     assert get_workspace(WorkspaceKey.RISK).route == "/workspaces/risk"
     assert get_workspace(WorkspaceKey.RECORDS).window_name == "iud-source-ledger"
 
@@ -113,6 +115,7 @@ def test_open_book_exposes_exact_contract_clocks_and_bounded_value_track() -> No
         assert abs(group.nearest_buffer_percent) == min(
             abs(row.strike_distance_percent) for row in group.rows
         )
+        assert group.realized_volatility_percent is not None
 
 
 def test_open_book_uses_the_exact_contract_multiplier_for_position_greeks() -> None:

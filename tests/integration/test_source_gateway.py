@@ -69,8 +69,11 @@ def test_first_visit_chooses_a_source_and_csv_book_remains_isolated(tmp_path: Pa
         assert first.headers["location"] == "/sources"
         assert gateway.status_code == 200
         assert "Get Incoooming" in gateway.text
+        assert "DATA HEALTH" in gateway.text
+        assert 'href="/workspaces/records"' in gateway.text
         assert "/static/incoooming-operators.png" in gateway.text
-        assert "brand-nibwick-mark" in gateway.text
+        assert "brand-nibwick-mark" not in gateway.text
+        assert gateway.text.count("/static/nibwick-favicon.svg") >= 1
         assert "gateway-option-chart" in gateway.text
         assert "gateway-market-slab" in gateway.text
         assert "NVDA" in gateway.text
@@ -100,7 +103,21 @@ def test_first_visit_chooses_a_source_and_csv_book_remains_isolated(tmp_path: Pa
         assert "Bring your own ledger." in gateway.text
         assert "Kick the tires with fake money." in gateway.text
         assert 'type="radio" name="broker" value="robinhood"' in gateway.text
-        assert gateway.text.count("/static/nibwick-favicon.svg") >= 2
+        assert gateway.text.count("/static/nibwick-favicon.svg") >= 1
+        favicon = (
+            Path(__file__)
+            .resolve()
+            .parents[2]
+            .joinpath("src/schwab_dashboard/web/static/nibwick-favicon.svg")
+            .read_text(encoding="utf-8")
+        )
+        assert 'text-anchor="middle"' not in favicon
+        assert "Cascadia Code" in favicon
+        assert "#f0bd4f" in favicon
+        assert "()___()" in favicon
+        assert "( o   o )" in favicon
+        assert "`-._.-'" in favicon
+        assert "/   \\" not in favicon
         assert "/static/sources-art.css" in gateway.text
         assert "/static/nibwick-promenade.css" not in gateway.text
         assert "gateway-promenade" not in gateway.text

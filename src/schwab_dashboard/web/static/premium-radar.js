@@ -617,7 +617,6 @@
     window.history.replaceState({}, "", nextUrl);
     renderPendingRoll();
     syncPutRules();
-    rollSourcePicker.closest("details").open = false;
     loadPolicy().then(scan);
   });
   rollHandoff = readRollHandoff();

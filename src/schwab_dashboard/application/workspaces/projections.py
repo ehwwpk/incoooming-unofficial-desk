@@ -86,6 +86,7 @@ class OpenCallGroup:
     nearest_buffer_percent: Decimal
     next_expiration: date
     next_expiration_dte: int
+    realized_volatility_percent: Decimal | None
     open_profit_loss: Decimal
     premium_capture_percent: Decimal
     theta_estimate_per_day: Decimal
@@ -222,6 +223,9 @@ def build_open_book(snapshot: DashboardSnapshot) -> OpenBookProjection:
                 nearest_buffer_percent=nearest.strike_distance_percent,
                 next_expiration=next_expiring.expires_on,
                 next_expiration_dte=next_expiring.days_to_expiration,
+                realized_volatility_percent=_realized_volatility_percent(
+                    underlying, snapshot
+                ),
                 open_profit_loss=sum((row.open_profit_loss for row in underlying_rows), Decimal(0)),
                 premium_capture_percent=(
                     (entry_credit - current_liability) / entry_credit * Decimal("100")
@@ -559,27 +563,46 @@ def _next_event_label(underlying: UnderlyingCallStats, expires_on: date) -> str:
     return "EARNINGS DATE UNAVAILABLE"
 
 
+def _daily_volatility_observations(
+    underlying: UnderlyingCallStats, snapshot: DashboardSnapshot
+) -> tuple[DailyVolatilityObservation, ...]:
+    return tuple(
+        DailyVolatilityObservation(
+            source_id=f"{snapshot.mode}:{underlying.symbol}:{point.date.isoformat()}",
+            session_date=point.date,
+            observed_at=datetime.combine(
+                point.date,
+                time(21, 0),
+                tzinfo=snapshot.as_of.tzinfo or UTC,
+            ),
+            close=point.price,
+            normalized_implied_volatility=(
+                underlying.average_open_call_iv_percent
+                if point is underlying.price_points[-1]
+                else None
+            ),
+        )
+        for point in underlying.price_points
+    )
+
+
+def _realized_volatility_percent(
+    underlying: UnderlyingCallStats, snapshot: DashboardSnapshot
+) -> Decimal | None:
+    if len(underlying.price_points) < 2:
+        return None
+    summary = analyze_volatility_history(_daily_volatility_observations(underlying, snapshot))
+    if summary.annualized_realized_volatility is None:
+        return None
+    return summary.annualized_realized_volatility * Decimal(100)
+
+
 def build_volatility_rows(snapshot: DashboardSnapshot) -> tuple[VolatilityRow, ...]:
     rows: list[VolatilityRow] = []
     for underlying in snapshot.underlyings:
-        observations = tuple(
-            DailyVolatilityObservation(
-                source_id=f"{snapshot.mode}:{underlying.symbol}:{point.date.isoformat()}",
-                session_date=point.date,
-                observed_at=datetime.combine(
-                    point.date,
-                    time(21, 0),
-                    tzinfo=snapshot.as_of.tzinfo or UTC,
-                ),
-                close=point.price,
-                normalized_implied_volatility=(
-                    underlying.average_open_call_iv_percent
-                    if point is underlying.price_points[-1]
-                    else None
-                ),
-            )
-            for point in underlying.price_points
-        )
+        observations = _daily_volatility_observations(underlying, snapshot)
+        if not observations:
+            continue
         summary = analyze_volatility_history(observations)
         realized_percent = (
             summary.annualized_realized_volatility * Decimal(100)

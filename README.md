@@ -77,8 +77,9 @@ The Open Options workspace starts with Nibwick's portfolio Roll Board, then the 
 and full contract register. The board compares later listed replacements as planning quotes: buy the
 open short at its ask, sell the replacement at its bid, keep the next nearby expiries and strikes,
 and never treat that math as an order. Results labels the actual normalized-history coverage and
-never turns unavailable months into zero-dollar results. Premium Radar, Volatility Lab, and Data
-Health live behind `TOOLS`; each tool can open in the current page or its own window.
+never turns unavailable months into zero-dollar results. Premium Radar sits on the same rail as
+Desk, Open Options, and Results. It starts from names already in the book and does not fetch a chain
+until you ask. Data Health is reached from BOOK and the header sync state, not a fifth tab.
 
 Underlying demo paths use frozen public market-session closes. They are not broker marks or trading
 guidance.
@@ -120,8 +121,8 @@ paste it into `auth-complete`; the authorization code is inside that URL.
 Open `http://127.0.0.1:8182`, choose `Schwab`, and open the live book. The server binds to your own
 computer by default.
 
-Premium Radar is an explicit, ticker-first research tool under `TOOLS`. It never suggests a random
-stock and never places an order. A lookup uses a dedicated market-data request/cache and cannot
+Premium Radar is a primary tab. It never suggests a random
+stock and never places an order. Visiting the tab does not fetch a chain. A lookup uses a dedicated market-data request/cache and cannot
 delay or fail normal account synchronization. It reads the currently open book only for position,
 covered-lot, and reserved-cash context. The personal defaults are 5–60 DTE and a 5% simple
 annualized bid-based premium floor. Those are editable policies rather than engine limits, so a

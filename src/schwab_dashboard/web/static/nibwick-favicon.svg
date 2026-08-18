@@ -1,11 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72" role="img" aria-label="Nibwick">
-  <rect width="72" height="72" fill="#090a0b"/>
-  <g fill="#e5b84f" font-family="Consolas, 'Courier New', monospace" font-size="10.5" font-weight="700" text-anchor="middle">
-    <text x="36" y="12" xml:space="preserve">()___()</text>
-    <text x="36" y="23" xml:space="preserve">( o   o )</text>
-    <text x="36" y="34" xml:space="preserve">|   ^   |</text>
-    <text x="36" y="45" xml:space="preserve">(  /_\  )</text>
-    <text x="36" y="56" xml:space="preserve">`-._.-'</text>
-    <text x="36" y="67" xml:space="preserve">/   \</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 54 48" role="img" aria-label="Nibwick">
+  <rect width="54" height="48" fill="#090a0b"/>
+  <g
+    fill="#f0bd4f"
+    font-family="'Cascadia Code', Consolas, 'Courier New', monospace"
+    font-size="8"
+    font-weight="700"
+    xml:space="preserve"
+    text-rendering="geometricPrecision"
+    style="font-variant-ligatures:none"
+  >
+    <text x="6" y="12" textLength="42" lengthAdjust="spacing">&#32;()___()&#32;</text>
+    <text x="6" y="20" textLength="42" lengthAdjust="spacing">( o   o )</text>
+    <text x="6" y="28" textLength="42" lengthAdjust="spacing">|   ^   |</text>
+    <text x="6" y="36" textLength="42" lengthAdjust="spacing">(  /_\  )</text>
+    <text x="6" y="44" textLength="42" lengthAdjust="spacing">&#32;`-._.-'&#32;</text>
   </g>
 </svg>

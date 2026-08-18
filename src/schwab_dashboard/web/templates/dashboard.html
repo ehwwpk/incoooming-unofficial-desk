@@ -5,15 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <title>Desk · Incoooming</title>
-    <link rel="icon" href="{{ url_for('static', path='/nibwick-favicon.svg') }}?v=2" type="image/svg+xml">
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=90">
+    <link rel="icon" href="{{ url_for('static', path='/nibwick-favicon.svg') }}?v=3" type="image/svg+xml">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=100">
     <link rel="stylesheet" href="{{ url_for('static', path='/campaign-chart.css') }}?v=11">
-    <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=9">
+    <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=10">
   </head>
   <body data-workspace-key="desk" data-demo-mode="{{ 'true' if snapshot.is_demo else 'false' }}" data-snapshot-as-of="{{ snapshot.as_of.isoformat() }}" data-page-built-at="{{ page_built_at.isoformat() }}" data-workspace-context='{"account":"{{ snapshot.accounts[0].account_mask if snapshot.accounts else "---" }}","symbol":"ALL","asOf":"{{ snapshot.as_of.date().isoformat() }}"}'>
     <header class="topbar desk-topbar">
       <a class="brand" href="/" aria-label="Incoooming home">
-        {% include "partials/_brand_mark.html" %}
         <span><strong>INCOOOMING</strong><small>OPTIONS INCOME · LOCAL LEDGER 01</small></span>
       </a>
       {% set current_workspace_key = 'desk' %}
@@ -27,12 +26,16 @@
     </header>
 
     <div class="terminal-shell">
-      <nav class="function-rail" aria-label="Dashboard functions">
-        <a href="#portfolio" data-rail-link="portfolio" aria-current="page"><kbd>F1</kbd><span>DESK</span></a>
-        <a href="#underlyings" data-rail-link="underlyings"><kbd>F2</kbd><span>NAMES</span></a>
-        <a href="#income" data-rail-link="income"><kbd>F3</kbd><span>CASH</span></a>
+      <aside class="function-rail" aria-label="Nibwick desk patrol">
         <div class="nibwick-stage" data-nibwick-stage>
+          <div class="nibwick-aisle" data-nibwick-aisle aria-hidden="true"></div>
+          <b class="nibwick-glare" data-nibwick-glare aria-hidden="true"></b>
           <div class="nibwick-patrol-group" data-nibwick-patrol-group>
+          <i class="nibwick-lantern" data-nibwick-lantern aria-hidden="true">
+            <b class="nibwick-lantern-wash"></b>
+            <b class="nibwick-lantern-halo"></b>
+            <b class="nibwick-lantern-core"></b>
+          </i>
           {% if snapshot.alerts %}
           <button type="button" class="nibwick-alert-badge" data-nibwick-alert-badge data-new-count="{{ snapshot.alerts | length }}" aria-label="Open Nibwick's {{ snapshot.alerts | length }} active notes" aria-expanded="false" aria-controls="nibwick-note-popover">
             <span class="nibwick-alert-plaque" aria-hidden="true"><b>!</b><span data-nibwick-active-count>{{ snapshot.alerts | length }}</span></span>
@@ -46,7 +49,7 @@
           </button>
           </div>
         </div>
-      </nav>
+      </aside>
 
       {% include "partials/_nibwick_alerts.html" %}
 
@@ -116,11 +119,11 @@
       </footer>
       </main>
     </div>
-    <script src="{{ url_for('static', path='/periods.js') }}?v=19" defer></script>
+    <script src="{{ url_for('static', path='/periods.js') }}?v=20" defer></script>
     <script src="{{ url_for('static', path='/cash-activity.js') }}?v=1" defer></script>
     <script src="{{ url_for('static', path='/workspace-splitter.js') }}?v=2" defer></script>
     <script src="{{ url_for('static', path='/nibwick-alerts.js') }}?v=13" defer></script>
-    <script src="{{ url_for('static', path='/nibwick.js') }}?v=6" defer></script>
+    <script src="{{ url_for('static', path='/nibwick.js') }}?v=18" defer></script>
     <script src="{{ url_for('static', path='/position-details.js') }}?v=4" defer></script>
     <script src="{{ url_for('static', path='/vendor/lightweight-charts/lightweight-charts.standalone.production.js') }}?v=5.2.0" defer></script>
     <script src="{{ url_for('static', path='/charts/campaign-layout.js') }}?v=7" defer></script>

@@ -17,7 +17,8 @@ Nibwick owns exceptions. The main desk owns portfolio state. Alerts remain close
 
 ## 2. Decide whether to sell premium
 
-Premium Radar is the ticker-first research workspace for that question. It does not collapse the
+Premium Radar is the primary research workspace for that question. It starts from names already in
+the book. It does not collapse the
 inputs into one score. The operator still has to hold apart:
 
 - uncovered share capacity and user-defined assignment willingness;
