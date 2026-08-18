@@ -1,5 +1,5 @@
 {% from "partials/_option_value_meter.html" import option_value_meter %}
-{% from "partials/_price_time_fact.html" import five_session_pressure %}
+{% from "partials/_price_time_fact.html" import price_pressure_row, delta_move_pair %}
 
 {% macro underlying_call_card(call, item, snapshot) -%}
 {% set price_time = call.price_time_read %}
@@ -54,11 +54,31 @@
     {{ option_value_meter(call.option_value_vs_credit_percent, call.mark_per_share, call.entry_credit_per_share) }}
   </div>
   <div class="call-context-strip">
-    <span>TIME VALUE NOW <b>{{ call.remaining_extrinsic_value | money(0) }}</b></span>
-    {% if call.intrinsic_value > 0 %}<span class="negative">INTRINSIC <b>{{ call.intrinsic_value | money(0) }}</b></span>{% else %}<span>INTRINSIC <b>$0 / OTM</b></span>{% endif %}
-    <span>THETA / DAY <i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i> <b class="positive">+{{ call.short_theta_per_day | money }}</b><small>Time decay if price and IV hold still</small></span>
-    <span title="Gamma-adjusted dollar consequence of this position's delta for the next $1 underlying move. {{ price_time.gamma_note if price_time else '' }}">DELTA &middot; NEXT $1 MOVE <b class="price-time-pair">{% if price_time and price_time.up_one_dollar_effect is not none %}<em>UP</em> <em class="{{ price_time.up_one_dollar_effect | pnl_class }}">{{ '+' if price_time.up_one_dollar_effect > 0 else '' }}{{ price_time.up_one_dollar_effect | money }}</em> <em>&middot; DOWN</em> <em class="{{ price_time.down_one_dollar_effect | pnl_class }}">{{ '+' if price_time.down_one_dollar_effect > 0 else '' }}{{ price_time.down_one_dollar_effect | money }}</em>{% else %}<em>&mdash;</em>{% endif %}</b><small>{% if price_time and price_time.price_effect is not none %}LAST SESSION {{ '+' if price_time.price_effect > 0 else '' }}{{ price_time.price_effect | money }}{% else %}LAST SESSION UNAVAILABLE{% endif %}</small>{{ five_session_pressure(price_time) }}</span>
+    <span>
+      <span>TIME VALUE NOW</span>
+      <b>{{ call.remaining_extrinsic_value | money(0) }}</b>
+    </span>
+    {% if call.intrinsic_value > 0 %}
+    <span class="negative">
+      <span>INTRINSIC</span>
+      <b>{{ call.intrinsic_value | money(0) }}</b>
+    </span>
+    {% else %}
+    <span>
+      <span>INTRINSIC</span>
+      <b>$0 / OTM</b>
+    </span>
+    {% endif %}
+    <span title="Time decay if price and IV hold still">
+      <span>THETA / DAY <i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i></span>
+      <b class="positive">+{{ call.short_theta_per_day | money }}</b>
+    </span>
+    <span title="Gamma-adjusted dollar consequence of this position's delta for the next $1 underlying move. Model sensitivity, not a forecast.">
+      <span>DELTA &middot; NEXT $1 MOVE</span>
+      {{ delta_move_pair(price_time) }}
+    </span>
   </div>
+  {{ price_pressure_row(price_time) }}
 </article>
 {%- endmacro %}
 
@@ -90,10 +110,24 @@
     <div><b>{{ put.days_to_expiration }}</b><span>DTE</span></div>
   </header>
   <div class="call-context-strip put-context-strip">
-    <span>MARK <b>{{ put.estimated_mark_per_share | money }}</b><small>{{ put.bid_per_share | money }} bid &middot; {{ put.ask_per_share | money }} ask</small></span>
-    <span>OPEN P/L <b class="{{ put.open_profit_loss | pnl_class }}">{{ put.open_profit_loss | money }}</b></span>
-    <span>THETA / DAY <b class="positive">+{{ (-(put.theta_per_share or 0) * put.position_scale) | money }}</b><small>Time decay if price and IV hold still</small></span>
-    <span title="Gamma-adjusted dollar consequence of this position's delta for the next $1 underlying move. {{ price_time.gamma_note }}">DELTA &middot; NEXT $1 MOVE <b class="price-time-pair">{% if price_time.up_one_dollar_effect is not none %}<em>UP</em> <em class="{{ price_time.up_one_dollar_effect | pnl_class }}">{{ '+' if price_time.up_one_dollar_effect > 0 else '' }}{{ price_time.up_one_dollar_effect | money }}</em> <em>&middot; DOWN</em> <em class="{{ price_time.down_one_dollar_effect | pnl_class }}">{{ '+' if price_time.down_one_dollar_effect > 0 else '' }}{{ price_time.down_one_dollar_effect | money }}</em>{% else %}<em>&mdash;</em>{% endif %}</b><small>{% if price_time.price_effect is not none %}LAST SESSION {{ '+' if price_time.price_effect > 0 else '' }}{{ price_time.price_effect | money }}{% else %}LAST SESSION UNAVAILABLE{% endif %}</small>{{ five_session_pressure(price_time) }}</span>
+    <span>
+      <span>MARK</span>
+      <b>{{ put.estimated_mark_per_share | money }}</b>
+      <small>{{ put.bid_per_share | money }} bid &middot; {{ put.ask_per_share | money }} ask</small>
+    </span>
+    <span>
+      <span>OPEN P/L</span>
+      <b class="{{ put.open_profit_loss | pnl_class }}">{{ put.open_profit_loss | money }}</b>
+    </span>
+    <span title="Time decay if price and IV hold still">
+      <span>THETA / DAY</span>
+      <b class="positive">+{{ (-(put.theta_per_share or 0) * put.position_scale) | money }}</b>
+    </span>
+    <span title="Gamma-adjusted dollar consequence of this position's delta for the next $1 underlying move. Model sensitivity, not a forecast.">
+      <span>DELTA &middot; NEXT $1 MOVE</span>
+      {{ delta_move_pair(price_time) }}
+    </span>
   </div>
+  {{ price_pressure_row(price_time) }}
 </article>
 {%- endmacro %}

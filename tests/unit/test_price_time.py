@@ -27,9 +27,16 @@ def test_price_time_read_compares_gamma_adjusted_price_effect_with_theta() -> No
     assert read.delta_pressure_label == "RISING"
     assert read.five_session_move_percent == Decimal("6") / Decimal("95") * Decimal("100")
     assert read.adverse_move_direction == "UP"
-    assert read.pressure_trend_label == "BUILDING"
+    assert read.pressure_trend_label == "HEATING"
     assert read.absolute_pressure_change == Decimal("4")
-    assert read.compact_pressure == "5D UP-MOVE RISK BUILDING"
+    assert read.compact_pressure == "5D UP-MOVE RISK HEATING"
+    assert read.pressure_face_line is not None
+    assert read.pressure_face_line.startswith("5D STOCK +")
+    assert "UP-MOVE" not in read.pressure_face_line
+    assert "HEATING" not in read.pressure_face_line
+    assert "+$4/NEXT $1" in read.pressure_face_line
+    assert read.pressure_plain_line is not None
+    assert "heating" in read.pressure_plain_line.lower()
     assert "$4" in read.pressure_summary
     assert "gamma" in read.gamma_note
     assert read.book_read == (
@@ -57,7 +64,10 @@ def test_price_time_read_marks_a_favorable_underlying_move_plainly() -> None:
     assert read.delta_pressure_label == "EASING"
     assert read.delta_pressure_change == Decimal("-4")
     assert read.adverse_move_direction == "UP"
-    assert read.compact_pressure == "5D UP-MOVE RISK EASING"
+    assert read.compact_pressure == "5D UP-MOVE RISK COOLING"
+    assert read.pressure_trend_label == "COOLING"
+    assert read.pressure_plain_line is not None
+    assert "cooling" in read.pressure_plain_line.lower()
 
 
 def test_price_time_read_handles_short_put_pressure_direction() -> None:
@@ -76,7 +86,10 @@ def test_price_time_read_handles_short_put_pressure_direction() -> None:
     assert read.delta_pressure_change == Decimal("4")
     assert read.delta_pressure_label == "RISING"
     assert read.adverse_move_direction == "DOWN"
-    assert read.compact_pressure == "5D DOWN-MOVE RISK BUILDING"
+    assert read.compact_pressure == "5D DOWN-MOVE RISK HEATING"
+    assert read.pressure_trend_label == "HEATING"
+    assert read.pressure_plain_line is not None
+    assert "heating" in read.pressure_plain_line.lower()
     assert "steepen" in read.gamma_note
 
 

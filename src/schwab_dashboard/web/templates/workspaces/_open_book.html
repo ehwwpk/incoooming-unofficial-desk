@@ -79,7 +79,13 @@
         </div>
         <div><span>NEAREST BUFFER</span><b class="{{ group.nearest_buffer_percent | pnl_class }}">{{ group.nearest_buffer_percent | percent }}</b></div>
         <div><span>NEXT EXPIRY</span><b>{{ group.next_expiration_dte }} DTE</b><small>{{ group.next_expiration | short_date }}</small></div>
-        <div><span>OPEN P/L</span><b class="{{ group.open_profit_loss | pnl_class }}">{{ group.open_profit_loss | money }}</b></div>
+        <div class="open-call-group-pl">
+          <span>OPEN P/L</span>
+          <div class="open-book-pl-line">
+            <b class="{{ group.open_profit_loss | pnl_class }}">{{ group.open_profit_loss | money }}</b>
+            <small class="{{ group.premium_capture_percent | pnl_class }}">{{ group.premium_capture_percent | percent }} CAPTURED</small>
+          </div>
+        </div>
         <div><span>MODEL DECAY / DAY</span><b class="positive">+{{ group.theta_estimate_per_day | money }}</b></div>
       </header>
       <div class="open-call-group-rows">

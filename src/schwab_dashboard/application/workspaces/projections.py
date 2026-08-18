@@ -87,6 +87,7 @@ class OpenCallGroup:
     next_expiration: date
     next_expiration_dte: int
     open_profit_loss: Decimal
+    premium_capture_percent: Decimal
     theta_estimate_per_day: Decimal
 
 
@@ -210,6 +211,8 @@ def build_open_book(snapshot: DashboardSnapshot) -> OpenBookProjection:
         summary_rows = actionable_rows or underlying_rows
         nearest = min(summary_rows, key=lambda row: abs(row.strike_distance_percent))
         next_expiring = min(summary_rows, key=lambda row: row.expires_on)
+        entry_credit = sum((row.entry_credit for row in underlying_rows), Decimal(0))
+        current_liability = sum((row.current_liability for row in underlying_rows), Decimal(0))
         groups.append(
             OpenCallGroup(
                 symbol=underlying.symbol,
@@ -220,6 +223,11 @@ def build_open_book(snapshot: DashboardSnapshot) -> OpenBookProjection:
                 next_expiration=next_expiring.expires_on,
                 next_expiration_dte=next_expiring.days_to_expiration,
                 open_profit_loss=sum((row.open_profit_loss for row in underlying_rows), Decimal(0)),
+                premium_capture_percent=(
+                    (entry_credit - current_liability) / entry_credit * Decimal("100")
+                    if entry_credit
+                    else Decimal(0)
+                ),
                 theta_estimate_per_day=sum(
                     (row.theta_estimate_per_day for row in underlying_rows), Decimal(0)
                 ),

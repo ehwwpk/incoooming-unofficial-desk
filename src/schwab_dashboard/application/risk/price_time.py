@@ -90,16 +90,81 @@ class PriceTimeRead:
     def compact_pressure(self) -> str:
         if self.delta_pressure_label is None:
             return "5D PRICE PRESSURE PARTIAL"
-        trend = "BUILDING" if self.delta_pressure_label == "RISING" else self.delta_pressure_label
+        trend = self.pressure_trend_plain or "PARTIAL"
         if self.adverse_move_direction:
             return f"5D {self.adverse_move_direction}-MOVE RISK {trend}"
         return f"5D PRICE RISK {trend}"
 
     @property
-    def pressure_trend_label(self) -> str:
+    def pressure_trend_plain(self) -> str | None:
         if self.delta_pressure_label == "RISING":
-            return "BUILDING"
-        return self.delta_pressure_label or "PARTIAL"
+            return "HEATING"
+        if self.delta_pressure_label == "EASING":
+            return "COOLING"
+        if self.delta_pressure_label == "STEADY":
+            return "QUIET"
+        return None
+
+    @property
+    def pressure_trend_label(self) -> str:
+        return self.pressure_trend_plain or "PARTIAL"
+
+    @property
+    def pressure_face_line(self) -> str | None:
+        if self.five_session_move_percent is None:
+            return None
+        if self.delta_pressure_label is None or self.absolute_pressure_change is None:
+            return "5D PRICE PRESSURE PARTIAL"
+        trend = self.pressure_trend_plain or "PARTIAL"
+        parts = [f"5D STOCK {_signed_percent(self.five_session_move_percent)}"]
+        if trend == "HEATING":
+            parts.append(f"+${_compact(self.absolute_pressure_change)}/NEXT $1")
+        elif trend == "COOLING":
+            parts.append(f"${_compact(self.absolute_pressure_change)}/NEXT $1 EASED")
+        return " · ".join(parts)
+
+    @property
+    def pressure_plain_line(self) -> str | None:
+        if self.delta_pressure_label is None:
+            return (
+                "Weekly price-pressure read is partial; missing model inputs stay blank."
+            )
+        if self.five_session_move_percent is None:
+            return None
+        move_direction = (
+            self.adverse_move_direction.lower()
+            if self.adverse_move_direction
+            else "price"
+        )
+        if self.delta_pressure_label == "STEADY":
+            return (
+                f"The five-session stock move was roughly flat versus this position's "
+                f"{move_direction}-move side."
+            )
+        if self.adverse_move_direction is None:
+            book_direction = "toward" if self.delta_pressure_label == "RISING" else "away from"
+            return (
+                f"Across the open book, more five-session stock pressure moved {book_direction} "
+                "the positions' risky sides. Open a name for contract-level context."
+            )
+        weekly_path = "that way" if self.delta_pressure_label == "RISING" else "away from it"
+        if self.delta_pressure_label == "RISING":
+            assert self.absolute_pressure_change is not None
+            return (
+                f"Stock moved {weekly_path} over five sessions. "
+                f"{self.adverse_move_direction}-move pressure is heating; another $1 "
+                f"{move_direction} adds about ${_compact(self.absolute_pressure_change)} "
+                "to the hurt."
+            )
+        assert self.delta_pressure_label == "EASING"
+        return (
+            f"Stock moved {weekly_path} over five sessions. "
+            f"{self.adverse_move_direction}-move pressure is cooling."
+        )
+
+    @property
+    def session_face_line(self) -> str:
+        return self.consequence
 
     @property
     def absolute_pressure_change(self) -> Decimal | None:
@@ -331,3 +396,9 @@ def aggregate_price_time_reads(reads: tuple[PriceTimeRead, ...]) -> PriceTimeRea
 def _compact(value: Decimal) -> str:
     rendered = f"{value.quantize(Decimal('0.1')):f}"
     return rendered.rstrip("0").rstrip(".") if "." in rendered else rendered
+
+
+def _signed_percent(value: Decimal) -> str:
+    rendered = _compact(value)
+    prefix = "+" if value > ZERO else ""
+    return f"{prefix}{rendered}%"

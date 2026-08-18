@@ -22,6 +22,7 @@
   --type-meta: .5625rem;
   --type-copy-sm: .625rem;
   --type-body: .6875rem;
+  --type-display: .875rem;
   --mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
   --sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }

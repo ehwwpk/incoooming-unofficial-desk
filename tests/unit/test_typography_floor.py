@@ -71,3 +71,16 @@ def test_tertiary_text_meets_small_text_contrast_on_core_surfaces() -> None:
     foreground = "#898c94"
     for background in ("#090a0b", "#0d0f11", "#111317"):
         assert _contrast_ratio(foreground, background) >= 4.5
+
+
+def test_wave_one_fact_strips_do_not_fake_cell_height() -> None:
+    recipes = {
+        "performance.css": ".name-analytics > div {",
+        "open-book.css": ".option-fact-strip > div {",
+        "desk-overview.css": ".live-position-facts > div, .live-call-row > div {",
+    }
+    for filename, opener in recipes.items():
+        stylesheet = (STATIC_DIR / filename).read_text(encoding="utf-8")
+        start = stylesheet.index(opener)
+        rule = stylesheet[start : stylesheet.index("}", start)]
+        assert "min-height" not in rule, f"{filename} still pins {opener}"
