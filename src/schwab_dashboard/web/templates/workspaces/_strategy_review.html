@@ -2,15 +2,16 @@
 {% set cadence_series = snapshot.cash_chart_series | rejectattr('key', 'equalto', 'month') | list %}
 {% set comparison = snapshot.performance_comparison %}
 {% if comparison %}
+{% set matched = comparison.matched %}
+{% set economics = comparison.spine.option_economics %}
+{% set risk = comparison.spine.risk %}
+{% set capital = comparison.spine.capital_efficiency %}
+{% set assignment = comparison.spine.assignment_impact %}
 <section class="workspace-panel performance-compare" id="performance-comparison" data-performance-compare>
   <header class="workspace-panel-heading">
     <div><p class="eyebrow">PERFORMANCE SPINE</p><h2>Did the premium work earn its keep?</h2></div>
-    <span>{{ comparison.range_label | upper }} &middot; {{ comparison.methodology_version | upper }}</span>
+    <span>{{ comparison.range_label | upper }}{% if risk.status == 'early_sample' %} &middot; EARLY SAMPLE{% endif %}</span>
   </header>
-  {% set matched = comparison.matched %}
-  {% if matched and matched.as_of %}
-  <p class="performance-matched-note" title="{{ matched.method_note }}">ALL FIGURES READ {{ matched.as_of.strftime('%b %d, %Y') | upper }} &middot; LAST SESSION EVERY SERIES COVERS</p>
-  {% endif %}
   <div class="performance-compare-tape">
     <div class="actual"><span>MANAGED BOOK &middot; TWR</span><strong class="{{ matched.managed_return_percent | pnl_class }}">{{ matched.managed_return_percent | percent(2) }}</strong><small>OWNER CASH FLOWS NEUTRALIZED{% if comparison.actual.return_percent is not none and comparison.actual.points and comparison.actual.points[-1].date != matched.as_of %} &middot; {{ comparison.actual.return_percent | percent(2) }} THROUGH {{ comparison.actual.points[-1].date.strftime('%b %d') | upper }}{% endif %}</small></div>
     <div class="shares"><span>SAME STARTING SHARES</span><strong class="{{ matched.shares_return_percent | pnl_class }}">{{ matched.shares_return_percent | percent(2) }}</strong><small>{{ comparison.shares_without_options.status | replace('_', ' ') | upper }}</small></div>
@@ -20,7 +21,10 @@
   </div>
   <div class="performance-chart-heading">
     <div><span>NORMALIZED RETURN PATH</span><strong>FIRST OBSERVED VALUE = 0.00%</strong></div>
-    <div data-performance-sample><b>{{ comparison.spine.risk.observations }} RETURN DAYS</b><span>{{ comparison.spine.risk.status | replace('_', ' ') | upper }}</span></div>
+    <div data-performance-sample>
+      {% if matched.as_of %}<b title="{{ matched.method_note }}">THROUGH {{ matched.as_of.strftime('%b %d, %Y') | upper }}</b>{% endif %}
+      <span>{{ risk.observations }} DAY{{ '' if risk.observations == 1 else 'S' }}</span>
+    </div>
   </div>
   <div class="performance-compare-chart" data-performance-compare-chart tabindex="0" role="img" aria-label="Normalized cumulative performance series. Use the left and right arrow keys to inspect dates.">
     <svg aria-hidden="true" focusable="false" data-performance-compare-svg></svg>
@@ -40,13 +44,9 @@
     <div><span>DATA RECONCILIATION</span><strong>{{ comparison.spine.option_economics.status | replace('_', ' ') | upper }}</strong><small>{{ comparison.spine.option_economics.campaign_cash_variance | money }} CASH VARIANCE</small></div>
   </div>
 
-  {% set economics = comparison.spine.option_economics %}
-  {% set risk = comparison.spine.risk %}
-  {% set capital = comparison.spine.capital_efficiency %}
-  {% set assignment = comparison.spine.assignment_impact %}
   <div class="performance-spine-grid">
     <article class="performance-spine-card option-economics-card">
-      <header><div><p class="eyebrow">OPTION ECONOMICS</p><h3>Cash, closed work, live marks</h3></div><span>{{ economics.status | replace('_', ' ') | upper }}</span></header>
+      <header><div><p class="eyebrow">OPTION ECONOMICS</p><h3>Credits, buybacks, live marks</h3></div><span>{{ economics.status | replace('_', ' ') | upper }}</span></header>
       <div class="performance-cell-grid">
         <div><span>OPENING CREDITS</span><strong class="positive">{{ economics.opening_credits | money }}</strong><small>Inside return coverage</small></div>
         <div><span>CLOSE + ROLL DEBITS</span><strong class="negative">{{ economics.closing_debits | money }}</strong><small>Executed buybacks</small></div>
@@ -55,13 +55,15 @@
         <div><span>COMPLETED CAMPAIGN P/L</span><strong class="{{ economics.closed_campaign_result | pnl_class }}">{{ economics.closed_campaign_result | money }}</strong><small>{{ economics.closed_campaigns }} finished inside this window</small></div>
         <div><span>LIVE OPTION MARK P/L</span><strong class="{{ economics.open_mark_profit_loss | pnl_class }}">{{ economics.open_mark_profit_loss | money }}</strong><small>Unrealized &middot; current snapshot</small></div>
         <div><span>LIVE OPTION LIABILITY</span><strong>{{ economics.current_option_liability | money }}</strong><small>Cost represented by current short marks</small></div>
-        <div><span>SLIPPAGE</span><strong>NOT MEASURED</strong><small>Needs execution-time bid / ask</small></div>
+        {% if economics.slippage_status != 'not_measured' %}
+        <div><span>SLIPPAGE</span><strong>{{ economics.slippage_status | replace('_', ' ') | upper }}</strong><small>Execution-time bid / ask</small></div>
+        {% endif %}
       </div>
       <footer>{{ economics.method_note }}</footer>
     </article>
 
     <article class="performance-spine-card risk-card">
-      <header><div><p class="eyebrow">RISK TAPE</p><h3>What the return path demanded</h3></div><span>{{ risk.observations }} DAYS</span></header>
+      <header><p class="eyebrow">Drawdown, Volume, and Worst Day</p><span>{{ risk.observations }} DAYS</span></header>
       <div class="performance-cell-grid compact">
         <div><span>MAX DRAWDOWN</span><strong class="{{ risk.max_drawdown_percent | pnl_class }}">{{ risk.max_drawdown_percent | percent(2) }}</strong><small>Peak to trough</small></div>
         <div><span>ANNUALIZED VOLATILITY</span><strong>{{ risk.annualized_volatility_percent | percent(2) }}</strong><small>{% if risk.status == 'early_sample' %}Early sample{% else %}252-day convention{% endif %}</small></div>
@@ -72,7 +74,7 @@
     </article>
 
     <article class="performance-spine-card capital-card">
-      <header><div><p class="eyebrow">CAPITAL USE</p><h3>What the cash leaned on</h3></div><span>{{ capital.status | upper }}</span></header>
+      <header><p class="eyebrow">Net Liquidity, Maintenance, and Buying Power</p><span>{{ capital.status | upper }}</span></header>
       <div class="performance-cell-grid compact">
         <div><span>AVERAGE NET LIQUIDATION</span><strong>{{ capital.average_net_liquidation | money }}</strong><small>Observed daily values</small></div>
         <div><span>OPTION CASH / AVG CAPITAL</span><strong>{{ capital.option_cash_on_average_capital_percent | percent(2) }}</strong><small>Capital-use ratio, not TWR</small></div>
@@ -83,21 +85,17 @@
     </article>
   </div>
 
-  <div class="performance-policy-grid">
+  {% if assignment.status != 'no_assignments' %}
+  <div class="performance-policy-grid assignment-only">
     <article class="assignment-card">
-      <header><p class="eyebrow">ASSIGNMENT LEDGER</p><h3>Shares moved by options</h3></header>
+      <header><p class="eyebrow">ASSIGNMENT LEDGER</p><h3>Calls and puts assigned</h3></header>
       <div><span>CALLS ASSIGNED</span><strong>{{ assignment.assigned_call_contracts }}</strong><small>{{ assignment.called_away_shares }} shares called away</small></div>
       <div><span>PUTS ASSIGNED</span><strong>{{ assignment.assigned_put_contracts }}</strong><small>{{ assignment.acquired_shares }} shares acquired</small></div>
       <div><span>PERIOD-END UPSIDE REFERENCE</span><strong>{{ assignment.period_end_upside_reference | money }}</strong><small>Context, not realized loss</small></div>
       <footer>{{ assignment.method_note }}</footer>
     </article>
-    <article class="benchmark-policy-card">
-      <header><p class="eyebrow">BENCHMARK POLICY</p><h3>Comparable or it stays blank</h3></header>
-      {% for item in comparison.spine.benchmark_policy %}<div>
-        <span>{{ item.role }}</span><strong>{{ item.label }}</strong><small>{{ item.status | replace('_', ' ') | upper }} &middot; {{ item.method_note }}</small>
-      </div>{% endfor %}
-    </article>
   </div>
+  {% endif %}
 
   <details class="performance-methodology">
     <summary>METHOD &amp; LIMITS <span>+</span></summary>
@@ -107,6 +105,11 @@
       <p><b>MANAGEMENT DIFFERENCE</b>{{ comparison.spine.management_edge.method_note }}</p>
       <p><b>MARKET CONTEXT</b>{{ comparison.market_reference.method_note }}</p>
       <p><b>MARKET AT YOUR EXPOSURE</b>{{ comparison.levered_market_reference.method_note }}</p>
+    </div>
+    <div class="performance-method-policy">
+      {% for item in comparison.spine.benchmark_policy %}
+      <p><b>{{ item.role }}</b><strong>{{ item.label }}</strong>{{ item.status | replace('_', ' ') | upper }}. {{ item.method_note }}</p>
+      {% endfor %}
     </div>
   </details>
   <footer class="performance-compare-footer"><span>{% if comparison.warnings %}{{ comparison.warnings | join(' / ') }}{% else %}OBSERVED DAILY VALUES ONLY{% endif %}</span><span>SHARPE / SORTINO WITHHELD UNTIL A MATCHED RISK-FREE SERIES AND SUFFICIENT HISTORY EXIST</span></footer>

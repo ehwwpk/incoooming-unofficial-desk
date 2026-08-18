@@ -67,7 +67,8 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "POSITION-ADJUSTED" in risk.text
         assert "DELTA &middot; NEXT $1" in risk.text
         assert "5D STOCK" in risk.text
-        assert "MOVE RISK" in risk.text
+        assert "UP-MOVE" in risk.text or "DOWN-MOVE" in risk.text
+        assert "price-pressure-plain" in risk.text
         assert "IV +1" in risk.text
         assert "MODEL INPUTS" in risk.text
         assert 'data-open-book-section="calendar" open' in risk.text

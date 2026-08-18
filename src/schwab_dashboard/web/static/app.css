@@ -1,9 +1,9 @@
-@import url("./base.css?v=28");
-@import url("./components.css?v=35");
+@import url("./base.css?v=29");
+@import url("./components.css?v=48");
 @import url("./alerts.css?v=27");
-@import url("./performance.css?v=26");
+@import url("./performance.css?v=27");
 @import url("./dashboard.css?v=24");
-@import url("./desk-overview.css?v=13");
+@import url("./desk-overview.css?v=14");
 
 @media (max-width: 1240px) {
   .portfolio-console { grid-template-columns: repeat(3, 1fr); }
@@ -85,9 +85,10 @@
   .underlying-primary div { border-bottom: 1px solid var(--line); }
   .underlying-primary div:nth-child(2n) { border-right: 0; }
   .underlying-primary div:nth-last-child(-n + 2) { border-bottom: 0; }
-  .name-analytics { grid-template-columns: repeat(3, 1fr); }
-  .name-analytics div:nth-child(3n) { border-right: 0; }
-  .name-analytics div:nth-child(-n + 3) { border-bottom: 1px solid var(--line); }
+  .name-analytics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .name-analytics > div { border-bottom: 1px solid var(--line); }
+  .name-analytics > div:nth-child(3n) { border-right: 0; }
+  .name-analytics > div:last-child { border-bottom: 0; border-right: 0; }
   .section-heading { align-items: flex-start; flex-direction: column; }
   .legend { margin-top: 3px; }
   .price-map-legend { flex-wrap: wrap; }

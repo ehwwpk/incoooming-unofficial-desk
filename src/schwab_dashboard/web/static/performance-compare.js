@@ -255,15 +255,16 @@
 
     const render = () => {
       const width = Math.max(640, Math.round(chart.clientWidth));
-      const height = Math.max(270, Math.round(chart.clientHeight));
+      const measured = Math.round(chart.clientHeight);
+      const height = measured > 0 ? measured : 248;
       const showEndLabels = width >= 860;
       const margin = {
-        top: 28,
+        top: 20,
         // Gutter is the callout width plus a 12px frame buffer — not a
         // percentage of the plot. A 17% right pad left a dead strip that
         // read as an unfinished alignment.
         right: showEndLabels ? 122 : 16,
-        bottom: 38,
+        bottom: 30,
         left: 54,
       };
       const plot = { left: margin.left, right: width - margin.right, top: margin.top, bottom: height - margin.bottom };

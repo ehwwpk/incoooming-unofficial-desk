@@ -26,9 +26,12 @@
       <b class="put-cash-pair"><i class="positive">+{{ row.entry_credit | money }}</i><i class="negative">&minus;{{ row.estimated_close_cost | money }}</i></b>
       <em>Received / {{ row.close_cost_basis | lower }}</em>
     </span>
-    <span>
+    <span class="option-row-pl">
       <small>OPEN P/L</small>
-      <b class="{{ row.open_profit_loss | pnl_class }}">{{ row.open_profit_loss | money }}</b>
+      <div class="open-book-pl-line">
+        <b class="{{ row.open_profit_loss | pnl_class }}">{{ row.open_profit_loss | money }}</b>
+        <small class="{{ row.credit_capture_percent | pnl_class }}">{{ row.credit_capture_percent | percent }} CAPTURED</small>
+      </div>
       <em>{% if row.can_close_or_roll %}{{ row.theta_estimate_per_day | money }}/day model decay{% else %}No live theta after trading close{% endif %}</em>
     </span>
     <i class="option-row-toggle put-row-toggle" aria-hidden="true"></i>

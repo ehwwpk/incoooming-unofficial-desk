@@ -1,14 +1,45 @@
-{% macro five_session_pressure(price_time) -%}
-{% if price_time and price_time.five_session_move_percent is not none and price_time.absolute_pressure_change is not none %}
-<small
-  class="price-pressure-line pressure-{{ price_time.pressure_trend_label | lower }}"
-  title="{{ price_time.pressure_summary }} This is a price-direction cue using the actual five-session stock move and today's local gamma. Time and IV can also change delta; this is not observed delta history, a probability, or a timing signal."
->
-  5D STOCK {{ '+' if price_time.five_session_move_percent > 0 else '' }}{{ price_time.five_session_move_percent | percent }}
-  &middot; {% if price_time.adverse_move_direction %}{{ price_time.adverse_move_direction }}-MOVE {% endif %}RISK
-  &middot; {{ price_time.pressure_trend_label }}
-</small>
+{% macro price_pressure_row(price_time) -%}
+{% if price_time and (price_time.pressure_face_line or price_time.up_one_dollar_effect is not none or price_time.price_effect is not none) %}
+{% set face = price_time.pressure_face_line if price_time.pressure_face_line else ('5D PRICE PRESSURE PARTIAL' if price_time.up_one_dollar_effect is not none else none) %}
+{% if price_time.price_effect is not none %}
+{% set session = 'LAST SESSION ' ~ ('+' if price_time.price_effect > 0 else '') ~ (price_time.price_effect | money) ~ ' · ' ~ price_time.compact_consequence %}
+{% else %}
+{% set session = 'LAST SESSION UNAVAILABLE' %}
 {% endif %}
+<div
+  class="option-pressure-row"
+  title="{% if face %}{{ face }} · {{ session }}{% else %}{{ session }}{% endif %} · Model sensitivity read. Not cash or a forecast."
+>{% if face %}<span class="option-pressure-line">{{ face }}</span>{% endif %}<span class="option-pressure-line">{{ session }}</span></div>
+{% endif %}
+{%- endmacro %}
+
+{% macro delta_move_pair(price_time) -%}
+<span class="delta-move-pair">{% if price_time and price_time.up_one_dollar_effect is not none %}<span class="delta-move-leg"><span>UP</span> <b class="{{ price_time.up_one_dollar_effect | pnl_class }}">{{ '+' if price_time.up_one_dollar_effect > 0 else '' }}{{ price_time.up_one_dollar_effect | money }}</b></span><span class="delta-move-sep" aria-hidden="true">&middot;</span><span class="delta-move-leg"><span>DOWN</span> <b class="{{ price_time.down_one_dollar_effect | pnl_class }}">{{ '+' if price_time.down_one_dollar_effect > 0 else '' }}{{ price_time.down_one_dollar_effect | money }}</b></span>{% else %}<b>&mdash;</b>{% endif %}</span>
+{%- endmacro %}
+
+{% macro price_pressure_read(price_time, show_session=false, show_plain=true) -%}
+{% if price_time and price_time.pressure_face_line %}
+{% set trend = (price_time.pressure_trend_plain or 'partial') | lower %}
+<small
+  class="price-pressure-line pressure-{{ trend }}"
+  title="{{ price_time.pressure_summary }} Model read from the five-session stock move and current greeks. Not cash or a forecast."
+>{{ price_time.pressure_face_line }}</small>
+{% if show_plain and price_time.pressure_plain_line %}
+<small class="price-pressure-plain pressure-{{ trend }}">{{ price_time.pressure_plain_line }}</small>
+{% endif %}
+{% elif price_time and price_time.up_one_dollar_effect is not none %}
+<small class="price-pressure-line pressure-partial">5D PRICE PRESSURE PARTIAL</small>
+{% if show_plain and price_time.pressure_plain_line %}
+<small class="price-pressure-plain pressure-partial">{{ price_time.pressure_plain_line }}</small>
+{% endif %}
+{% endif %}
+{% if show_session and price_time %}
+<small class="price-session-line">{% if price_time.price_effect is not none %}LAST SESSION {{ '+' if price_time.price_effect > 0 else '' }}{{ price_time.price_effect | money }} · {{ price_time.session_face_line }}{% else %}LAST SESSION UNAVAILABLE{% endif %}</small>
+{% endif %}
+{%- endmacro %}
+
+{% macro five_session_pressure(price_time) -%}
+{{ price_pressure_read(price_time, show_session=false) }}
 {%- endmacro %}
 
 {% macro price_time_fact(price_time, theta_per_day, vega_effect, can_close_or_roll) -%}
@@ -31,7 +62,7 @@
   THETA +{{ theta_per_day | money }}/DAY
   {% if vega_effect is not none %}&middot; IV +1 {{ '+' if vega_effect > 0 else '' }}{{ vega_effect | money }}{% endif %}
 </small>
-{{ five_session_pressure(price_time) }}
+{{ price_pressure_read(price_time, show_session=true) }}
 {% else %}
 <b>CLOSED</b>
 <small>No live price or time sensitivity after trading close</small>

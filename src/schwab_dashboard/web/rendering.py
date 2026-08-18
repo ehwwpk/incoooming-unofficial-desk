@@ -46,7 +46,10 @@ def short_date(value: date | datetime | None) -> str:
 def pnl_class(value: Any) -> str:
     if value is None:
         return "muted"
-    amount = Decimal(str(value))
+    try:
+        amount = Decimal(str(value))
+    except Exception:
+        return "muted"
     if amount > 0:
         return "positive"
     if amount < 0:

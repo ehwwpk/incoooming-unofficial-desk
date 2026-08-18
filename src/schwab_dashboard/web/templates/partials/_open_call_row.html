@@ -22,9 +22,12 @@
       <b class="{{ row.credit_capture_percent | pnl_class }}">{{ row.option_value_vs_credit_percent | percent }}</b>
       <em>{{ row.current_liability | money }} now / {{ row.entry_credit | money }} received</em>
     </span>
-    <span>
+    <span class="option-row-pl">
       <small>OPEN P/L</small>
-      <b class="{{ row.open_profit_loss | pnl_class }}">{{ row.open_profit_loss | money }}</b>
+      <div class="open-book-pl-line">
+        <b class="{{ row.open_profit_loss | pnl_class }}">{{ row.open_profit_loss | money }}</b>
+        <small class="{{ row.credit_capture_percent | pnl_class }}">{{ row.credit_capture_percent | percent }} CAPTURED</small>
+      </div>
       <em>{% if row.can_close_or_roll %}{{ row.theta_estimate_per_day | money }}/day model decay{% else %}No live theta after trading close{% endif %}</em>
     </span>
     <i class="option-row-toggle call-row-toggle" aria-hidden="true"></i>
