@@ -38,14 +38,6 @@ _PLANNING_GATE_CODES = frozenset(
         "fast_move",
     }
 )
-_ROLL_PLANNING_GATE_CODES = _PLANNING_GATE_CODES | frozenset(
-    {
-        "annualized_rate",
-        "minimum_strike",
-        "otm_call",
-        "strike_distance",
-    }
-)
 
 
 def evaluate_radar(
@@ -140,6 +132,7 @@ def evaluate_radar(
             contracts=tuple(bundle.contracts),
             five_day=five_day,
             rejected=rejected,
+            for_roll=roll_selection is not None,
         )
         return _empty_projection(
             lookup_id=lookup_id,
@@ -148,10 +141,11 @@ def evaluate_radar(
             account=account,
             policy=policy,
             state=RadarState.WAIT,
-            headline=(
-                f"{bundle.symbol} chain loaded; no contract clears the current filters"
-                if side_contract_count
-                else f"No supported {mode.option_side.value} contracts returned for {bundle.symbol}"
+            headline=_empty_headline(
+                bundle.symbol,
+                mode=mode,
+                side_contract_count=side_contract_count,
+                for_roll=roll_selection is not None,
             ),
             reasons=reasons,
             warnings=tuple(warnings),
@@ -178,7 +172,7 @@ def evaluate_radar(
         as_of=evaluated_at.date(),
     )
     if roll_selection is not None:
-        direction = "same/higher" if mode is RadarMode.COVERED_CALL else "same/lower"
+        direction = "higher" if mode is RadarMode.COVERED_CALL else "same or lower"
         noun = "call" if mode is RadarMode.COVERED_CALL else "put"
         roll_state = (
             RadarState.PARTIAL
@@ -196,9 +190,9 @@ def evaluate_radar(
             account=account,
             policy=policy,
             verdict="ROLL REVIEW",
-            headline=f"{len(selected)} later {direction} {noun}(s), grouped by trade-off",
+            headline=f"{len(selected)} nearby listed {noun}(s) at later {direction} strikes",
             reasons=(
-                "Lowest cash cost, least extra time, and most strike room stay distinct.",
+                "The ladder is the next listed expiries and strikes, not a slogan contest.",
                 "Credits use the replacement bid and the current option's buy-to-close ask.",
             ),
             candidates=selected,
@@ -384,6 +378,7 @@ def _candidate(
         clears_all_rules=clears_all_rules,
         gates=gates,
         reasons=reasons,
+        theta=contract.theta,
     )
 
 
@@ -396,11 +391,10 @@ def _passes_research_gates(candidate: RadarCandidate) -> bool:
 
 
 def _passes_roll_research_gates(candidate: RadarCandidate) -> bool:
-    """Keep executable-quality quotes even when opening-sale rules do not apply."""
+    """Waive opening-sale filters; the selector still requires a positive bid."""
 
     return all(
-        gate.status.value != "fail" or gate.code in _ROLL_PLANNING_GATE_CODES
-        for gate in candidate.gates
+        gate.code != "side" or gate.status.value != "fail" for gate in candidate.gates
     )
 
 
@@ -447,6 +441,20 @@ def _atm_iv_by_expiration(
     return result
 
 
+def _empty_headline(
+    symbol: str | None,
+    *,
+    mode: RadarMode,
+    side_contract_count: int,
+    for_roll: bool,
+) -> str:
+    if not side_contract_count:
+        return f"No supported {mode.option_side.value} contracts returned for {symbol}"
+    if for_roll:
+        return f"{symbol} chain loaded; no nearby listed replacement"
+    return f"{symbol} chain loaded; no contract clears the current filters"
+
+
 def _wait_reasons(
     *,
     mode: RadarMode,
@@ -455,7 +463,14 @@ def _wait_reasons(
     contracts: tuple[RadarMarketContract, ...],
     five_day: Decimal | None,
     rejected: int,
+    for_roll: bool = False,
 ) -> tuple[str, ...]:
+    if for_roll:
+        if not contracts:
+            return ("The source returned no supported contracts in this window.",)
+        return (
+            "Later listed contracts need a positive bid and a protective strike.",
+        )
     reasons: list[str] = []
     if mode is RadarMode.COVERED_CALL and account.available_call_lots == 0:
         reasons.append("No uncommitted 100-share lot is available for another covered call.")

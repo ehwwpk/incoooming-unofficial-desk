@@ -1,11 +1,12 @@
-# Integrated platform plan
+# Incoooming integrated platform plan
 
 ## Architectural decision
 
-The five approved systems remain modules inside the existing local-first modular monolith. They
-share identifiers, immutable raw events, normalized ledger records, point-in-time market
-observations, and calculation metadata. They do not share UI-specific models or reach into one
-another's tables directly.
+Incoooming keeps Truth Engine, Open Risk, Attribution Lab, Volatility Lab, and the Workspace System
+as modules inside one local-first modular monolith. Premium Radar and the Nibwick Roll Board sit on
+that same spine as Tools and Open Options projections. They share identifiers, immutable raw events,
+normalized ledger records, point-in-time market observations, and calculation metadata. They do not
+share UI-specific models or reach into one another's tables directly.
 
 ## Dependency order
 

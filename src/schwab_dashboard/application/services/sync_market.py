@@ -99,6 +99,7 @@ class SyncSchwabMarketData:
                 from_date=min(expirations),
                 to_date=max(expirations) + timedelta(days=56),
                 contract_type="ALL",
+                strike_count=250,
             )
             chain_received_at = datetime.now(UTC)
             chain_result = self._recorder.execute(

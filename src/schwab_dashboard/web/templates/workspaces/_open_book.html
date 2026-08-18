@@ -28,10 +28,9 @@
       {% if row.candidates %}
       <div class="roll-board-candidates">
         {% for choice in row.candidates %}
-        <a href="/workspaces/radar?symbol={{ row.symbol | urlencode }}&amp;mode={{ 'covered_call' if row.source.option_side.value == 'call' else 'cash_secured_put' }}&amp;review=roll&amp;source={{ row.source.option_symbol | urlencode }}&amp;targetExpiration={{ choice.expires_on }}&amp;targetStrike={{ choice.strike }}&amp;from=roll-board&amp;returnAnchor={{ row.anchor_id | urlencode }}">
-          <span>{{ choice.family_label }}</span>
+        <a class="roll-board-choice{% if choice.highlight %} is-highlight{% endif %}{% if choice.also_open %} is-also-open{% endif %}" href="/workspaces/radar?symbol={{ row.symbol | urlencode }}&amp;mode={{ 'covered_call' if row.source.option_side.value == 'call' else 'cash_secured_put' }}&amp;review=roll&amp;source={{ row.source.option_symbol | urlencode }}&amp;targetExpiration={{ choice.expires_on }}&amp;targetStrike={{ choice.strike }}&amp;from=roll-board&amp;returnAnchor={{ row.anchor_id | urlencode }}">
           <div class="roll-board-choice-line"><b>${{ choice.strike | number(2) }}{{ 'C' if choice.option_side.value == 'call' else 'P' }} · {{ choice.expires_on | short_date }}</b><strong class="{{ choice.net_roll_cash | pnl_class }}">{{ choice.net_roll_cash | money }} TOTAL</strong></div>
-          <small>{{ choice.added_days }} MORE DAYS · {{ choice.cost_label }}</small>
+          <small>{% if choice.highlight %}NEAREST CASH AND TIME · {% endif %}{% if choice.also_open %}ALSO OPEN · {% endif %}{{ choice.added_days }} MORE DAYS · {{ choice.cost_label }}{% if choice.cash_per_extra_day is not none %} · {{ choice.cash_per_extra_day | money }}/EXTRA DAY{% endif %}{% if choice.theta_per_share is not none %} · MODEL θ {{ (-choice.theta_per_share if choice.theta_per_share < 0 else choice.theta_per_share) | money }}/SH{% endif %}</small>
         </a>
         {% endfor %}
       </div>

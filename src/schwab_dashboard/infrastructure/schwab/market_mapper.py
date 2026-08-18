@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -135,7 +135,7 @@ class SchwabMarketMapper:
         if not symbol:
             raise ValueError("Schwab price history is missing its symbol")
         external_key = f"market:{symbol}"
-        bars: list[UnderlyingDailyBar] = []
+        bars_by_date: dict[date, UnderlyingDailyBar] = {}
         raw_candles = payload.get("candles") or []
         if not isinstance(raw_candles, Sequence) or isinstance(raw_candles, (str, bytes)):
             raise ValueError("Schwab price history candles are not a list")
@@ -143,17 +143,22 @@ class SchwabMarketMapper:
             if not isinstance(candle, Mapping):
                 continue
             timestamp = _epoch_millis(candle.get("datetime"), fallback=observed_at)
-            bars.append(
-                UnderlyingDailyBar(
-                    instrument=InstrumentRef(source="schwab", external_key=external_key),
-                    trade_date=timestamp.date(),
-                    open=_required_market_decimal(candle.get("open")),
-                    high=_required_market_decimal(candle.get("high")),
-                    low=_required_market_decimal(candle.get("low")),
-                    close=_required_market_decimal(candle.get("close")),
-                    volume=_optional_int(candle.get("volume")) or 0,
-                )
+            trade_date = timestamp.date()
+            # Schwab can return the same session more than once, including
+            # revised OHLC/volume values. The later occurrence is the provider's
+            # final value for this response; retaining both would create two
+            # contradictory observations inside one immutable raw event and abort
+            # the live refresh.
+            bars_by_date[trade_date] = UnderlyingDailyBar(
+                instrument=InstrumentRef(source="schwab", external_key=external_key),
+                trade_date=trade_date,
+                open=_required_market_decimal(candle.get("open")),
+                high=_required_market_decimal(candle.get("high")),
+                low=_required_market_decimal(candle.get("low")),
+                close=_required_market_decimal(candle.get("close")),
+                volume=_optional_int(candle.get("volume")) or 0,
             )
+        bars = sorted(bars_by_date.values(), key=lambda item: item.trade_date)
         return MarketObservationBatch(
             source="schwab",
             external_event_key=f"history:{symbol}:{observed_at.isoformat()}",

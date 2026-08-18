@@ -1,10 +1,10 @@
-# Nibwick Roll Board
+# Incoooming Nibwick Roll Board
 
 ## Job
 
-The Roll Board is the book-wide review queue inside **Open Options**. It answers one question before
-the operator opens a ticker: which short option obligations deserve a look now, and what replacement
-contracts can be compared with auditable two-leg cash math?
+The Roll Board is Incoooming's book-wide review queue inside **Open Options**. It answers one
+question before the operator opens a ticker: which short option obligations deserve a look now, and
+what replacement contracts can be compared with auditable two-leg cash math?
 
 It supports short calls and short puts. It is planning context, never an order ticket or instruction
 to roll.
@@ -28,16 +28,19 @@ Nibwick's posture summarizes the board:
 ## Roll math
 
 The source contract is priced at its buy-to-close ask. Every replacement is priced at its
-sell-to-open bid. Fees are excluded and the UI says so. Calls may move to the same or a higher strike
-in a later expiration; puts may move to the same or a lower strike in a later expiration. A casual
-call roll-down or put roll-up is not mixed into the default frontier.
+sell-to-open bid. Fees are excluded and the UI says so. Calls must move to a later expiration
+and a strictly higher strike; a same-strike date push does not restore share upside and is
+not mixed into the default frontier. Puts may move to the same or a lower strike in a later
+expiration. A casual call roll-down or put roll-up is also excluded.
 
-The selector returns at most nine distinct candidates and reserves representation for three useful
-questions before filling remaining slots:
-
-1. **Lowest cash cost**
-2. **Least extra time**
-3. **Most strike room**
+The selector returns the nearby listed ladder: the next three listed expiries and the next three
+listed strikes in the protective direction, limited to about 8% of the source strike and 28 extra
+days, capped at nine. It does not fill leftover slots with far-dated or far-strike contracts.
+Among those nearby quotes, one row is marked **Nearest cash and time**: first
+by cost band ($0.10 / $0.25 / $0.50), then fewer extra days, then smaller absolute cash, then a
+credit over a debit. Theta is displayed as model context when present; it never filters the ladder.
+A requested Radar target that is eligible but outside the 3×3 grid is appended. If that target is
+already an open short, the row is labeled `ALSO OPEN`.
 
 Candidates may be a net credit, near flat, or a debit paid for more strike room. If the chain has no
 directionally valid contract, no later expiration, no positive replacement bid, or no trustworthy
@@ -55,6 +58,7 @@ trail changes navigation only. It does not preserve or imply an executable quote
 
 ## Verification boundary
 
-The board depends on the quote range already loaded for the contract. “No clean roll” means none was
-found in that range under these rules; it does not prove that no listed alternative exists. Quote
-age, spread, open interest, and volume remain visible context, not a promise of execution quality.
+The verification boundary is the stored chain already loaded for those short-option underlyings,
+not only the open contracts themselves. “No clean roll” means none was found in that loaded range
+under these rules; it does not prove that no listed alternative exists. Quote age, spread, open
+interest, and volume remain visible context, not a promise of execution quality.

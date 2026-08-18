@@ -1,3 +1,4 @@
+from schwab_dashboard.application.rolls.collect import collect_roll_quotes
 from schwab_dashboard.application.rolls.models import (
     RollCandidate,
     RollQuote,
@@ -11,5 +12,6 @@ __all__ = [
     "RollQuote",
     "RollSearchResult",
     "RollSource",
+    "collect_roll_quotes",
     "select_roll_candidates",
 ]

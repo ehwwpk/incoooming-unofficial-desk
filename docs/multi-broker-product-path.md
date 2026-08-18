@@ -1,4 +1,4 @@
-# Multi-broker product path
+# Incoooming multi-broker product path
 
 ## Objective
 
@@ -26,7 +26,7 @@ This path is private and inexpensive, but it is not a one-click experience for g
 4. Background workers ingest read-only accounts, holdings, transactions, option positions, dividends, expirations, assignments, and exercises.
 5. Broker adapters normalize those observations into the existing internal ledger.
 6. A separate licensed market-data provider supplies current option marks, IV, Greeks, and underlying prices when the brokerage feed does not.
-7. Every dashboard value retains source, observation time, and reconciliation status.
+7. Every Incoooming value retains source, observation time, and reconciliation status.
 
 The hosted system needs tenant isolation, encrypted token storage, token rotation, data deletion, audit logs, rate limiting, a privacy policy, and reviewed market-data display rights. Read-only should remain the first public scope; trading creates materially more risk and operational burden.
 

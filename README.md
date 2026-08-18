@@ -2,9 +2,10 @@
 
 **Premium in. Noise out.**
 
-Incoooming is a private, local-first desk for people who sell options, collect dividends, and want
-to understand the whole book without wrestling a brokerage statement. The extra `oo` is deliberate:
-it is the little desk yell when another credit hits the ledger.
+Incoooming is the software. It is a private, local-first desk for people who sell covered calls and
+cash-secured puts, collect dividends, and want the cash clock, the open overlay, and the source
+records kept apart. The extra `oo` is deliberate: it is the little desk yell when another credit
+hits the ledger.
 
 **Schwab user, not a developer?** Start with the plain-language
 [Schwab connection guide](docs/getting-started-schwab.md). It walks from portal registration to the
@@ -15,6 +16,7 @@ It answers a few practical questions quickly:
 - How much option and dividend cash actually arrived?
 - What is open now, how close is it to the strike, and how many days remain?
 - How much of each contract's original time and premium value remains?
+- Which nearby listed rolls can be compared with honest two-leg cash math?
 - Which expirations, assignments, dividends, or fast-moving names deserve a look?
 - Which broker records support every number on screen?
 
@@ -72,10 +74,11 @@ campaign chart, the first three contracts beside it, and a two-column option she
 book is larger. Calls use stable `C#` campaign labels and puts use `P#`; rolls keep one identity while
 every execution remains auditable. Routine share trades are netted into one optional daily marker.
 The Open Options workspace starts with Nibwick's portfolio Roll Board, then the expiration calendar
-and full contract register. Results labels the
-actual normalized-history coverage and never turns unavailable months into zero-dollar results.
-Volatility Lab and Data Health live behind `TOOLS`; each tool can open in the current page or its own
-window.
+and full contract register. The board compares later listed replacements as planning quotes: buy the
+open short at its ask, sell the replacement at its bid, keep the next nearby expiries and strikes,
+and never treat that math as an order. Results labels the actual normalized-history coverage and
+never turns unavailable months into zero-dollar results. Premium Radar, Volatility Lab, and Data
+Health live behind `TOOLS`; each tool can open in the current page or its own window.
 
 Underlying demo paths use frozen public market-session closes. They are not broker marks or trading
 guidance.
@@ -107,7 +110,7 @@ The browser may end on a non-loading local HTTPS page. Copy the entire URL from 
 paste it into `auth-complete`; the authorization code is inside that URL.
 
 5. Read and store current accounts and positions, one year of transaction history, current option
-   chains and Greeks, and one year of daily underlying prices; then launch the local dashboard:
+   chains and Greeks, and one year of daily underlying prices; then launch Incoooming:
 
 ```powershell
 .\.venv\Scripts\schwab-dashboard.exe sync
@@ -123,7 +126,9 @@ delay or fail normal account synchronization. It reads the currently open book o
 covered-lot, and reserved-cash context. The personal defaults are 5–60 DTE and a 5% simple
 annualized bid-based premium floor. Those are editable policies rather than engine limits, so a
 user can inspect shorter expirations, 90-day contracts, or listed LEAPS without changing code.
-Radar returns zero to nine distinct comparisons rather than padding the page with weak premium.
+Radar returns zero to nine distinct comparisons rather than padding the page with weak premium. A
+Nibwick or Roll Board handoff refreshes the same nearby listed ladder against a current chain
+instead of reusing a stale desk quote.
 
 ## Keeping the live desk current
 
@@ -149,7 +154,7 @@ SCHWAB_AUTO_SYNC_STARTUP_DELAY_SECONDS=2
 Automatic refresh exists only while `run-local.cmd` is running; Incoooming does not install a
 hidden Windows background service.
 
-If Incoooming is already running, `run-local.cmd` now checks the local server's application ID,
+If Incoooming is already running, `run-local.cmd` checks the local server's application ID,
 process ID, and code fingerprint. It leaves an unrelated process alone, reuses a current server,
 and replaces a verified stale Incoooming process. For an intentional one-click restart that returns
 after the replacement passes its health check, run:
@@ -170,27 +175,30 @@ unexpected page failure shows a local recovery screen; it never clears or recrea
 
 ## Project guides
 
+The software title is **Incoooming**. The local CLI is still invoked as `schwab-dashboard`; that is
+a script name, not a second product.
+
 - [Connect Schwab to Incoooming](docs/getting-started-schwab.md)
-- [Architecture](docs/architecture.md)
-- [Phase 0 checklist](docs/phase-0-checklist.md)
-- [Data contracts](docs/data-contracts.md)
-- [Dashboard contract](docs/dashboard-contract.md)
-- [Multi-broker product path](docs/multi-broker-product-path.md)
-- [Operator workflows](docs/product/operator-workflows.md)
-- [Capability roadmap](docs/product/capability-roadmap.md)
-- [Premium Radar plan](docs/product/premium-radar.md)
-- [Nibwick Roll Board](docs/product/nibwick-roll-board.md)
-- [Option campaign chart](docs/product/option-campaign-chart-redesign.md)
-- [Data source gateway](docs/systems/data-source-gateway.md)
-- [CSV import contract](docs/systems/csv-import.md)
-- [Public access and cost reality](docs/product/public-access-economics.md)
-- [Truth Engine](docs/systems/truth-engine.md)
-- [Open Risk Board](docs/systems/open-risk-board.md)
-- [Attribution Lab](docs/systems/attribution-lab.md)
-- [Volatility Lab](docs/systems/volatility-lab.md)
-- [Workspace System](docs/systems/workspace-system.md)
-- [Independent workspace shell](docs/workspaces/workspace-shell.md)
-- [Broker adapter strategy](docs/integrations/broker-adapter-strategy.md)
-- [Verified Schwab live contract](docs/integrations/schwab-live-contract.md)
-- [Integrated platform plan](docs/systems/integrated-platform-plan.md)
-- [Local-first architecture decision](docs/decisions/0001-local-first-modular-monolith.md)
+- [Incoooming architecture](docs/architecture.md)
+- [Original Schwab access checklist](docs/phase-0-checklist.md)
+- [Incoooming data contracts](docs/data-contracts.md)
+- [Incoooming dashboard contract](docs/dashboard-contract.md)
+- [Incoooming multi-broker product path](docs/multi-broker-product-path.md)
+- [Incoooming operator workflows](docs/product/operator-workflows.md)
+- [Incoooming capability roadmap](docs/product/capability-roadmap.md)
+- [Incoooming Premium Radar](docs/product/premium-radar.md)
+- [Incoooming Nibwick Roll Board](docs/product/nibwick-roll-board.md)
+- [Incoooming option campaign chart](docs/product/option-campaign-chart-redesign.md)
+- [Incoooming data source gateway](docs/systems/data-source-gateway.md)
+- [Incoooming CSV import contract](docs/systems/csv-import.md)
+- [Incoooming public access and cost reality](docs/product/public-access-economics.md)
+- [Incoooming Truth Engine](docs/systems/truth-engine.md)
+- [Incoooming Open Risk Board](docs/systems/open-risk-board.md)
+- [Incoooming Attribution Lab](docs/systems/attribution-lab.md)
+- [Incoooming Volatility Lab](docs/systems/volatility-lab.md)
+- [Incoooming Workspace System](docs/systems/workspace-system.md)
+- [Incoooming workspace shell](docs/workspaces/workspace-shell.md)
+- [Incoooming broker adapter strategy](docs/integrations/broker-adapter-strategy.md)
+- [Incoooming Schwab live contract](docs/integrations/schwab-live-contract.md)
+- [Incoooming integrated platform plan](docs/systems/integrated-platform-plan.md)
+- [Incoooming local-first architecture decision](docs/decisions/0001-local-first-modular-monolith.md)

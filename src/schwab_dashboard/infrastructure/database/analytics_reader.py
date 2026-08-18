@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import UTC, date, datetime
 from typing import Any
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, or_, select
 
 from schwab_dashboard.infrastructure.database.engine import SessionFactory
 from schwab_dashboard.infrastructure.database.tables.account import (
@@ -164,13 +165,25 @@ class SqlLiveAnalyticsReader:
         )
 
     def list_latest_option_market(
-        self, *, symbols: Sequence[str] | None = None
+        self,
+        *,
+        symbols: Sequence[str] | None = None,
+        underlyings: Sequence[str] | None = None,
+        expiration_on_or_after: date | None = None,
     ) -> tuple[dict[str, Any], ...]:
-        normalized = _normalized_symbols(symbols)
-        if symbols is not None and not normalized:
+        normalized_symbols = _normalized_symbols(symbols)
+        normalized_underlyings = _normalized_symbols(underlyings)
+        if symbols is not None and not normalized_symbols and not normalized_underlyings:
             return ()
-        instrument_ids = self._instrument_ids_for_symbols(normalized)
-        if normalized and not instrument_ids:
+        if underlyings is not None and not normalized_underlyings and symbols is None:
+            return ()
+        instrument_ids = self._instrument_ids_for_option_market(
+            symbols=normalized_symbols,
+            underlyings=normalized_underlyings,
+            expiration_on_or_after=expiration_on_or_after,
+            unbounded=symbols is None and underlyings is None,
+        )
+        if instrument_ids is not None and not instrument_ids:
             return ()
         latest_retrieval_query = (
             select(
@@ -231,30 +244,30 @@ class SqlLiveAnalyticsReader:
                 )
                 .where(ranked.c.version_rank == 1)
             )
-            if normalized:
-                query = query.where(InstrumentTable.symbol.in_(normalized))
             rows = session.execute(query).all()
-        return tuple(
-            {
-                **_instrument_values(instrument),
-                "observed_at": snapshot.observed_at,
-                "quote_quality": snapshot.quote_quality,
-                "mark_method": snapshot.mark_method,
-                "bid": snapshot.bid,
-                "ask": snapshot.ask,
-                "last": snapshot.last,
-                "mark": snapshot.mark,
-                "underlying_price": snapshot.underlying_price,
-                "implied_volatility": snapshot.implied_volatility,
-                "delta": snapshot.delta,
-                "gamma": snapshot.gamma,
-                "theta": snapshot.theta,
-                "vega": snapshot.vega,
-                "rho": snapshot.rho,
-                "volume": snapshot.volume,
-                "open_interest": snapshot.open_interest,
-            }
-            for snapshot, instrument in rows
+        return _dedupe_option_market_rows(
+            tuple(
+                {
+                    **_instrument_values(instrument),
+                    "observed_at": snapshot.observed_at,
+                    "quote_quality": snapshot.quote_quality,
+                    "mark_method": snapshot.mark_method,
+                    "bid": snapshot.bid,
+                    "ask": snapshot.ask,
+                    "last": snapshot.last,
+                    "mark": snapshot.mark,
+                    "underlying_price": snapshot.underlying_price,
+                    "implied_volatility": snapshot.implied_volatility,
+                    "delta": snapshot.delta,
+                    "gamma": snapshot.gamma,
+                    "theta": snapshot.theta,
+                    "vega": snapshot.vega,
+                    "rho": snapshot.rho,
+                    "volume": snapshot.volume,
+                    "open_interest": snapshot.open_interest,
+                }
+                for snapshot, instrument in rows
+            )
         )
 
     def list_latest_underlying_market(
@@ -511,6 +524,31 @@ class SqlLiveAnalyticsReader:
                 ).all()
             )
 
+    def _instrument_ids_for_option_market(
+        self,
+        *,
+        symbols: tuple[str, ...],
+        underlyings: tuple[str, ...],
+        expiration_on_or_after: date | None,
+        unbounded: bool,
+    ) -> tuple[str, ...] | None:
+        if unbounded:
+            return None
+        conditions = []
+        if symbols:
+            conditions.append(InstrumentTable.symbol.in_(symbols))
+        if underlyings:
+            chain = [InstrumentTable.underlying_symbol.in_(underlyings)]
+            if expiration_on_or_after is not None:
+                chain.append(InstrumentTable.expiration_date >= expiration_on_or_after)
+            conditions.append(and_(*chain))
+        if not conditions:
+            return ()
+        with self._session_factory() as session:
+            return tuple(
+                session.scalars(select(InstrumentTable.id).where(or_(*conditions))).all()
+            )
+
 
 def _instrument_values(instrument: InstrumentTable) -> dict[str, Any]:
     return {
@@ -533,3 +571,26 @@ def _normalized_symbols(symbols: Sequence[str] | None) -> tuple[str, ...]:
     return tuple(
         sorted({symbol.strip().upper() for symbol in symbols if symbol and symbol.strip()})
     )
+
+
+def _observed_at(row: dict[str, Any]) -> datetime:
+    value = row.get("observed_at")
+    if not isinstance(value, datetime):
+        return datetime.min.replace(tzinfo=UTC)
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value
+
+
+def _dedupe_option_market_rows(
+    rows: tuple[dict[str, Any], ...],
+) -> tuple[dict[str, Any], ...]:
+    best: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        key = "".join(str(row.get("symbol") or "").upper().split())
+        if not key:
+            key = f"{row.get('underlying_symbol')}:{row.get('expiration_date')}:{row.get('strike')}"
+        current = best.get(key)
+        if current is None or _observed_at(row) > _observed_at(current):
+            best[key] = row
+    return tuple(best[key] for key in sorted(best))

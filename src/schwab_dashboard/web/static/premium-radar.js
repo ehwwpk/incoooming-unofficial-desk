@@ -125,7 +125,7 @@
         : "SEARCHING LATER CONTRACTS");
     setText("[data-radar-roll-target-quote]", rollHandoff.targetExpiration
       ? "Refreshing the replacement bid"
-      : "Ranking the fresh chain by cost, time, and strike room");
+      : "Loading the nearby listed ladder");
     setText("[data-radar-roll-math-label]", "TWO-LEG CHECK");
     setText("[data-radar-roll-net]", "WAITING FOR CHAIN");
     setText("[data-radar-roll-net-detail]", "Buy old at ask · sell new at bid");
@@ -443,12 +443,12 @@
     const isRollReview = Boolean(projection.roll_review);
     setText(
       "[data-radar-comparison-kicker]",
-      isRollReview ? "RANKED ROLL LADDER" : "CHAIN COMPARISONS",
+      isRollReview ? "NEARBY LISTED LADDER" : "CHAIN COMPARISONS",
     );
     setText(
       "[data-radar-comparison-title]",
       isRollReview
-        ? `Later ${projection.mode === "cash_secured_put" ? "puts" : "calls"}, grouped by trade-off`
+        ? `Later ${projection.mode === "cash_secured_put" ? "puts" : "calls"} in listed expiry and strike order`
         : "Up to nine contracts worth comparing",
     );
     if (
@@ -457,7 +457,7 @@
       && Number.isFinite(Number(projection.policy?.maximum_dte))
     ) {
       policySummary.textContent = isRollReview
-        ? `${projection.mode === "cash_secured_put" ? "SAME / LOWER STRIKES" : "SAME / HIGHER STRIKES"} · LATER EXPIRATIONS · THREE TRADE-OFF FAMILIES`
+        ? `${projection.mode === "cash_secured_put" ? "SAME OR LOWER STRIKES" : "HIGHER STRIKES"} · LATER EXPIRATIONS · NEARBY LISTED LADDER`
         : `${projection.policy.minimum_dte}–${projection.policy.maximum_dte} DTE · ${number(projection.policy.minimum_annualized_rate_percent, 1)}% MINIMUM SIMPLE APR · NO FILLER`;
     }
     root.querySelectorAll("[data-radar-candidate-index]").forEach((card) => {

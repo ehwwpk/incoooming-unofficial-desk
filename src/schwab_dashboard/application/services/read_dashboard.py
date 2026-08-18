@@ -79,6 +79,17 @@ class ReadDashboard:
                 }
             )
         )
+        short_option_underlyings = tuple(
+            sorted(
+                {
+                    (position.underlying_symbol or "").upper()
+                    for position in positions
+                    if position.asset_type.upper() == "OPTION"
+                    and position.quantity < ZERO
+                    and (position.underlying_symbol or "").strip()
+                }
+            )
+        )
         underlying_symbols = tuple(
             sorted(
                 {(position.underlying_symbol or position.symbol).upper() for position in positions}
@@ -93,7 +104,19 @@ class ReadDashboard:
             sorted({*underlying_symbols, *historical_stock_symbols, "SPY"} - {""})
         )
 
-        option_market = self._analytics_reader.list_latest_option_market(symbols=option_symbols)
+        evaluated_at = self._clock()
+        as_of = (
+            latest_sync.completed_at
+            if latest_sync is not None and latest_sync.completed_at is not None
+            else evaluated_at
+        )
+        as_of_market_date = market_date(as_of)
+
+        option_market = self._analytics_reader.list_latest_option_market(
+            symbols=option_symbols,
+            underlyings=short_option_underlyings,
+            expiration_on_or_after=as_of_market_date,
+        )
         underlying_market = self._analytics_reader.list_latest_underlying_market(
             symbols=underlying_symbols
         )
@@ -102,14 +125,6 @@ class ReadDashboard:
         lifecycle_events = self._analytics_reader.list_lifecycle_events()
         daily_bars = self._analytics_reader.list_daily_bars(symbols=daily_bar_symbols)
         balance_history = self._analytics_reader.list_balance_history()
-
-        evaluated_at = self._clock()
-        as_of = (
-            latest_sync.completed_at
-            if latest_sync is not None and latest_sync.completed_at is not None
-            else evaluated_at
-        )
-        as_of_market_date = market_date(as_of)
 
         portfolio = summarize_portfolio(
             positions,

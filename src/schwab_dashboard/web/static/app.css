@@ -1,9 +1,9 @@
 @import url("./base.css?v=29");
 @import url("./components.css?v=48");
-@import url("./alerts.css?v=27");
+@import url("./alerts.css?v=29");
 @import url("./performance.css?v=27");
 @import url("./dashboard.css?v=24");
-@import url("./desk-overview.css?v=14");
+@import url("./desk-overview.css?v=16");
 
 @media (max-width: 1240px) {
   .portfolio-console { grid-template-columns: repeat(3, 1fr); }

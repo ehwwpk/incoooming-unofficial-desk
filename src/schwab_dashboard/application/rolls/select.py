@@ -17,6 +17,11 @@ HUNDRED = Decimal("100")
 NEAR_FLAT = Decimal("0.10")
 SMALL_CASH_MOVE = Decimal("0.25")
 MODERATE_CASH_MOVE = Decimal("0.50")
+NEARBY_LISTED_EXPIRIES = 3
+NEARBY_LISTED_STRIKES = 3
+MAX_NEARBY_EXTRA_DAYS = 28
+MAX_NEARBY_STRIKE_PERCENT = Decimal("8")
+NEAREST_CASH_AND_TIME = "NEAREST CASH AND TIME"
 
 
 def select_roll_candidates(
@@ -24,12 +29,17 @@ def select_roll_candidates(
     quotes: Sequence[RollQuote],
     *,
     limit: int = 9,
+    preferred_option_symbol: str | None = None,
 ) -> RollSearchResult:
-    """Build a compact, diversified roll frontier from conservative quote math.
+    """Build a nearby listed roll grid from conservative two-leg quote math.
 
     The open short is bought at its ask and a replacement is sold at its bid.
-    Calls may move out at the same strike or up and out. Puts may move out at
-    the same strike or down and out. A call roll-down is intentionally excluded.
+    Calls must move up and out: a later expiration and a strictly higher strike.
+    Puts may move out at the same strike or down and out. The default ladder is
+    the next three listed expiries and the next three listed strikes in the
+    protective direction, limited to about 8% of the source strike and 28 extra
+    days. It is not a slogan contest and does not fill with far-dated or
+    far-strike leftovers.
     """
 
     if limit < 1:
@@ -59,12 +69,46 @@ def select_roll_candidates(
             eligible_quotes=0,
             no_clean_reason=_empty_reason(source, quotes),
         )
+    nearby_eligible = tuple(item for item in eligible if _is_nearby(item, source))
+    if not nearby_eligible:
+        return RollSearchResult(
+            source=source,
+            candidates=(),
+            examined_quotes=len(quotes),
+            eligible_quotes=len(eligible),
+            no_clean_reason=(
+                "Later contracts loaded, but none is a small strike move inside a "
+                "few extra weeks."
+            ),
+        )
 
-    ordered = sorted(eligible, key=_primary_rank)
-    selected = _diversified_frontier(ordered, limit=limit)
+    neighborhood = _nearby_frontier(nearby_eligible, source.option_side, limit=limit)
+    selected = list(neighborhood)
+    preferred_key = _canonical(preferred_option_symbol or "")
+    if preferred_key:
+        extra = next(
+            (item for item in eligible if _canonical(item.option_symbol) == preferred_key),
+            None,
+        )
+        if extra is not None and all(_key(item) != _key(extra) for item in selected):
+            selected.append(extra)
+
+    highlighted = min(selected, key=_dual_best_rank) if selected else None
+    labeled = tuple(
+        replace(
+            item,
+            highlight=highlighted is not None and _key(item) == _key(highlighted),
+            family_label=(
+                NEAREST_CASH_AND_TIME
+                if highlighted is not None and _key(item) == _key(highlighted)
+                else ""
+            ),
+        )
+        for item in sorted(selected, key=lambda item: _display_rank(item, source.option_side))
+    )
     return RollSearchResult(
         source=source,
-        candidates=selected,
+        candidates=labeled,
         examined_quotes=len(quotes),
         eligible_quotes=len(eligible),
     )
@@ -76,6 +120,7 @@ def _candidate(source: RollSource, quote: RollQuote) -> RollCandidate:
     direction = Decimal("1") if source.option_side is OptionSide.CALL else Decimal("-1")
     covered_units = Decimal(source.contracts) * source.contract_multiplier
     room_gain = strike_change * direction * covered_units
+    added_days = (quote.expires_on - source.expires_on).days
     buffer = (
         (quote.strike - source.current_price) / source.current_price * HUNDRED
         if source.option_side is OptionSide.CALL and source.current_price > ZERO
@@ -83,6 +128,7 @@ def _candidate(source: RollSource, quote: RollQuote) -> RollCandidate:
         if source.current_price > ZERO
         else ZERO
     )
+    cash = net * covered_units
     return RollCandidate(
         option_symbol=quote.option_symbol,
         option_side=source.option_side,
@@ -90,9 +136,9 @@ def _candidate(source: RollSource, quote: RollQuote) -> RollCandidate:
         strike=quote.strike,
         sell_bid_per_share=quote.sell_bid_per_share,
         net_roll_per_share=net,
-        net_roll_cash=net * covered_units,
+        net_roll_cash=cash,
         strike_change_per_share=strike_change,
-        added_days=(quote.expires_on - source.expires_on).days,
+        added_days=added_days,
         assignment_room_gain=room_gain,
         target_buffer_percent=buffer.quantize(Decimal("0.1")),
         cost_label=_cost_label(net),
@@ -101,92 +147,89 @@ def _candidate(source: RollSource, quote: RollQuote) -> RollCandidate:
         spread_percent=quote.spread_percent,
         open_interest=quote.open_interest,
         volume=quote.volume,
+        cash_per_extra_day=(
+            (cash / Decimal(added_days)).quantize(Decimal("0.01")) if added_days else None
+        ),
+        theta_per_share=quote.theta_per_share,
     )
 
 
 def _is_directionally_valid(source: RollSource, quote: RollQuote) -> bool:
     if quote.expires_on <= source.expires_on or quote.sell_bid_per_share <= ZERO:
         return False
-    if source.option_side is OptionSide.CALL:
-        return quote.strike >= source.strike
+    if source.option_side == OptionSide.CALL:
+        return quote.strike > source.strike
     return quote.strike <= source.strike
 
 
-def _primary_rank(candidate: RollCandidate) -> tuple[object, ...]:
+def _is_nearby(candidate: RollCandidate, source: RollSource) -> bool:
+    if candidate.added_days > MAX_NEARBY_EXTRA_DAYS:
+        return False
+    if source.strike <= ZERO:
+        return True
+    move = abs(candidate.strike - source.strike) / source.strike * HUNDRED
+    return move <= MAX_NEARBY_STRIKE_PERCENT
+
+
+def _nearby_frontier(
+    eligible: Sequence[RollCandidate],
+    option_side: OptionSide,
+    *,
+    limit: int,
+) -> tuple[RollCandidate, ...]:
+    by_expiry: dict[object, list[RollCandidate]] = {}
+    for candidate in eligible:
+        by_expiry.setdefault(candidate.expires_on, []).append(candidate)
+    selected: list[RollCandidate] = []
+    for expiry in sorted(by_expiry)[:NEARBY_LISTED_EXPIRIES]:
+        selected.extend(_nearby_strikes(by_expiry[expiry], option_side))
+        if len(selected) >= limit:
+            return tuple(selected[:limit])
+    return tuple(selected[:limit])
+
+
+def _nearby_strikes(
+    candidates: Sequence[RollCandidate],
+    option_side: OptionSide,
+) -> tuple[RollCandidate, ...]:
+    by_strike: dict[Decimal, list[RollCandidate]] = {}
+    for candidate in candidates:
+        by_strike.setdefault(candidate.strike, []).append(candidate)
+    ordered_strikes = sorted(
+        by_strike,
+        reverse=option_side is OptionSide.PUT,
+    )
+    chosen: list[RollCandidate] = []
+    for strike in ordered_strikes[:NEARBY_LISTED_STRIKES]:
+        chosen.append(min(by_strike[strike], key=_dual_best_rank))
+    return tuple(chosen)
+
+
+def _display_rank(candidate: RollCandidate, option_side: OptionSide) -> tuple[object, ...]:
+    strike_order = -candidate.strike if option_side is OptionSide.PUT else candidate.strike
+    return (candidate.expires_on, strike_order, candidate.option_symbol)
+
+
+def _dual_best_rank(candidate: RollCandidate) -> tuple[object, ...]:
     liquidity = (candidate.open_interest or 0) + (candidate.volume or 0)
     return (
         _cost_band(candidate.net_roll_per_share),
+        candidate.added_days,
         abs(candidate.net_roll_per_share),
         candidate.net_roll_per_share < ZERO,
-        candidate.added_days,
-        -candidate.assignment_room_gain,
+        abs(candidate.strike_change_per_share),
         candidate.spread_percent if candidate.spread_percent is not None else Decimal("999"),
         -liquidity,
-        candidate.expires_on,
-        candidate.strike,
         candidate.option_symbol,
     )
 
 
-def _diversified_frontier(
-    ordered: Sequence[RollCandidate],
-    *,
-    limit: int,
-) -> tuple[RollCandidate, ...]:
-    families = (
-        ("LOWEST CASH COST", sorted(ordered, key=_primary_rank)),
-        (
-            "LEAST EXTRA TIME",
-            sorted(
-                ordered,
-                key=lambda item: (
-                    item.added_days,
-                    _cost_band(item.net_roll_per_share),
-                    abs(item.net_roll_per_share),
-                    -item.assignment_room_gain,
-                ),
-            ),
-        ),
-        (
-            "MOST STRIKE ROOM",
-            sorted(
-                ordered,
-                key=lambda item: (
-                    -item.assignment_room_gain,
-                    _cost_band(item.net_roll_per_share),
-                    item.added_days,
-                    abs(item.net_roll_per_share),
-                ),
-            ),
-        ),
-    )
-    selected: list[RollCandidate] = []
-    used: set[str] = set()
-    for label, family in families:
-        candidate = next((item for item in family if _key(item) not in used), None)
-        if candidate is None:
-            continue
-        selected.append(replace(candidate, family_label=label))
-        used.add(_key(candidate))
-        if len(selected) == limit:
-            return tuple(sorted(selected, key=_primary_rank))
-    for rank in range(len(ordered)):
-        for label, family in families:
-            if rank >= len(family):
-                continue
-            candidate = family[rank]
-            key = _key(candidate)
-            if key in used:
-                continue
-            selected.append(replace(candidate, family_label=label))
-            used.add(key)
-            if len(selected) == limit:
-                return tuple(sorted(selected, key=_primary_rank))
-    return tuple(sorted(selected, key=_primary_rank))
-
-
 def _key(candidate: RollCandidate) -> str:
     return candidate.option_symbol or f"{candidate.expires_on.isoformat()}:{candidate.strike}"
+
+
+def _canonical(value: str) -> str:
+    return "".join(value.upper().split())
 
 
 def _cost_band(value: Decimal) -> int:
@@ -213,5 +256,5 @@ def _empty_reason(source: RollSource, quotes: Sequence[RollQuote]) -> str:
         return "No replacement quotes are available for this contract yet."
     if not any(quote.expires_on > source.expires_on for quote in quotes):
         return "The chain has no later expiration in the loaded range."
-    direction = "same or higher" if source.option_side is OptionSide.CALL else "same or lower"
+    direction = "higher" if source.option_side is OptionSide.CALL else "same or lower"
     return f"Later contracts loaded, but none has a positive bid at a {direction} strike."

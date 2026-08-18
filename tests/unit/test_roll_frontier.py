@@ -16,49 +16,47 @@ NOW = datetime(2026, 8, 13, 18, tzinfo=UTC)
 SOURCE_EXPIRATION = date(2026, 8, 14)
 
 
-def test_roll_frontier_uses_nine_ranked_higher_later_calls() -> None:
+def test_roll_frontier_uses_nearby_listed_calls_and_appends_preferred() -> None:
     context = RadarRollSelectionContext(
         option_side=OptionSide.CALL,
         source_expiration_date=SOURCE_EXPIRATION,
         source_strike=D("68"),
         source_close_ask_per_share=D("0.25"),
+        source_current_price=D("63"),
     )
-    eligible = (
-        _candidate("flat", added_days=7, strike="72.5", bid="0.25"),
-        _candidate("credit-five", added_days=14, strike="75", bid="0.30"),
-        _candidate("debit-five", added_days=7, strike="73", bid="0.20"),
-        _candidate("credit-ten", added_days=21, strike="80", bid="0.35"),
-        _candidate("debit-ten", added_days=14, strike="77.5", bid="0.15"),
-        _candidate("credit-twenty", added_days=28, strike="82.5", bid="0.45"),
-        _candidate("debit-twenty", added_days=21, strike="80", bid="0.05"),
-        _candidate("credit-forty", added_days=35, strike="85", bid="0.65"),
-        _candidate("credit-seventy-five", added_days=42, strike="90", bid="1.00"),
-        _candidate("credit-dollar", added_days=49, strike="95", bid="1.25"),
-        _candidate("credit-two", added_days=56, strike="100", bid="2.25"),
+    nearby = (
+        _candidate("w1-a", added_days=7, strike="70", bid="0.25"),
+        _candidate("w1-b", added_days=7, strike="72.5", bid="0.20"),
+        _candidate("w1-c", added_days=7, strike="73", bid="0.15"),
+        _candidate("w2-a", added_days=14, strike="70", bid="0.35"),
+        _candidate("w2-b", added_days=14, strike="72.5", bid="0.28"),
+        _candidate("w2-c", added_days=14, strike="73", bid="0.22"),
+        _candidate("w3-a", added_days=21, strike="70", bid="0.45"),
+        _candidate("w3-b", added_days=21, strike="72.5", bid="0.36"),
+        _candidate("w3-c", added_days=21, strike="73", bid="0.30"),
+        _candidate("far", added_days=56, strike="100", bid="2.25"),
     )
     invalid = (
         _candidate("same-expiry", added_days=0, strike="75", bid="0.25"),
         _candidate("lower-strike", added_days=14, strike="65", bid="0.25"),
+        _candidate("same-strike-date-push", added_days=7, strike="68", bid="0.25"),
     )
-    preferred = eligible[-1]
+    preferred = nearby[-1]
 
     selected = select_roll_frontier(
-        (*eligible, *invalid),
+        (*nearby, *invalid),
         context=context,
         preferred=preferred,
     )
 
-    assert len(selected) == 9
+    assert [item.option_symbol for item in selected[:3]] == ["w1-a", "w1-b", "w1-c"]
+    assert selected[-1].option_symbol == "far"
+    assert len(selected) == 10
     assert all(item.expiration_date > SOURCE_EXPIRATION for item in selected)
-    assert all(item.strike >= D("68") for item in selected)
-    assert selected[0].option_symbol == "flat"
-    assert selected[1].option_symbol == "credit-five"
-    assert selected[2].option_symbol == "debit-five"
-    assert selected[-1].option_symbol == preferred.option_symbol
+    assert all(item.strike > D("68") for item in selected)
     assert selected[0].label is RadarCandidateLabel.NEAR_FLAT
-    assert selected[1].label is RadarCandidateLabel.NEAR_FLAT
-    assert selected[2].label is RadarCandidateLabel.NEAR_FLAT
     assert selected[-1].label is RadarCandidateLabel.NET_CREDIT
+    assert "LEAST EXTRA TIME" not in {item.label.value for item in selected if item.label}
 
 
 def test_general_frontier_is_presented_by_time_then_protection() -> None:
@@ -96,7 +94,7 @@ def test_roll_frontier_supports_same_or_lower_puts() -> None:
     selected = select_roll_frontier(
         (
             _candidate("same-put", added_days=7, strike="60", bid="1.00"),
-            _candidate("lower-put", added_days=14, strike="55", bid="0.95"),
+            _candidate("lower-put", added_days=14, strike="56", bid="0.95"),
             _candidate("invalid-higher-put", added_days=7, strike="65", bid="1.50"),
         ),
         context=context,

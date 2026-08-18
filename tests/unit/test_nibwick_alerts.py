@@ -49,7 +49,8 @@ def test_short_put_alert_reports_time_distance_and_assignment_notional() -> None
     assert alert.level == "attention"
     assert alert.headline == "XYZ is through your $50 put"
     assert "$10,000" in alert.message
-    assert "obligation in plain sight" in alert.message
+    assert "before premium" not in alert.message
+    assert alert.message.endswith("Keep your paws hot.")
     assert [(fact.label, fact.value) for fact in alert.facts] == [
         ("STOCK / STRIKE", "$48.00 / $50"),
         ("STRIKE DISTANCE", "$2.00 / 4.2%"),
@@ -88,6 +89,8 @@ def test_fast_move_alert_names_the_sale_and_keeps_the_personality_brief() -> Non
     assert alert.roll_source_option_symbol == call.record_id
     assert alert.roll_option_side is not None
     assert alert.roll_option_side.value == "call"
+    pressure = next(fact.value for fact in alert.facts if fact.label == "REVIEW PRESSURE")
+    assert pressure.split(" · ", 1)[0] in {"LOW", "MODERATE", "ELEVATED", "HIGH"}
 
 
 def test_short_put_rule_stays_quiet_when_strike_has_room_or_time() -> None:
@@ -161,6 +164,11 @@ def test_call_expiration_rule_fills_the_slow_move_gap_without_duplicate_notes() 
     assert alert is not None
     assert alert.reason_code == "call_expiration_proximity"
     assert "6 days left" in alert.message
+    assert "air" not in alert.headline.lower()
+    assert "air" not in alert.message.lower()
+    assert "2.1% below your $65 call" in alert.headline
+    assert "$1.27/share below your $65 call" in alert.message
+    assert alert.message.endswith("Keep an eye on it.")
     assert len(combined) == 1
 
 

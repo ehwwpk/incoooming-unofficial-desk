@@ -49,7 +49,17 @@ class ReadLiveCampaignChart:
         option_symbols = tuple(
             position.symbol for position in positions if position.asset_type.upper() == "OPTION"
         )
-        option_market = self._analytics_reader.list_latest_option_market(symbols=option_symbols)
+        evaluated_at = self._clock()
+        as_of = market_date(
+            latest_sync.completed_at
+            if latest_sync is not None and latest_sync.completed_at is not None
+            else evaluated_at
+        )
+        option_market = self._analytics_reader.list_latest_option_market(
+            symbols=option_symbols,
+            underlyings=(normalized,),
+            expiration_on_or_after=as_of,
+        )
         underlying_market = self._analytics_reader.list_latest_underlying_market(
             symbols=(normalized,)
         )
@@ -60,12 +70,6 @@ class ReadLiveCampaignChart:
         )
         daily_bars = self._analytics_reader.list_daily_bars(symbols=(normalized,))
         intraday_bars = self._analytics_reader.list_intraday_bars(symbols=(normalized,))
-        evaluated_at = self._clock()
-        as_of = market_date(
-            latest_sync.completed_at
-            if latest_sync is not None and latest_sync.completed_at is not None
-            else evaluated_at
-        )
         live_book = build_live_position_book(
             positions,
             as_of=as_of,

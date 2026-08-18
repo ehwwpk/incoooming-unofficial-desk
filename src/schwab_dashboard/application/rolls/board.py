@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal
 
 from schwab_dashboard.application.dashboard.anchors import option_contract_anchor
@@ -40,15 +40,21 @@ class RollBoardProjection:
 
 
 def build_roll_board(snapshot: DashboardSnapshot) -> RollBoardProjection:
+    open_symbols = _open_option_symbols(snapshot)
     rows: list[RollBoardRow] = []
     for underlying in snapshot.underlyings:
         for call in underlying.open_call_clocks:
-            row = _call_row(underlying.symbol, underlying.current_price, call)
+            row = _call_row(
+                underlying.symbol,
+                underlying.current_price,
+                call,
+                open_symbols=open_symbols,
+            )
             if row is not None:
                 rows.append(row)
     if snapshot.live_position_book is not None:
         for put in snapshot.live_position_book.puts:
-            row = _put_row(put)
+            row = _put_row(put, open_symbols=open_symbols)
             if row is not None:
                 rows.append(row)
     rows.sort(
@@ -89,6 +95,8 @@ def _call_row(
     symbol: str,
     current_price: Decimal,
     call: OpenCallClock,
+    *,
+    open_symbols: frozenset[str],
 ) -> RollBoardRow | None:
     if not call.can_close_or_roll:
         return None
@@ -118,6 +126,7 @@ def _call_row(
                 spread_percent=quote.spread_percent,
                 open_interest=quote.open_interest,
                 volume=quote.volume,
+                theta_per_share=quote.theta_per_share,
             )
             for quote in call.roll_quote_candidates
         ),
@@ -132,12 +141,16 @@ def _call_row(
         strike_distance_per_share=call.strike_distance_per_share,
         strike_distance_percent=call.strike_distance_percent,
         assignment_notional=call.strike * Decimal(call.contracts * 100),
-        candidates=result.candidates,
+        candidates=_mark_also_open(result.candidates, open_symbols),
         no_clean_reason=result.no_clean_reason,
     )
 
 
-def _put_row(put: LiveOpenOptionPosition) -> RollBoardRow | None:
+def _put_row(
+    put: LiveOpenOptionPosition,
+    *,
+    open_symbols: frozenset[str],
+) -> RollBoardRow | None:
     if (
         not put.can_close_or_roll
         or put.strike_distance_percent is None
@@ -170,9 +183,36 @@ def _put_row(put: LiveOpenOptionPosition) -> RollBoardRow | None:
         strike_distance_per_share=put.strike_distance_per_share,
         strike_distance_percent=put.strike_distance_percent,
         assignment_notional=put.strike * put.contract_multiplier * Decimal(put.contracts),
-        candidates=result.candidates,
+        candidates=_mark_also_open(result.candidates, open_symbols),
         no_clean_reason=result.no_clean_reason,
     )
+
+
+def _open_option_symbols(snapshot: DashboardSnapshot) -> frozenset[str]:
+    symbols: set[str] = set()
+    for underlying in snapshot.underlyings:
+        for call in underlying.open_call_clocks:
+            if call.can_close_or_roll:
+                symbols.add(_canonical(call.record_id))
+    if snapshot.live_position_book is not None:
+        for option in (*snapshot.live_position_book.calls, *snapshot.live_position_book.puts):
+            if option.can_close_or_roll:
+                symbols.add(_canonical(option.option_symbol))
+    return frozenset(symbols)
+
+
+def _mark_also_open(
+    candidates: tuple[RollCandidate, ...],
+    open_symbols: frozenset[str],
+) -> tuple[RollCandidate, ...]:
+    return tuple(
+        replace(candidate, also_open=_canonical(candidate.option_symbol) in open_symbols)
+        for candidate in candidates
+    )
+
+
+def _canonical(value: str) -> str:
+    return "".join(value.upper().split())
 
 
 def _urgency(distance_percent: Decimal, dte: int) -> tuple[str, int] | None:

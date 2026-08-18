@@ -7,7 +7,7 @@ from schwab_dashboard.application.alerts.context import build_call_review_contex
 from schwab_dashboard.application.alerts.identity import option_alert_id
 from schwab_dashboard.application.alerts.models import AlertFact, AlertLevel, DeskAlert
 from schwab_dashboard.application.alerts.rolls import (
-    build_neutral_roll_scenarios,
+    build_call_roll_scenarios,
     no_clean_call_roll_reason,
 )
 from schwab_dashboard.application.dashboard.covered_calls import UnderlyingCallStats
@@ -60,9 +60,12 @@ def evaluate_fast_move(underlying: UnderlyingCallStats) -> DeskAlert | None:
             f"{abs(context.sale_to_current_move_percent):.1f}% below the stock price when "
             f"you sold the ${compact_decimal(closest.strike)} call"
         )
-    roll_scenarios = build_neutral_roll_scenarios(
+    roll_scenarios = build_call_roll_scenarios(
         closest,
         current_price=underlying.current_price,
+        open_option_symbols=tuple(
+            clock.record_id for clock in underlying.open_call_clocks if clock.can_close_or_roll
+        ),
     )
 
     return DeskAlert(
@@ -98,6 +101,11 @@ def evaluate_fast_move(underlying: UnderlyingCallStats) -> DeskAlert | None:
                 f"${closest.mark_per_share:.2f} NOW",
                 f"${closest.entry_credit_per_share:.2f} COLLECTED · "
                 f"{closest.days_to_expiration} DTE",
+            ),
+            AlertFact(
+                "REVIEW PRESSURE",
+                f"{context.pressure.label} · {context.pressure.score}",
+                "HEURISTIC · NOT ODDS",
             ),
         ),
         priority=priority,

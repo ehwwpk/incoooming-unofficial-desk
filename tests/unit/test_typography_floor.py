@@ -73,6 +73,11 @@ def test_tertiary_text_meets_small_text_contrast_on_core_surfaces() -> None:
         assert _contrast_ratio(foreground, background) >= 4.5
 
 
+def _rule_block(stylesheet: str, opener: str) -> str:
+    start = stylesheet.index(opener)
+    return stylesheet[start : stylesheet.index("}", start)]
+
+
 def test_wave_one_fact_strips_do_not_fake_cell_height() -> None:
     recipes = {
         "performance.css": ".name-analytics > div {",
@@ -81,6 +86,37 @@ def test_wave_one_fact_strips_do_not_fake_cell_height() -> None:
     }
     for filename, opener in recipes.items():
         stylesheet = (STATIC_DIR / filename).read_text(encoding="utf-8")
-        start = stylesheet.index(opener)
-        rule = stylesheet[start : stylesheet.index("}", start)]
+        rule = _rule_block(stylesheet, opener)
         assert "min-height" not in rule, f"{filename} still pins {opener}"
+
+
+def test_wave_two_desk_pulse_rows_share_column_grid_and_tight_stacking() -> None:
+    desk_css = (STATIC_DIR / "desk-overview.css").read_text(encoding="utf-8")
+    observed_rule = _rule_block(desk_css, ".income-observed-bar {")
+    assert "repeat(4," in observed_rule, "observed bar should share the 4-column pulse grid"
+    pulse_cells = _rule_block(desk_css, ".pulse-income-grid > div,")
+    assert "margin-top: auto" not in pulse_cells, "pulse cells should stack tightly, not pin captions"
+    assert "align-content: center" in pulse_cells, "pulse cells should vertically center their stack"
+    position_cells = _rule_block(desk_css, ".position-book > summary > div {")
+    assert "margin-top: auto" not in position_cells, "name row cells should stack tightly"
+
+
+def test_wave_two_desk_pulse_values_use_body_tokens_not_clamps() -> None:
+    desk_css = (STATIC_DIR / "desk-overview.css").read_text(encoding="utf-8")
+    value_rule = _rule_block(desk_css, ".pulse-income-grid strong,")
+    assert "clamp(" not in value_rule, "pulse income still scales values with clamp()"
+    assert "var(--type-body)" in value_rule, "pulse income values should use --type-body"
+
+
+def test_roll_board_uses_type_tokens_instead_of_raw_sizes() -> None:
+    stylesheet = (STATIC_DIR / "open-book.css").read_text(encoding="utf-8")
+    roll_board = stylesheet[stylesheet.index(".roll-board-register") :]
+    assert "font: 720 11px" not in roll_board
+    assert "font: 620 9px" not in roll_board
+    assert "font: 750 9px" not in roll_board
+    assert "font: 700 12px" not in roll_board
+    assert "font: 9px" not in roll_board
+    assert ".45rem var(--sans)" not in roll_board
+    assert "var(--type-micro)" in roll_board
+    assert "var(--type-body)" in roll_board
+    assert "var(--type-control)" in roll_board

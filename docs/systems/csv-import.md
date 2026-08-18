@@ -1,9 +1,9 @@
-# CSV import contract
+# Incoooming CSV import contract
 
 ## Usable slice
 
-The source gateway accepts up to eight UTF-8, UTF-16, or Windows-1252 CSV files per import and 10
-MB per file. Positions and activity exports may be uploaded together. Every import must pass a
+Incoooming's source gateway accepts up to eight UTF-8, UTF-16, or Windows-1252 CSV files per import
+and 10 MB per file. Positions and activity exports may be uploaded together. Every import must pass a
 preview before commit. The preview shows:
 
 - detected broker profile, confidence, encoding, delimiter, and header row;

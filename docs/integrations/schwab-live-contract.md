@@ -1,16 +1,17 @@
-# Verified Schwab live contract
+# Incoooming Schwab live contract
 
 This adapter contract was verified against the approved Trader API and Market Data API on
-August 10, 2026. The verification inspected field names, categorical values, signs, counts, and
-cross-ledger totals without printing credentials, account identifiers, symbols, or financial
-amounts.
+August 10, 2026, and remains the live Incoooming book contract. The verification inspected field
+names, categorical values, signs, counts, and cross-ledger totals without printing credentials,
+account identifiers, symbols, or financial amounts.
 
 ## Read-only endpoints
 
 - Trader API account numbers and accounts with positions;
 - Trader API transactions in non-overlapping 59-day windows over a rolling year;
 - Market Data quotes for held underlyings;
-- Market Data option chains for open short calls and short puts;
+- Market Data option chains for open short calls and short puts, stored with a dense nearby strike
+  set (250 strikes) from the earliest held expiration through that expiration plus 56 days;
 - Market Data one-year daily price history for every held market symbol;
 - Market Data one-year daily SPY history for the optional price-only reference.
 
@@ -23,10 +24,13 @@ The live local server schedules a full read-only refresh after startup and every
 default. Manual CLI and browser refreshes use the same coordinator and cannot overlap an active
 run. Quotes and bounded option chains refresh on that cadence. Daily price histories use a separate
 one-hour process-local throttle so normal 15-minute refreshes do not repeatedly download unchanged
-one-year series. A restart makes each history symbol immediately eligible again. A full refresh is
-considered current only after accounts/positions, transaction history, and market observations all
-finish; failed full runs are persisted separately from the last successful snapshot and surfaced
-as an attention state. Closing the local server stops the schedule.
+one-year series. A restart makes each history symbol immediately eligible again. Duplicate daily or
+minute candles inside one raw response keep the last revision; a volume reprint must not abort the
+full refresh. A full refresh is considered current only after accounts/positions, transaction
+history, and market observations all finish; failed full runs are persisted separately from the last
+successful snapshot and surfaced as an attention state. Closing the local server stops the schedule.
+
+Incoooming page loads reread SQLite. They do not call Schwab.
 
 ## Observed transaction contract
 
@@ -64,7 +68,7 @@ the newest observed version for each symbol/date.
 ## Reconciliation gates
 
 The live implementation independently re-sums the newest raw transaction page set and compares it
-with normalized records. The following must all match before the dashboard is trusted:
+with normalized records. The following must all match before Incoooming is trusted:
 
 - covered-call execution count;
 - net option cash;

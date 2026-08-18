@@ -1,9 +1,9 @@
-# Dashboard contract
+# Incoooming dashboard contract
 
 ## Purpose
 
-The browser and JSON API consume one typed dashboard snapshot regardless of data source. This keeps
-the interface independent from demo fixtures and Schwab response shapes while the live ledger grows.
+The Incoooming browser and JSON API consume one typed dashboard snapshot regardless of data source.
+This keeps the interface independent from demo fixtures and Schwab response shapes.
 
 ## Source modes
 
@@ -11,7 +11,8 @@ the interface independent from demo fixtures and Schwab response shapes while th
 
 - Reads reconciled account and position snapshots from repository ports.
 - Shows only values supported by stored broker observations.
-- Returns empty income and campaign collections until execution ingestion exists.
+- Populates income, campaigns, marks, and Greeks from stored executions and market snapshots when
+  those observations exist; missing fields stay missing.
 - Never substitutes fictional analytics for missing live data.
 
 ### Demo
@@ -28,7 +29,7 @@ the interface independent from demo fixtures and Schwab response shapes while th
 ## Stable view sections
 
 1. Combined portfolio: net value, selected-window net premium cash, total strategy income, coverage, calls sold, and shares called away.
-2. Underlying attribution: selected-window option income/APR/dividends/capture, an observed daily-close path with `16W`, `8W`, and `4W` date ranges, campaign markers that map to auditable execution detail, and per-contract premium-received/current-option-value/open-P&L economics. The campaign renderer and its reconciliation rules are documented in [Option campaign chart redesign](product/option-campaign-chart-redesign.md).
+2. Underlying attribution: selected-window option income/APR/dividends/capture, an observed daily-close path with `16W`, `8W`, and `4W` date ranges, campaign markers that map to auditable execution detail, and per-contract premium-received/current-option-value/open-P&L economics. The campaign renderer and its reconciliation rules are documented in [Incoooming option campaign chart](product/option-campaign-chart-redesign.md).
 3. Income: a quarterly window with 13 weekly periods reconciled to the quarter total.
 4. Lifecycle: contracts expired, closed, rolled, and still open, plus assignments and the completed-ticket positive-cash rate.
 5. Campaigns: current legs, dates, quarter option cash, open profit/loss, collateral, and return on capital.
@@ -102,12 +103,13 @@ Daily cash and daily theta are never interchangeable. Cash appears only on execu
 - Short puts remain in the same per-underlying option book as short calls. Portfolio open-option counts, open mark P/L, next expiration, and model theta include both sides, while share-lot coverage remains a call-only ratio so puts never masquerade as covered shares.
 - Premium capture is net premium cash flow divided by gross premium; executed-debit drag is executed buy-to-close cash divided by gross premium.
 - The lifetime basis lens subtracts tracked option and dividend cash from original purchase cost for a private “capital earned back” view. Below 100% it shows original capital remaining. At or above 100% it shows a positive surplus beyond original cost instead of asking the user to interpret a negative adjusted basis. It never changes brokerage or tax-lot cost basis.
-- Demo IV and delta values are explicitly marked simulated. Live values will be quantity-weighted from current open-call contracts after Schwab market-data access is approved.
-- Each open call compares premium received with current option value and derives open P/L, credit capture, intrinsic value, and remaining time value. Open P/L can be negative when the option mark rises above its sale price; the dashboard does not frame that mark as a buyback recommendation.
-- The option-value reference track devotes its full scale to 0â€“100% of entry credit. Values above entry credit fill the reference track and report the exact excess separately; cards never rescale independently. Historical event popups use current mark for open calls, actual closing debit for closed or rolled calls, zero for expiration, and omit this comparison for assignment.
+- Demo IV and delta values are explicitly marked simulated. Live values are quantity-weighted from
+  stored open-option snapshots when Schwab supplied them.
+- Each open call compares premium received with current option value and derives open P/L, credit capture, intrinsic value, and remaining time value. Open P/L can be negative when the option mark rises above its sale price; Incoooming does not frame that mark as a buyback recommendation.
+- The option-value reference track devotes its full scale to 0–100% of entry credit. Values above entry credit fill the reference track and report the exact excess separately; cards never rescale independently. Historical event popups use current mark for open calls, actual closing debit for closed or rolled calls, zero for expiration, and omit this comparison for assignment.
 - Each open call shows signed dollar and percentage distance from the current underlying price to its strike beside DTE. An out-of-the-money call reads `TO STRIKE`; an in-the-money call reads `PAST STRIKE` so proximity never depends on color or mental subtraction.
 - A compact nearest-call link addresses the exact contract, opens its collapsed underlying automatically, centers the contract in view, and moves keyboard focus to that contract. It never stops at an unopened stock summary.
-- Demo charts use an explicit frozen close for each observed market session; they never interpolate between weekly anchors. Each simulated call ticket uses the observed close on its sale date, and its strike remains 15–40% above that close. Numbered sale markers reconcile one-for-one to call-history records and a visible event tape, while expired, closed, rolled, and assigned markers reconcile to completed records. Live charts will replace the frozen fixture with Schwab market-data observations.
+- Demo charts use an explicit frozen close for each observed market session; they never interpolate between weekly anchors. Each simulated call ticket uses the observed close on its sale date, and its strike remains 15–40% above that close. Numbered sale markers reconcile one-for-one to call-history records and a visible event tape, while expired, closed, rolled, and assigned markers reconcile to completed records. Live charts replace the frozen fixture with stored Schwab market-data observations when the live book is selected.
 - Chart range changes remap the close line, daily points, Friday guides, option events, share events, axes, lifecycle links, and visible-event ledger from the same raw dates and prices. The date range and market-session count are explicit. Focus mode is an inline enlargement with an Escape-key exit; it does not scale a raster or claim more history than the selected range contains.
 - Per-contract DTE and short-position theta remain supporting context. Demo theta is explicitly simulated and reconciles to portfolio daily theta. Calendar time elapsed is `days since sale / original days from sale to expiry`; it is intentionally separate from theta and option-value decay. The time-value pace is a simple current-time-value/current-theta ratio, not forecast income or a decay schedule.
 - Assignment is tracked separately as assigned contracts and shares called away; current share inventory can include shares reacquired after a historical assignment. Assignment is a disposition, not automatically a failed trade: a planned exit also reports its effective sale price (strike plus premium per share), underlying gain to strike, and foregone upside separately when execution data is available.
@@ -118,8 +120,11 @@ Daily cash and daily theta are never interchangeable. Cash appears only on execu
 
 - Premium APR and total-income APR are cash-yield views, not total portfolio return. They must not be presented as a like-for-like comparison with a Treasury yield without underlying price change, capped upside, dividends, and assignment outcomes.
 - A future configurable hurdle view will compare mark-adjusted covered-call total return with a selected Treasury tenor and an equity benchmark. The risk-free rate will come from dated source data rather than a hard-coded “safe 4%” assumption.
-- The dashboard will keep assignment economics and opportunity cost separate: being called away at an acceptable effective sale price can be intentional even when the stock later trades higher.
+- Incoooming will keep assignment economics and opportunity cost separate: being called away at an acceptable effective sale price can be intentional even when the stock later trades higher.
 
 ## Replacement path
 
-The next ledger slice will normalize executions and cash movements. Campaign accounting will consume those normalized events and populate the existing income and campaign fields. Market-data ingestion will later supply marks and Greeks to the existing position and risk fields. Neither step requires a route or template rewrite.
+Executions, cash movements, campaigns, marks, and Greeks now populate the existing dashboard fields
+from the stored ledger. Remaining research and workflow work is listed in the
+[Incoooming capability roadmap](product/capability-roadmap.md). New surfaces still consume this snapshot; they
+do not require a route rewrite to add a second source of truth.

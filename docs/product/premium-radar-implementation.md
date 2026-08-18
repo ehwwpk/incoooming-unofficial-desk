@@ -1,8 +1,12 @@
-# Premium Radar implementation plan
+# Incoooming Premium Radar implementation
+
+Status: the idle workspace, explicit lookup, comparison drawers, and Roll Board handoff ship in
+Incoooming. Remaining slices are structured event calendars, IV-history rank, and decision replay.
+Keep this file as the Radar placement and adapter contract.
 
 ## Placement and first impression
 
-Radar uses `/workspaces/radar` and appears first in the current `Tools` menu. It does not add another
+Radar uses `/workspaces/radar` and appears first in Incoooming's `Tools` menu. It does not add another
 top-level navigation system. Desk remains the default operating view.
 
 The unopened workspace is a purposeful empty state:
@@ -122,11 +126,11 @@ web/static/
 Files may be split further when a module has more than one reason to change. Dashboard routes,
 templates, the cash ledger, and the current open-position sync do not absorb Radar logic.
 
-## Schwab adapter gap to close
+## Schwab adapter now in place
 
-The current market client requests `contractType=CALL`, and the mapper reads only `callExpDateMap`.
-The current sync also fetches chains only for symbols that already have short calls. Radar therefore
-needs a separate adapter that:
+Account sync stores dense nearby chains for held short-option underlyings, mapping both
+`callExpDateMap` and `putExpDateMap`. Radar still uses a separate lookup adapter so an explicit
+ticker, including a name with no open option, cannot delay the regular account refresh. That adapter:
 
 - requests `CALL`, `PUT`, or `ALL` as required;
 - maps both call and put expiration maps with the correct option side;
@@ -235,24 +239,23 @@ matches the user's different call-away posture by symbol. Place no orders.
 
 ## Delivery sequence
 
+Present in Incoooming: slices 1–5, plus Roll Board handoff onto the nearby listed ladder.
+
+Remaining:
+
+6. Add verified structured events and manual blackouts.
+7. Accumulate one sample per session before enabling IV history context.
+8. Add append-only decision audit and replay only after enough live observations exist.
+
+The original build order for the shipping slices:
+
 1. Add option-side-complete normalization and tests without changing current sync behavior.
 2. Add the opportunity ports, Schwab lookup adapter, cache, and raw-observation persistence.
 3. Add versioned policies, deterministic gates, calculations, frontier selection, and JSON projection.
 4. Add the idle Radar workspace and explicit lookup lifecycle under `Tools`.
 5. Add loaded comparison, evidence, and policy drawers with accessibility and responsive QA.
-6. Add verified structured events and manual blackouts.
-7. Accumulate one sample per session before enabling IV history context.
-8. Add append-only decision audit and replay only after enough live observations exist.
 
-Each slice must pass unit, integration, rendering, and `git diff --check` verification before the next
-slice. The first usable release stops after slice 5 and may ship with events explicitly unavailable.
+## Definition of ready
 
-## Definition of ready to implement
-
-Implementation may begin when:
-
-- the user approves explicit lookup, first-in-Tools placement, and the no-order boundary;
-- Schwab CALL/PUT fixture shapes are captured with secrets removed;
-- freshness values and default policy limits are configuration, not assumptions embedded in code;
-- the database migration and rollback are reviewed;
-- live-account sync tests remain green before Radar code is connected to the application container.
+Those original gates were met before Radar shipped. Remaining work does not reopen the CALL-only
+adapter gap or the first-in-Tools placement decision.

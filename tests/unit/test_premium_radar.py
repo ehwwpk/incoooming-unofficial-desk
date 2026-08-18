@@ -10,11 +10,13 @@ from schwab_dashboard.application.opportunities.quote_math import (
     simple_annualized_rate,
     spread_percent,
 )
+from schwab_dashboard.domain.instruments import OptionSide
 from schwab_dashboard.domain.opportunity import (
     RadarAccountContext,
     RadarGateStatus,
     RadarMode,
     RadarPolicy,
+    RadarRollSelectionContext,
     RadarState,
 )
 from schwab_dashboard.infrastructure.demo.opportunity import DemoOpportunityMarketGateway
@@ -537,9 +539,77 @@ def test_radar_does_not_pad_a_horizon_with_sub_five_percent_contracts() -> None:
     )
 
     assert projection.candidates
-    assert len(projection.candidates) < 3
     assert projection.rejected_count > 0
+    assert all(
+        candidate.option_symbol != weak.option_symbol for candidate in projection.candidates
+    )
     assert all(
         candidate.simple_annualized_rate_percent >= Decimal("5")
         for candidate in projection.candidates
     )
+
+
+def test_demo_radar_builds_a_listed_grid_inside_the_requested_window() -> None:
+    short = DemoOpportunityMarketGateway().fetch(
+        symbol="KTOS",
+        mode=RadarMode.COVERED_CALL,
+        from_date=NOW.date(),
+        to_date=NOW.date() + timedelta(days=21),
+    )
+    wide = DemoOpportunityMarketGateway().fetch(
+        symbol="KTOS",
+        mode=RadarMode.COVERED_CALL,
+        from_date=NOW.date(),
+        to_date=NOW.date() + timedelta(days=56),
+    )
+
+    assert len({contract.expiration_date for contract in wide.contracts}) > len(
+        {contract.expiration_date for contract in short.contracts}
+    )
+    assert len({contract.strike for contract in short.contracts}) >= 3
+
+
+def test_radar_roll_review_keeps_a_nearby_weekly_inside_five_dte() -> None:
+    bundle = DemoOpportunityMarketGateway().fetch(
+        symbol="KTOS",
+        mode=RadarMode.COVERED_CALL,
+        from_date=NOW.date(),
+        to_date=NOW.date() + timedelta(days=56),
+    )
+    template = bundle.contracts[0]
+    nearby = replace(
+        template,
+        option_symbol="KTOS-NEAR-WEEKLY",
+            expiration_date=NOW.date() + timedelta(days=4),
+            strike=Decimal("75"),
+            bid=Decimal("0.40"),
+        ask=Decimal("0.48"),
+        mark=Decimal("0.44"),
+        observed_at=NOW,
+    )
+    projection = evaluate_radar(
+        lookup_id="lookup-roll-dte",
+        bundle=replace(bundle, contracts=(nearby, *bundle.contracts), observed_at=NOW),
+        mode=RadarMode.COVERED_CALL,
+        account=RadarAccountContext(
+            shares=0,
+            covered_call_contracts=1,
+            available_call_lots=0,
+            reserved_cash=Decimal("0"),
+        ),
+        policy=RadarPolicy(symbol="KTOS", mode=RadarMode.COVERED_CALL),
+        now=NOW,
+        roll_selection=RadarRollSelectionContext(
+            option_side=OptionSide.CALL,
+            source_expiration_date=NOW.date(),
+            source_strike=Decimal("70"),
+            source_close_ask_per_share=Decimal("0.32"),
+            source_current_price=bundle.underlying_price or Decimal("63.73"),
+        ),
+    )
+
+    assert projection.verdict == "ROLL REVIEW"
+    assert "nearby listed" in projection.headline
+    assert "trade-off" not in projection.headline.lower()
+    assert any(candidate.days_to_expiration == 4 for candidate in projection.candidates)
+    assert any(candidate.option_symbol == "KTOS-NEAR-WEEKLY" for candidate in projection.candidates)

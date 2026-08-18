@@ -373,3 +373,82 @@ def test_revised_intraday_bar_keeps_a_new_version_and_reads_the_latest(
     assert rows[0]["volume"] == 1200
     with session_factory() as session:  # type: ignore[operator]
         assert session.scalar(select(func.count()).select_from(UnderlyingIntradayBarTable)) == 2
+
+
+def test_latest_option_market_unions_held_symbols_with_the_later_underlying_chain(
+    database_runtime: tuple[object, object, object],
+) -> None:
+    _, session_factory, _ = database_runtime
+    service = RecordMarketObservations(
+        uow_factory=build_market_uow_factory(session_factory),  # type: ignore[arg-type]
+    )
+    held_ref = InstrumentRef(source="schwab", external_key="call-ktos-held")
+    chain_ref = InstrumentRef(source="schwab", external_key="call-ktos-chain")
+    batch = MarketObservationBatch(
+        source="schwab",
+        external_event_key="chain-union-2026-08-09T19:45:00Z",
+        observed_at=NOW,
+        parser_version="test-v1",
+        raw_payload={"quoteCount": 2},
+        instruments=(
+            InstrumentRecord(
+                source="schwab",
+                external_key=held_ref.external_key,
+                symbol="KTOS  260821C00065000",
+                asset_type=AssetType.OPTION,
+                observed_at=NOW,
+                underlying_symbol="KTOS",
+                option_side=OptionSide.CALL,
+                expiration_date=date(2026, 8, 21),
+                strike=Decimal("65"),
+                contract_multiplier=Decimal("100"),
+            ),
+            InstrumentRecord(
+                source="schwab",
+                external_key=chain_ref.external_key,
+                symbol="KTOS  260828C00070000",
+                asset_type=AssetType.OPTION,
+                observed_at=NOW,
+                underlying_symbol="KTOS",
+                option_side=OptionSide.CALL,
+                expiration_date=date(2026, 8, 28),
+                strike=Decimal("70"),
+                contract_multiplier=Decimal("100"),
+            ),
+        ),
+        option_snapshots=(
+            OptionMarketSnapshot(
+                instrument=held_ref,
+                observed_at=NOW,
+                quote_quality=QuoteQuality.COMPLETE,
+                mark_method=MarkMethod.BROKER,
+                bid=Decimal("1.10"),
+                ask=Decimal("1.20"),
+                mark=Decimal("1.15"),
+            ),
+            OptionMarketSnapshot(
+                instrument=chain_ref,
+                observed_at=NOW,
+                quote_quality=QuoteQuality.COMPLETE,
+                mark_method=MarkMethod.BROKER,
+                bid=Decimal("0.80"),
+                ask=Decimal("0.90"),
+                mark=Decimal("0.85"),
+            ),
+        ),
+    )
+    service.execute(batch)
+    reader = SqlLiveAnalyticsReader(session_factory)  # type: ignore[arg-type]
+
+    held_only = reader.list_latest_option_market(symbols=["KTOS  260821C00065000"])
+    union = reader.list_latest_option_market(
+        symbols=["KTOS  260821C00065000"],
+        underlyings=["KTOS"],
+        expiration_on_or_after=date(2026, 8, 9),
+    )
+
+    assert {row["symbol"] for row in held_only} == {"KTOS  260821C00065000"}
+    assert {row["symbol"] for row in union} == {
+        "KTOS  260821C00065000",
+        "KTOS  260828C00070000",
+    }

@@ -1,9 +1,10 @@
-# Open Risk Board
+# Incoooming Open Risk Board
 
 ## Job to be done
 
-The Open Risk Board tells the operator what can materially change before the next review, why it
-matters, and which source data supports it. It prioritizes obligations and exceptions rather than
+In Open Options, the Open Risk Board tells the Incoooming operator what can materially change before
+the next review, why it matters, and which source data supports it. The Nibwick Roll Board is the
+planning queue on that same surface. Both prioritize obligations and exceptions rather than
 pretending to issue trade instructions.
 
 ## Default questions

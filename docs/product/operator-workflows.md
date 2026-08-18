@@ -1,6 +1,8 @@
-# Premium operator workflows
+# Incoooming operator workflows
 
-The desk is designed around recurring decisions, not around every field a broker can expose. Dense data belongs on screen only when it changes the next review, explains an outcome, or proves the ledger.
+The Incoooming desk is designed around recurring decisions, not around every field a broker can
+expose. Dense data belongs on screen only when it changes the next review, explains an outcome, or
+proves the ledger.
 
 ## 1. Open the desk
 
@@ -15,7 +17,8 @@ Nibwick owns exceptions. The main desk owns portfolio state. Alerts remain close
 
 ## 2. Decide whether to sell premium
 
-The decision workspace should eventually combine:
+Premium Radar is the ticker-first research workspace for that question. It does not collapse the
+inputs into one score. The operator still has to hold apart:
 
 - uncovered share capacity and user-defined assignment willingness;
 - the underlying and share-tranche intent: preserve shares, neutral, acceptable exit, or intentional trim/redeployment;
@@ -24,11 +27,13 @@ The decision workspace should eventually combine:
 - candidate strike distance, delta, credit, DTE, liquidity, and annualized cash yield;
 - the user's historical outcome for comparable entries.
 
-No single score should hide these inputs. A ranking may direct attention, but its method and components must remain inspectable. The same strike or DTE can be acceptable for a deliberate CVX trim and unacceptable for an upside-preservation KTOS tranche.
+A ranking may direct attention, but its method and components must remain inspectable. The same
+strike or DTE can be acceptable for a deliberate CVX trim and unacceptable for an upside-preservation
+KTOS tranche. Radar never places an order.
 
-## 3. Monitor open calls
+## 3. Monitor Open Options
 
-Every contract row needs four distinct lenses:
+Every short-call and short-put row needs four distinct lenses:
 
 1. Obligation: quantity, strike, expiry, DTE, coverage, and assignment exposure.
 2. Market: underlying price, distance to strike, bid/ask, mark, IV, delta, gamma, theta, and vega.
@@ -44,7 +49,7 @@ A roll is two executions and one optional campaign relationship. The system must
 - accounting truth: close debit and new opening credit are separate cash events;
 - strategy truth: related contracts can be studied as one campaign with cumulative net credit, time extended, strike changed, and realized/open economics.
 
-Assignment is an expected covered-call outcome, not automatically a failure. The lifecycle view should show share proceeds, option result, foregone upside after the call-away point, dividends retained or lost, and the next use of released capital.
+The Nibwick Roll Board is planning context on top of that ledger: nearby listed replacements, buy-to-close ask versus sell-to-open bid, never an order. Assignment is an expected covered-call outcome, not automatically a failure. The lifecycle view should show share proceeds, option result, foregone upside after the call-away point, dividends retained or lost, and the next use of released capital.
 
 ## 5. Close a month, quarter, or year
 

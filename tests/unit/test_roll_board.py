@@ -108,12 +108,36 @@ def test_roll_board_handles_short_puts_and_names_missing_market_data() -> None:
 
 def test_roll_board_uses_data_fog_when_no_roll_math_can_be_verified() -> None:
     snapshot = DemoDashboardReader().execute()
+    fogged = tuple(
+        replace(
+            underlying,
+            open_call_clocks=tuple(
+                replace(call, roll_quote_candidates=())
+                for call in underlying.open_call_clocks
+            ),
+        )
+        for underlying in snapshot.underlyings
+    )
 
-    projection = build_roll_board(snapshot)
+    projection = build_roll_board(replace(snapshot, underlyings=fogged))
 
     assert projection.rows
     assert projection.no_clean_count == len(projection.rows)
     assert projection.posture == "DATA FOG"
+
+
+def test_roll_board_demo_call_replacements_move_up_and_out() -> None:
+    projection = build_roll_board(DemoDashboardReader().execute())
+    call_rows = [row for row in projection.rows if row.source.option_side is OptionSide.CALL]
+
+    assert call_rows
+    for row in call_rows:
+        assert row.candidates
+        assert all(item.strike > row.source.strike for item in row.candidates)
+        assert all(item.expires_on > row.source.expires_on for item in row.candidates)
+        assert len(row.candidates) > 2
+        assert len({item.expires_on for item in row.candidates}) >= 2
+        assert all(item.family_label != "LOWEST CASH COST" for item in row.candidates)
 
 
 def test_radar_roll_catalog_includes_every_open_call_without_requiring_an_alert() -> None:

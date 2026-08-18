@@ -1,8 +1,10 @@
-# Phase 0/1 architecture
+# Incoooming architecture
 
 ## Target outcome
 
-Get real Schwab account and position data into an auditable local ledger with the least moving parts, while preserving boundaries needed for transaction history, campaign accounting, and IV analytics.
+Incoooming is one local process: get real Schwab, CSV, or demo book data into an auditable ledger
+with the least moving parts, while keeping transaction history, campaign accounting, roll planning,
+and IV analytics behind explicit boundaries.
 
 ## Runtime shape
 
@@ -53,9 +55,14 @@ registered with the recurring account sync coordinator.
 2. Request the account-number/hash mapping and accounts with positions from Schwab.
 3. Store immutable raw account events before normalizing point-in-time account, balance, and position snapshots.
 4. Fetch one year of transaction history in bounded windows and normalize executions, cash movements, and lifecycle events.
-5. Fetch current underlying quotes, bounded option chains and Greeks, plus daily underlying history.
+5. Fetch current underlying quotes, bounded option chains and Greeks for held short-option
+   underlyings, plus daily underlying history. Duplicate daily or minute candles inside one raw
+   history response keep the last revision so a reprint cannot abort the refresh.
 6. Commit each auditable ingestion stage and its reconciliation evidence.
 7. Mark `schwab_full` completed only after all stages succeed. Any exception persists a failed full run, remains visible in the UI, and does not replace the latest known-good full snapshot.
+
+Dashboard and workspace GET routes reread that stored ledger. They do not call Schwab. Roll math
+walks the stored chain for those short-option underlyings, not only the open OCC symbols.
 
 ## Near-term extension points
 

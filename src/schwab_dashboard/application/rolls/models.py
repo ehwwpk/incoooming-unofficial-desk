@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from schwab_dashboard.domain.instruments import OptionSide
@@ -31,6 +31,8 @@ class RollQuote:
     spread_percent: Decimal | None = None
     open_interest: int | None = None
     volume: int | None = None
+    theta_per_share: Decimal | None = None
+    quote_observed_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,6 +54,10 @@ class RollCandidate:
     spread_percent: Decimal | None
     open_interest: int | None
     volume: int | None
+    highlight: bool = False
+    also_open: bool = False
+    cash_per_extra_day: Decimal | None = None
+    theta_per_share: Decimal | None = None
 
 
 @dataclass(frozen=True, slots=True)

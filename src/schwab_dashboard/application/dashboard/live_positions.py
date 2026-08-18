@@ -17,7 +17,7 @@ from schwab_dashboard.application.market_time import (
     option_session_state,
     quote_session_state,
 )
-from schwab_dashboard.application.rolls.models import RollQuote
+from schwab_dashboard.application.rolls.collect import collect_roll_quotes
 
 ZERO = Decimal("0")
 HUNDRED = Decimal("100")
@@ -110,14 +110,17 @@ def build_live_position_book(
             contract_multiplier=position.contract_multiplier or HUNDRED,
             multiplier_source=position.multiplier_source,
             roll_quote_candidates=(
-                _roll_quotes(
-                    underlying_symbol=position.underlying_symbol,
-                    option_type=option_type,
+                collect_roll_quotes(
+                    underlying_symbol=position.underlying_symbol or position.symbol,
+                    option_side=option_type,
                     source_expiration=position.expiration_date,
                     source_strike=position.strike,
+                    source_option_symbol=position.symbol,
                     option_market=option_market,
                 )
                 if session_state.can_close_or_roll
+                and position.expiration_date is not None
+                and position.strike is not None
                 else ()
             ),
             session_state=session_state,
@@ -361,49 +364,6 @@ def _optional_decimal(value: object) -> Decimal | None:
 
 def _optional_int(value: object) -> int | None:
     return int(str(value)) if value is not None else None
-
-
-def _roll_quotes(
-    *,
-    underlying_symbol: str,
-    option_type: str,
-    source_expiration: date,
-    source_strike: Decimal,
-    option_market: Sequence[Mapping[str, object]],
-) -> tuple[RollQuote, ...]:
-    quotes: list[RollQuote] = []
-    for row in option_market:
-        if _canonical(str(row.get("underlying_symbol") or "")) != _canonical(underlying_symbol):
-            continue
-        if str(row.get("option_side") or "").upper() != option_type:
-            continue
-        expiration = _date(row.get("expiration_date"))
-        strike = _optional_decimal(row.get("strike")) or ZERO
-        bid = _optional_decimal(row.get("bid")) or ZERO
-        if expiration <= source_expiration or bid <= ZERO:
-            continue
-        if option_type == "CALL" and strike < source_strike:
-            continue
-        if option_type == "PUT" and strike > source_strike:
-            continue
-        ask = _optional_decimal(row.get("ask"))
-        mark = _optional_decimal(row.get("mark"))
-        spread = max(ZERO, (ask or bid) - bid)
-        spread_percent = spread / mark * HUNDRED if mark else None
-        quality = str(row.get("quote_quality") or "observed").replace("_", " ").upper()
-        quotes.append(
-            RollQuote(
-                option_symbol=str(row.get("symbol") or ""),
-                expires_on=expiration,
-                strike=strike,
-                sell_bid_per_share=bid,
-                quote_source=f"SCHWAB CHAIN · {quality} BID",
-                spread_percent=spread_percent,
-                open_interest=_optional_int(row.get("open_interest")),
-                volume=_optional_int(row.get("volume")),
-            )
-        )
-    return tuple(sorted(quotes, key=lambda item: (item.expires_on, item.strike)))
 
 
 def _date(value: object) -> date:

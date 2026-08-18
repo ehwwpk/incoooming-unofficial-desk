@@ -49,6 +49,10 @@ class RollScenario:
     option_side: OptionSide = OptionSide.CALL
     cost_label: str = ""
     family_label: str = ""
+    highlight: bool = False
+    also_open: bool = False
+    cash_per_extra_day: Decimal | None = None
+    theta_per_share: Decimal | None = None
 
 
 @dataclass(frozen=True, slots=True)

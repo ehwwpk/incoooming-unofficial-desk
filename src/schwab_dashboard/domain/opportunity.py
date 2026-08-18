@@ -203,6 +203,7 @@ class RadarCandidate:
     clears_all_rules: bool
     gates: tuple[RadarGate, ...]
     reasons: tuple[str, ...]
+    theta: Decimal | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -227,6 +228,7 @@ class RadarRollSelectionContext:
     source_expiration_date: date
     source_strike: Decimal
     source_close_ask_per_share: Decimal
+    source_current_price: Decimal = Decimal("0")
 
 
 @dataclass(frozen=True, slots=True)

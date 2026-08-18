@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import date
 from typing import Any, Protocol
 
 
@@ -16,7 +17,11 @@ class LiveAnalyticsReader(Protocol):
     def list_lifecycle_events(self) -> Sequence[dict[str, Any]]: ...
 
     def list_latest_option_market(
-        self, *, symbols: Sequence[str] | None = None
+        self,
+        *,
+        symbols: Sequence[str] | None = None,
+        underlyings: Sequence[str] | None = None,
+        expiration_on_or_after: date | None = None,
     ) -> Sequence[dict[str, Any]]: ...
 
     def list_latest_underlying_market(
