@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from schwab_dashboard.application.alerts.identity import option_alert_id
 from schwab_dashboard.application.alerts.models import AlertFact, AlertLevel, DeskAlert
 from schwab_dashboard.application.alerts.rolls import (
-    build_neutral_roll_scenarios,
+    build_call_roll_scenarios,
     build_put_roll_scenarios,
     no_clean_call_roll_reason,
     no_clean_put_roll_reason,
@@ -78,7 +78,7 @@ def _build_call_expiration_alert(
         headline=(
             f"{underlying.symbol} is through your ${compact_decimal(call.strike)} call"
             if is_itm
-            else f"Only {distance_percent:.1f}% of air below your "
+            else f"Only {distance_percent:.1f}% below your "
             f"${compact_decimal(call.strike)} call"
         ),
         message=(
@@ -87,9 +87,9 @@ def _build_call_expiration_alert(
             "left. The short call is still open and assignable; Nibwick is flagging the "
             "position, not predicting the outcome."
             if is_itm
-            else f"{underlying.symbol} has ${distance:.2f}/share of air below your "
+            else f"{underlying.symbol} is ${distance:.2f}/share below your "
             f"${compact_decimal(call.strike)} call, with {call.days_to_expiration} days "
-            "left. Close enough to keep on the desk—not a promise that assignment is coming."
+            "left. Keep an eye on it."
         ),
         facts=(
             AlertFact(
@@ -117,9 +117,14 @@ def _build_call_expiration_alert(
             "TRIGGER USES STRIKE DISTANCE AND CALENDAR DAYS TO EXPIRATION. IT DOES "
             "NOT ESTIMATE ASSIGNMENT ODDS OR RECOMMEND A CLOSE OR ROLL."
         ),
-        roll_scenarios=build_neutral_roll_scenarios(
+        roll_scenarios=build_call_roll_scenarios(
             call,
             current_price=underlying.current_price,
+            open_option_symbols=tuple(
+                clock.record_id
+                for clock in underlying.open_call_clocks
+                if clock.can_close_or_roll
+            ),
         ),
         no_clean_roll_reason=no_clean_call_roll_reason(
             call,
@@ -175,8 +180,7 @@ def evaluate_short_put_pressure(put: LiveOpenOptionPosition) -> DeskAlert | None
             f"{put.underlying_symbol} is ${distance:.2f}/share {relation} your "
             f"${compact_decimal(put.strike)} put, with {put.days_to_expiration} days "
             f"left. Assignment would mean ${assignment_notional:,.0f} of stock at the "
-            "strike before premium. That is the obligation in plain sight—not an "
-            "assignment forecast."
+            "strike. Keep your paws hot."
         ),
         facts=(
             AlertFact(

@@ -1,6 +1,8 @@
-# Phase 0 evidence checklist
+# Original Incoooming Schwab access checklist
 
-Phase 0 is complete when the live connection is understood well enough to make Phase 1 ledger work deterministic.
+This was the original live-connect evidence list. Incoooming now runs that approved read-only Schwab
+adapter locally. Keep the checklist as the access recipe; the software title is Incoooming, and the
+CLI is still invoked as `schwab-dashboard`.
 
 ## Developer access
 
@@ -28,5 +30,5 @@ Export or identify examples of sell-to-open, buy-to-close, expiration, assignmen
 
 - `schwab-dashboard doctor` reports database, credentials, and token status.
 - `schwab-dashboard sync` completes against the real account.
-- The dashboard lists account masks and current position quantities.
+- Incoooming lists account masks and current position quantities.
 - The latest sync has zero unresolved structural reconciliation errors.

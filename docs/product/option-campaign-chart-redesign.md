@@ -1,9 +1,9 @@
-# Option campaign chart redesign
+# Incoooming option campaign chart
 
 ## Decision
 
-The next chart revision should stop making the operator decode a global event-number sequence. The
-primary visual identity becomes the option **campaign**: one stable identity that survives an opening
+Incoooming's stock chart stops making the operator decode a global event-number sequence. The
+primary visual identity is the option **campaign**: one stable identity that survives an opening
 sale, any later roll legs, and the final expiration, close, or assignment. Individual executions stay
 auditable inside that campaign.
 

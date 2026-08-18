@@ -1,9 +1,10 @@
-# Data source gateway
+# Incoooming data source gateway
 
 ## Product contract
 
-`/sources` is the one place where a user chooses which book the interface reads. It is intentionally
-separate from the trading desk so onboarding choices do not compete with daily options work.
+`/sources` is the one place where an Incoooming user chooses which book the interface reads. It is
+intentionally separate from the trading desk so onboarding choices do not compete with daily options
+work.
 
 Available source keys are:
 
@@ -20,7 +21,7 @@ in the local database. Every page and workspace receives the same selected sourc
 
 - Sources are never silently combined.
 - Selecting a source never starts a broker sync or a Radar lookup.
-- The dashboard cannot infer that one CSV export contains balances, history, lots, Greeks, or
+- Incoooming cannot infer that one CSV export contains balances, history, lots, Greeks, or
   dividends merely because it contains positions.
 - CSV import must preview detected formats and row dispositions before a dataset is committed.
 - No workflow asks for brokerage usernames or passwords.

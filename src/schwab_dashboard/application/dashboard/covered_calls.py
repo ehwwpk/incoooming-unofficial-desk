@@ -103,6 +103,8 @@ class RollQuoteCandidate:
     spread_percent: Decimal | None = None
     open_interest: int | None = None
     volume: int | None = None
+    theta_per_share: Decimal | None = None
+    quote_observed_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)

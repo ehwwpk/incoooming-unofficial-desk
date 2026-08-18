@@ -1,6 +1,9 @@
-# Approved pre-Schwab operator plan
+# Incoooming fixture-era operator plan
 
-Status: fixture-backed operator phase implemented and verified on August 10, 2026. This document scopes the work completed with deterministic fixtures before live Schwab payloads are available. Live-source items at the end remain intentionally unavailable until their mappings can be verified.
+Status: historical. This document scoped the fixture-backed operator phase verified on August 10,
+2026, before live Schwab payloads were available. Incoooming's live Schwab book now fills the same
+typed dashboard contract. Keep this file as the record of that phase; do not treat remaining
+"unavailable until mapped" notes as current product gaps.
 
 ## Product promise
 
@@ -11,7 +14,7 @@ The first screen must answer four questions without requiring interpretation:
 3. Which position deserves attention now, and why?
 4. Did active management improve the result versus simply holding the shares?
 
-The desk serves a covered-call seller and dividend collector. It is not a generic trading terminal, an order-entry system, or a leaderboard for maximizing premium.
+The Incoooming desk serves a covered-call seller and dividend collector. It is not a generic trading terminal, an order-entry system, or a leaderboard for maximizing premium.
 
 ## Primary information architecture
 

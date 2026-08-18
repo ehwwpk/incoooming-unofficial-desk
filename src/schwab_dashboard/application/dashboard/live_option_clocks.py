@@ -11,6 +11,9 @@ from schwab_dashboard.application.dashboard.covered_calls import (
     RollQuoteCandidate,
 )
 from schwab_dashboard.application.dashboard.models import LiveOpenOptionPosition
+from schwab_dashboard.application.rolls.collect import collect_roll_quotes
+from schwab_dashboard.application.rolls.models import RollQuote
+from schwab_dashboard.domain.instruments import OptionSide
 
 ZERO = Decimal("0")
 HUNDRED = Decimal("100")
@@ -122,7 +125,18 @@ def _clock(
         volume=call.volume,
         open_interest=call.open_interest,
         roll_quote_candidates=(
-            _roll_candidates(call, option_market) if call.can_close_or_roll else ()
+            _as_clock_quotes(
+                collect_roll_quotes(
+                    underlying_symbol=call.underlying_symbol,
+                    option_side=OptionSide.CALL,
+                    source_expiration=call.expires_on,
+                    source_strike=call.strike,
+                    source_option_symbol=call.option_symbol,
+                    option_market=option_market,
+                )
+            )
+            if call.can_close_or_roll
+            else ()
         ),
         original_days_to_expiration=original_dte,
         elapsed_days=elapsed_days,
@@ -241,41 +255,22 @@ def _record_key(row: Mapping[str, object]) -> str:
     return f"{account_mask}:{external_key}" if account_mask else external_key
 
 
-def _roll_candidates(
-    call: LiveOpenOptionPosition,
-    option_market: Sequence[Mapping[str, object]],
-) -> tuple[RollQuoteCandidate, ...]:
-    candidates: list[RollQuoteCandidate] = []
-    for row in option_market:
-        if _canonical(str(row.get("underlying_symbol") or "")) != _canonical(
-            call.underlying_symbol
-        ):
-            continue
-        if str(row.get("option_side") or "").lower() != "call":
-            continue
-        expiration = _date(row.get("expiration_date"))
-        strike = _decimal(row.get("strike"))
-        sell_bid = _decimal(row.get("bid"))
-        if expiration <= call.expires_on or strike < call.strike or sell_bid <= ZERO:
-            continue
-        ask = _decimal(row.get("ask"))
-        mark = _decimal(row.get("mark"))
-        spread = max(ZERO, ask - sell_bid)
-        quality = str(row.get("quote_quality") or "observed").replace("_", " ").upper()
-        candidates.append(
-            RollQuoteCandidate(
-                expires_on=expiration,
-                strike=strike,
-                sell_bid_per_share=sell_bid,
-                quote_source=f"SCHWAB CHAIN · {quality} BID",
-                option_symbol=str(row.get("symbol") or ""),
-                spread_percent=(spread / mark * HUNDRED if mark else None),
-                open_interest=_optional_int(row.get("open_interest")),
-                volume=_optional_int(row.get("volume")),
-            )
+def _as_clock_quotes(quotes: Sequence[RollQuote]) -> tuple[RollQuoteCandidate, ...]:
+    return tuple(
+        RollQuoteCandidate(
+            expires_on=quote.expires_on,
+            strike=quote.strike,
+            sell_bid_per_share=quote.sell_bid_per_share,
+            quote_source=quote.quote_source,
+            option_symbol=quote.option_symbol,
+            spread_percent=quote.spread_percent,
+            open_interest=quote.open_interest,
+            volume=quote.volume,
+            theta_per_share=quote.theta_per_share,
+            quote_observed_at=quote.quote_observed_at,
         )
-    candidates.sort(key=lambda item: (item.expires_on, item.strike))
-    return tuple(candidates)
+        for quote in quotes
+    )
 
 
 def _close_on_or_before(

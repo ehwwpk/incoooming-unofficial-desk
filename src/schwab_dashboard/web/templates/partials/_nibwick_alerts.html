@@ -69,14 +69,14 @@
       {% if alert.roll_scenarios %}
       <section class="nibwick-roll-ladder" aria-label="Indicative roll preview">
         <header>
-          <strong>NEAR-FLAT ROLL PREVIEW</strong>
+          <strong>ROLL PREVIEW</strong>
           <a href="/workspaces/risk?from=nibwick#roll-{{ alert.roll_source_option_symbol | option_anchor }}">OPEN THIS CONTRACT IN ROLL BOARD →</a>
         </header>
         <div class="nibwick-roll-preview">
-          {% for scenario in alert.roll_scenarios %}
+          {% for scenario in alert.roll_scenarios if scenario.option_side.value != 'call' or scenario.target_strike > scenario.source_strike %}
           <a
             href="/workspaces/radar?symbol={{ alert.symbol | urlencode }}&amp;mode={{ 'covered_call' if scenario.option_side.value == 'call' else 'cash_secured_put' }}&amp;review=roll&amp;source={{ scenario.source_option_symbol | urlencode }}&amp;targetExpiration={{ scenario.target_expiration }}&amp;targetStrike={{ scenario.target_strike }}&amp;from=nibwick&amp;returnAnchor={{ ('roll-' ~ (scenario.source_option_symbol | option_anchor)) | urlencode }}"
-            class="nibwick-roll-row"
+            class="nibwick-roll-row{% if scenario.highlight %} is-highlight{% endif %}{% if scenario.also_open %} is-also-open{% endif %}"
             data-nibwick-roll-review
             data-roll-symbol="{{ alert.symbol }}"
             data-roll-source="{{ scenario.source_option_symbol }}"
@@ -84,15 +84,24 @@
             data-roll-target-strike="{{ scenario.target_strike }}"
             aria-label="Review the {{ scenario.target_expiration | short_date }} ${{ '%g' | format(scenario.target_strike) }} {{ scenario.option_side.value }} roll in Premium Radar"
           >
-            <div><b>${{ '%g' | format(scenario.target_strike) }}{{ 'C' if scenario.option_side.value == 'call' else 'P' }} · {{ scenario.target_expiration | short_date }}</b><small>{{ scenario.family_label }} · {{ scenario.added_days }} MORE DAYS</small></div>
-            <div><b>+{{ scenario.assignment_room_gain | money(0) }} ROOM</b><small>{{ scenario.target_buffer_percent | percent }} ABOVE SPOT</small></div>
+            <div><b>${{ '%g' | format(scenario.target_strike) }}{{ 'C' if scenario.option_side.value == 'call' else 'P' }} · {{ scenario.target_expiration | short_date }}</b><small>{% if scenario.highlight %}NEAREST CASH AND TIME · {% endif %}{% if scenario.also_open %}ALSO OPEN · {% endif %}{{ scenario.cost_label }} · {{ scenario.added_days }} MORE DAYS{% if scenario.cash_per_extra_day is not none %} · {{ scenario.cash_per_extra_day | money }}/EXTRA DAY{% endif %}</small></div>
+            <div>
+              {% if scenario.assignment_room_gain > 0 %}
+              <b>+{{ scenario.assignment_room_gain | money(0) }} ROOM</b>
+              {% elif scenario.assignment_room_gain < 0 %}
+              <b>{{ scenario.assignment_room_gain | money(0) }} ROOM</b>
+              {% else %}
+              <b>SAME STRIKE</b>
+              {% endif %}
+              <small>{{ scenario.target_buffer_percent | percent }} {{ 'ABOVE SPOT' if scenario.option_side.value == 'call' else 'BELOW SPOT' }}</small>
+            </div>
             <div class="nibwick-roll-cash">
             {% if scenario.net_roll_per_share > 0 %}
-              <b class="positive">+{{ scenario.net_roll_per_share | money }}/SH</b><small>+{{ scenario.net_roll_cash | money(0) }} TOTAL</small>
+              <b class="positive">+{{ scenario.net_roll_per_share | money }}/SH</b><small>+{{ scenario.net_roll_cash | money(0) }} TOTAL · {{ scenario.cost_label }}</small>
             {% elif scenario.net_roll_per_share < 0 %}
-              <b class="negative">-{{ (-scenario.net_roll_per_share) | money }}/SH</b><small>-{{ (-scenario.net_roll_cash) | money(0) }} TOTAL</small>
+              <b class="negative">-{{ (-scenario.net_roll_per_share) | money }}/SH</b><small>-{{ (-scenario.net_roll_cash) | money(0) }} TOTAL · {{ scenario.cost_label }}</small>
             {% else %}
-              <b>$0.00/SH</b><small>NEAR FLAT</small>
+              <b>$0.00/SH</b><small>{{ scenario.cost_label or 'NEAR FLAT' }}</small>
             {% endif %}
               <span>CHECK FRESH CHAIN &rarr;</span>
             </div>

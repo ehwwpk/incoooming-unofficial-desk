@@ -1,8 +1,8 @@
-# Broker adapter strategy
+# Incoooming broker adapter strategy
 
 ## Product rule
 
-The dashboard owns a canonical, append-oriented truth ledger. Broker APIs, aggregators, and uploaded files are evidence sources—not the analytics model and not unquestioned truth.
+Incoooming owns a canonical, append-oriented truth ledger. Broker APIs, aggregators, and uploaded files are evidence sources—not the analytics model and not unquestioned truth.
 
 The public integration shape is deliberately layered:
 

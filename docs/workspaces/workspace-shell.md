@@ -1,14 +1,18 @@
-# Workspace shell
+# Incoooming workspace shell
 
 ## Decision
 
-The Desk remains the primary daily operating surface. Its F1-F4 rail navigates Desk sections only. Four secondary tools remain independent routes, reached through one global `TOOLS` disclosure, and can open in the current browser surface or in explicitly requested named windows:
+The Desk remains Incoooming's primary daily operating surface. Its F1-F4 rail navigates Desk sections
+only. Open Options and Results sit beside it in the product nav. Premium Radar, Volatility Lab, and
+Data Health remain independent routes behind one global `TOOLS` disclosure, and can open in the
+current browser surface or in explicitly requested named windows:
 
 | Stable key | Current label | Route | Primary question |
 | --- | --- | --- | --- |
 | `desk` | Desk | `/` | What matters across the whole book right now? |
-| `risk` | Open Options | `/workspaces/risk` | What do the open short calls and puts obligate, and how are they marked? |
+| `risk` | Open Options | `/workspaces/risk` | Which shorts deserve a look, and what nearby listed rolls can be compared? |
 | `attribution` | Results | `/workspaces/attribution` | Where did results come from and is the pace repeatable? |
+| `radar` | Premium Radar | `/workspaces/radar` | Given this ticker and these seller rules, what is worth reviewing? |
 | `volatility` | Volatility Lab | `/workspaces/volatility` | How does observed movement compare with option pricing? |
 | `records` | Data Health | `/workspaces/records` | Which records and sources support the displayed answer? |
 
@@ -19,13 +23,14 @@ stock, a weekly income history, and a closed audit trail. Opening a stock reveal
 contract book; opening a secondary tool reveals portfolio-wide specialist analysis. This is
 progressive disclosure, not a second tab hierarchy.
 
-Open Options uses nested disclosure without hiding the portfolio pulse. Its four summary numbers
-distinguish option lines from contract quantity. `Next expirations` starts open because time is the
-daily operating constraint; the contract register remains folded until needed. The browser remembers
-the operator's disclosure choices. Individual calls then open for exact DTE, time used, option value
-versus premium, quote, Greeks, value mix, and liquidity. Short puts appear in the same obligation book
-instead of creating a disconnected stock row. Native `details` and `summary` elements preserve
-keyboard operation when JavaScript is unavailable.
+Open Options uses nested disclosure without hiding the portfolio pulse. The Nibwick Roll Board is
+the first specialist surface: nearby listed replacements with two-leg planning math, never an order
+ticket. Its four summary numbers distinguish option lines from contract quantity. `Next expirations`
+starts open because time is the daily operating constraint; the contract register remains folded
+until needed. The browser remembers the operator's disclosure choices. Individual calls then open
+for exact DTE, time used, option value versus premium, quote, Greeks, value mix, and liquidity.
+Short puts appear in the same obligation book instead of creating a disconnected stock row. Native
+`details` and `summary` elements preserve keyboard operation when JavaScript is unavailable.
 
 ## Window behavior
 

@@ -1,10 +1,10 @@
-# Premium Radar engine contract
+# Incoooming Premium Radar engine contract
 
 ## Purpose and boundary
 
-The Radar engine converts an explicit symbol lookup, current market observations, account context,
-and a versioned seller policy into an explainable research result. It does not recommend a security,
-predict assignment, place an order, or modify the accounting ledger.
+Incoooming's Radar engine converts an explicit symbol lookup, current market observations, account
+context, and a versioned seller policy into an explainable research result. It does not recommend a
+security, predict assignment, place an order, or modify the accounting ledger.
 
 The same engine must work over Schwab, a future broker adapter, or an imported dataset. Every result
 declares which facts were available, which were unavailable, and when they were observed.

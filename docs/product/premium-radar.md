@@ -1,21 +1,21 @@
-# Premium Radar
+# Incoooming Premium Radar
 
 ## Product decision
 
-Premium Radar is the forward-looking research workspace for covered calls and cash-secured puts.
-It answers one question without turning the product into an order ticket:
+Premium Radar is Incoooming's forward-looking research workspace for covered calls and cash-secured
+puts. It answers one question without turning the product into an order ticket:
 
 > Given the shares or cash already in this account, what is worth reviewing now—and when is waiting
 > the better answer?
 
-It is the first item in the existing `Tools` menu, keeping Desk, Options, and Results reserved for
-the user's live book. It is not a news feed, a generic option scanner, or an automatic recommendation
-engine. Incoooming remains read-only.
+It is the first item in the existing `Tools` menu, keeping Desk, Open Options, and Results reserved
+for the user's live book. It is not a news feed, a generic option scanner, or an automatic
+recommendation engine. Incoooming remains read-only.
 
 The product contract is completed by two focused documents:
 
-- [Premium Radar engine contract](premium-radar-engine.md)
-- [Premium Radar implementation plan](premium-radar-implementation.md)
+- [Incoooming Premium Radar engine contract](premium-radar-engine.md)
+- [Incoooming Premium Radar implementation](premium-radar-implementation.md)
 
 ## Operator flow
 
@@ -73,7 +73,10 @@ Radar. This is a narrow continuation of the note, not a recommendation and not a
   earlier Nibwick quote.
 
 The resulting debit or credit is planning math for the simultaneous two-leg spread described by
-Schwab's roll workflow. It is not a fill estimate, probability, or instruction to roll.
+Schwab's roll workflow. It is not a fill estimate, probability, or instruction to roll. The
+comparison set is the same nearby listed ladder as the Roll Board: later expiries, protective-direction
+strikes, about 8% of the source strike, 28 extra days, one nearest-cash-and-time highlight. A
+requested replacement outside that grid is appended when it remains eligible.
 
 ## Two research universes
 
@@ -246,16 +249,15 @@ silently replace missing events with “none.”
 
 ## Data work required
 
-The current Schwab market sync is optimized around open positions. Radar needs a separate,
-rate-controlled candidate-chain collector for eligible held symbols, including names with no open
-option. It should fetch only configured DTE bands and strike ranges, persist raw responses and
-normalized snapshots, and expose observation time on every candidate.
+Account sync now stores dense nearby chains for held short-option underlyings. Radar still uses a
+separate, rate-controlled candidate-chain lookup for an explicit ticker, including names with no
+open option. Lookups persist raw responses and normalized snapshots and expose observation time on
+every candidate.
 
 IV history rank needs accumulated snapshots. Until the minimum history threshold is reached, show
 the current IV and `history building`; do not manufacture a percentile.
 
-The initial implementation should use real chain quotes and deterministic filters. Historical
-decision audits and replay come only after enough snapshots have accumulated.
+Historical decision audits and replay come only after enough snapshots have accumulated.
 
 ## Code boundaries
 
@@ -280,10 +282,15 @@ owns policy, calculations, and explanations. Templates only render a completed p
 
 ## Delivery slices
 
-1. Extend verified Schwab chain collection to held symbols and configured DTE windows.
-2. Add per-symbol seller preferences and deterministic eligibility/execution gates.
-3. Produce three explainable frontier candidates plus `WAIT` in a JSON projection and tests.
-4. Build the compact Radar workspace with expandable chain evidence and clear freshness.
+Present in Incoooming:
+
+1. Verified Schwab chain collection for held short-option underlyings and explicit ticker lookups.
+2. Per-symbol seller preferences and deterministic eligibility/execution gates.
+3. Explainable frontier candidates plus `WAIT` in a JSON projection and tests.
+4. The compact Radar workspace, including Roll Board handoff onto the nearby listed ladder.
+
+Remaining:
+
 5. Add structured event sources and a manual blackout editor.
 6. Add historical replay and decision audit only after sufficient live observations exist.
 

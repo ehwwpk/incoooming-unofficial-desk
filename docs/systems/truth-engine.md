@@ -1,10 +1,10 @@
-# Truth Engine
+# Incoooming Truth Engine
 
 ## Job to be done
 
-The Truth Engine turns broker and import data into an auditable, replayable ledger. It must answer
-"where did this number come from?" before any risk, attribution, or volatility feature is allowed to
-present the number as fact.
+Incoooming's Truth Engine turns broker and import data into an auditable, replayable ledger. It must
+answer "where did this number come from?" before any risk, attribution, or volatility feature is
+allowed to present the number as fact.
 
 This is the first dependency for every other approved system. It is not a trade journal UI and it is
 not a pricing engine.
@@ -116,7 +116,7 @@ These statuses are metadata, not colors. UI color may reinforce them but never r
 - Duplicate source identities are idempotent or fail explicitly; they never double count.
 - Roll tests prove two execution cash effects remain separate.
 - Assignment and expiration tests prove lifecycle quantity resolves without invented fills.
-- Existing dashboard/API behavior remains unchanged until projections switch from demo to live.
+- Live and demo books already share the same dashboard snapshot contract; remaining work is lineage depth, not a second source of truth.
 
 ## Primary references
 

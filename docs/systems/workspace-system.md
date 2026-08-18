@@ -1,20 +1,21 @@
-# Workspace System
+# Incoooming Workspace System
 
 ## Job to be done
 
-The Workspace System lets one operator move from portfolio summary to name, contract, calculation,
-and source evidence without losing context. It provides density and speed without turning the desk
-into an unreadable wall of equally weighted boxes.
+The Workspace System lets one Incoooming operator move from portfolio summary to name, contract,
+calculation, and source evidence without losing context. It provides density and speed without
+turning the desk into an unreadable wall of equally weighted boxes.
 
 ## Information architecture
 
-One primary Desk and four bounded secondary tools share a consistent shell:
+Three primary surfaces and three tools share a consistent shell:
 
-- Desk: option income, dividends, observed pace, live covered-call inventory, and exceptions.
-- Open Options: cross-portfolio call and put obligations, strike pressure, marks, and time decay.
-- Results: cash reconciliation, capture, lifecycle economics, outcomes, and basis.
-- Volatility: surfaces, histories, regimes, and research studies.
-- Data Health: executions, cash, positions, lifecycle events, source readiness, and provenance.
+- **Desk:** option income, dividends, observed pace, live covered-call inventory, and Nibwick exceptions.
+- **Open Options:** short-call and short-put obligations, the Nibwick Roll Board, strike pressure, marks, and time decay.
+- **Results:** cash reconciliation, capture, lifecycle economics, outcomes, and basis.
+- **Premium Radar** (Tools): ticker-first call or put research and roll-chain refresh.
+- **Volatility Lab** (Tools): realized movement, current option IV context, and data-quality boundaries.
+- **Data Health** (Tools): executions, cash, positions, lifecycle events, source readiness, and provenance.
 
 The default Desk is an inverted pyramid: headline decisions first, supporting evidence second, raw
 records last. Its F1-F4 rail is local page navigation, not a second application hierarchy. Less

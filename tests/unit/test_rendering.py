@@ -219,6 +219,11 @@ def test_open_call_workspace_keeps_exact_dte_in_expanded_contract_context() -> N
         assert f"{percent(row.credit_capture_percent)} CAPTURED" in rendered
     for row in open_book.put_rows:
         assert f"{percent(row.credit_capture_percent)} CAPTURED" in rendered
+    assert "LOWEST CASH COST" not in rendered
+    assert "LEAST EXTRA TIME" not in rendered
+    assert "MOST STRIKE ROOM" not in rendered
+    if any(choice.highlight for row in roll_board.rows for choice in row.candidates):
+        assert "NEAREST CASH AND TIME" in rendered
     for row in roll_board.rows:
         assert f'id="{row.anchor_id}"' in rendered
         if row.candidates:

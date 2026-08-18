@@ -27,35 +27,25 @@ class DemoOpportunityMarketGateway:
         from_date: date,
         to_date: date,
     ) -> RadarMarketBundle:
-        del from_date, to_date
         spot = _SPOTS.get(symbol)
         if spot is None:
             raise LookupError("The demo Radar supports CVX, KTOS, and URNM.")
         now = datetime.now(UTC)
         side = mode.option_side
-        expirations = (
-            now.date() + timedelta(days=21),
-            now.date() + timedelta(days=35),
-            now.date() + timedelta(days=56),
-        )
-        ratios = (
-            (Decimal("1.10"), Decimal("1.18"), Decimal("1.28"))
-            if side is OptionSide.CALL
-            else (Decimal("0.95"), Decimal("0.90"), Decimal("0.84"))
-        )
+        expirations = _listed_fridays(from_date, to_date)
+        strikes = _listed_strikes(spot, side)
         contracts = tuple(
             _contract(
                 symbol=symbol,
                 spot=spot,
                 side=side,
                 expiration=expiration,
-                strike=_rounded_strike(spot * ratio),
-                index=index,
+                strike=strike,
+                index=week_index * len(strikes) + strike_index + 1,
                 now=now,
             )
-            for index, (expiration, ratio) in enumerate(
-                zip(expirations, ratios, strict=True), start=1
-            )
+            for week_index, expiration in enumerate(expirations)
+            for strike_index, strike in enumerate(strikes)
         )
         return RadarMarketBundle(
             source="demo",
@@ -67,6 +57,29 @@ class DemoOpportunityMarketGateway:
             capabilities=("option_chain", "greeks", "daily_bars"),
             warnings=("Fictional Radar quotes for interface evaluation only.",),
         )
+
+
+def _listed_fridays(from_date: date, to_date: date) -> tuple[date, ...]:
+    end = to_date if to_date > from_date else from_date + timedelta(days=56)
+    first = from_date + timedelta(days=(4 - from_date.weekday()) % 7)
+    expiries = []
+    current = first
+    while current <= end:
+        expiries.append(current)
+        current += timedelta(days=7)
+    while len(expiries) < 3:
+        last = expiries[-1] if expiries else first
+        nxt = last + timedelta(days=7) if expiries else first
+        expiries.append(nxt)
+    return tuple(expiries)
+
+
+def _listed_strikes(spot: Decimal, side: OptionSide) -> tuple[Decimal, ...]:
+    atm = _rounded_strike(spot)
+    step = Decimal("5")
+    if side is OptionSide.CALL:
+        return (atm, atm + step, atm + step * 2, atm + step * 3)
+    return (atm, atm - step, atm - step * 2, atm - step * 3)
 
 
 def _contract(
@@ -81,7 +94,7 @@ def _contract(
 ) -> RadarMarketContract:
     distance = abs(strike - spot) / spot
     bid = max(Decimal("0.18"), spot * (Decimal("0.018") - distance * Decimal("0.04")))
-    ask = bid * (Decimal("1.08") + Decimal(index) * Decimal("0.015"))
+    ask = bid * (Decimal("1.08") + Decimal(index) * Decimal("0.004"))
     side_letter = "C" if side is OptionSide.CALL else "P"
     return RadarMarketContract(
         option_symbol=f"{symbol}-{expiration.isoformat()}-{side_letter}-{strike}",
@@ -97,8 +110,8 @@ def _contract(
         last=bid,
         mark=(bid + ask) / Decimal("2"),
         underlying_price=spot,
-        implied_volatility=Decimal("42") + Decimal(index * 3),
-        delta=(Decimal("0.28") - Decimal(index) * Decimal("0.04"))
+        implied_volatility=Decimal("42") + Decimal(index),
+        delta=(Decimal("0.32") - Decimal(index) * Decimal("0.01"))
         * (Decimal("1") if side is OptionSide.CALL else Decimal("-1")),
         gamma=Decimal("0.02"),
         theta=Decimal("-0.04"),

@@ -387,32 +387,27 @@
   background: var(--surface-raised);
 }
 .roll-board-position-head > * { min-width: 0; white-space: nowrap; }
-.roll-board-position-head .roll-board-contract { color: var(--paper); font: 720 11px/1.2 var(--mono); }
+.roll-board-position-head .roll-board-contract { color: var(--paper); font: 720 var(--type-body)/1.2 var(--mono); }
 .roll-board-position-head .roll-board-clock,
 .roll-board-position-head .roll-board-urgency,
-.roll-board-position-head .roll-board-notional { overflow: hidden; color: var(--subtle); font: 620 9px/1.2 var(--mono); letter-spacing: .035em; text-overflow: ellipsis; }
+.roll-board-position-head .roll-board-notional { overflow: hidden; color: var(--subtle); font: 620 var(--type-micro)/1.2 var(--mono); letter-spacing: .035em; text-overflow: ellipsis; }
 .roll-board-position-head .roll-board-urgency,
 .roll-board-position-head .roll-board-distance,
 .roll-board-position-head .roll-board-notional { text-align: right; }
 .roll-board-position-head .roll-board-urgency { color: var(--gold); }
-.roll-board-position-head .roll-board-distance { font: 720 11px/1.2 var(--mono); }
-.roll-board-candidates { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.roll-board-candidates:has(> a:only-child) { grid-template-columns: 1fr; }
-.roll-board-candidates > a:only-child { border-right: 0; }
-.roll-board-candidates:has(> a:nth-child(2):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.roll-board-candidates a { display: grid; min-width: 0; gap: 6px; padding: 11px 14px 12px; border-top: 1px solid var(--line); border-right: 1px solid var(--line); color: inherit; text-decoration: none; }
-.roll-board-candidates a:nth-child(3n) { border-right: 0; }
-.roll-board-candidates:has(> a:nth-child(2):last-child) a:last-child { border-right: 0; }
+.roll-board-position-head .roll-board-distance { font: 720 var(--type-body)/1.2 var(--mono); }
+.roll-board-candidates { display: grid; }
+.roll-board-candidates a { display: grid; min-width: 0; gap: 3px; padding: 6px 14px; border-top: 1px solid var(--line); color: inherit; text-decoration: none; }
 .roll-board-candidates a:hover, .roll-board-candidates a:focus-visible { background: #17150e; box-shadow: inset 2px 0 var(--gold); outline: 0; }
-.roll-board-candidates span { color: var(--gold); font: 750 9px/1.2 var(--mono); letter-spacing: .05em; }
+.roll-board-candidates a.is-highlight { box-shadow: inset 2px 0 var(--gold); background: #17150e; }
 .roll-board-choice-line { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; min-width: 0; }
-.roll-board-choice-line b { min-width: 0; font: 700 12px/1.25 var(--mono); }
-.roll-board-choice-line strong { flex: 0 0 auto; font: 700 12px/1.25 var(--mono); }
-.roll-board-candidates small { color: var(--subtle); font: 9px/1.35 var(--mono); }
+.roll-board-choice-line b { min-width: 0; font: 700 var(--type-body)/1.25 var(--mono); }
+.roll-board-choice-line strong { flex: 0 0 auto; font: 700 var(--type-body)/1.25 var(--mono); }
+.roll-board-candidates small { color: var(--subtle); font: var(--type-micro)/1.35 var(--mono); }
 .roll-board-empty { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 9px 12px; border-top: 1px solid var(--line); }
 .roll-board-empty p { display: flex; align-items: center; gap: 10px; margin: 0; }
 .roll-board-empty b { color: var(--red); font: 700 var(--type-micro) var(--mono); }
-.roll-board-empty span { color: var(--muted); font: .45rem var(--sans); }
+.roll-board-empty span { color: var(--muted); font: var(--type-micro) var(--mono); }
 .roll-board-empty a { flex: 0 0 auto; color: var(--gold); font: 700 var(--type-control) var(--mono); text-decoration: none; }
 .roll-board-empty a:hover, .roll-board-empty a:focus-visible { color: var(--paper); outline: 0; }
 @media (max-width: 900px) {
@@ -424,6 +419,4 @@
   .roll-board-position-head .roll-board-urgency { text-align: right; }
   .roll-board-position-head .roll-board-distance,
   .roll-board-position-head .roll-board-notional { text-align: left; }
-  .roll-board-candidates, .roll-board-candidates:has(> a:nth-child(2):last-child) { grid-template-columns: 1fr; }
-  .roll-board-candidates a { border-right: 0; }
 }

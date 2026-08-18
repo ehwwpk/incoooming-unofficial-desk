@@ -4,15 +4,15 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
-    <title>Incoooming · Options Income</title>
+    <title>Desk · Incoooming</title>
     <link rel="icon" href="{{ url_for('static', path='/nibwick-favicon.svg') }}?v=2" type="image/svg+xml">
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=89">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=90">
     <link rel="stylesheet" href="{{ url_for('static', path='/campaign-chart.css') }}?v=11">
     <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=9">
   </head>
   <body data-workspace-key="desk" data-demo-mode="{{ 'true' if snapshot.is_demo else 'false' }}" data-snapshot-as-of="{{ snapshot.as_of.isoformat() }}" data-page-built-at="{{ page_built_at.isoformat() }}" data-workspace-context='{"account":"{{ snapshot.accounts[0].account_mask if snapshot.accounts else "---" }}","symbol":"ALL","asOf":"{{ snapshot.as_of.date().isoformat() }}"}'>
     <header class="topbar desk-topbar">
-      <a class="brand" href="/" aria-label="Dashboard home">
+      <a class="brand" href="/" aria-label="Incoooming home">
         {% include "partials/_brand_mark.html" %}
         <span><strong>INCOOOMING</strong><small>OPTIONS INCOME · LOCAL LEDGER 01</small></span>
       </a>

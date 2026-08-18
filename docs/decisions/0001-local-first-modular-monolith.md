@@ -1,11 +1,13 @@
-# ADR 0001: local-first modular monolith
+# ADR 0001: Incoooming local-first modular monolith
 
-**Status:** Accepted for Phase 0/1
+**Status:** Accepted. Phase 0/1 named the original Schwab-access and ledger gates.
 **Date:** 2026-08-07
 
 ## Context
 
-The product has one user and needs to reach a live Schwab account quickly. The difficult problem is accounting correctness and source reconciliation, not distributed-system scale.
+The product is Incoooming: one user, one local desk, needing a live Schwab account without a
+distributed-system detour. The difficult problem is accounting correctness and source reconciliation,
+not scale.
 
 ## Decision
 

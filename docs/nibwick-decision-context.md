@@ -1,6 +1,8 @@
-# Nibwick decision context
+# Incoooming Nibwick decision context
 
-Nibwick's notes translate deterministic option-book calculations into plain English. Observed values, derived estimates, and heuristics stay visibly distinct. No note predicts assignment or recommends a trade.
+Nibwick is Incoooming's clerk. His notes translate deterministic option-book calculations into
+plain English. Observed values, derived estimates, and heuristics stay visibly distinct. No note
+predicts assignment or recommends a trade.
 
 ## Voice rules
 
@@ -39,7 +41,7 @@ The closest open call receives a 0–100 review-pressure score. This is an atten
 - Mark expansion: 0–10 points, starting when the current option mark exceeds entry credit and capped at 2× entry credit.
 - Labels: `LOW` below 25, `MODERATE` from 25–49, `ELEVATED` from 50–74, and `HIGH` from 75.
 
-The note also reports exact strike distance per share, strike distance percent, current mark/entry credit, and DTE. Where later/higher live replacement quotes are available, the UI may show near-flat roll comparisons using the current buy-to-close ask and replacement sell-to-open bid. These are quote snapshots for planning, not a forecast, recommendation, or executable order.
+The note also reports exact strike distance per share, strike distance percent, current mark/entry credit, DTE, and the 0–100 review-pressure label. Where later/higher live replacement quotes are available, the UI may show roll comparisons using the current buy-to-close ask and replacement sell-to-open bid. These are quote snapshots for planning, not a forecast, recommendation, or executable order. A same-strike later call is not a replacement: it does not restore share upside.
 
 ### From a note to Radar
 
@@ -52,15 +54,17 @@ A displayed roll comparison is one analysis action, not a generic link to Tools.
 5. calculates buy-to-close ask minus sell-to-open bid and labels the quote timing honestly;
 6. highlights the requested replacement without selecting a different contract silently.
 
-Radar treats this handoff as a roll ladder, not an ordinary covered-call scan. It considers only calls with a later expiration and a higher strike than the verified source call, then displays as many as nine valid comparisons without adding filler. The display order is deterministic:
-
-1. net credit or debit closest to zero, grouped into increasingly wider cost bands;
-2. fewer added calendar days;
-3. more strike room;
-4. tighter quoted spread and stronger displayed liquidity;
-5. expiration, strike, and option symbol as stable tie-breakers.
-
-An exact replacement named in the Nibwick note remains in the ladder when it is available, but it occupies its true economic rank instead of being pinned to the first or last slot. Each row is explicitly labeled `NEAR FLAT`, `NET CREDIT`, or `DEBIT FOR ROOM`. Ordinary Radar searches use a separate reading order: nearest expiration first, then calls from lower to higher strike or puts from higher to lower strike within that expiration.
+Radar treats this handoff as a nearby listed ladder, not an ordinary covered-call scan. It considers
+only contracts with a later expiration and a **higher** strike for calls, or the same or a **lower**
+strike for puts. Opening-sale filters such as DTE, APR, lots, and cash do not hide listed
+replacements. The default display is the next three listed expiries and the next three listed
+strikes in that direction, kept to about 8% of the source strike and 28 extra days, ordered by
+expiry then strike. Same-strike date pushes are excluded for
+calls because they do not restore share upside. One nearby row is marked nearest cash and time; an
+exact Nibwick replacement outside that grid is appended when it remains eligible. Each row is
+explicitly labeled `NEAR FLAT`, `NET CREDIT`, or `DEBIT FOR ROOM`. Ordinary Radar searches use a
+separate reading order: nearest expiration first, then calls from lower to higher strike or puts
+from higher to lower strike within that expiration.
 
 The handoff has three visible outcomes: both legs refreshed, the replacement refreshed while the source ask remains the latest desk snapshot, or the exact replacement unavailable. An old Nibwick replacement quote is never reused as if it were current. A stale source call stops the comparison instead of opening an unconnected scan. Clearing the handoff returns Radar to an ordinary symbol lookup. Nothing in this path previews, places, replaces, or cancels an order.
 

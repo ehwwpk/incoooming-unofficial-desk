@@ -12,17 +12,21 @@ The product's advantage is joining these clocks while never collapsing them into
 
 ## Present surface
 
-The demo already proves the interaction and presentation model for:
+The live Schwab book and the demo now share the same typed dashboard contract for:
 
 - selectable rolling 4W, QTR, YTD, and rolling-365 cash windows, with daily source detail retained below the primary selector;
 - net premium cash, dividends, total strategy cash, APR, rolling pace, and observed monthly distributions;
 - active coverage, lifecycle counts, called-away shares, and lifetime income lens;
-- daily underlying closes linked to simulated option and share events;
+- daily underlying closes linked to option and share events;
 - per-call entry credit, current marked liability, open P/L, DTE, time value, theta, and strike distance;
 - portfolio/name theta summaries and deterministic dividend/momentum desk notes;
+- Nibwick exceptions and the Open Options Roll Board, using one nearby listed ladder for planning quotes;
+- Premium Radar as ticker-first research, including a roll-chain handoff that does not place an order;
 - responsive chart/call layouts, adjustable full-screen split, focus ranges, and keyboard navigation.
 
-These are not all live until broker transactions, market data, and lifecycle reconciliation populate the same typed dashboard contract.
+Demo option trades, marks, IV, and Greeks remain fictional. Live values come only from stored Schwab
+or imported observations. Remaining P1/P2 items below are still research or workflow depth, not a
+claim that every specialized lab is finished.
 
 ## P0 — defend the ledger
 
@@ -88,7 +92,7 @@ Required before trusting live performance:
 
 The default desk should not display every capability. It should summarize exceptions and primary outcomes, then let the operator open the relevant specialized workspace.
 
-The approved pre-live sequence, period simplification, plain-language metric contract, and personalized fixture direction are maintained in [the pre-Schwab operator plan](pre-schwab-operator-plan.md).
+The fixture-era operator sequence is kept in the [Incoooming fixture-era operator plan](pre-schwab-operator-plan.md).
 
 ## Primary references
 

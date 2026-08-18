@@ -50,8 +50,10 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "Latest close versus the prior market-session close" in desk.text
         assert "Current price versus five market sessions earlier" in desk.text
         assert 'class="position-price-value"' in desk.text
-        assert "REFRESH ROLL CHOICES" in desk.text
-        assert "review=roll&amp;source=cvx-0724-195&amp;from=nibwick" in desk.text
+        assert "CHECK FRESH CHAIN" in desk.text
+        assert "NEAREST CASH AND TIME" in desk.text
+        assert "source=cvx-0724-195" in desk.text
+        assert "from=nibwick" in desk.text
         assert "returnAnchor=roll-option-cvx-0724-195" in desk.text
         assert "OPEN THIS CONTRACT" in desk.text
 
@@ -67,7 +69,7 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "POSITION-ADJUSTED" in risk.text
         assert "DELTA &middot; NEXT $1" in risk.text
         assert "5D STOCK" in risk.text
-        assert "UP-MOVE" in risk.text or "DOWN-MOVE" in risk.text
+        assert "pressure is heating" in risk.text or "pressure is cooling" in risk.text or "roughly flat" in risk.text
         assert "price-pressure-plain" in risk.text
         assert "IV +1" in risk.text
         assert "MODEL INPUTS" in risk.text
@@ -175,9 +177,9 @@ def test_demo_radar_roll_handoff_reprices_a_verified_open_call(tmp_path: Path) -
         payload = response.json()
         review = payload["roll_review"]
         assert payload["verdict"] == "ROLL REVIEW"
-        assert len(payload["candidates"]) <= 9
+        assert len(payload["candidates"]) <= 10
         assert all(
-            Decimal(candidate["strike"]) >= source.strike
+            Decimal(candidate["strike"]) > source.strike
             and date.fromisoformat(candidate["expiration_date"]) > source.expires_on
             for candidate in payload["candidates"]
         )
@@ -186,7 +188,7 @@ def test_demo_radar_roll_handoff_reprices_a_verified_open_call(tmp_path: Path) -
         assert review["target_expiration_date"] == str(target.expiration_date)
         assert review["target_strike"] == str(target.strike)
         assert review["status"] == "matched"
-        assert review["source_quote_status"] == "desk_snapshot"
+        assert review["source_quote_status"] in {"desk_snapshot", "fresh_chain"}
         assert len(review["comparisons"]) == len(payload["candidates"])
         candidates_by_symbol = {
             candidate["option_symbol"]: candidate for candidate in payload["candidates"]

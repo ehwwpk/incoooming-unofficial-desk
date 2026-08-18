@@ -1,10 +1,10 @@
-# Attribution Lab
+# Incoooming Attribution Lab
 
 ## Job to be done
 
-The Attribution Lab explains whether active premium management improved the actual portfolio result,
-what it cost in capped upside and friction, and how that conclusion changes with the denominator and
-time window. It does not grade assignments as failures by default.
+Incoooming's Attribution Lab explains whether active premium management improved the actual
+portfolio result, what it cost in capped upside and friction, and how that conclusion changes with
+the denominator and time window. It does not grade assignments as failures by default.
 
 ## Required return identities
 

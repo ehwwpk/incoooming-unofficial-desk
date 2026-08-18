@@ -1,10 +1,10 @@
-# Volatility Lab
+# Incoooming Volatility Lab
 
 ## Job to be done
 
-The Volatility Lab tests whether the operator is being paid enough for the volatility and path risk
-sold, using repeatable historical observations rather than visually attractive but incomparable IV
-snapshots.
+Incoooming's Volatility Lab tests whether the operator is being paid enough for the volatility and
+path risk sold, using repeatable historical observations rather than visually attractive but
+incomparable IV snapshots.
 
 ## Observation contract
 

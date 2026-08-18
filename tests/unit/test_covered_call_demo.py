@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import pytest
 
-from schwab_dashboard.application.alerts.rolls import build_neutral_roll_scenarios
+from schwab_dashboard.application.alerts.rolls import build_call_roll_scenarios
 from schwab_dashboard.application.alerts.rules.dividend import evaluate_dividend_overlap
 from schwab_dashboard.application.dashboard.covered_calls import RollQuoteCandidate
 from schwab_dashboard.application.dashboard.performance import calculate_capital_recovery
@@ -467,7 +467,7 @@ def test_nibwick_flags_a_near_expiration_call_without_inventing_dividend_risk() 
     assert min(call.strike_distance_percent for call in ktos.open_call_clocks) == D("23.4")
 
 
-def test_roll_checks_reject_non_later_non_higher_and_non_neutral_quotes() -> None:
+def test_roll_checks_reject_same_strike_date_pushes_and_wrong_way_quotes() -> None:
     snapshot = DemoDashboardReader().execute()
     ktos = next(item for item in snapshot.underlyings if item.symbol == "KTOS")
     call = next(clock for clock in ktos.open_call_clocks if clock.strike == D("75"))
@@ -475,11 +475,12 @@ def test_roll_checks_reject_non_later_non_higher_and_non_neutral_quotes() -> Non
     candidates = (
         RollQuoteCandidate(later, D("70"), D("0.75"), "LOWER STRIKE"),
         RollQuoteCandidate(call.expires_on, D("80"), D("0.75"), "SAME EXPIRY"),
+        RollQuoteCandidate(later, call.strike, D("0.80"), "SAME STRIKE"),
         RollQuoteCandidate(later, D("80"), D("1.10"), "OUTSIDE BAND"),
         RollQuoteCandidate(later, D("80"), D("0.75"), "VALID BID"),
     )
 
-    scenarios = build_neutral_roll_scenarios(
+    scenarios = build_call_roll_scenarios(
         replace(call, roll_quote_candidates=candidates),
         current_price=ktos.current_price,
     )
@@ -491,6 +492,27 @@ def test_roll_checks_reject_non_later_non_higher_and_non_neutral_quotes() -> Non
     assert scenarios[0].source_expiration == call.expires_on
     assert scenarios[0].source_strike == call.strike
     assert scenarios[0].source_contracts == call.contracts
+    assert scenarios[0].target_strike > call.strike
+
+
+def test_call_roll_bridge_drops_same_strike_date_pushes_even_if_quoted() -> None:
+    snapshot = DemoDashboardReader().execute()
+    ktos = next(item for item in snapshot.underlyings if item.symbol == "KTOS")
+    call = next(clock for clock in ktos.open_call_clocks if clock.strike == D("75"))
+    later = call.expires_on + timedelta(days=14)
+    scenarios = build_call_roll_scenarios(
+        replace(
+            call,
+            roll_quote_candidates=(
+                RollQuoteCandidate(later, call.strike, D("1.10"), "DATE PUSH"),
+                RollQuoteCandidate(later, call.strike + D("5"), D("0.70"), "UP AND OUT"),
+            ),
+        ),
+        current_price=ktos.current_price,
+    )
+
+    assert [item.target_strike for item in scenarios] == [call.strike + D("5")]
+    assert all(item.assignment_room_gain > 0 for item in scenarios)
 
 
 def test_dividend_warning_escalates_only_when_the_math_supports_it() -> None:

@@ -186,6 +186,38 @@ def test_maps_real_daily_ohlcv_bars() -> None:
     assert batch.daily_bars[0].volume == 1000
 
 
+def test_daily_mapper_keeps_the_last_revision_for_duplicate_session_dates() -> None:
+    batch = SchwabMarketMapper().map_price_history(
+        {
+            "symbol": "CVX",
+            "candles": [
+                {
+                    "datetime": 1786406400000,
+                    "open": 195,
+                    "high": 197,
+                    "low": 194.5,
+                    "close": 196.25,
+                    "volume": 1200,
+                },
+                {
+                    "datetime": 1786449600000,
+                    "open": 195,
+                    "high": 197.5,
+                    "low": 194.5,
+                    "close": 196.5,
+                    "volume": 1350,
+                },
+            ],
+        },
+        observed_at=NOW,
+        parser_version="test",
+    )
+
+    assert len(batch.daily_bars) == 1
+    assert batch.daily_bars[0].close == Decimal("196.5")
+    assert batch.daily_bars[0].volume == 1350
+
+
 def test_maps_timestamped_intraday_ohlcv_bars() -> None:
     batch = SchwabMarketMapper().map_intraday_price_history(
         {

@@ -337,12 +337,12 @@ def _resolve_roll_source(
     if request.target_expiration is None or request.target_strike is None:
         return source
     wrong_direction = (
-        request.target_strike < source.strike
+        request.target_strike <= source.strike
         if source.option_side is OptionSide.CALL
         else request.target_strike > source.strike
     )
     if request.target_expiration <= source.expires_on or wrong_direction:
-        direction = "same or higher" if source.option_side is OptionSide.CALL else "same or lower"
+        direction = "higher" if source.option_side is OptionSide.CALL else "same or lower"
         raise RadarRollRequestError(
             f"A roll review requires a later expiration and a {direction} strike."
         )
@@ -489,6 +489,7 @@ def _roll_selection_context(
         source_expiration_date=source.expires_on,
         source_strike=source.strike,
         source_close_ask_per_share=_source_close_ask(bundle, source),
+        source_current_price=bundle.underlying_price or source.current_price,
     )
 
 

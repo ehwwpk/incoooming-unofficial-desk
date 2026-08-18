@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -19,33 +20,40 @@ if TYPE_CHECKING:
 
 D = Decimal
 ZERO = D("0")
-HUNDRED = D("100")
-DEFAULT_NEUTRAL_BAND = D("0.10")
 
 
-def build_neutral_roll_scenarios(
+def build_call_roll_scenarios(
     call: OpenCallClock,
     *,
     current_price: Decimal,
-    neutral_band_per_share: Decimal = DEFAULT_NEUTRAL_BAND,
     limit: int = 9,
+    open_option_symbols: tuple[str, ...] = (),
 ) -> tuple[RollScenario, ...]:
-    del neutral_band_per_share
     result = _call_roll_result(call, current_price=current_price, limit=limit)
-    return tuple(_scenario(result.source, candidate) for candidate in result.candidates)
+    return tuple(
+        _scenario(result.source, candidate, open_option_symbols=open_option_symbols)
+        for candidate in result.candidates
+    )
 
 
 def no_clean_call_roll_reason(call: OpenCallClock, *, current_price: Decimal) -> str | None:
-    return _call_roll_result(call, current_price=current_price, limit=9).no_clean_reason
+    result = _call_roll_result(call, current_price=current_price, limit=9)
+    if any(candidate.strike > call.strike for candidate in result.candidates):
+        return None
+    return result.no_clean_reason
 
 
 def build_put_roll_scenarios(
     put: LiveOpenOptionPosition,
     *,
     limit: int = 9,
+    open_option_symbols: tuple[str, ...] = (),
 ) -> tuple[RollScenario, ...]:
     result = _put_roll_result(put, limit=limit)
-    return tuple(_scenario(result.source, candidate) for candidate in result.candidates)
+    return tuple(
+        _scenario(result.source, candidate, open_option_symbols=open_option_symbols)
+        for candidate in result.candidates
+    )
 
 
 def no_clean_put_roll_reason(put: LiveOpenOptionPosition) -> str | None:
@@ -79,6 +87,7 @@ def _call_roll_result(
             spread_percent=quote.spread_percent,
             open_interest=quote.open_interest,
             volume=quote.volume,
+            theta_per_share=quote.theta_per_share,
         )
         for quote in call.roll_quote_candidates
         if call.can_close_or_roll
@@ -106,22 +115,36 @@ def _put_roll_result(put: LiveOpenOptionPosition, *, limit: int) -> RollSearchRe
     )
 
 
-def _scenario(source: RollSource, candidate: RollCandidate) -> RollScenario:
+def _scenario(
+    source: RollSource,
+    candidate: RollCandidate,
+    *,
+    open_option_symbols: tuple[str, ...] = (),
+) -> RollScenario:
+    held = {"".join(symbol.upper().split()) for symbol in open_option_symbols}
+    marked = replace(
+        candidate,
+        also_open="".join(candidate.option_symbol.upper().split()) in held,
+    )
     return RollScenario(
         source_option_symbol=source.option_symbol,
         source_expiration=source.expires_on,
         source_strike=source.strike,
         source_contracts=source.contracts,
-        target_expiration=candidate.expires_on,
-        target_strike=candidate.strike,
-        strike_lift_per_share=candidate.strike_change_per_share,
-        added_days=candidate.added_days,
-        net_roll_per_share=candidate.net_roll_per_share,
-        net_roll_cash=candidate.net_roll_cash,
-        assignment_room_gain=candidate.assignment_room_gain,
-        target_buffer_percent=candidate.target_buffer_percent,
-        quote_source=candidate.quote_source,
+        target_expiration=marked.expires_on,
+        target_strike=marked.strike,
+        strike_lift_per_share=marked.strike_change_per_share,
+        added_days=marked.added_days,
+        net_roll_per_share=marked.net_roll_per_share,
+        net_roll_cash=marked.net_roll_cash,
+        assignment_room_gain=marked.assignment_room_gain,
+        target_buffer_percent=marked.target_buffer_percent,
+        quote_source=marked.quote_source,
         option_side=source.option_side,
-        cost_label=candidate.cost_label,
-        family_label=candidate.family_label,
+        cost_label=marked.cost_label,
+        family_label=marked.family_label,
+        highlight=marked.highlight,
+        also_open=marked.also_open,
+        cash_per_extra_day=marked.cash_per_extra_day,
+        theta_per_share=marked.theta_per_share,
     )

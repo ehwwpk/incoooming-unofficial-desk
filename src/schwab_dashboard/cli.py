@@ -197,7 +197,7 @@ def campaign_audit() -> None:
 
 @app.command()
 def serve() -> None:
-    """Run the private local dashboard."""
+    """Run Incoooming locally."""
     settings = Settings()
     uvicorn.run(
         create_app(),
@@ -209,7 +209,7 @@ def serve() -> None:
 
 @app.command()
 def demo() -> None:
-    """Run the dashboard with fictional data; the real ledger is never modified."""
+    """Run Incoooming with fictional data; the real ledger is never modified."""
     settings = Settings(demo_mode=True)
     container = Container(settings)
     try:
