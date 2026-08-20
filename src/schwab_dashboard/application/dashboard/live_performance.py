@@ -25,6 +25,12 @@ from schwab_dashboard.application.dashboard.performance import (
     OperatorMetricsSummary,
     PerformanceWindowSummary,
 )
+from schwab_dashboard.application.dashboard.short_premium import (
+    is_closing_buy as _is_closing_buy,
+    is_opening_sale as _is_opening_sale,
+    is_short_premium_execution,
+    option_cash_action_label,
+)
 
 ZERO = Decimal("0")
 HUNDRED = Decimal("100")
@@ -53,17 +59,19 @@ def build_live_performance(
     covered_capital: Decimal,
     as_of: date,
 ) -> LivePerformanceProjection:
-    option_executions = tuple(row for row in executions if _is_covered_call_cash(row))
+    option_executions = tuple(row for row in executions if is_short_premium_execution(row))
     dividends = tuple(row for row in cash_movements if str(row.get("movement_type")) == "dividend")
     assignments = tuple(
-        row
-        for row in lifecycle_events
-        if str(row.get("event_type")) == "assignment" and str(row.get("option_side")) == "call"
+        row for row in lifecycle_events if str(row.get("event_type")) == "assignment"
+    )
+    call_assignments = tuple(
+        row for row in assignments if str(row.get("option_side")) == "call"
+    )
+    put_assignments = tuple(
+        row for row in assignments if str(row.get("option_side")) == "put"
     )
     expirations = tuple(
-        row
-        for row in lifecycle_events
-        if str(row.get("event_type")) == "expiration" and str(row.get("option_side")) == "call"
+        row for row in lifecycle_events if str(row.get("event_type")) == "expiration"
     )
     windows = tuple(
         _window(
@@ -86,7 +94,8 @@ def build_live_performance(
     monthly = _monthly_performance(
         option_executions,
         dividends,
-        assignments,
+        call_assignments,
+        put_assignments,
         covered_capital=covered_capital,
         as_of=as_of,
     )
@@ -112,7 +121,7 @@ def build_live_performance(
     covered_calls = _covered_call_summary(
         option_executions,
         dividends,
-        assignments,
+        call_assignments,
         expirations,
         live_book=live_book,
         covered_capital=covered_capital,
@@ -207,12 +216,13 @@ def _window(
 def _monthly_performance(
     executions: Sequence[Mapping[str, object]],
     dividends: Sequence[Mapping[str, object]],
-    assignments: Sequence[Mapping[str, object]],
+    call_assignments: Sequence[Mapping[str, object]],
+    put_assignments: Sequence[Mapping[str, object]],
     *,
     covered_capital: Decimal,
     as_of: date,
 ) -> tuple[MonthlyPerformanceSummary, ...]:
-    dated_rows = (*executions, *dividends, *assignments)
+    dated_rows = (*executions, *dividends, *call_assignments, *put_assignments)
     if not dated_rows:
         return ()
     first_observed = min(_row_date(row) for row in dated_rows)
@@ -232,7 +242,12 @@ def _monthly_performance(
         month_end = next_month - timedelta(days=1)
         trades = [row for row in executions if month <= _row_date(row) <= month_end]
         month_dividends = [row for row in dividends if month <= _row_date(row) <= month_end]
-        month_assignments = [row for row in assignments if month <= _row_date(row) <= month_end]
+        month_call_assignments = [
+            row for row in call_assignments if month <= _row_date(row) <= month_end
+        ]
+        month_put_assignments = [
+            row for row in put_assignments if month <= _row_date(row) <= month_end
+        ]
         gross = sum((_gross_credit(row) for row in trades), ZERO)
         closing = sum((_closing_debit(row) for row in trades), ZERO)
         option_cash = sum((_decimal(row.get("net_cash")) for row in trades), ZERO)
@@ -248,11 +263,20 @@ def _monthly_performance(
                 closing_debits=closing,
                 fees=sum((_decimal(row.get("fees")) for row in trades), ZERO),
                 assigned_contracts=sum(
-                    (int(_decimal(row.get("option_quantity"))) for row in month_assignments),
+                    (int(_decimal(row.get("option_quantity"))) for row in month_call_assignments),
+                    0,
+                )
+                + sum(
+                    (int(_decimal(row.get("option_quantity"))) for row in month_put_assignments),
                     0,
                 ),
                 called_away_shares=sum(
-                    int(_decimal(row.get("option_quantity"))) * 100 for row in month_assignments
+                    int(_decimal(row.get("option_quantity"))) * 100
+                    for row in month_call_assignments
+                ),
+                acquired_shares=sum(
+                    int(_decimal(row.get("option_quantity"))) * 100
+                    for row in month_put_assignments
                 ),
                 average_covered_capital=covered_capital,
                 is_partial=month.year == as_of.year and month.month == as_of.month,
@@ -279,7 +303,6 @@ def _cash_events(
 ) -> tuple[CashActivityItem, ...]:
     events: list[CashActivityItem] = []
     for row in executions:
-        opening = _is_opening_sale(row)
         symbol = str(row.get("underlying_symbol") or row.get("symbol") or "OPTION")
         amount = _decimal(row.get("net_cash"))
         events.append(
@@ -287,7 +310,7 @@ def _cash_events(
                 event_id=str(row["external_key"]),
                 occurred_on=_row_date(row),
                 symbol=symbol,
-                action_label="CALL SOLD" if opening else "CALL CLOSED",
+                action_label=option_cash_action_label(row),
                 amount=amount,
                 contracts=int(_decimal(row.get("quantity"))),
                 tone="credit" if amount >= ZERO else "debit",
@@ -329,12 +352,17 @@ def _covered_call_summary(
     dividend_cash = sum((_decimal(row.get("amount")) for row in dividends), ZERO)
     open_credit = sum(
         (
-            (call.entry_credit_per_share or ZERO) * Decimal("100") * Decimal(call.contracts)
-            for call in live_book.calls
+            (option.entry_credit_per_share or ZERO)
+            * Decimal("100")
+            * Decimal(option.contracts)
+            for option in (*live_book.calls, *live_book.puts)
         ),
         ZERO,
     )
-    open_value = sum((abs(call.market_value or ZERO) for call in live_book.calls), ZERO)
+    open_value = sum(
+        (abs(option.market_value or ZERO) for option in (*live_book.calls, *live_book.puts)),
+        ZERO,
+    )
     assigned_contracts = sum((int(_decimal(row.get("option_quantity"))) for row in assignments), 0)
     return CoveredCallPortfolioSummary(
         total_shares=live_book.total_shares,
@@ -356,7 +384,7 @@ def _covered_call_summary(
         realized_option_income=option_cash,
         open_call_credit=open_credit,
         open_call_mark_value=open_value,
-        open_mark_profit_loss=live_book.open_mark_profit_loss,
+        open_mark_profit_loss=live_book.total_open_mark_profit_loss,
         dividends=dividend_cash,
         total_cash_income=option_cash + dividend_cash,
         win_rate=ZERO,
@@ -400,22 +428,6 @@ def _operator_metrics(
         average_days_to_expiration=ZERO,
         uncovered_contract_capacity=max(0, covered.contract_capacity - covered.active_contracts),
     )
-
-
-def _is_covered_call_cash(row: Mapping[str, object]) -> bool:
-    return (
-        str(row.get("asset_type")) == "option"
-        and str(row.get("option_side")) == "call"
-        and (_is_opening_sale(row) or _is_closing_buy(row))
-    )
-
-
-def _is_opening_sale(row: Mapping[str, object]) -> bool:
-    return str(row.get("side")) == "sell" and str(row.get("position_effect")) == "opening"
-
-
-def _is_closing_buy(row: Mapping[str, object]) -> bool:
-    return str(row.get("side")) == "buy" and str(row.get("position_effect")) == "closing"
 
 
 def _gross_credit(row: Mapping[str, object]) -> Decimal:

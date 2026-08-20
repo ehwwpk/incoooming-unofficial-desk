@@ -2,6 +2,7 @@ import re
 from dataclasses import asdict, replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from pathlib import Path
 
 from fastapi.encoders import jsonable_encoder
 
@@ -12,7 +13,10 @@ from schwab_dashboard.application.dashboard.models import (
     LiveUnderlyingPosition,
     PositionSummary,
 )
-from schwab_dashboard.application.dashboard.overview import build_desk_overview
+from schwab_dashboard.application.dashboard.overview import (
+    build_desk_overview,
+    open_contract_side_copy,
+)
 from schwab_dashboard.application.market_time import QuoteSession
 from schwab_dashboard.application.performance.projection import build_performance_comparison
 from schwab_dashboard.application.risk.price_time import build_price_time_read
@@ -98,6 +102,10 @@ def test_campaign_charts_render_as_lazy_accessible_workspaces() -> None:
             assert f'data-option-campaign="{call.campaign_id}"' in rendered
     assert overview.nearest_call is not None
     assert f'id="{overview.nearest_call.anchor_id}"' in rendered
+    assert "FIRST 3 BY EXPIRATION" not in rendered
+    assert "BY EXPIRATION" in rendered
+    assert "option status" in rendered
+    assert "open short options, holding other inputs constant" in rendered
 
 
 def test_option_card_pressure_read_sits_on_one_bottom_row() -> None:
@@ -141,6 +149,52 @@ def test_option_card_pressure_read_sits_on_one_bottom_row() -> None:
     assert "price-pressure-plain" not in strip_chunk
 
 
+def test_desk_put_card_matches_call_clocks_and_refuses_cash_secured_copy() -> None:
+    from schwab_dashboard.application.dashboard.open_put_clocks import build_open_put_clocks
+
+    snapshot = DemoDashboardReader().execute()
+    item = next(row for row in snapshot.underlyings if row.symbol == "KTOS")
+    put = LiveOpenOptionPosition(
+        account_mask="...1234",
+        option_symbol="KTOS  260821P00060000",
+        underlying_symbol="KTOS",
+        contracts=1,
+        expires_on=date(2026, 8, 21),
+        days_to_expiration=11,
+        strike=Decimal("60"),
+        entry_credit_per_share=Decimal("1.50"),
+        estimated_mark_per_share=Decimal("0.40"),
+        market_value=Decimal("-40"),
+        open_profit_loss=Decimal("110"),
+        day_profit_loss=Decimal("10"),
+        underlying_price=Decimal("68"),
+        strike_distance_per_share=Decimal("8"),
+        strike_distance_percent=Decimal("11.76"),
+        theta_per_share=Decimal("-0.05"),
+        option_type="PUT",
+        opened_on=date(2026, 7, 10),
+        original_days_to_expiration=42,
+    )
+    clock = build_open_put_clocks((put,))[0]
+    rendered = templates.env.from_string(
+        "{% from 'partials/_underlying_option_cards.html' import underlying_put_card %}"
+        "{{ underlying_put_card(put, item, snapshot) }}"
+    ).render(put=clock, item=item, snapshot=snapshot)
+
+    assert "SHORT PUT" in rendered
+    assert "CASH-SECURED PUT" not in rendered
+    assert "EFF ENTRY $58.50/SH" in rendered
+    assert "SOLD JUL 10" in rendered
+    assert "TERM NOT GUESSED" not in rendered
+    assert "CALENDAR TIME SINCE SALE" in rendered
+    assert "OPTION VALUE / CREDIT" in rendered
+    assert "TIME VALUE NOW" in rendered
+    assert "$0 / OTM" in rendered
+    assert "data-option-side=\"put\"" in rendered
+    assert 'data-option-campaign=""' in rendered
+    assert clock.decay_stage in rendered
+
+
 def test_live_summary_deep_links_to_the_exact_nearest_contract() -> None:
     snapshot = DemoDashboardReader().execute()
     overview = build_desk_overview(snapshot)
@@ -180,7 +234,7 @@ def test_open_call_workspace_keeps_exact_dte_in_expanded_contract_context() -> N
     assert rendered.count('class="roll-board-notional"') == len(roll_board.rows)
     assert rendered.count("data-open-book-section=") == 4
     assert "RISK LENS" in rendered
-    assert "Carry, exposure, and IV pressure" in rendered
+    assert "Carry / IV" in rendered
     assert "NET STOCK EXPOSURE" in rendered
     assert "IV COST IN THETA DAYS" in rendered
     assert "DELTA &middot; NEXT $1" in rendered
@@ -349,6 +403,198 @@ def test_live_book_and_name_strip_keep_compact_pressure() -> None:
         assert "price-pressure-plain" not in chunk
         if "price-pressure-line" in chunk:
             assert "LAST SESSION" in chunk
+    analytics = re.search(r'class="name-analytics">(.*?)</div>\s*<div class="underlying-decision-grid"', names_html, flags=re.S)
+    assert analytics is not None
+    cells = re.findall(r"<div(?: class=\"([^\"]*)\")?", analytics.group(1))
+    assert len(cells) == 7
+    assert cells[:-1] == [""] * 6
+    assert cells[-1] == "name-price-time"
+    assert "OPTION VALUE NOW" in analytics.group(1)
+    assert "DIVIDENDS / 4W" not in analytics.group(1)
+    assert "data-name-dividend-label" not in analytics.group(1)
+    assert "data-name-dividends" in names_html
+    first_row = build_desk_overview(snapshot).position_rows[0]
+    value_cell = re.search(
+        r"<span>OPTION VALUE NOW(?:[^<]*)</span><b(?: class=\"muted\")?>([^<]*)</b></div>",
+        analytics.group(1),
+    )
+    assert value_cell is not None
+    assert value_cell.group(1) == money(first_row.open_option_value_now)
+    assert "<small>" not in analytics.group(1).split("OPTION VALUE NOW", 1)[1].split("</div>", 1)[0]
+    source = (
+        Path(__file__).resolve().parents[2]
+        / "src"
+        / "schwab_dashboard"
+        / "web"
+        / "templates"
+        / "partials"
+        / "_underlyings.html"
+    ).read_text(encoding="utf-8")
+    assert 'class="name-price-time-read"' in source
+    assert "OPTION VALUE NOW" in source
+    assert 'row.open_option_value_now is none %} class="muted"' in source
+    assert "data-name-dividend-label" not in source
+
+
+def test_stale_option_mark_names_prior_session_on_the_tape_title() -> None:
+    snapshot = DemoDashboardReader().execute()
+    overview = build_desk_overview(snapshot)
+    row = overview.position_rows[0]
+    clock = replace(
+        row.underlying.open_call_clocks[0],
+        quote_observed_at=datetime(2026, 8, 6, 20, tzinfo=UTC),
+        quote_observed_on=date(2026, 8, 6),
+    )
+    stale = replace(
+        row,
+        underlying=replace(row.underlying, open_call_clocks=(clock,)),
+        evaluated_at=datetime(2026, 8, 7, 20, tzinfo=UTC),
+    )
+    live = replace(
+        stale,
+        underlying=replace(
+            stale.underlying,
+            open_call_clocks=(
+                replace(
+                    clock,
+                    quote_observed_at=datetime(2026, 8, 7, 20, tzinfo=UTC),
+                    quote_observed_on=date(2026, 8, 7),
+                ),
+            ),
+        ),
+    )
+    assert stale.open_option_mark_is_prior_session
+    assert stale.open_option_mark_stamp is not None
+    assert not live.open_option_mark_is_prior_session
+    html = templates.env.get_template("partials/_underlyings.html").render(
+        snapshot=snapshot,
+        desk_overview=replace(overview, position_rows=(stale, *overview.position_rows[1:])),
+    )
+    assert "OPTION VALUE NOW · PRIOR SESSION" in html or "OPTION VALUE NOW · PRIOR SESSION".replace(" · ", " &middot; ") in html
+
+
+def test_period_script_survives_removed_dividend_tape_label() -> None:
+    root = Path(__file__).resolve().parents[2] / "src" / "schwab_dashboard" / "web"
+    script = (root / "static" / "periods.js").read_text(encoding="utf-8")
+    page = (root / "templates" / "dashboard.html").read_text(encoding="utf-8")
+    assert 'querySelector("[data-name-dividend-label]").textContent' not in script
+    assert 'card.querySelector("[data-name-dividend-label]")' in script
+    assert "if (dividendLabel)" in script
+    assert 'querySelectorAll("[data-name-dividends]")' in script
+    assert "periods.js') }}?v=21" in page
+
+
+def test_desk_header_uses_day_pl_not_today_nl_change() -> None:
+    page = (
+        Path(__file__).resolve().parents[2]
+        / "src"
+        / "schwab_dashboard"
+        / "web"
+        / "templates"
+        / "dashboard.html"
+    ).read_text(encoding="utf-8")
+
+    assert "DAY P/L" in page
+    assert "TODAY <b" not in page
+    assert "flow-adjusted-note" not in page
+    assert "DEPOSIT EXCLUDED" not in page
+
+
+def test_live_position_card_open_contracts_are_calls_plus_puts() -> None:
+    call = LiveOpenOptionPosition(
+        account_mask="...1234",
+        option_symbol="KTOS  260918C00075000",
+        underlying_symbol="KTOS",
+        contracts=9,
+        expires_on=date(2026, 9, 18),
+        days_to_expiration=42,
+        strike=Decimal("75"),
+        entry_credit_per_share=Decimal("2.00"),
+        estimated_mark_per_share=Decimal("1.20"),
+        market_value=Decimal("-1080"),
+        open_profit_loss=Decimal("720"),
+        day_profit_loss=Decimal("12"),
+        underlying_price=Decimal("60"),
+        strike_distance_per_share=Decimal("15"),
+        strike_distance_percent=Decimal("25"),
+        delta=Decimal("0.25"),
+        gamma=Decimal("0.04"),
+        theta_per_share=Decimal("-0.10"),
+        underlying_previous_close=Decimal("59"),
+        underlying_week_reference_price=Decimal("55"),
+        option_type="CALL",
+    )
+    put = LiveOpenOptionPosition(
+        account_mask="...1234",
+        option_symbol="KTOS  260918P00050000",
+        underlying_symbol="KTOS",
+        contracts=2,
+        expires_on=date(2026, 9, 18),
+        days_to_expiration=42,
+        strike=Decimal("50"),
+        entry_credit_per_share=Decimal("1.20"),
+        estimated_mark_per_share=Decimal("1.70"),
+        market_value=Decimal("-340"),
+        open_profit_loss=Decimal("-100"),
+        day_profit_loss=Decimal("-40"),
+        underlying_price=Decimal("60"),
+        strike_distance_per_share=Decimal("10"),
+        strike_distance_percent=Decimal("16.67"),
+        option_type="PUT",
+    )
+    name = LiveUnderlyingPosition(
+        symbol="KTOS",
+        description="Kratos Defense",
+        shares=1000,
+        average_price=Decimal("31.75"),
+        current_price=Decimal("60"),
+        market_value=Decimal("60000"),
+        day_profit_loss=Decimal("0"),
+        contract_capacity=10,
+        open_call_contracts=9,
+        covered_contracts=9,
+        uncovered_contracts=1,
+        coverage_percent=Decimal("90"),
+        open_mark_profit_loss=Decimal("720"),
+        calls=(call,),
+        puts=(put,),
+        estimated_theta_per_day=Decimal("10"),
+    )
+    rendered = templates.env.get_template("partials/_live_position_book.html").render(
+        live_book=LivePositionBook(
+            underlyings=(name,),
+            calls=(call,),
+            puts=(put,),
+            total_shares=1000,
+            contract_capacity=10,
+            open_call_positions=1,
+            open_call_contracts=9,
+            covered_contracts=9,
+            uncovered_contracts=1,
+            coverage_percent=Decimal("90"),
+            open_mark_profit_loss=Decimal("720"),
+            open_put_positions=1,
+            open_put_contracts=2,
+        )
+    )
+    contracts = rendered.split("<span>OPEN CONTRACTS</span>", 1)[1].split("</div>", 1)[0]
+
+    assert "<b>11</b>" in contracts
+    assert "9 calls · 2 puts" in contracts
+    assert "covered" not in contracts
+    assert "10 lots · 90.0% covered by short calls" in rendered
+    assert "OPEN OPTIONS" not in rendered
+
+
+def test_open_contract_side_copy_omits_a_zero_side() -> None:
+    assert open_contract_side_copy(0, 0) == "0 calls"
+    assert open_contract_side_copy(1, 0) == "1 call"
+    assert open_contract_side_copy(6, 0) == "6 calls"
+    assert open_contract_side_copy(0, 1) == "1 put"
+    assert open_contract_side_copy(0, 2) == "2 puts"
+    assert open_contract_side_copy(1, 1) == "1 call · 1 put"
+    assert open_contract_side_copy(9, 2) == "9 calls · 2 puts"
+
 
 
 def _prior_session_underlying(stats) -> LiveUnderlyingPosition:
@@ -423,6 +669,115 @@ def test_demo_book_keeps_the_day_caption_and_invents_no_quote_clock() -> None:
     assert "<small>DAY</small>" in rendered
     assert "PRIOR SESSION" not in rendered
     assert "position-quote-stamp" not in rendered
+
+
+def test_open_contracts_are_calls_plus_puts_not_broker_lines() -> None:
+    snapshot = DemoDashboardReader().execute()
+    ktos = next(item for item in snapshot.underlyings if item.symbol == "KTOS")
+    put = PositionSummary(
+        account_mask="...1234",
+        symbol="KTOS  260918P00050000",
+        description="KTOS SEP 18 2026 50 Put",
+        asset_type="OPTION",
+        quantity=Decimal("-2"),
+        average_price=Decimal("1.20"),
+        mark=Decimal("1.70"),
+        market_value=Decimal("-340"),
+        day_profit_loss=Decimal("-40"),
+        day_profit_loss_percent=None,
+        strategy="Short put",
+        underlying_symbol="KTOS",
+        option_type="PUT",
+        expiration_date=date(2026, 9, 18),
+        strike=Decimal("50"),
+        open_profit_loss=Decimal("-100"),
+    )
+    snapshot_with_put = replace(
+        snapshot,
+        live_position_book=build_live_position_book(
+            (*snapshot.positions, put),
+            as_of=snapshot.as_of.date(),
+        ),
+    )
+    overview = build_desk_overview(snapshot_with_put)
+    names = templates.env.get_template("partials/_underlyings.html").render(
+        snapshot=snapshot_with_put,
+        desk_overview=overview,
+    )
+    pulse = templates.env.get_template("partials/_summary.html").render(
+        snapshot=snapshot_with_put,
+        desk_overview=overview,
+    )
+    ktos_card = names.split('id="ktos-workspace"', 1)[1].split("</details>", 1)[0]
+    ktos_contracts = ktos_card.split('class="position-contracts">', 1)[1].split("</div>", 1)[0]
+    line_count = next(
+        row.open_positions for row in overview.position_rows if row.underlying.symbol == "KTOS"
+    )
+
+    assert ktos.active_contracts == 8
+    assert overview.open_put_contracts == 2
+    assert overview.open_contracts == overview.open_call_contracts + 2
+    assert sum(row.open_contracts for row in overview.position_rows) == overview.open_contracts
+    ktos_row = next(row for row in overview.position_rows if row.underlying.symbol == "KTOS")
+    assert ktos_row.open_call_contracts == 8
+    assert ktos_row.open_put_contracts == 2
+    assert ktos_row.open_contracts == 10
+    assert line_count == 3
+    assert f"<b>{overview.open_contracts}</b> OPEN CONTRACTS" in names
+    assert f"<b>{overview.open_call_contracts}</b> CALLS · <b>2</b> PUTS" in names
+    assert "OPTION POSITIONS" not in names
+    assert "OPEN POSITIONS" not in ktos_contracts
+    assert f"<span>OPEN CONTRACTS</span><strong>{ktos_row.open_contracts}</strong>" in ktos_contracts
+    assert "8 calls · 2 puts" in ktos_contracts
+    assert f"<strong>{line_count}</strong>" not in ktos_contracts
+    assert "covered" not in ktos_contracts
+    assert "lots · " in ktos_card and "covered by short calls" in ktos_card
+    assert "<span>Open calls</span><b>8</b>" in ktos_card
+    assert "CASH-SECURED PUT" not in ktos_card
+    assert "SHORT PUT" in ktos_card
+    assert "EFF ENTRY $48.80/SH" in ktos_card
+    assert "CALENDAR TIME SINCE SALE" in ktos_card
+    assert "TERM NOT GUESSED" in ktos_card
+    assert "OPTION VALUE / CREDIT" in ktos_card
+    assert "NEAREST 3 BY EXPIRATION" not in ktos_card
+    assert ">BY EXPIRATION<" in ktos_card
+    assert "open short options" in ktos_card
+    assert "AVG OPEN CALL IV <i>" in ktos_card
+    assert "AVG OPEN IV <i>" not in ktos_card
+    assert "Not cash." in ktos_card
+    assert "OPEN OPTION POSITIONS" not in pulse
+    assert "distinct strikes" not in pulse
+    assert f"<span>OPEN CONTRACTS</span>\n        <strong>{overview.open_contracts}</strong>" in pulse
+    assert f"{overview.open_call_contracts} calls · 2 puts" in pulse
+
+
+def test_demo_name_row_open_contracts_match_call_lots_not_strikes() -> None:
+    snapshot = DemoDashboardReader().execute()
+    overview = build_desk_overview(snapshot)
+    rendered = templates.env.get_template("partials/_underlyings.html").render(
+        snapshot=snapshot,
+        desk_overview=overview,
+    )
+    pulse = templates.env.get_template("partials/_summary.html").render(
+        snapshot=snapshot,
+        desk_overview=overview,
+    )
+    cvx_card = rendered.split('id="cvx-workspace"', 1)[1].split("</details>", 1)[0]
+    cvx_contracts = cvx_card.split('class="position-contracts">', 1)[1].split("</div>", 1)[0]
+    cvx = next(item for item in snapshot.underlyings if item.symbol == "CVX")
+
+    assert overview.open_positions == 6
+    assert overview.open_contracts == 18
+    assert cvx.active_contracts == 6
+    assert "<b>18</b> OPEN CONTRACTS" in rendered
+    assert "<b>18</b> CALLS" in rendered
+    assert "OPTION POSITIONS" not in rendered
+    assert "<span>OPEN CONTRACTS</span><strong>6</strong>" in cvx_contracts
+    assert "6 calls" in cvx_contracts
+    assert "<strong>3</strong>" not in cvx_contracts
+    assert "OPEN OPTION POSITIONS" not in pulse
+    assert "<strong>18</strong>" in pulse
+    assert "18 calls" in pulse
 
 
 def test_header_flags_prior_session_names_outside_the_elements_the_poller_rewrites() -> None:
@@ -504,15 +859,25 @@ def test_results_spine_keeps_tape_above_the_chart_and_drops_workshop_copy() -> N
         performance_comparison_payload=jsonable_encoder(asdict(comparison)),
     )
 
-    assert "Did the premium work earn its keep?" in rendered
+    assert "Performance spine" in rendered
     assert "performance-compare-tape" in rendered
-    assert "Drawdown, Volume, and Worst Day" in rendered
-    assert "Net Liquidity, Maintenance, and Buying Power" in rendered
+    assert "<h3>Drawdown</h3>" in rendered
+    assert "<h3>Net liquidity</h3>" in rendered
     assert "RISK TAPE" not in rendered
     assert "CAPITAL USE" not in rendered
+    assert "Drawdown, Volume, and Worst Day" not in rendered
     assert "Drawdown, vol, and worst day" not in rendered
+    assert "Net Liquidity, Maintenance, and Buying Power" not in rendered
     assert "Net liq, maintenance, buying power" not in rendered
     assert "Credits, buybacks, live marks" in rendered
+    assert "YOUR BOOK · TIME-WEIGHTED" in rendered or "YOUR BOOK &middot; TIME-WEIGHTED" in rendered
+    assert "STARTING STOCK + YOUR SHARE TRADES" in rendered
+    assert "SPY PRICE" in rendered
+    assert "SPY AT YOUR STOCK LEVERAGE" in rendered
+    assert "MANAGED BOOK" not in rendered
+    assert "SAME STARTING SHARES" not in rendered
+    assert "Put to" in rendered
+    assert "Called away" in rendered
     assert "What the return path demanded" not in rendered
     assert "What the cash leaned on" not in rendered
     assert "INCOOOMING-PERFORMANCE-V2" not in rendered

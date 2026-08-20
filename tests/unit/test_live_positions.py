@@ -199,10 +199,11 @@ def test_portfolio_uses_liquidation_value_not_gross_positions() -> None:
     assert summary.liquidation_value == D("175000")
     assert summary.gross_position_value == D("220000")
     assert summary.margin_balance == D("-45000")
-    assert summary.day_profit_loss_percent == D("4.166666666666666666666666667")
+    assert summary.day_profit_loss == D("7000")
+    assert summary.day_profit_loss_percent == D("7000") / D("168000") * D("100")
 
 
-def test_portfolio_prefers_account_day_change_over_contradictory_position_pl() -> None:
+def test_portfolio_uses_position_tape_when_account_nl_change_disagrees() -> None:
     stock = _position(market_value=D("62420"), day_profit_loss=D("-10904.37"))
     summary = summarize_portfolio(
         (stock,),
@@ -214,11 +215,48 @@ def test_portfolio_prefers_account_day_change_over_contradictory_position_pl() -
         ),
     )
 
-    assert summary.day_profit_loss == D("-163.80")
-    assert summary.day_profit_loss_percent == D("-163.80") / D("103853.77") * D("100")
+    assert summary.day_profit_loss == D("-10904.37")
+    assert summary.day_profit_loss_percent == D("-10904.37") / (
+        D("103689.97") - D("-10904.37")
+    ) * D("100")
 
 
-def test_portfolio_excludes_same_day_deposit_from_daily_profit() -> None:
+def test_portfolio_sums_every_asset_type_on_the_broker_tape() -> None:
+    summary = summarize_portfolio(
+        (
+            _position(symbol="CVX", day_profit_loss=D("1080.25")),
+            _position(
+                symbol="URNM",
+                asset_type="COLLECTIVE_INVESTMENT",
+                day_profit_loss=D("1155"),
+            ),
+            _position(
+                symbol="CVX   260821C00210000",
+                asset_type="OPTION",
+                quantity=D("-1"),
+                day_profit_loss=D("-4.50"),
+            ),
+            _position(
+                symbol="T  4.5 2030",
+                asset_type="FIXED_INCOME",
+                day_profit_loss=D("12.00"),
+            ),
+            _position(
+                symbol="USD",
+                asset_type="CURRENCY",
+                day_profit_loss=D("0"),
+            ),
+        ),
+        ({"liquidation_value": D("135797.61")},),
+    )
+
+    assert summary.day_profit_loss == D("2242.75")
+    assert summary.day_profit_loss_percent == D("2242.75") / (
+        D("135797.61") - D("2242.75")
+    ) * D("100")
+
+
+def test_portfolio_day_pl_ignores_deposits_and_stale_bod_nl() -> None:
     summary = summarize_portfolio(
         (_position(day_profit_loss=D("3000")),),
         (
@@ -227,92 +265,71 @@ def test_portfolio_excludes_same_day_deposit_from_daily_profit() -> None:
                 "initial_liquidation_value": D("100000"),
             },
         ),
-        cash_movements=(
-            {
-                "occurred_at": date(2026, 8, 12),
-                "movement_type": "transfer",
-                "amount": D("25000"),
-            },
-        ),
-        as_of=date(2026, 8, 12),
-    )
-
-    assert summary.day_external_cash_flow == D("25000")
-    assert summary.day_profit_loss == D("3000")
-    assert summary.day_profit_loss_percent == D("3")
-
-
-def test_portfolio_excludes_deposit_when_utc_midnight_crosses_market_day() -> None:
-    summary = summarize_portfolio(
-        (_position(day_profit_loss=D("-219.03")),),
-        (
-            {
-                "liquidation_value": D("131586.73"),
-                "initial_liquidation_value": D("106805.76"),
-            },
-        ),
-        cash_movements=(
-            {
-                # 2:08 PM New York on Aug 12. SQLite returns normalized UTC
-                # datetimes without their original offset.
-                "occurred_at": datetime(2026, 8, 12, 18, 8, 21),
-                "movement_type": "transfer",
-                "amount": D("25000"),
-            },
-        ),
-        # 10:00 PM New York on Aug 12, despite the Aug 13 UTC date.
-        as_of=datetime(2026, 8, 13, 2, 0, tzinfo=UTC),
-    )
-
-    assert summary.day_external_cash_flow == D("25000")
-    assert summary.day_profit_loss == D("-219.03")
-    assert summary.day_profit_loss_percent == D("-219.03") / D("106805.76") * D("100")
-
-
-def test_portfolio_carries_prior_day_deposit_while_schwab_baseline_is_stale() -> None:
-    summary = summarize_portfolio(
-        (_position(day_profit_loss=D("-219.03")),),
-        (
-            {
-                "liquidation_value": D("131586.73"),
-                "initial_liquidation_value": D("106805.76"),
-            },
-        ),
-        cash_movements=(
-            {
-                "occurred_at": datetime(2026, 8, 12, 18, 8, 21),
-                "movement_type": "transfer",
-                "amount": D("25000"),
-            },
-        ),
-        as_of=date(2026, 8, 13),
-    )
-
-    assert summary.day_external_cash_flow == D("25000")
-    assert summary.day_profit_loss == D("-219.03")
-
-
-def test_portfolio_stops_carrying_deposit_after_schwab_baseline_advances() -> None:
-    summary = summarize_portfolio(
-        (_position(day_profit_loss=D("-219.03")),),
-        (
-            {
-                "liquidation_value": D("131586.73"),
-                "initial_liquidation_value": D("131805.76"),
-            },
-        ),
-        cash_movements=(
-            {
-                "occurred_at": datetime(2026, 8, 12, 18, 8, 21),
-                "movement_type": "transfer",
-                "amount": D("25000"),
-            },
-        ),
-        as_of=date(2026, 8, 13),
     )
 
     assert summary.day_external_cash_flow == D("0")
-    assert summary.day_profit_loss == D("-219.03")
+    assert summary.day_profit_loss == D("3000")
+    assert summary.day_profit_loss_percent == D("3000") / D("125000") * D("100")
+
+
+def test_portfolio_day_pl_is_blank_when_every_position_lacks_a_print() -> None:
+    summary = summarize_portfolio(
+        (
+            _position(day_profit_loss=None),
+            _position(symbol="CVX  260918C00220000", asset_type="OPTION", day_profit_loss=None),
+        ),
+        ({"liquidation_value": D("100000")},),
+    )
+
+    assert summary.day_profit_loss is None
+    assert summary.day_profit_loss_percent is None
+
+
+def test_portfolio_treats_missing_prints_as_zero_inside_a_mixed_book() -> None:
+    summary = summarize_portfolio(
+        (
+            _position(day_profit_loss=D("100")),
+            _position(symbol="CASH", asset_type="CASH", day_profit_loss=None),
+        ),
+        ({"liquidation_value": D("100000")},),
+    )
+
+    assert summary.day_profit_loss == D("100")
+    assert summary.day_profit_loss_percent == D("100") / D("99900") * D("100")
+
+
+def test_portfolio_day_pl_does_not_follow_the_readers_calendar() -> None:
+    summary = summarize_portfolio(
+        (_position(day_profit_loss=D("1258.60")),),
+        ({"liquidation_value": D("136057.17")},),
+    )
+
+    assert summary.day_profit_loss == D("1258.60")
+    assert summary.day_profit_loss_percent == D("1258.60") / (
+        D("136057.17") - D("1258.60")
+    ) * D("100")
+
+
+def test_portfolio_empty_book_is_a_flat_session_not_a_blank() -> None:
+    summary = summarize_portfolio((), ({"liquidation_value": D("1000")},))
+
+    assert summary.day_profit_loss == D("0")
+    assert summary.day_profit_loss_percent == D("0")
+
+
+def test_portfolio_csv_book_uses_net_position_value_as_percent_denominator() -> None:
+    stock = _position(market_value=D("50000"), day_profit_loss=D("1000"))
+    option = _position(
+        symbol="CVX   260918C00220000",
+        asset_type="OPTION",
+        market_value=D("-200"),
+        day_profit_loss=D("40"),
+    )
+    summary = summarize_portfolio((stock, option))
+
+    assert summary.liquidation_value is None
+    assert summary.day_profit_loss == D("1040")
+    assert summary.day_profit_loss_percent == D("1040") / D("48760") * D("100")
 
 
 def test_portfolio_excludes_same_day_withdrawal_but_not_dividend() -> None:
@@ -324,47 +341,11 @@ def test_portfolio_excludes_same_day_withdrawal_but_not_dividend() -> None:
                 "initial_liquidation_value": D("100000"),
             },
         ),
-        cash_movements=(
-            {
-                "occurred_at": date(2026, 8, 12),
-                "movement_type": "transfer",
-                "amount": D("-25000"),
-            },
-            {
-                "occurred_at": date(2026, 8, 12),
-                "movement_type": "dividend",
-                "amount": D("100"),
-            },
-        ),
-        as_of=date(2026, 8, 12),
-    )
-
-    assert summary.day_external_cash_flow == D("-25000")
-    assert summary.day_profit_loss == D("3100")
-    assert summary.day_profit_loss_percent == D("3.1")
-
-
-def test_portfolio_does_not_exclude_transfer_from_another_day() -> None:
-    summary = summarize_portfolio(
-        (_position(day_profit_loss=D("1000")),),
-        (
-            {
-                "liquidation_value": D("101000"),
-                "initial_liquidation_value": D("100000"),
-            },
-        ),
-        cash_movements=(
-            {
-                "occurred_at": date(2026, 8, 11),
-                "movement_type": "transfer",
-                "amount": D("25000"),
-            },
-        ),
-        as_of=date(2026, 8, 12),
     )
 
     assert summary.day_external_cash_flow == D("0")
-    assert summary.day_profit_loss == D("1000")
+    assert summary.day_profit_loss == D("3100")
+    assert summary.day_profit_loss_percent == D("3100") / D("75000") * D("100")
 
 
 def test_short_puts_share_the_existing_underlying_group() -> None:

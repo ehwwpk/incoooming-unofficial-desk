@@ -41,7 +41,7 @@ schwab-dashboard = "schwab_dashboard.cli:app"
 packages = ["src/schwab_dashboard"]
 
 [tool.pytest.ini_options]
-addopts = "-q --strict-markers --disable-warnings --basetemp=.pytest-tmp"
+addopts = "-q --strict-markers --disable-warnings"
 testpaths = ["tests"]
 
 [tool.ruff]

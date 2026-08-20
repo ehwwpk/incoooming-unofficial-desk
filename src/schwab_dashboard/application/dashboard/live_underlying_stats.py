@@ -25,6 +25,12 @@ from schwab_dashboard.application.dashboard.models import (
     PositionSummary,
 )
 
+from schwab_dashboard.application.dashboard.short_premium import (
+    is_closing_buy as _is_closing_buy,
+    is_opening_sale as _is_opening_sale,
+    is_short_premium_execution,
+)
+
 ZERO = Decimal("0")
 HUNDRED = Decimal("100")
 YEAR_DAYS = Decimal("365")
@@ -94,9 +100,14 @@ def _underlying_stats(
     call_executions = tuple(
         row
         for row in executions
-        if str(row.get("asset_type")) == "option"
+        if is_short_premium_execution(row)
         and str(row.get("option_side")) == "call"
         and str(row.get("underlying_symbol")) == symbol
+    )
+    premium_executions = tuple(
+        row
+        for row in executions
+        if is_short_premium_execution(row) and str(row.get("underlying_symbol")) == symbol
     )
     option_executions = tuple(
         row
@@ -141,26 +152,34 @@ def _underlying_stats(
         as_of=as_of,
     )
     windows = _performance_windows(
-        call_executions,
+        premium_executions,
         dividends,
         capital=abs(market_value),
         as_of=as_of,
     )
     quarter_start = as_of - timedelta(days=90)
     quarter_executions = [
-        row for row in call_executions if quarter_start <= _row_date(row) <= as_of
+        row for row in premium_executions if quarter_start <= _row_date(row) <= as_of
     ]
     quarter_lifecycle = [
         row for row in symbol_lifecycle if quarter_start <= _row_date(row) <= as_of
     ]
-    openings = [row for row in call_executions if _is_opening_sale(row)]
+    openings = [row for row in premium_executions if _is_opening_sale(row)]
     quarter_openings = [row for row in quarter_executions if _is_opening_sale(row)]
     quarter_closings = [row for row in quarter_executions if _is_closing_buy(row)]
-    gross = sum((_gross_opening(row) for row in call_executions), ZERO)
-    buyback = sum((_closing_debit(row) for row in call_executions), ZERO)
-    net_option_cash = sum((_decimal(row.get("net_cash")) for row in call_executions), ZERO)
+    gross = sum((_gross_opening(row) for row in premium_executions), ZERO)
+    buyback = sum((_closing_debit(row) for row in premium_executions), ZERO)
+    net_option_cash = sum((_decimal(row.get("net_cash")) for row in premium_executions), ZERO)
     dividend_cash = sum((_decimal(row.get("amount")) for row in dividends), ZERO)
     assigned_contracts = _lifecycle_contracts(quarter_lifecycle, "assignment")
+    call_assigned = _lifecycle_contracts(
+        tuple(row for row in quarter_lifecycle if str(row.get("option_side")) == "call"),
+        "assignment",
+    )
+    put_assigned = _lifecycle_contracts(
+        tuple(row for row in quarter_lifecycle if str(row.get("option_side")) == "put"),
+        "assignment",
+    )
     expired_contracts = _lifecycle_contracts(quarter_lifecycle, "expiration")
     open_credit = sum((clock.entry_credit for clock in clocks), ZERO)
     low = min(point.price for point in price_points)
@@ -196,7 +215,8 @@ def _underlying_stats(
         closed_contracts=sum((int(_decimal(row.get("quantity"))) for row in quarter_closings), 0),
         rolled_contracts=_rolled_contracts(quarter_executions),
         assigned_contracts=assigned_contracts,
-        called_away_shares=assigned_contracts * 100,
+        called_away_shares=call_assigned * 100,
+        acquired_shares=put_assigned * 100,
         gross_premium=gross,
         buyback_cost=buyback,
         net_option_cash=net_option_cash,
@@ -473,14 +493,6 @@ def _gross_opening(row: Mapping[str, object]) -> Decimal:
 
 def _closing_debit(row: Mapping[str, object]) -> Decimal:
     return _decimal(row.get("gross_amount")) if _is_closing_buy(row) else ZERO
-
-
-def _is_opening_sale(row: Mapping[str, object]) -> bool:
-    return str(row.get("side")) == "sell" and str(row.get("position_effect")) == "opening"
-
-
-def _is_closing_buy(row: Mapping[str, object]) -> bool:
-    return str(row.get("side")) == "buy" and str(row.get("position_effect")) == "closing"
 
 
 def _row_date(row: Mapping[str, object]) -> date:

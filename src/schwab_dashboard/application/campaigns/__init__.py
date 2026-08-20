@@ -4,12 +4,16 @@ from schwab_dashboard.application.campaigns.models import (
     CampaignLinkConfidence,
     OptionCampaign,
 )
-from schwab_dashboard.application.campaigns.reconcile import reconcile_option_campaigns
+from schwab_dashboard.application.campaigns.reconcile import (
+    campaign_record_key,
+    reconcile_option_campaigns,
+)
 
 __all__ = [
     "CampaignAnnotation",
     "CampaignLedger",
     "CampaignLinkConfidence",
     "OptionCampaign",
+    "campaign_record_key",
     "reconcile_option_campaigns",
 ]

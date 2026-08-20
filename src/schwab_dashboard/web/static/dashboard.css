@@ -45,5 +45,6 @@ td small { display: block; max-width: 240px; margin-top: 3px; overflow: hidden; 
 .records-panes > div > .section-block, .records-panes > div > .positions-panel, .records-panes > div > .ledger-panel { margin-top: 0; }
 .records-panes .panel { border: 0; background: var(--surface); }
 .records-panes .campaign-grid { padding: 0 12px 12px; }
+.records-panes #campaigns > .workspace-panel-heading,
 .records-panes #campaigns > .section-heading { padding: 12px; }
 .records-panes .ledger-wrap { max-height: 430px; }

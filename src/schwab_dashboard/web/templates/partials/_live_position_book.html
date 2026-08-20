@@ -8,9 +8,9 @@
       <div><b>{{ item.current_price | money if item.current_price is not none else '—' }}</b><small>{{ item.market_value | money(0) if item.market_value is not none else 'No share value' }}</small></div>
     </header>
     <div class="live-position-facts">
-      <div><span>SHARES</span><b>{{ item.shares }}</b><small>{{ item.contract_capacity }} available lots</small></div>
+      <div><span>SHARES</span><b>{{ item.shares }}</b><small>{{ item.contract_capacity }} lots · {{ item.coverage_percent | percent }} covered by short calls</small></div>
       <div><span>AVG SHARE COST</span><b>{{ item.average_price | money if item.average_price is not none else '—' }}</b><small>Schwab position average</small></div>
-      <div><span>OPEN OPTIONS</span><b>{{ item.open_call_contracts + item.open_put_contracts }}</b><small>{{ item.open_call_contracts }} calls{% if item.open_put_contracts %} · {{ item.open_put_contracts }} puts{% endif %} · {{ item.coverage_percent | percent }} covered</small></div>
+      <div><span>OPEN CONTRACTS</span><b>{{ item.open_call_contracts + item.open_put_contracts }}</b><small>{{ item.open_call_contracts | contract_sides(item.open_put_contracts) }}</small></div>
       <div><span>OPEN OPTION P/L</span><b class="{{ item.total_open_mark_profit_loss | pnl_class }}">{{ item.total_open_mark_profit_loss | money }}</b><small>All short options on {{ item.symbol }}</small></div>
       {% if item.is_prior_session_quote %}
       <div title="{{ item.symbol }} has no print in the current session. Last trade {{ item.quote_stamp }}."><span>STOCK {{ item.session_move_label }}</span><b class="muted">&mdash;</b><small>Prior session · {{ item.quote_stamp }}</small></div>

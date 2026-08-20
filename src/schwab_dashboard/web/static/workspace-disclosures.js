@@ -1,9 +1,13 @@
 (() => {
   const workspace = document.body.dataset.workspaceKey || "workspace";
-  const disclosures = [...document.querySelectorAll("details[data-open-book-section]")];
+  const disclosures = [
+    ...document.querySelectorAll(
+      "details[data-workspace-section], details[data-open-book-section]",
+    ),
+  ];
 
   disclosures.forEach((details) => {
-    const section = details.dataset.openBookSection;
+    const section = details.dataset.workspaceSection || details.dataset.openBookSection;
     if (!section) return;
 
     const storageKey = `incoooming:${workspace}:section:${section}`;

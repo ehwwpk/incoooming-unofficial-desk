@@ -69,7 +69,10 @@ const setupPeriodConsole = () => {
       card.querySelector("[data-name-option-cash]").textContent = windowData.dataset.optionCash;
       card.querySelector("[data-name-option-apr-label]").textContent = `OPTION INCOME APR / ${windowCode}`;
       card.querySelector("[data-name-option-apr]").textContent = windowData.dataset.optionApr;
-      card.querySelector("[data-name-dividend-label]").textContent = `DIVIDENDS / ${windowCode}`;
+      const dividendLabel = card.querySelector("[data-name-dividend-label]");
+      if (dividendLabel) {
+        dividendLabel.textContent = `DIVIDENDS / ${windowCode}`;
+      }
       card.querySelectorAll("[data-name-dividends]").forEach((node) => {
         node.textContent = windowData.dataset.dividends;
       });

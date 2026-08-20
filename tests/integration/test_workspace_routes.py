@@ -40,8 +40,10 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert desk.status_code == 200
         nav_start = desk.text.index('class="product-nav"')
         nav = desk.text[nav_start : desk.text.index("</nav>", nav_start)]
-        assert nav.find("/workspaces/risk") < nav.find("/workspaces/radar") < nav.find(
-            "/workspaces/attribution"
+        assert (
+            nav.find("/workspaces/risk")
+            < nav.find("/workspaces/radar")
+            < nav.find("/workspaces/attribution")
         )
         assert "CHAIN RESEARCH" in nav
         assert "data-tools-toggle" not in desk.text
@@ -76,7 +78,10 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert '["away", 1400]' in nibwick_js
         assert '["camera", 1600]' in nibwick_js
         assert "PEER" not in nibwick_js
-        assert 'status.textContent = praying ? "PRAY" : studying ? "STUDY" : clearing ? "CLEAR" : "PATROL"' in nibwick_js
+        assert (
+            'status.textContent = praying ? "PRAY" : studying ? "STUDY" : clearing ? "CLEAR" : "PATROL"'
+            in nibwick_js
+        )
         assert "data-rail-link" not in desk.text
         assert "<kbd>F1</kbd>" not in desk.text
         assert "<kbd>F2</kbd>" not in desk.text
@@ -103,13 +108,17 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "STOCKS ·" in risk.text
         assert risk.text.count("data-open-book-section=") == 4
         assert "RISK LENS" in risk.text
-        assert "Carry, exposure, and IV pressure" in risk.text
+        assert "Carry / IV" in risk.text
         assert "NET STOCK EXPOSURE" in risk.text
         assert "IV COST IN THETA DAYS" in risk.text
         assert "POSITION-ADJUSTED" in risk.text
         assert "DELTA &middot; NEXT $1" in risk.text
         assert "5D STOCK" in risk.text
-        assert "pressure is heating" in risk.text or "pressure is cooling" in risk.text or "roughly flat" in risk.text
+        assert (
+            "pressure is heating" in risk.text
+            or "pressure is cooling" in risk.text
+            or "roughly flat" in risk.text
+        )
         assert "price-pressure-plain" in risk.text
         assert "IV +1" in risk.text
         assert "MODEL INPUTS" in risk.text
@@ -129,13 +138,21 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert " · RV " in risk.text
 
         assert review.status_code == 200
-        assert "What the strategy paid" in review.text
+        assert "Cash windows" in review.text
         assert "EXECUTED CASH" in review.text
-        assert "Covered calls versus shares alone" in review.text
-        assert "Call campaigns" in review.text
+        assert "Versus shares" in review.text
+        assert "<h2>Campaigns</h2>" in review.text
+        assert "Call campaigns" not in review.text
+        campaigns_start = review.text.index('id="campaigns"')
+        campaigns_html = review.text[campaigns_start : review.text.index("recorded-outcomes-title")]
+        assert 'id="campaigns-open"' in campaigns_html
+        assert 'id="campaigns-closed"' in campaigns_html
+        assert "<b>OPEN</b>" in campaigns_html
+        assert "<b>CLOSED</b>" in campaigns_html
+        assert 'role="tablist"' not in campaigns_html
         assert "MONTH BY MONTH" in review.text
         assert "THROUGH AUG 07" in review.text
-        assert "Credits and executed debits" in review.text
+        assert "Cash cadence" in review.text
         assert review.text.count("data-results-cash-series") == 3
         assert 'data-results-cash-period="quarter"' in review.text
         assert 'data-results-cash-period="ytd"' in review.text
@@ -149,7 +166,7 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "COVERED CALL" in radar.text
         assert "CASH-SECURED PUT" in radar.text
         assert "EXPIRATION MAP" in radar.text
-        assert "Price, time, and the assignment line" in radar.text
+        assert "Price / time" in radar.text
         assert "EXPAND MAP" in radar.text
         assert "PREMIUM / TIME" in radar.text
         assert "Selected contract market detail" in radar.text
@@ -167,7 +184,7 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert 'data-radar-symbol-chip="CVX"' in radar.text
         assert 'data-radar-symbol-chip="KTOS"' in radar.text
         assert 'data-radar-symbol-chip="URNM"' in radar.text
-        assert "Start from a name you hold" in radar.text
+        assert "Names you hold" in radar.text
         assert "Enter one ticker" not in radar.text
         assert "Visiting Radar does not fetch a chain" in radar.text
         assert "RV " in radar.text
@@ -180,14 +197,19 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "Historical IV is not yet collected" not in volatility.text
 
         assert records.status_code == 200
+        assert "<h2>Shares and options</h2>" in records.text
+        assert "Shares and short calls" not in records.text
         assert 'href="/sources">BOOK</a>' in records.text
         assert ">TOOLS<" not in records.text
-        assert "Broker portability without fake parity" in records.text
+        assert "<h2>Adapters</h2>" in records.text
         assert "Multi-broker aggregator" in records.text
         assert "CONDITIONAL" in records.text
         assert "Cash events" in records.text
         assert "EXACT POSTING DATES" in records.text
         assert "Inactive calendar dates are intentionally omitted" in records.text
+        assert "<h2>Option activity</h2>" in records.text
+        assert "Covered-call activity" not in records.text
+        assert "STRIKES TESTED 15\u201340% OTM" in records.text
     finally:
         container.close()
 
@@ -387,7 +409,7 @@ def test_empty_live_ledger_keeps_workspaces_available_before_broker_auth(tmp_pat
     container = Container(settings)
 
     try:
-        risk, results, volatility = asyncio.run(_request_pre_auth_workspaces(container))
+        risk, results, volatility, records = asyncio.run(_request_pre_auth_workspaces(container))
         assert risk.status_code == 200
         assert "No normalized open short options are available" in risk.text
         assert 'data-workspace-key="risk"' in risk.text
@@ -397,6 +419,11 @@ def test_empty_live_ledger_keeps_workspaces_available_before_broker_auth(tmp_pat
         assert volatility.status_code == 303
         assert volatility.headers["location"].endswith("/workspaces/radar")
         assert "DEMO SOURCE" not in volatility.text
+        assert records.status_code == 200
+        assert "<h2>Option activity</h2>" in records.text
+        assert "No short-option openings normalized." in records.text
+        assert "STRIKES TESTED 15\u201340% OTM" not in records.text
+        assert "Covered-call activity" not in records.text
     finally:
         container.close()
 
@@ -465,16 +492,17 @@ async def _post_radar_roll(
 
 async def _request_pre_auth_workspaces(
     container: Container,
-) -> tuple[httpx.Response, httpx.Response, httpx.Response]:
+) -> tuple[httpx.Response, httpx.Response, httpx.Response, httpx.Response]:
     transport = httpx.ASGITransport(app=create_app(container))
     async with httpx.AsyncClient(
         transport=transport,
         base_url="http://test",
         cookies={"incoooming_source": "schwab"},
     ) as client:
-        risk, results, volatility = await asyncio.gather(
+        risk, results, volatility, records = await asyncio.gather(
             client.get("/workspaces/risk"),
             client.get("/workspaces/attribution"),
             client.get("/workspaces/volatility"),
+            client.get("/workspaces/records"),
         )
-    return risk, results, volatility
+    return risk, results, volatility, records

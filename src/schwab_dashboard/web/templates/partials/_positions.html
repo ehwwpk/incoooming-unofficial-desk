@@ -1,6 +1,6 @@
 <section class="panel positions-panel" id="positions">
   <div class="section-heading terminal-heading wide-heading">
-    <div><p class="eyebrow">CURRENT POSITIONS</p><h2>Shares and short calls</h2></div>
+    <div><p class="eyebrow">CURRENT POSITIONS</p><h2>Shares and options</h2></div>
     <span>{{ snapshot.positions | length }} ROWS / ACCOUNT {{ snapshot.accounts[0].account_mask if snapshot.accounts else '---' }}</span>
   </div>
   {% if snapshot.positions %}
@@ -19,12 +19,13 @@
           <td class="numeric">{{ position.average_price | money }}</td>
           <td class="numeric">{{ position.mark | money }}</td>
           <td class="numeric">{{ position.market_value | money }}</td>
-          <td class="numeric {{ position.day_profit_loss | pnl_class }}">{{ position.day_profit_loss | money }}<small>{{ position.day_profit_loss_percent | percent }}</small></td>
+          <td class="numeric {{ position.day_profit_loss | pnl_class }}">{{ position.day_profit_loss | money }}<small>{{ position | displayed_day_percent | percent }}</small></td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+  <p class="workspace-footnote">Option day-% is omitted under a ${{ option_day_percent_mark_floor | number(2) }} listed mark.</p>
   {% else %}
   <p class="empty-state">No reconciled position snapshot yet.</p>
   {% endif %}

@@ -352,10 +352,19 @@ def _scoped_key(row: Mapping[str, object], field_name: str) -> str:
     return f"{row.get('account_mask') or 'default'}:{value}"
 
 
-def _record_key(row: Mapping[str, object]) -> str:
+def campaign_record_key(row: Mapping[str, object]) -> str:
+    """Stable annotation key for an execution or lifecycle row.
+
+    Must stay identical wherever surviving lots are matched back to the ledger.
+    """
+
     external_key = str(row.get("external_key"))
     account_mask = str(row.get("account_mask") or "")
     return f"{account_mask}:{external_key}" if account_mask else external_key
+
+
+def _record_key(row: Mapping[str, object]) -> str:
+    return campaign_record_key(row)
 
 
 def _weaker(

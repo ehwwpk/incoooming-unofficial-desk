@@ -3,10 +3,15 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from schwab_dashboard.application.dashboard.anchors import option_contract_anchor
+from schwab_dashboard.application.market_time import (
+    market_date,
+    quote_session_stamp,
+    quote_session_state,
+)
 from schwab_dashboard.application.dashboard.covered_calls import (
     OpenCallClock,
     UnderlyingCallStats,
@@ -16,10 +21,28 @@ from schwab_dashboard.application.dashboard.models import (
     LiveOpenCallPosition,
     LiveUnderlyingPosition,
 )
+from schwab_dashboard.application.dashboard.open_put_clocks import (
+    OpenPutClock,
+    build_open_put_clocks,
+)
 from schwab_dashboard.application.risk.models import UnderlyingRiskView
 from schwab_dashboard.application.risk.projection import build_open_risk_summary
 
 ZERO = Decimal("0")
+NAME_OPTION_PRIORITY = 3
+_MISSING_DISTANCE = Decimal("Infinity")
+
+
+def open_contract_side_copy(call_contracts: int, put_contracts: int) -> str:
+    """Lowercase sides that add to an open-contract total. Zero sides are omitted."""
+
+    call_label = f"{call_contracts} call" + ("" if call_contracts == 1 else "s")
+    put_label = f"{put_contracts} put" + ("" if put_contracts == 1 else "s")
+    if call_contracts and put_contracts:
+        return f"{call_label} · {put_label}"
+    if put_contracts:
+        return put_label
+    return call_label
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,16 +61,184 @@ class DeskOptionFocus:
 
 
 @dataclass(frozen=True, slots=True)
+class NameOptionSlot:
+    """One short option in the name expansion, call or put."""
+
+    side: str
+    call: OpenCallClock | None = None
+    put: OpenPutClock | None = None
+
+    @property
+    def expires_on(self) -> date:
+        clock = self.call if self.call is not None else self.put
+        assert clock is not None
+        return clock.expires_on
+
+    @property
+    def strike(self) -> Decimal:
+        clock = self.call if self.call is not None else self.put
+        assert clock is not None
+        return clock.strike
+
+    @property
+    def strike_distance_percent(self) -> Decimal | None:
+        if self.call is not None:
+            return self.call.strike_distance_percent
+        assert self.put is not None
+        return self.put.strike_distance_percent
+
+
+@dataclass(frozen=True, slots=True)
 class DeskPositionRow:
     """One compact covered-call inventory row for the primary Desk."""
 
     underlying: UnderlyingCallStats
     nearest_call: DeskOptionFocus | None
     open_positions: int
+    open_call_contracts: int
+    open_put_contracts: int
     open_mark_profit_loss: Decimal
     alert_count: int
     live_underlying: LiveUnderlyingPosition | None
     risk: UnderlyingRiskView | None
+    put_clocks: tuple[OpenPutClock, ...] = ()
+    evaluated_at: datetime | None = None
+
+    @property
+    def open_contracts(self) -> int:
+        return self.open_call_contracts + self.open_put_contracts
+
+    @property
+    def open_options(self) -> tuple[NameOptionSlot, ...]:
+        return ordered_name_options(self.underlying.open_call_clocks, self.put_clocks)
+
+    @property
+    def priority_options(self) -> tuple[NameOptionSlot, ...]:
+        return self.open_options[:NAME_OPTION_PRIORITY]
+
+    @property
+    def overflow_options(self) -> tuple[NameOptionSlot, ...]:
+        return self.open_options[NAME_OPTION_PRIORITY:]
+
+    @property
+    def overflow_call_count(self) -> int:
+        return sum(1 for option in self.overflow_options if option.side == "call")
+
+    @property
+    def overflow_put_count(self) -> int:
+        return sum(1 for option in self.overflow_options if option.side == "put")
+
+    @property
+    def priority_status_caption(self) -> str:
+        if len(self.open_options) > NAME_OPTION_PRIORITY:
+            return "NEAREST 3 BY EXPIRATION"
+        return "BY EXPIRATION"
+
+    @property
+    def open_option_theta_per_day(self) -> Decimal:
+        return self.underlying.open_call_theta_per_day + sum(
+            (clock.short_theta_per_day for clock in self.put_clocks),
+            ZERO,
+        )
+
+    @property
+    def open_option_value_now(self) -> Decimal | None:
+        """Current marks of every open short on this name, calls and puts.
+
+        None when this name has no option clocks, so the tape can show a dash
+        instead of a fake $0.00 overlay. Zero marks on live shorts stay zero.
+        """
+
+        if not self.underlying.open_call_clocks and not self.put_clocks:
+            return None
+        return sum(
+            (clock.current_option_value for clock in self.underlying.open_call_clocks),
+            ZERO,
+        ) + sum((clock.current_option_value for clock in self.put_clocks), ZERO)
+
+    @property
+    def open_option_entry_credit(self) -> Decimal:
+        return sum(
+            (clock.entry_credit for clock in self.underlying.open_call_clocks),
+            ZERO,
+        ) + sum((clock.entry_credit for clock in self.put_clocks), ZERO)
+
+    @property
+    def open_option_mark_is_prior_session(self) -> bool:
+        return self.open_option_mark_stamp is not None or any(
+            self._clock_is_prior(clock) for clock in self._mark_clocks
+        )
+
+    @property
+    def open_option_mark_stamp(self) -> str | None:
+        evaluated = self._mark_evaluated_at
+        stamps: list[tuple[datetime, str]] = []
+        for clock in self._mark_clocks:
+            observed = getattr(clock, "quote_observed_at", None)
+            if observed is None or evaluated is None:
+                continue
+            if quote_session_state(observed, evaluated_at=evaluated).is_prior_session:
+                stamps.append((observed, quote_session_stamp(observed, evaluated_at=evaluated)))
+        if not stamps:
+            return None
+        return min(stamps, key=lambda item: item[0])[1]
+
+    @property
+    def _mark_evaluated_at(self) -> datetime | None:
+        if self.evaluated_at is not None:
+            return self.evaluated_at
+        if self.live_underlying is not None:
+            return self.live_underlying.quote_evaluated_at
+        return None
+
+    @property
+    def _mark_clocks(self) -> tuple[object, ...]:
+        return (*self.underlying.open_call_clocks, *self.put_clocks)
+
+    def _clock_is_prior(self, clock: object) -> bool:
+        evaluated = self._mark_evaluated_at
+        if evaluated is None:
+            return False
+        observed_at = getattr(clock, "quote_observed_at", None)
+        if observed_at is not None:
+            return quote_session_state(observed_at, evaluated_at=evaluated).is_prior_session
+        observed_on = getattr(clock, "quote_observed_on", None)
+        if observed_on is None:
+            return False
+        return observed_on < market_date(evaluated)
+
+    @property
+    def average_open_option_iv_percent(self) -> Decimal:
+        samples = [
+            *(
+                (clock.implied_volatility_percent, clock.contracts)
+                for clock in self.underlying.open_call_clocks
+                if clock.implied_volatility_percent is not None
+            ),
+            *(
+                (clock.implied_volatility_percent, clock.contracts)
+                for clock in self.put_clocks
+                if clock.implied_volatility_percent is not None
+            ),
+        ]
+        weight = sum(contracts for _, contracts in samples)
+        if not weight:
+            return self.underlying.average_open_call_iv_percent
+        return sum(
+            (value * Decimal(contracts) for value, contracts in samples),
+            ZERO,
+        ) / Decimal(weight)
+
+    @property
+    def open_iv_caption(self) -> str:
+        """Call-only copy when puts exist but none of them reported IV."""
+
+        put_iv = any(
+            clock.implied_volatility_percent is not None for clock in self.put_clocks
+        )
+        if self.put_clocks and not put_iv:
+            return "AVG OPEN CALL IV"
+        return "AVG OPEN IV"
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,6 +261,27 @@ class DeskOverview:
     open_call_positions: int
     open_call_contracts: int
     daily_theta: Decimal
+
+
+def ordered_name_options(
+    calls: Sequence[OpenCallClock],
+    puts: Sequence[OpenPutClock],
+) -> tuple[NameOptionSlot, ...]:
+    """Nearest expirations first; proximity; call before put; put strikes high to low."""
+
+    slots = (
+        *(NameOptionSlot(side="call", call=clock) for clock in calls),
+        *(NameOptionSlot(side="put", put=clock) for clock in puts),
+    )
+    return tuple(sorted(slots, key=name_option_sort_key))
+
+
+def name_option_sort_key(slot: NameOptionSlot) -> tuple[object, ...]:
+    percent = slot.strike_distance_percent
+    abs_distance = abs(percent) if percent is not None else _MISSING_DISTANCE
+    side_rank = 0 if slot.side == "call" else 1
+    strike_order = slot.strike if slot.side == "call" else -slot.strike
+    return (slot.expires_on, abs_distance, side_rank, strike_order)
 
 
 def build_desk_overview(snapshot: DashboardSnapshot) -> DeskOverview:
@@ -99,11 +311,16 @@ def build_desk_overview(snapshot: DashboardSnapshot) -> DeskOverview:
         all_calls.extend(call_focuses)
         live_underlying = live_by_symbol.get(underlying.symbol)
         put_positions = tuple(live_underlying.puts) if live_underlying is not None else ()
+        open_call_contracts, open_put_contracts = _open_contract_counts(
+            underlying, live_underlying
+        )
         rows.append(
             DeskPositionRow(
                 underlying=underlying,
                 nearest_call=_nearest_call(call_focuses),
                 open_positions=len(calls) + len(put_positions),
+                open_call_contracts=open_call_contracts,
+                open_put_contracts=open_put_contracts,
                 open_mark_profit_loss=sum(
                     (call.open_profit_loss for call in calls),
                     ZERO,
@@ -112,6 +329,11 @@ def build_desk_overview(snapshot: DashboardSnapshot) -> DeskOverview:
                 alert_count=alert_counts[underlying.symbol],
                 live_underlying=live_underlying,
                 risk=risk_by_symbol.get(underlying.symbol),
+                put_clocks=build_open_put_clocks(
+                    put_positions,
+                    campaigns=snapshot.campaigns,
+                ),
+                evaluated_at=snapshot.as_of,
             )
         )
 
@@ -173,6 +395,16 @@ def build_desk_overview(snapshot: DashboardSnapshot) -> DeskOverview:
         open_call_positions=len(all_calls),
         open_call_contracts=snapshot.covered_calls.active_contracts,
         daily_theta=snapshot.risk.daily_theta,
+    )
+
+
+def _open_contract_counts(
+    underlying: UnderlyingCallStats,
+    live_underlying: LiveUnderlyingPosition | None,
+) -> tuple[int, int]:
+    return (
+        underlying.active_contracts,
+        live_underlying.open_put_contracts if live_underlying is not None else 0,
     )
 
 

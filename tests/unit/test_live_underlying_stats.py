@@ -347,6 +347,69 @@ def test_live_card_keeps_the_campaign_that_still_owns_an_identical_contract() ->
     assert clocks[0].campaign_label == "C2"
 
 
+def test_put_print_moves_name_option_cash_and_apr_without_touching_dividends() -> None:
+    as_of = date(2026, 8, 10)
+    stock = _position()
+    call = _position(
+        symbol="KTOS  260918C00065000",
+        description="KTOS SEP 18 2026 65 Call",
+        asset_type="OPTION",
+        quantity=D("-2"),
+        average_price=D("2.00"),
+        mark=D("2.50"),
+        market_value=D("-500"),
+        open_profit_loss=D("-100"),
+        underlying_symbol="KTOS",
+        option_type="CALL",
+        expiration_date=date(2026, 9, 18),
+        strike=D("65"),
+    )
+    book = build_live_position_book((stock, call), as_of=as_of)
+    executions = (
+        {
+            "external_key": "put-sale",
+            "occurred_at": datetime(2026, 8, 8, 15, tzinfo=UTC),
+            "side": "sell",
+            "position_effect": "opening",
+            "quantity": D("1"),
+            "gross_amount": D("120"),
+            "net_cash": D("120"),
+            "asset_type": "option",
+            "symbol": "KTOS  260821P00060000",
+            "underlying_symbol": "KTOS",
+            "option_side": "put",
+            "expiration_date": date(2026, 8, 21),
+            "strike": D("60"),
+        },
+    )
+    bars = tuple(
+        {
+            "symbol": "KTOS",
+            "trade_date": as_of - timedelta(days=5 - index),
+            "close": D("60"),
+            "open": D("60"),
+            "high": D("61"),
+            "low": D("59"),
+            "volume": 1000,
+        }
+        for index in range(6)
+    )
+    result = build_live_underlying_stats(
+        live_book=book,
+        positions=(stock, call),
+        executions=executions,
+        cash_movements=(),
+        lifecycle_events=(),
+        daily_bars=bars,
+        as_of=as_of,
+    )
+    window = result[0].performance_windows[0]
+    assert window.option_cash == D("120")
+    assert window.option_apr > D("0")
+    assert window.dividends == D("0")
+    assert window.premium_capture_percent == D("100")
+
+
 def _position(**overrides: object) -> PositionSummary:
     values: dict[str, object] = {
         "account_mask": "...1234",

@@ -6,11 +6,11 @@
     <meta name="color-scheme" content="dark">
     <title>{{ workspace.label }} · Incoooming</title>
     <link rel="icon" href="{{ url_for('static', path='/nibwick-favicon.svg') }}?v=3" type="image/svg+xml">
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=100">
-    <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=10">
-    {% if workspace.key.value == 'radar' %}<link rel="stylesheet" href="{{ url_for('static', path='/premium-radar.css') }}?v=16">{% endif %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=110">
+    <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=13">
+    {% if workspace.key.value == 'radar' %}<link rel="stylesheet" href="{{ url_for('static', path='/premium-radar.css') }}?v=18">{% endif %}
     {% if workspace.key.value == 'risk' %}<link rel="stylesheet" href="{{ url_for('static', path='/open-book.css') }}?v=17">{% endif %}
-    {% if workspace.key.value == 'attribution' %}<link rel="stylesheet" href="{{ url_for('static', path='/results-cash.css') }}?v=11">{% endif %}
+    {% if workspace.key.value == 'attribution' %}<link rel="stylesheet" href="{{ url_for('static', path='/results-cash.css') }}?v=13">{% endif %}
   </head>
   <body class="workspace-page" data-workspace-key="{{ workspace.key.value }}" data-demo-mode="{{ 'true' if snapshot.is_demo else 'false' }}" data-snapshot-as-of="{{ snapshot.as_of.isoformat() }}" data-page-built-at="{{ page_built_at.isoformat() }}" data-workspace-context='{"account":"{{ snapshot.accounts[0].account_mask if snapshot.accounts else "---" }}","symbol":"ALL","asOf":"{{ snapshot.as_of.date().isoformat() }}"}'>
     <header class="topbar workspace-topbar">
@@ -45,7 +45,6 @@
           <div>
             <p class="eyebrow">{{ workspace.eyebrow }}</p>
             <h1>{{ workspace.label }}</h1>
-            <p>{{ workspace.description }}</p>
           </div>
           <div class="workspace-actions">
             <a href="/" class="workspace-action">← BACK TO DESK</a>
@@ -77,9 +76,9 @@
 
     <script src="{{ url_for('static', path='/workspace-navigation.js') }}?v=2" defer></script>
     <script src="{{ url_for('static', path='/workspace-channel.js') }}?v=1" defer></script>
-    <script src="{{ url_for('static', path='/workspace-disclosures.js') }}?v=1" defer></script>
+    <script src="{{ url_for('static', path='/workspace-disclosures.js') }}?v=2" defer></script>
     {% if snapshot.mode == 'live' %}<script src="{{ url_for('static', path='/auto-sync.js') }}?v=5" defer></script>{% endif %}
-    {% if workspace.key.value == 'radar' %}<script src="{{ url_for('static', path='/premium-radar-indicators.js') }}?v=1" defer></script><script src="{{ url_for('static', path='/premium-radar-map.js') }}?v=5" defer></script><script src="{{ url_for('static', path='/premium-radar.js') }}?v=17" defer></script>{% endif %}
+    {% if workspace.key.value == 'radar' %}<script src="{{ url_for('static', path='/premium-radar-indicators.js') }}?v=1" defer></script><script src="{{ url_for('static', path='/premium-radar-map.js') }}?v=5" defer></script><script src="{{ url_for('static', path='/premium-radar.js') }}?v=18" defer></script>{% endif %}
     {% if workspace.key.value == 'attribution' %}<script src="{{ url_for('static', path='/results-cash.js') }}?v=1" defer></script><script src="{{ url_for('static', path='/performance-compare.js') }}?v=7" defer></script>{% endif %}
   </body>
 </html>

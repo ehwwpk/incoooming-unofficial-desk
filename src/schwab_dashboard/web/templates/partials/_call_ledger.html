@@ -1,7 +1,7 @@
 <section class="panel ledger-panel" id="call-log">
   <div class="section-heading terminal-heading">
-    <div><p class="eyebrow">TRADE-BY-TRADE</p><h2>Covered-call activity</h2></div>
-    <span>{{ snapshot.call_history | length }} TICKETS / STRIKES TESTED 15–40% OTM</span>
+    <div><p class="eyebrow">TRADE-BY-TRADE</p><h2>Option activity</h2></div>
+    <span>{{ snapshot.call_history | length }} TICKETS{% if snapshot.is_demo %} / STRIKES TESTED 15–40% OTM{% endif %}</span>
   </div>
   {% if snapshot.call_history %}
   <div class="table-wrap ledger-wrap">
@@ -14,24 +14,24 @@
       <tbody>
         {% for record in snapshot.call_history | reverse %}
         <tr>
-          <td><strong>{{ record.symbol }}</strong></td>
+          <td><strong>{{ record.symbol }}</strong><small>{{ 'C' if record.option_side == 'CALL' else 'P' }}</small></td>
           <td>{{ record.sold_on | short_date }}</td>
           <td>{{ record.expires_on | short_date }}</td>
           <td>{{ record.days_to_expiration }}</td>
           <td class="numeric">{{ record.contracts }}</td>
           <td class="numeric">{{ record.underlying_at_sale | money }} → {{ record.strike | money }}</td>
-          <td class="numeric positive">+{{ record.strike_upside_percent | percent }}</td>
+          <td class="numeric {{ record.strike_upside_percent | pnl_class }}">{% if record.strike_upside_percent > 0 %}+{% endif %}{{ record.strike_upside_percent | percent }}</td>
           <td class="numeric">{{ record.gross_premium | money }}</td>
           <td class="numeric negative">{{ record.buyback_cost | money }}</td>
           <td class="numeric {{ record.net_cash | pnl_class }}">{{ record.net_cash | money }}</td>
           <td><span class="outcome {{ record.outcome | lower }}">{{ record.outcome }}</span></td>
-          <td><small>{{ record.sale_signal }}</small></td>
+          <td><small>{{ record.sale_signal or '—' }}</small></td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
   {% else %}
-  <p class="empty-state">No covered-call executions have been normalized yet.</p>
+  <p class="empty-state">No short-option openings normalized.</p>
   {% endif %}
 </section>

@@ -47,9 +47,9 @@
     </header>
     <div class="live-book-grid">
       <div>
-        <span>OPEN OPTION POSITIONS</span>
-        <strong>{{ desk_overview.open_positions }}</strong>
-        <small>{{ desk_overview.open_positions }} distinct strikes/expirations · {{ desk_overview.open_contracts }} contracts ({{ desk_overview.open_call_contracts }} calls{% if desk_overview.open_put_contracts %}, {{ desk_overview.open_put_contracts }} put{{ '' if desk_overview.open_put_contracts == 1 else 's' }}{% endif %})</small>
+        <span>OPEN CONTRACTS</span>
+        <strong>{{ desk_overview.open_contracts }}</strong>
+        <small>{{ desk_overview.open_call_contracts | contract_sides(desk_overview.open_put_contracts) }}</small>
       </div>
       <div>
         <span>SHARE LOTS COVERED</span>

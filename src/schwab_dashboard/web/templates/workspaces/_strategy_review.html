@@ -9,15 +9,15 @@
 {% set assignment = comparison.spine.assignment_impact %}
 <section class="workspace-panel performance-compare" id="performance-comparison" data-performance-compare>
   <header class="workspace-panel-heading">
-    <div><p class="eyebrow">PERFORMANCE SPINE</p><h2>Did the premium work earn its keep?</h2></div>
+    <div><p class="eyebrow">PERFORMANCE SPINE</p><h2>Performance spine</h2></div>
     <span>{{ comparison.range_label | upper }}{% if risk.status == 'early_sample' %} &middot; EARLY SAMPLE{% endif %}</span>
   </header>
   <div class="performance-compare-tape">
-    <div class="actual"><span>MANAGED BOOK &middot; TWR</span><strong class="{{ matched.managed_return_percent | pnl_class }}">{{ matched.managed_return_percent | percent(2) }}</strong><small>OWNER CASH FLOWS NEUTRALIZED{% if comparison.actual.return_percent is not none and comparison.actual.points and comparison.actual.points[-1].date != matched.as_of %} &middot; {{ comparison.actual.return_percent | percent(2) }} THROUGH {{ comparison.actual.points[-1].date.strftime('%b %d') | upper }}{% endif %}</small></div>
-    <div class="shares"><span>SAME STARTING SHARES</span><strong class="{{ matched.shares_return_percent | pnl_class }}">{{ matched.shares_return_percent | percent(2) }}</strong><small>{{ comparison.shares_without_options.status | replace('_', ' ') | upper }}</small></div>
-    <div class="edge"><span>MANAGEMENT DIFFERENCE</span><strong class="{{ comparison.spine.management_edge.return_difference_percent | pnl_class }}">{{ comparison.spine.management_edge.return_difference_percent | percent(2) }}</strong><small>MANAGED MINUS FROZEN SHARES</small></div>
-    <div class="market"><span>SPY UNLEVERED</span><strong class="{{ matched.market_return_percent | pnl_class }}">{{ matched.market_return_percent | percent(2) }}</strong><small>NOT A TOTAL-RETURN BENCHMARK</small></div>
-    <div class="levered" title="{{ comparison.levered_market_reference.method_note }}"><span>SPY AT YOUR EXPOSURE</span><strong class="{{ matched.levered_market_return_percent | pnl_class }}">{{ matched.levered_market_return_percent | percent(2) }}</strong><small>{% if comparison.levered_market_reference.status == 'derived_levered' %}SAME STARTING LEVERAGE, FINANCED{% else %}{{ comparison.levered_market_reference.status | replace('_', ' ') | upper }}{% endif %}</small></div>
+    <div class="actual"><span>YOUR BOOK &middot; TIME-WEIGHTED</span><strong class="{{ matched.managed_return_percent | pnl_class }}">{{ matched.managed_return_percent | percent(2) }}</strong><small>OWNER CASH FLOWS NEUTRALIZED{% if comparison.actual.return_percent is not none and comparison.actual.points and comparison.actual.points[-1].date != matched.as_of %} &middot; {{ comparison.actual.return_percent | percent(2) }} THROUGH {{ comparison.actual.points[-1].date.strftime('%b %d') | upper }}{% endif %}</small></div>
+    <div class="shares"><span>STARTING STOCK + YOUR SHARE TRADES &middot; NO OVERLAY</span><strong class="{{ matched.shares_return_percent | pnl_class }}">{{ matched.shares_return_percent | percent(2) }}</strong><small>{{ comparison.shares_without_options.status | replace('_', ' ') | upper }}</small></div>
+    <div class="edge"><span>MANAGEMENT DIFFERENCE</span><strong class="{{ comparison.spine.management_edge.return_difference_percent | pnl_class }}">{{ comparison.spine.management_edge.return_difference_percent | percent(2) }}</strong><small>VERSUS THAT FREEZE, NOT OVERLAY ALPHA</small></div>
+    <div class="market"><span>SPY PRICE &middot; NO DIVIDENDS</span><strong class="{{ matched.market_return_percent | pnl_class }}">{{ matched.market_return_percent | percent(2) }}</strong><small>NOT A TOTAL-RETURN BENCHMARK</small></div>
+    <div class="levered" title="{{ comparison.levered_market_reference.method_note }}"><span>SPY AT YOUR STOCK LEVERAGE</span><strong class="{{ matched.levered_market_return_percent | pnl_class }}">{{ matched.levered_market_return_percent | percent(2) }}</strong><small>{% if comparison.levered_market_reference.status == 'derived_levered' %}START-MATCHED SPY, FINANCED{% else %}{{ comparison.levered_market_reference.status | replace('_', ' ') | upper }}{% endif %}</small></div>
   </div>
   <div class="performance-chart-heading">
     <div><span>NORMALIZED RETURN PATH</span><strong>FIRST OBSERVED VALUE = 0.00%</strong></div>
@@ -63,7 +63,7 @@
     </article>
 
     <article class="performance-spine-card risk-card">
-      <header><p class="eyebrow">Drawdown, Volume, and Worst Day</p><span>{{ risk.observations }} DAYS</span></header>
+      <header><div><p class="eyebrow">RISK</p><h3>Drawdown</h3></div><span>{{ risk.observations }} DAYS</span></header>
       <div class="performance-cell-grid compact">
         <div><span>MAX DRAWDOWN</span><strong class="{{ risk.max_drawdown_percent | pnl_class }}">{{ risk.max_drawdown_percent | percent(2) }}</strong><small>Peak to trough</small></div>
         <div><span>ANNUALIZED VOLATILITY</span><strong>{{ risk.annualized_volatility_percent | percent(2) }}</strong><small>{% if risk.status == 'early_sample' %}Early sample{% else %}252-day convention{% endif %}</small></div>
@@ -74,7 +74,7 @@
     </article>
 
     <article class="performance-spine-card capital-card">
-      <header><p class="eyebrow">Net Liquidity, Maintenance, and Buying Power</p><span>{{ capital.status | upper }}</span></header>
+      <header><div><p class="eyebrow">CAPITAL</p><h3>Net liquidity</h3></div><span>{{ capital.status | upper }}</span></header>
       <div class="performance-cell-grid compact">
         <div><span>AVERAGE NET LIQUIDATION</span><strong>{{ capital.average_net_liquidation | money }}</strong><small>Observed daily values</small></div>
         <div><span>OPTION CASH / AVG CAPITAL</span><strong>{{ capital.option_cash_on_average_capital_percent | percent(2) }}</strong><small>Capital-use ratio, not TWR</small></div>
@@ -88,7 +88,7 @@
   {% if assignment.status != 'no_assignments' %}
   <div class="performance-policy-grid assignment-only">
     <article class="assignment-card">
-      <header><p class="eyebrow">ASSIGNMENT LEDGER</p><h3>Calls and puts assigned</h3></header>
+      <header><div><p class="eyebrow">ASSIGNMENT LEDGER</p><h3>Calls and puts assigned</h3></div></header>
       <div><span>CALLS ASSIGNED</span><strong>{{ assignment.assigned_call_contracts }}</strong><small>{{ assignment.called_away_shares }} shares called away</small></div>
       <div><span>PUTS ASSIGNED</span><strong>{{ assignment.assigned_put_contracts }}</strong><small>{{ assignment.acquired_shares }} shares acquired</small></div>
       <div><span>PERIOD-END UPSIDE REFERENCE</span><strong>{{ assignment.period_end_upside_reference | money }}</strong><small>Context, not realized loss</small></div>
@@ -131,7 +131,7 @@
 {% if cadence_series %}
 <section class="workspace-panel results-cash-panel" data-results-cash>
   <header class="workspace-panel-heading results-cash-heading">
-    <div><p class="eyebrow">CASH CADENCE</p><h2>Credits and executed debits</h2></div>
+    <div><p class="eyebrow">CASH CADENCE</p><h2>Cash cadence</h2></div>
     <div class="results-cash-controls" role="tablist" aria-label="Cash cadence window">
       <button type="button" role="tab" data-results-cash-period="quarter" aria-selected="false">QTR · WEEKS</button>
       <button type="button" role="tab" data-results-cash-period="ytd" aria-selected="true">YTD · MONTHS</button>
@@ -166,7 +166,7 @@
 {% endif %}
 
 <section class="workspace-panel">
-  <header class="workspace-panel-heading"><div><p class="eyebrow">CASH WINDOWS</p><h2>What the strategy paid</h2></div><span>EXECUTED CASH · NO MODEL THETA</span></header>
+  <header class="workspace-panel-heading"><div><p class="eyebrow">CASH WINDOWS</p><h2>Cash windows</h2></div><span>EXECUTED CASH · NO MODEL THETA</span></header>
   <div class="workspace-table-wrap">
     <table class="workspace-table review-table">
       <thead><tr><th>Window</th><th>Range</th><th class="numeric">Net option cash</th><th class="numeric">Dividends</th><th class="numeric">Total strategy cash</th><th class="numeric">One-month pace</th><th class="numeric">Annualized</th><th class="numeric">Premium capture</th></tr></thead>
@@ -181,7 +181,7 @@
 </section>
 
 {% if snapshot.strategy_attribution %}<section class="workspace-panel attribution-panel">
-  <header class="workspace-panel-heading"><div><p class="eyebrow">STRATEGY COMPARISON</p><h2>Covered calls versus shares alone</h2></div><span>CURRENT-INVENTORY PROXY WHERE SUPPORTED</span></header>
+  <header class="workspace-panel-heading"><div><p class="eyebrow">STRATEGY COMPARISON</p><h2>Versus shares</h2></div><span>CURRENT-INVENTORY PROXY WHERE SUPPORTED</span></header>
   <div class="attribution-grid">
     {% for item in snapshot.strategy_attribution %}<article data-attribution="{{ item.key }}">
       <header><b>{{ item.label }}</b><span>{{ item.status }}</span></header>
@@ -199,12 +199,12 @@
 <details class="workspace-panel monthly-performance" open data-monthly-performance>
   <summary><span><b>MONTH BY MONTH</b><small>CALENDAR {{ snapshot.monthly_performance[-1].year }} · ACTUAL CASH</small></span><span><strong>{{ snapshot.monthly_performance | length }} MONTHS</strong><i aria-hidden="true"></i></span></summary>
   <div class="workspace-table-wrap"><table class="workspace-table monthly-performance-table">
-    <thead><tr><th>Month</th><th class="numeric">Premium received</th><th class="numeric">Closing debits</th><th class="numeric">Net option cash</th><th class="numeric">Dividends</th><th class="numeric">Total strategy cash</th><th class="numeric">Called away</th></tr></thead>
+    <thead><tr><th>Month</th><th class="numeric">Premium received</th><th class="numeric">Closing debits</th><th class="numeric">Net option cash</th><th class="numeric">Dividends</th><th class="numeric">Total strategy cash</th><th class="numeric">Called away</th><th class="numeric">Put to</th></tr></thead>
     <tbody>{% for month in snapshot.monthly_performance %}<tr class="{% if month.is_partial %}partial{% elif month.coverage_status == 'coverage_start' %}coverage-start{% endif %}">
       <td><strong>{{ month.label }}</strong><small>{{ month.year }}{% if month.is_partial %} · THROUGH {{ snapshot.as_of.strftime('%b %d') | upper }}{% elif month.coverage_status == 'coverage_start' %} · {{ month.coverage_note | upper }}{% endif %}</small></td>
       <td class="numeric">{{ month.gross_premium | money }}</td><td class="numeric negative">{{ month.closing_debits | money }}</td>
       <td class="numeric {{ month.option_cash | pnl_class }}">{{ month.option_cash | money }}</td><td class="numeric">{{ month.dividends | money }}</td>
-      <td class="numeric {{ month.total_cash | pnl_class }}">{{ month.total_cash | money }}</td><td class="numeric">{{ month.called_away_shares }} SH</td>
+      <td class="numeric {{ month.total_cash | pnl_class }}">{{ month.total_cash | money }}</td><td class="numeric">{{ month.called_away_shares }} SH</td><td class="numeric">{{ month.acquired_shares }} SH</td>
     </tr>{% endfor %}</tbody>
   </table></div>
 </details>
@@ -212,7 +212,7 @@
 
 <section class="workspace-panel results-secondary" aria-labelledby="recorded-outcomes-title">
   <header class="workspace-panel-heading results-outcomes-heading">
-    <div><p class="eyebrow">RECORDED OUTCOMES</p><h2 id="recorded-outcomes-title">What happened to the contracts</h2></div>
+    <div><p class="eyebrow">RECORDED OUTCOMES</p><h2 id="recorded-outcomes-title">Outcomes</h2></div>
     {% if snapshot.option_outcomes and snapshot.option_outcomes.recorded_from %}<span>{{ snapshot.option_outcomes.recorded_from.strftime('%b %d, %Y') | upper }}&ndash;{{ snapshot.option_outcomes.recorded_through.strftime('%b %d, %Y') | upper }} &middot; SHORT CALLS + PUTS</span>{% else %}<span>AVAILABLE BROKER HISTORY</span>{% endif %}
   </header>
   {% set outcomes = snapshot.option_outcomes %}

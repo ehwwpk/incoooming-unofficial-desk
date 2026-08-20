@@ -12,6 +12,13 @@ from schwab_dashboard.application.dashboard.models import (
     DashboardSnapshot,
     LiveOpenOptionPosition,
 )
+from schwab_dashboard.application.dashboard.option_clock_math import (
+    put_decay_stage,
+    put_effective_entry_per_share,
+    put_intrinsic_value,
+    short_option_term,
+    short_option_value_vs_credit,
+)
 from schwab_dashboard.application.market_time import OptionSessionState
 from schwab_dashboard.application.policy.evaluate import evaluate_policy_fit
 from schwab_dashboard.application.policy.models import CallPolicy
@@ -322,43 +329,23 @@ def _open_put_row(option: LiveOpenOptionPosition) -> OpenPutRow:
         if option.can_close_or_roll
         else Decimal(0)
     )
-    option_value_vs_credit_percent = (
-        current_liability / entry_credit * Decimal("100") if entry_credit else Decimal(0)
-    )
-    credit_capture_percent = (
-        (entry_credit - current_liability) / entry_credit * Decimal("100")
-        if entry_credit
-        else Decimal(0)
-    )
-    option_value_track_percent = min(
-        Decimal("100"), max(Decimal(0), option_value_vs_credit_percent)
-    )
-    option_value_overrun_percent = max(
-        Decimal(0), option_value_vs_credit_percent - Decimal("100")
+    value = short_option_value_vs_credit(
+        entry_credit=entry_credit,
+        current_liability=current_liability,
     )
     original_days_to_expiration = option.original_days_to_expiration
-    elapsed_time_percent: Decimal | None = None
-    time_remaining_percent: Decimal | None = None
-    if option.opened_on is not None and original_days_to_expiration is not None:
-        elapsed_days = max(
-            0,
-            (option.expires_on - option.opened_on).days - option.days_to_expiration,
-        )
-        if original_days_to_expiration > 0:
-            elapsed_time_percent = min(
-                Decimal("100"),
-                Decimal(elapsed_days) / Decimal(original_days_to_expiration) * Decimal("100"),
-            )
-            time_remaining_percent = max(
-                Decimal(0), Decimal("100") - elapsed_time_percent
-            )
-        else:
-            elapsed_time_percent = Decimal("100")
-            time_remaining_percent = Decimal(0)
-    intrinsic_per_share = max(
-        Decimal(0), option.strike - (option.underlying_price or option.strike)
+    term = short_option_term(
+        opened_on=option.opened_on,
+        expires_on=option.expires_on,
+        original_days_to_expiration=original_days_to_expiration,
+        days_to_expiration=option.days_to_expiration,
     )
-    intrinsic_value = intrinsic_per_share * multiplier * Decimal(option.contracts)
+    intrinsic_value = put_intrinsic_value(
+        strike=option.strike,
+        underlying_price=option.underlying_price,
+        multiplier=multiplier,
+        contracts=option.contracts,
+    )
     remaining_extrinsic_value = max(Decimal(0), current_liability - intrinsic_value)
     return OpenPutRow(
         option_symbol=option.option_symbol,
@@ -378,10 +365,9 @@ def _open_put_row(option: LiveOpenOptionPosition) -> OpenPutRow:
         strike_state_label=strike_state_label,
         strike_distance_available=strike_distance_available,
         entry_credit_per_share=entry_credit_per_share,
-        effective_entry_per_share=(
-            max(Decimal(0), option.strike - entry_credit_per_share)
-            if entry_credit_available
-            else None
+        effective_entry_per_share=put_effective_entry_per_share(
+            strike=option.strike,
+            entry_credit_per_share=option.entry_credit_per_share if entry_credit_available else None,
         ),
         entry_credit=entry_credit,
         current_liability=current_liability,
@@ -389,15 +375,15 @@ def _open_put_row(option: LiveOpenOptionPosition) -> OpenPutRow:
         close_cost_basis="ASK" if option.ask_per_share is not None else "MARK ESTIMATE",
         open_profit_loss=option.open_profit_loss or Decimal(0),
         theta_estimate_per_day=theta_estimate_per_day,
-        elapsed_time_percent=elapsed_time_percent,
-        time_remaining_percent=time_remaining_percent,
-        credit_capture_percent=credit_capture_percent,
-        option_value_vs_credit_percent=option_value_vs_credit_percent,
-        option_value_track_percent=option_value_track_percent,
-        option_value_overrun_percent=option_value_overrun_percent,
-        decay_stage=_put_decay_stage(
+        elapsed_time_percent=term.elapsed_time_percent,
+        time_remaining_percent=term.time_remaining_percent,
+        credit_capture_percent=value.credit_capture_percent,
+        option_value_vs_credit_percent=value.option_value_vs_credit_percent,
+        option_value_track_percent=value.option_value_track_percent,
+        option_value_overrun_percent=value.option_value_overrun_percent,
+        decay_stage=put_decay_stage(
             option.days_to_expiration,
-            elapsed_time_percent,
+            term.elapsed_time_percent,
             session_label=option.session_label,
             can_close_or_roll=option.can_close_or_roll,
         ),
@@ -427,26 +413,6 @@ def _open_put_row(option: LiveOpenOptionPosition) -> OpenPutRow:
         session_label=option.session_label,
         can_close_or_roll=option.can_close_or_roll,
     )
-
-
-def _put_decay_stage(
-    days_to_expiration: int,
-    elapsed_time_percent: Decimal | None,
-    *,
-    session_label: str,
-    can_close_or_roll: bool,
-) -> str:
-    if not can_close_or_roll:
-        return session_label
-    if days_to_expiration <= 7:
-        return "EXPIRING SOON"
-    if elapsed_time_percent is None:
-        return "OPEN TERM"
-    if elapsed_time_percent < Decimal("33"):
-        return "EARLY CYCLE"
-    if elapsed_time_percent < Decimal("70"):
-        return "MID CYCLE"
-    return "LATE CYCLE"
 
 
 def _open_call_row(

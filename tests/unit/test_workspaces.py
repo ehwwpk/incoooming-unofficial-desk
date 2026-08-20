@@ -162,6 +162,8 @@ def test_desk_overview_prioritizes_the_nearest_live_call_without_losing_totals()
     assert overview.nearest_call.anchor_id.startswith("option-")
     assert len(overview.position_rows) == len(snapshot.underlyings)
     assert sum(row.open_positions for row in overview.position_rows) == overview.open_positions
+    assert sum(row.open_contracts for row in overview.position_rows) == overview.open_contracts
+    assert all(row.open_put_contracts == 0 for row in overview.position_rows)
     assert all(row.risk is not None for row in overview.position_rows)
 
 
@@ -198,6 +200,14 @@ def test_desk_overview_includes_short_puts_without_corrupting_call_coverage() ->
     assert overview.open_positions == 7
     assert overview.open_contracts == snapshot.covered_calls.active_contracts + 1
     assert overview.open_call_contracts == snapshot.covered_calls.active_contracts
+    assert sum(row.open_contracts for row in overview.position_rows) == overview.open_contracts
+    urnm_row = next(row for row in overview.position_rows if row.underlying.symbol == "URNM")
+    assert urnm_row.open_positions == 2
+    assert urnm_row.open_put_contracts == 1
+    assert urnm_row.open_contracts == urnm_row.open_call_contracts + 1
+    assert urnm_row.open_call_contracts == next(
+        item.active_contracts for item in snapshot.underlyings if item.symbol == "URNM"
+    )
     assert overview.coverage_percent == snapshot.covered_calls.coverage_percent
     assert overview.open_mark_profit_loss == snapshot.covered_calls.open_mark_profit_loss - 50
     assert open_book.put_contracts == 1

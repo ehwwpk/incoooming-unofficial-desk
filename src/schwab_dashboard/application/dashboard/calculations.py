@@ -12,13 +12,9 @@ from schwab_dashboard.application.dashboard.models import (
     PositionSummary,
     RiskSummary,
 )
-from schwab_dashboard.application.market_time import market_date
-from schwab_dashboard.application.performance.flows import (
-    carried_external_flow,
-    external_flow_on,
-)
 
 ZERO = Decimal("0")
+OPTION_DAY_PERCENT_MARK_FLOOR = Decimal("0.50")
 
 
 def map_positions(rows: Sequence[dict[str, Any]]) -> tuple[PositionSummary, ...]:
@@ -58,12 +54,34 @@ def map_positions(rows: Sequence[dict[str, Any]]) -> tuple[PositionSummary, ...]
     )
 
 
+def broker_day_profit_loss(
+    positions: Sequence[PositionSummary],
+    *,
+    current_account_value: Decimal,
+) -> tuple[Decimal | None, Decimal | None]:
+    """Schwab-style session P/L for the whole book.
+
+    Sums every position's broker day dollars regardless of asset type. Does
+    not use account start-of-day liquidation, local calendar dates, or quote
+    previous-close math. Percent is dollars over implied prior account value
+    (current minus the tape), matching Schwab mobile Day Change.
+    """
+
+    if not positions:
+        return ZERO, ZERO
+    reported = tuple(position.day_profit_loss for position in positions)
+    if all(value is None for value in reported):
+        return None, None
+    day_profit_loss = sum((value or ZERO for value in reported), ZERO)
+    prior_value = current_account_value - day_profit_loss
+    if prior_value == ZERO:
+        return day_profit_loss, ZERO
+    return day_profit_loss, day_profit_loss / prior_value * Decimal("100")
+
+
 def summarize_portfolio(
     positions: Sequence[PositionSummary],
     balances: Sequence[dict[str, Any]] = (),
-    *,
-    cash_movements: Sequence[dict[str, Any]] = (),
-    as_of: date | datetime | None = None,
 ) -> PortfolioSummary:
     stock_value = sum(
         (
@@ -85,13 +103,6 @@ def summarize_portfolio(
     gross_position_value = sum((abs(position.market_value or ZERO) for position in positions), ZERO)
     liquidation_values = [_optional_decimal(row.get("liquidation_value")) for row in balances]
     liquidation_value = _sum_known(liquidation_values)
-    day_balance_pairs = [
-        (
-            _optional_decimal(row.get("liquidation_value")),
-            _optional_decimal(row.get("initial_liquidation_value")),
-        )
-        for row in balances
-    ]
     equity = _sum_known([_optional_decimal(row.get("equity")) for row in balances])
     cash_value = _sum_known([_optional_decimal(row.get("cash_balance")) for row in balances])
     margin_balance = _sum_known([_optional_decimal(row.get("margin_balance")) for row in balances])
@@ -103,30 +114,10 @@ def summarize_portfolio(
         [_optional_decimal(row.get("maintenance_requirement")) for row in balances]
     )
     total_value = liquidation_value if liquidation_value is not None else net_position_value
-    day_external_cash_flow = ZERO
-    if day_balance_pairs and all(
-        current is not None and initial is not None for current, initial in day_balance_pairs
-    ):
-        current_day_value = sum(
-            (current for current, _ in day_balance_pairs if current is not None), ZERO
-        )
-        prior_value = sum(
-            (initial for _, initial in day_balance_pairs if initial is not None), ZERO
-        )
-        day_external_cash_flow = (
-            external_flow_on(cash_movements, market_date(as_of)) if as_of is not None else ZERO
-        )
-        day_external_cash_flow += carried_external_flow(
-            cash_movements,
-            as_of=as_of,
-            account_day_change=current_day_value - prior_value - day_external_cash_flow,
-            positions=positions,
-        )
-        day_profit_loss = current_day_value - prior_value - day_external_cash_flow
-    else:
-        day_profit_loss = sum(((position.day_profit_loss or ZERO) for position in positions), ZERO)
-        prior_value = total_value - day_profit_loss
-    day_percent = day_profit_loss / prior_value * 100 if prior_value else ZERO
+    day_profit_loss, day_percent = broker_day_profit_loss(
+        positions,
+        current_account_value=total_value,
+    )
     return PortfolioSummary(
         total_value=total_value,
         invested_value=net_position_value,
@@ -135,7 +126,7 @@ def summarize_portfolio(
         option_value=option_value,
         day_profit_loss=day_profit_loss,
         day_profit_loss_percent=day_percent,
-        day_external_cash_flow=day_external_cash_flow,
+        day_external_cash_flow=ZERO,
         gross_position_value=gross_position_value,
         net_position_value=net_position_value,
         liquidation_value=liquidation_value,
@@ -186,6 +177,21 @@ def summarize_risk(positions: Sequence[PositionSummary]) -> RiskSummary:
         largest_position_percent=largest / gross_value * 100 if gross_value else ZERO,
         open_campaigns=0,
     )
+
+
+def displayed_day_profit_loss_percent(position: PositionSummary) -> Decimal | None:
+    """Return the row day-% that is safe to print next to broker day dollars.
+
+    Schwab stores currentDayProfitLossPercentage as-is. On a near-worthless
+    option mark that figure is not a meaningful move. Equities keep the broker
+    percent. The snapshot field itself is not changed.
+    """
+
+    if str(position.asset_type).upper() == "OPTION" and (
+        position.mark is None or position.mark < OPTION_DAY_PERCENT_MARK_FLOOR
+    ):
+        return None
+    return position.day_profit_loss_percent
 
 
 def _decimal(value: Any) -> Decimal:

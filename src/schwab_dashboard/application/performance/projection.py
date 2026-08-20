@@ -124,6 +124,10 @@ def build_performance_comparison(
         daily_bars=daily_bars,
         cash_movements=cash_movements,
         actual_points=actual_points,
+        executions=executions,
+        lifecycle_events=lifecycle_events,
+        balance_history=balance_history,
+        annual_interest_rate_percent=margin_interest_rate_percent,
     )
     option_overlay = build_executed_option_overlay(
         executions=executions,
@@ -171,9 +175,9 @@ def build_performance_comparison(
         status="derived" if management_difference is not None else "not_available",
         return_difference_percent=management_difference,
         method_note=(
-            "Managed TWR minus the frozen starting-share counterfactual, both read on "
+            "Managed TWR minus starting stock plus your share trades, no overlay, both read on "
             f"{matched.as_of:%b %d, %Y} because that is the last session both series cover. "
-            "This is a decision comparison, not manager alpha."
+            "This is versus that freeze, not overlay alpha, not a sleeve grade."
             if management_difference is not None and matched.as_of is not None
             else "A matched starting-share counterfactual is required before a difference is shown."
         ),
@@ -181,7 +185,7 @@ def build_performance_comparison(
     benchmark_policy = (
         BenchmarkPolicyItem(
             key="same_underlyings",
-            label="Same starting shares",
+            label="Starting stock plus your share trades",
             role="PRIMARY COUNTERFACTUAL",
             status=shares_baseline.status,
             method_note=shares_baseline.method_note,
@@ -212,7 +216,7 @@ def build_performance_comparison(
     if external_flows:
         warnings.append("Deposits and withdrawals are excluded before returns are chained.")
     return PerformanceComparison(
-        methodology_version="incoooming-performance-v2",
+        methodology_version="incoooming-performance-v3",
         range_label=(
             f"{actual_points[0].date:%b %d}-{actual_points[-1].date:%b %d, %Y}"
             if actual_points

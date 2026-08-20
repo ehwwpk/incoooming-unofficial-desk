@@ -8,6 +8,11 @@ from typing import Any
 from fastapi.templating import Jinja2Templates
 
 from schwab_dashboard.application.dashboard.anchors import option_contract_anchor
+from schwab_dashboard.application.dashboard.calculations import (
+    OPTION_DAY_PERCENT_MARK_FLOOR,
+    displayed_day_profit_loss_percent,
+)
+from schwab_dashboard.application.dashboard.overview import open_contract_side_copy
 from schwab_dashboard.application.market_time import market_date
 
 WEB_ROOT = Path(__file__).resolve().parent
@@ -64,6 +69,9 @@ templates.env.filters.update(
         "percent": percent,
         "short_date": short_date,
         "pnl_class": pnl_class,
+        "displayed_day_percent": displayed_day_profit_loss_percent,
+        "contract_sides": open_contract_side_copy,
     }
 )
 templates.env.filters["option_anchor"] = option_contract_anchor
+templates.env.globals["option_day_percent_mark_floor"] = OPTION_DAY_PERCENT_MARK_FLOOR
