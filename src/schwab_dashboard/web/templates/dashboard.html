@@ -6,9 +6,9 @@
     <meta name="color-scheme" content="dark">
     <title>Desk · Incoooming</title>
     <link rel="icon" href="{{ url_for('static', path='/nibwick-favicon.svg') }}?v=3" type="image/svg+xml">
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=100">
-    <link rel="stylesheet" href="{{ url_for('static', path='/campaign-chart.css') }}?v=11">
-    <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=10">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=110">
+    <link rel="stylesheet" href="{{ url_for('static', path='/campaign-chart.css') }}?v=12">
+    <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=13">
   </head>
   <body data-workspace-key="desk" data-demo-mode="{{ 'true' if snapshot.is_demo else 'false' }}" data-snapshot-as-of="{{ snapshot.as_of.isoformat() }}" data-page-built-at="{{ page_built_at.isoformat() }}" data-workspace-context='{"account":"{{ snapshot.accounts[0].account_mask if snapshot.accounts else "---" }}","symbol":"ALL","asOf":"{{ snapshot.as_of.date().isoformat() }}"}'>
     <header class="topbar desk-topbar">
@@ -75,7 +75,7 @@
           <span>NET LIQ <b>{{ snapshot.portfolio.total_value | money }}</b></span>
           <span>GROSS POS <b>{{ snapshot.portfolio.gross_position_value | money }}</b></span>
           {% endif %}
-          <span>TODAY <b class="{{ snapshot.portfolio.day_profit_loss | pnl_class }}">{{ snapshot.portfolio.day_profit_loss | money }} / {{ snapshot.portfolio.day_profit_loss_percent | percent(2) }}</b>{% if snapshot.portfolio.day_external_cash_flow > 0 %}<small class="flow-adjusted-note">{{ snapshot.portfolio.day_external_cash_flow | money }} DEPOSIT EXCLUDED</small>{% elif snapshot.portfolio.day_external_cash_flow < 0 %}<small class="flow-adjusted-note">{{ (snapshot.portfolio.day_external_cash_flow * -1) | money }} WITHDRAWAL EXCLUDED</small>{% endif %}</span>
+          <span>DAY P/L <b class="{{ snapshot.portfolio.day_profit_loss | pnl_class }}">{{ snapshot.portfolio.day_profit_loss | money }} / {{ snapshot.portfolio.day_profit_loss_percent | percent(2) }}</b></span>
           {% if snapshot.performance_windows %}<span>RANGE <b data-active-range>{{ snapshot.performance_windows[0].range_label }}</b></span>{% endif %}
           <span>AS OF <b>{{ snapshot.as_of | short_date }}</b></span>
           <span>STATUS <b class="{{ 'muted' if snapshot.is_demo else 'positive' }}">{% if snapshot.is_demo %}SIMULATION{% elif snapshot.mode == 'csv' %}CSV BOOK{% else %}LIVE LEDGER{% endif %}</b></span>
@@ -119,9 +119,9 @@
       </footer>
       </main>
     </div>
-    <script src="{{ url_for('static', path='/periods.js') }}?v=20" defer></script>
+    <script src="{{ url_for('static', path='/periods.js') }}?v=21" defer></script>
     <script src="{{ url_for('static', path='/cash-activity.js') }}?v=1" defer></script>
-    <script src="{{ url_for('static', path='/workspace-splitter.js') }}?v=2" defer></script>
+    <script src="{{ url_for('static', path='/workspace-splitter.js') }}?v=3" defer></script>
     <script src="{{ url_for('static', path='/nibwick-alerts.js') }}?v=13" defer></script>
     <script src="{{ url_for('static', path='/nibwick.js') }}?v=18" defer></script>
     <script src="{{ url_for('static', path='/position-details.js') }}?v=4" defer></script>

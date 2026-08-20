@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from schwab_dashboard.application.campaigns.models import CampaignLedger
+from schwab_dashboard.application.dashboard.short_premium import is_short_premium_execution
 
 STANDARD_CONTRACT_MULTIPLIER = Decimal("100")
 
@@ -47,7 +48,7 @@ def audit_campaign_ledger(
         (
             Decimal(str(row.get("net_cash") or "0"))
             for row in executions
-            if _is_short_premium_execution(row)
+            if is_short_premium_execution(row)
         ),
         Decimal("0"),
     )
@@ -67,15 +68,6 @@ def audit_campaign_ledger(
         campaign_net_cash=campaign_net_cash,
         cash_variance=campaign_net_cash - source_net_cash,
     )
-
-
-def _is_short_premium_execution(row: Mapping[str, object]) -> bool:
-    if str(row.get("asset_type")) != "option":
-        return False
-    return (str(row.get("side")), str(row.get("position_effect"))) in {
-        ("sell", "opening"),
-        ("buy", "closing"),
-    }
 
 
 def _is_adjusted(row: Mapping[str, object]) -> bool:

@@ -10,6 +10,13 @@ from typing import Any
 from schwab_dashboard.application.market_time import market_date
 from schwab_dashboard.application.performance.flows import external_flow_between, movement_date
 from schwab_dashboard.application.performance.models import ComparisonSeries, ReturnPoint
+from schwab_dashboard.application.performance.share_replay import (
+    apply_discretionary_equity,
+    classify_forced_equity,
+    live_long_quantity,
+    scaled_dividend,
+)
+from schwab_dashboard.application.performance.stock_leverage import leverage_on
 
 ZERO = Decimal("0")
 HUNDRED = Decimal("100")
@@ -90,13 +97,16 @@ def build_static_share_baseline(
     daily_bars: Sequence[dict[str, Any]],
     cash_movements: Sequence[dict[str, Any]],
     actual_points: Sequence[ReturnPoint],
+    executions: Sequence[dict[str, Any]] = (),
+    lifecycle_events: Sequence[dict[str, Any]] = (),
+    balance_history: Sequence[dict[str, Any]] = (),
+    annual_interest_rate_percent: Decimal = Decimal("11"),
 ) -> ComparisonSeries:
-    """Value the earliest observed stock inventory without subsequent trading.
+    """Starting long lots plus discretionary share trades, no overlay.
 
-    The counterfactual starts with the same net liquidation value. Everything not
-    represented by starting stock lots becomes a fixed cash residual. That makes
-    the comparison portfolio-sized without pretending an old option liability
-    continued to exist.
+    Option premium and marks stay out. Assignment and expiration stock legs stay
+    out. Daily leverage is live long stock over stock-ex-overlay capital, not
+    account maintenance. Dividends scale to the freeze's own lots.
     """
     start = _frozen_start(
         position_history=position_history,
@@ -106,25 +116,66 @@ def build_static_share_baseline(
     if isinstance(start, str):
         return _unavailable(start)
     anchor_day = start.anchor_day
-    quantities, shorted, carried = start.quantities, start.shorted, start.carried
-    cash_residual = start.cash_residual
+    quantities = dict(start.quantities)
+    shorted, carried = start.shorted, dict(start.carried)
+    cash = start.cash_residual
+    forced_keys, uncertain_days = classify_forced_equity(
+        executions=executions,
+        lifecycle_events=lifecycle_events,
+    )
     points: list[ReturnPoint] = []
     previous: Decimal | None = None
     cumulative_factor = Decimal("1")
-    flows_to_date = ZERO
     previous_day = anchor_day
-    for day, stock_value in start.stock_series:
-        # Owner transfers must land in the counterfactual as idle cash by the
-        # valuation that first covers them, and the chain must be time-weighted
-        # exactly like the managed series. Otherwise a deposit grows only the
-        # managed book's denominator for the rest of the window, and the tile
-        # reports the owner's own funding decision as management
-        # underperformance. The span, not the single day, is what must be swept:
-        # a transfer settling over a weekend belongs to the next session.
+    omitted_days = 0
+    used_leverage = False
+    interest_paid = ZERO
+    dividend_cash = ZERO
+    for day, _opening_stock in start.stock_series:
+        elapsed = (day - previous_day).days
+        if cash < ZERO and elapsed > 0 and day != anchor_day:
+            charge = (
+                -cash
+                * annual_interest_rate_percent
+                / HUNDRED
+                * Decimal(elapsed)
+                / INTEREST_DAY_COUNT
+            )
+            cash -= charge
+            interest_paid += charge
         flow = _flow_into(cash_movements, after=previous_day, through=day, anchor=anchor_day)
-        flows_to_date += flow
-        dividends = _dividends_through(cash_movements, quantities, anchor_day, day)
-        value = stock_value + cash_residual + flows_to_date + dividends
+        cash += flow
+        quantities, cash, omitted = apply_discretionary_equity(
+            quantities,
+            cash,
+            executions=executions,
+            after=previous_day,
+            through=day,
+            forced_keys=forced_keys,
+            uncertain_symbol_days=uncertain_days,
+        )
+        if omitted:
+            omitted_days += 1
+        day_dividends = _scaled_dividends_on(
+            cash_movements,
+            quantities,
+            position_history,
+            day=day,
+        )
+        cash += day_dividends
+        dividend_cash += day_dividends
+        stock_value, day_carried = _value_lots(daily_bars, quantities, day)
+        carried.update(day_carried)
+        if stock_value is None:
+            continue
+        ratio = leverage_on(balance_history, day)
+        if ratio is not None:
+            used_leverage = True
+            nav = stock_value / ratio
+            cash = nav - stock_value
+            value = nav
+        else:
+            value = stock_value + cash
         daily_return: Decimal | None = None
         if previous:
             daily_return = (value - previous - flow) / previous * HUNDRED
@@ -143,11 +194,31 @@ def build_static_share_baseline(
         previous_day = day
     final_return = points[-1].cumulative_return_percent if points else None
     note = (
-        "Earliest observed long stock lots held unchanged; residual net liquidation stays cash. "
-        "Owner transfers arrive as idle cash on the day they settle and returns are chained "
-        "time-weighted, matching the managed book. Observed cash dividends are added. "
-        "No later stock trades or options are replayed."
+        "Starting long stock lots plus later discretionary share trades. Assignment and "
+        "expiration stock legs are ignored. Option premium and marks stay out. Owner "
+        "transfers arrive as idle cash and returns are chained time-weighted, matching "
+        "the managed book. Dividends scale to the freeze's lots versus live lots that day."
     )
+    if used_leverage:
+        note = (
+            f"{note} Daily leverage is live long stock over net liquidation minus option "
+            "marks, not account maintenance."
+        )
+    else:
+        note = (
+            f"{note} Stock-ex-overlay leverage was not stored for these sessions, so the "
+            "opening cash residual is kept except where share trades move it."
+        )
+    if interest_paid:
+        note = (
+            f"{note} Borrow after the leverage plug is charged "
+            f"{annual_interest_rate_percent:.2f}% on a 360-day basis."
+        )
+    if omitted_days:
+        note = (
+            f"{note} {omitted_days} session(s) had an assignment-like share print that "
+            "could not be paired, so that equity was not copied."
+        )
     if shorted:
         note = (
             f"{note} Short stock ({', '.join(shorted)}) is excluded because a passive hold "
@@ -161,7 +232,7 @@ def build_static_share_baseline(
     status = "waiting" if final_return is None else "carried_forward" if carried else "derived"
     return ComparisonSeries(
         key="shares_without_options",
-        label="Starting shares, no options",
+        label="Starting stock plus your share trades",
         status=status,
         return_percent=final_return,
         method_note=note,
@@ -449,29 +520,59 @@ def _flow_into(
     return external_flow_between(cash_movements, after=after, through=through)
 
 
-def _dividends_through(
+def _value_lots(
     rows: Sequence[dict[str, Any]],
     quantities: dict[str, Decimal],
-    start: date,
-    end: date,
+    day: date,
+) -> tuple[Decimal | None, dict[str, date]]:
+    if not quantities:
+        return ZERO, {}
+    closes: dict[str, dict[date, Decimal]] = defaultdict(dict)
+    for row in rows:
+        symbol = str(row.get("symbol") or "").upper()
+        trade_day = row.get("trade_date")
+        if symbol in quantities and isinstance(trade_day, date) and trade_day <= day:
+            closes[symbol][trade_day] = Decimal(str(row.get("close") or "0"))
+    priced: dict[str, Decimal] = {}
+    carried: dict[str, date] = {}
+    for symbol in quantities:
+        observed = [known for known in closes.get(symbol, {}) if known <= day]
+        if not observed:
+            return None, {}
+        latest = max(observed)
+        priced[symbol] = closes[symbol][latest]
+        if latest != day:
+            carried[symbol] = latest
+    return sum((quantities[symbol] * priced[symbol] for symbol in quantities), ZERO), carried
+
+
+def _scaled_dividends_on(
+    rows: Sequence[dict[str, Any]],
+    quantities: dict[str, Decimal],
+    position_history: Sequence[dict[str, Any]],
+    *,
+    day: date,
 ) -> Decimal:
-    return sum(
-        (
-            Decimal(str(row.get("amount") or "0"))
-            for row in rows
-            if str(row.get("movement_type") or "").lower() == "dividend"
-            and str(row.get("symbol") or "").upper() in quantities
-            and (day := movement_date(row.get("occurred_at"))) is not None
-            and start <= day <= end
-        ),
-        ZERO,
-    )
+    total = ZERO
+    for row in rows:
+        if str(row.get("movement_type") or "").lower() != "dividend":
+            continue
+        occurred = movement_date(row.get("occurred_at"))
+        if occurred != day:
+            continue
+        symbol = str(row.get("symbol") or "").upper()
+        freeze_qty = quantities.get(symbol, ZERO)
+        live_qty = live_long_quantity(position_history, symbol, day)
+        if live_qty is None:
+            live_qty = freeze_qty
+        total += scaled_dividend(row, freeze_qty=freeze_qty, live_qty=live_qty)
+    return total
 
 
 def _unavailable(note: str) -> ComparisonSeries:
     return ComparisonSeries(
         key="shares_without_options",
-        label="Starting shares, no options",
+        label="Starting stock plus your share trades",
         status="not_available",
         return_percent=None,
         method_note=note,

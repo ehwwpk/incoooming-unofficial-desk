@@ -1,16 +1,9 @@
-<section class="section-block" id="campaigns">
-  <div class="section-heading terminal-heading wide-heading">
-    <div><p class="eyebrow">ROLL-AWARE LEDGER</p><h2>Call campaigns</h2></div>
-    <span>{{ snapshot.campaigns | selectattr('status', 'equalto', 'OPEN') | list | length }} OPEN / {{ snapshot.campaigns | length }} TOTAL</span>
-  </div>
-
-  <div class="campaign-grid">
-    {% for campaign in snapshot.campaigns %}
+{% macro campaign_card(campaign) -%}
     <article class="campaign-card{% if campaign.status != 'OPEN' %} completed{% endif %}">
       <header>
         <div class="symbol-badge">{{ campaign.symbol[:1] }}</div>
-        <div><strong>{{ campaign.symbol }}</strong><span>{{ campaign.intent_label }}</span></div>
-        <span class="campaign-status">{{ campaign.status }}</span>
+        <div><strong>{{ campaign.symbol }}{% if campaign.campaign_label %} {{ campaign.campaign_label }}{% endif %}</strong><span>{{ campaign.intent_label }}{% if campaign.confidence %} · {{ campaign.confidence | upper | replace('_', ' ') }}{% endif %}</span></div>
+        <span class="campaign-status {{ campaign.status | lower }}">{{ campaign.status }}</span>
       </header>
       <div class="campaign-legs">
         {% for leg in campaign.legs %}<span>{{ leg }}</span>{% endfor %}
@@ -18,13 +11,40 @@
       <div class="campaign-metrics">
         <div><span>NET CASH TO DATE</span><strong class="{{ campaign.net_cash_to_date | pnl_class }}">{{ campaign.net_cash_to_date | money }}</strong></div>
         <div><span>OPEN MARK P/L</span><strong class="{{ campaign.open_mark_profit_loss | pnl_class }}">{{ campaign.open_mark_profit_loss | money }}</strong></div>
-        <div><span>CASH / COVERED CAPITAL</span><strong>{{ campaign.cash_on_capital_percent | percent }}</strong></div>
+        <div><span>{{ 'CASH / ASSIGN. NOTIONAL' if campaign.option_side == 'put' else 'CASH / COVERED CAPITAL' }}</span><strong>{{ campaign.cash_on_capital_percent | percent }}</strong></div>
       </div>
       <div class="campaign-footer">
         <div class="progress-track"><span style="--progress: {{ campaign.progress_percent }}%"></span></div>
         <span>{{ campaign.days_to_expiration }} DTE · ${{ campaign.initial_strike | number }} → ${{ campaign.current_strike | number }} · {{ campaign.days_extended }} DAYS ADDED</span>
       </div>
     </article>
-    {% endfor %}
-  </div>
+{%- endmacro %}
+{% set open_campaigns = snapshot.campaigns | selectattr('status', 'equalto', 'OPEN') | list %}
+{% set closed_campaigns = snapshot.campaigns | rejectattr('status', 'equalto', 'OPEN') | list %}
+<section class="workspace-panel" id="campaigns">
+  <header class="workspace-panel-heading">
+    <div><p class="eyebrow">ROLL-AWARE LEDGER</p><h2>Campaigns</h2></div>
+    <span>{{ open_campaigns | length }} OPEN / {{ snapshot.campaigns | length }} TOTAL</span>
+  </header>
+
+  {% if snapshot.campaigns %}
+  {% if open_campaigns %}
+  <details class="campaign-group" id="campaigns-open" data-workspace-section="campaigns-open" open>
+    <summary><span><b>OPEN</b><small>{{ open_campaigns | length }} ON THE BOOK</small></span><span><strong>{{ open_campaigns | length }}</strong><i aria-hidden="true"></i></span></summary>
+    <div class="campaign-grid">
+      {% for campaign in open_campaigns %}{{ campaign_card(campaign) }}{% endfor %}
+    </div>
+  </details>
+  {% endif %}
+  {% if closed_campaigns %}
+  <details class="campaign-group" id="campaigns-closed" data-workspace-section="campaigns-closed"{% if not open_campaigns %} open{% endif %}>
+    <summary><span><b>CLOSED</b><small>NOT OPEN · CLOSED / EXPIRED / ASSIGNED</small></span><span><strong>{{ closed_campaigns | length }}</strong><i aria-hidden="true"></i></span></summary>
+    <div class="campaign-grid">
+      {% for campaign in closed_campaigns %}{{ campaign_card(campaign) }}{% endfor %}
+    </div>
+  </details>
+  {% endif %}
+  {% else %}
+  <p class="empty-state">No short-premium campaigns in this ledger.</p>
+  {% endif %}
 </section>

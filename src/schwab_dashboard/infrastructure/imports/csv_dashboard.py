@@ -13,6 +13,8 @@ from schwab_dashboard.application.dashboard.calculations import (
 from schwab_dashboard.application.dashboard.expiration_calendar import (
     build_expiration_calendar,
 )
+from schwab_dashboard.application.dashboard.live_call_history import project_call_sale_records
+from schwab_dashboard.application.dashboard.live_campaigns import project_campaign_summaries
 from schwab_dashboard.application.dashboard.live_performance import build_live_performance
 from schwab_dashboard.application.dashboard.live_positions import build_live_position_book
 from schwab_dashboard.application.dashboard.live_underlying_stats import (
@@ -87,6 +89,12 @@ class CsvDashboardReader:
             option_market=(),
             as_of=as_of.date(),
         )
+        campaigns = project_campaign_summaries(
+            executions,
+            lifecycle_events,
+            live_book=live_book,
+            as_of=as_of.date(),
+        )
         has_activity = bool(executions or cash_movements or lifecycle_events)
         base_risk = summarize_risk(positions)
         risk = RiskSummary(
@@ -99,7 +107,7 @@ class CsvDashboardReader:
                 default=None,
             ),
             largest_position_percent=base_risk.largest_position_percent,
-            open_campaigns=0,
+            open_campaigns=sum(item.status == "OPEN" for item in campaigns),
         )
         account_masks = tuple(sorted({item.account_mask for item in positions})) or ("...CSV",)
         return DashboardSnapshot(
@@ -134,7 +142,7 @@ class CsvDashboardReader:
             cash_events=performance.cash_events,
             cash_activity_windows=(performance.cash_activity_windows if has_activity else ()),
             cash_chart_series=performance.cash_chart_series if has_activity else (),
-            campaigns=(),
+            campaigns=campaigns,
             covered_calls=performance.covered_calls,
             underlyings=underlyings,
             alerts=build_desk_alerts(
@@ -142,7 +150,12 @@ class CsvDashboardReader:
                 as_of=as_of.date(),
                 put_positions=live_book.puts,
             ),
-            call_history=(),
+            call_history=project_call_sale_records(
+                executions,
+                lifecycle_events,
+                daily_bars=(),
+                as_of=as_of.date(),
+            ),
             performance_windows=performance.performance_windows if has_activity else (),
             monthly_performance=performance.monthly_performance if has_activity else (),
             strategy_attribution=(),

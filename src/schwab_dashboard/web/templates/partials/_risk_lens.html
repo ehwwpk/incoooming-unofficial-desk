@@ -2,7 +2,7 @@
 {% set price_time = snapshot.live_position_book.price_time_read if snapshot.live_position_book else none %}
 <details class="workspace-panel open-book-section risk-lens" data-open-book-section="risk-lens">
   <summary class="workspace-panel-heading risk-lens-heading">
-    <div><p class="eyebrow">RISK LENS</p><h2>Carry, exposure, and IV pressure</h2></div>
+    <div><p class="eyebrow">RISK LENS</p><h2>Carry / IV</h2></div>
     <div class="risk-lens-headline">
       {% if risk %}
       <span>DELTA / NEXT +$1</span>

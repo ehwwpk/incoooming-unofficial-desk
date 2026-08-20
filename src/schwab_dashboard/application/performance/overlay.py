@@ -6,6 +6,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
+from schwab_dashboard.application.dashboard.short_premium import is_short_premium_execution
 from schwab_dashboard.application.performance.flows import movement_date
 from schwab_dashboard.application.performance.models import ComparisonSeries, ReturnPoint
 
@@ -23,15 +24,10 @@ def build_executed_option_overlay(
     start, end = actual_points[0].date, actual_points[-1].date
     cash_by_day: dict[date, Decimal] = defaultdict(lambda: ZERO)
     for row in executions:
-        if str(row.get("asset_type") or "").lower() != "option":
+        if not is_short_premium_execution(row):
             continue
         day = movement_date(row.get("occurred_at"))
         if day is None or not start <= day <= end:
-            continue
-        if (str(row.get("side")), str(row.get("position_effect"))) not in {
-            ("sell", "opening"),
-            ("buy", "closing"),
-        }:
             continue
         cash_by_day[day] += Decimal(str(row.get("net_cash") or "0"))
     if not cash_by_day:

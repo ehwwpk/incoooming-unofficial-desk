@@ -145,6 +145,7 @@ def test_first_visit_chooses_a_source_and_csv_book_remains_isolated(tmp_path: Pa
         assert datasets[0].activity_count == 2
         assert container.read_dashboard(f"csv:{datasets[0].id}").execute().mode == "csv"
         assert container.read_dashboard("schwab").execute().positions == ()
+        assert container.read_dashboard("schwab").execute().call_history == ()
     finally:
         container.close()
 
@@ -177,6 +178,16 @@ def test_realistic_csv_book_projects_inventory_options_income_and_dividend(
         assert snapshot.income.month == Decimal("1049.79")
         assert snapshot.income.year_to_date == Decimal("2246.79")
         assert any(item.action_label == "DIVIDEND RECEIVED" for item in snapshot.cash_events)
+        assert len(snapshot.campaigns) == 3
+        assert {item.symbol for item in snapshot.campaigns} == {"CVX", "KTOS", "URNM"}
+        assert all(item.status == "OPEN" for item in snapshot.campaigns)
+        assert all(item.campaign_label.startswith("C") for item in snapshot.campaigns)
+        assert len(snapshot.call_history) == 3
+        assert {item.symbol for item in snapshot.call_history} == {"CVX", "KTOS", "URNM"}
+        assert all(item.outcome == "Open" for item in snapshot.call_history)
+        assert all(item.option_side == "CALL" for item in snapshot.call_history)
+        assert all(item.sale_signal == "" for item in snapshot.call_history)
+        assert [item.contracts for item in snapshot.call_history] == [2, 3, 2]
     finally:
         container.close()
 

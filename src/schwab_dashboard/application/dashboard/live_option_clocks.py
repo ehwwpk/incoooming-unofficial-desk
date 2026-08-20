@@ -4,7 +4,10 @@ from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 from decimal import Decimal
 
-from schwab_dashboard.application.campaigns import reconcile_option_campaigns
+from schwab_dashboard.application.campaigns import (
+    campaign_record_key,
+    reconcile_option_campaigns,
+)
 from schwab_dashboard.application.campaigns.models import CampaignLedger
 from schwab_dashboard.application.dashboard.covered_calls import (
     OpenCallClock,
@@ -172,6 +175,7 @@ def _clock(
         session_state=call.session_state,
         contract_multiplier=call.contract_multiplier,
         price_time_read=call.price_time_read,
+        quote_observed_at=call.quote_observed_at,
     )
 
 
@@ -239,7 +243,7 @@ def _campaign_identity(
 
     identities: dict[str, str] = {}
     for row in rows:
-        annotation = campaign_ledger.annotation_for(_record_key(row))
+        annotation = campaign_ledger.annotation_for(campaign_record_key(row))
         if annotation is not None:
             identities[annotation.campaign_id] = annotation.campaign_label
     if len(identities) == 1:
@@ -247,12 +251,6 @@ def _campaign_identity(
     if len(identities) > 1:
         return fallback, f"{len(identities)} CAMPAIGNS"
     return fallback, ""
-
-
-def _record_key(row: Mapping[str, object]) -> str:
-    external_key = str(row.get("external_key") or "")
-    account_mask = str(row.get("account_mask") or "")
-    return f"{account_mask}:{external_key}" if account_mask else external_key
 
 
 def _as_clock_quotes(quotes: Sequence[RollQuote]) -> tuple[RollQuoteCandidate, ...]:

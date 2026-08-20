@@ -6,7 +6,7 @@ from pathlib import Path
 STATIC_DIR = Path(__file__).resolve().parents[2] / "src" / "schwab_dashboard" / "web" / "static"
 
 ART_ONLY_STYLESHEETS = {"nibwick-promenade.css", "sources-art.css"}
-ART_ONLY_SELECTORS = {".nibwick-obstacle", ".nibwick pre"}
+ART_ONLY_SELECTORS = {".nibwick-obstacle", ".nibwick pre", ".nibwick-tick"}
 MIN_FUNCTIONAL_PX = 7.0
 
 FONT_SIZE_PATTERN = re.compile(
@@ -78,13 +78,48 @@ def _rule_block(stylesheet: str, opener: str) -> str:
     return stylesheet[start : stylesheet.index("}", start)]
 
 
+def test_name_analytics_gives_leftover_width_to_the_delta_cell() -> None:
+    css = (STATIC_DIR / "performance.css").read_text(encoding="utf-8")
+    rule = _rule_block(css, ".name-analytics {")
+    compact = _rule_block(css, ".name-analytics > div {")
+    delta = _rule_block(css, ".name-analytics .name-price-time {")
+    pair = _rule_block(css, ".name-analytics .price-time-pair {")
+
+    assert "display: flex" in rule
+    assert "flex-wrap: nowrap" in rule
+    assert "repeat(7," not in rule
+    assert "flex: 0 0 auto" in compact
+    assert "padding: 8px 14px 9px" in compact
+    assert "flex: 1 1 0%" in delta
+    assert "flex-wrap: nowrap" in delta
+    assert "justify-content: flex-start" in delta
+    assert "padding-inline: 16px" in delta
+    assert "min-width: 0" in delta
+    assert "nowrap" in pair
+
+    facts = _rule_block(css, ".name-analytics > div:not(.name-price-time) {")
+    read = _rule_block(css, ".name-analytics .name-price-time .name-price-time-read {")
+    clerk = _rule_block(
+        css,
+        ".name-analytics .name-price-time .name-price-time-read .price-pressure-line,",
+    )
+    assert "padding-inline: 16px" in facts
+    assert "flex: 1 1 0%" in read
+    assert "min-width: 0" in read
+    assert "var(--type-copy-sm)" in clerk
+    assert "white-space: normal" in clerk
+    assert "var(--type-micro)" not in clerk
+
+
 def test_wave_one_fact_strips_do_not_fake_cell_height() -> None:
-    recipes = {
-        "performance.css": ".name-analytics > div {",
-        "open-book.css": ".option-fact-strip > div {",
-        "desk-overview.css": ".live-position-facts > div, .live-call-row > div {",
-    }
-    for filename, opener in recipes.items():
+    recipes = (
+        ("performance.css", ".name-analytics > div {"),
+        ("performance.css", ".period-primary > div {"),
+        ("open-book.css", ".option-fact-strip > div {"),
+        ("desk-overview.css", ".live-position-facts > div, .live-call-row > div {"),
+        ("results-cash.css", ".performance-compare-tape > div {"),
+    )
+    for filename, opener in recipes:
         stylesheet = (STATIC_DIR / filename).read_text(encoding="utf-8")
         rule = _rule_block(stylesheet, opener)
         assert "min-height" not in rule, f"{filename} still pins {opener}"

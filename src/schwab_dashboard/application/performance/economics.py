@@ -8,6 +8,7 @@ from typing import Any
 from schwab_dashboard.application.campaigns import reconcile_option_campaigns
 from schwab_dashboard.application.campaigns.audit import audit_campaign_ledger
 from schwab_dashboard.application.campaigns.models import CampaignLinkConfidence
+from schwab_dashboard.application.dashboard.short_premium import is_short_premium_execution
 from schwab_dashboard.application.market_time import market_date
 from schwab_dashboard.application.performance.models import OptionEconomics
 
@@ -25,7 +26,7 @@ def calculate_option_economics(
     in_window = tuple(
         row
         for row in executions
-        if _is_short_premium_execution(row)
+        if is_short_premium_execution(row)
         and _inside(_date(row.get("occurred_at")), coverage_start, coverage_end)
     )
     opening_credits = sum(
@@ -113,12 +114,6 @@ def _latest_position_rows(rows: Sequence[dict[str, Any]]) -> tuple[dict[str, Any
         row
         for row in rows
         if (str(row.get("account_mask") or "ACCOUNT"), row.get("observed_at")) in latest_keys
-    )
-
-
-def _is_short_premium_execution(row: dict[str, Any]) -> bool:
-    return str(row.get("asset_type") or "").lower() == "option" and (
-        _is_opening_sale(row) or _is_closing_buy(row)
     )
 
 

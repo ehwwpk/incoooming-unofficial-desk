@@ -52,8 +52,8 @@ class PortfolioSummary:
     cash_value: Decimal
     stock_value: Decimal
     option_value: Decimal
-    day_profit_loss: Decimal
-    day_profit_loss_percent: Decimal
+    day_profit_loss: Decimal | None
+    day_profit_loss_percent: Decimal | None
     day_external_cash_flow: Decimal = Decimal("0")
     gross_position_value: Decimal = Decimal("0")
     net_position_value: Decimal = Decimal("0")
@@ -111,6 +111,9 @@ class CampaignSummary:
     collateral: Decimal
     cash_on_capital_percent: Decimal
     progress_percent: int
+    campaign_label: str = ""
+    option_side: str = "call"
+    confidence: str = ""
 
 
 @dataclass(frozen=True, slots=True)

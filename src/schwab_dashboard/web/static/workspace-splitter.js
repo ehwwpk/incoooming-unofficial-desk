@@ -67,7 +67,7 @@
       splitter.setAttribute("aria-valuenow", String(roundedPercent));
       splitter.setAttribute(
         "aria-valuetext",
-        `Price chart ${roundedPercent}%, call status ${100 - roundedPercent}%`,
+        `Price chart ${roundedPercent}%, option status ${100 - roundedPercent}%`,
       );
     });
   };

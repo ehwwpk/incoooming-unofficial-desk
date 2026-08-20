@@ -1,4 +1,4 @@
-{% from "partials/_underlying_option_cards.html" import underlying_call_card, underlying_put_card %}
+{% from "partials/_underlying_option_cards.html" import name_option_card %}
 {% from "partials/_price_time_fact.html" import price_pressure_read %}
 <section class="section-block" id="underlyings">
   {% set live_book = snapshot.live_position_book %}
@@ -6,12 +6,12 @@
     <h2>Options by underlying</h2>
     <div
       class="position-book-summary"
-      aria-label="Current option positions grouped by underlying"
+      aria-label="Current open option contracts grouped by underlying"
     >
       <span><b>{{ snapshot.underlyings | length if snapshot.underlyings else (live_book.underlyings | length if live_book else 0) }}</b> STOCKS</span>
       <span><b>{{ snapshot.covered_calls.total_shares | number(0) if snapshot.underlyings else (live_book.total_shares | number(0) if live_book else 0) }}</b> SHARES</span>
-      <span><b>{{ desk_overview.open_positions }}</b> OPTION POSITIONS</span>
-      <span><b>{{ desk_overview.open_contracts }}</b> CONTRACTS</span>
+      <span><b>{{ desk_overview.open_contracts }}</b> OPEN CONTRACTS</span>
+      <span><b>{{ desk_overview.open_call_contracts }}</b> CALL{{ '' if desk_overview.open_call_contracts == 1 else 'S' }}{% if desk_overview.open_put_contracts %} · <b>{{ desk_overview.open_put_contracts }}</b> PUT{{ '' if desk_overview.open_put_contracts == 1 else 'S' }}{% endif %}</span>
     </div>
   </div>
   {% if snapshot.underlyings %}
@@ -42,9 +42,9 @@
             </span>
           </div>
         </div>
-        <div><span>SHARES</span><strong>{{ item.shares }}</strong><small>{{ item.contract_capacity }} total 100-share lots</small></div>
+        <div><span>SHARES</span><strong>{{ item.shares }}</strong><small>{{ item.contract_capacity }} lots · {{ item.coverage_percent | percent }} covered by short calls</small></div>
         <div class="position-income"><span data-name-option-label>NET OPTION INCOME / 4 WEEKS</span><strong data-name-option-cash>{{ active_window.option_cash | money }}</strong><small><b data-name-dividends>{{ active_window.dividends | money }}</b> dividends</small></div>
-        <div class="position-contracts"><span>OPEN POSITIONS</span><strong>{{ row.open_positions }}</strong><small>{{ item.active_contracts }} call contract{{ '' if item.active_contracts == 1 else 's' }}{% if row.live_underlying and row.live_underlying.open_put_contracts %} · {{ row.live_underlying.open_put_contracts }} put contract{{ '' if row.live_underlying.open_put_contracts == 1 else 's' }}{% endif %} · {{ item.coverage_percent | percent }} of share lots covered</small></div>
+        <div class="position-contracts"><span>OPEN CONTRACTS</span><strong>{{ row.open_contracts }}</strong><small>{{ row.open_call_contracts | contract_sides(row.open_put_contracts) }}</small></div>
         <div class="position-nearest"><span>NEAREST STRIKE</span>{% if row.nearest_call %}<strong>${{ '%g' | format(row.nearest_call.strike) }}C</strong>{% if row.nearest_call.strike_distance_per_share >= 0 %}<small>{{ row.nearest_call.strike_distance_percent | percent }} above · {{ row.nearest_call.days_to_expiration }} DTE</small>{% else %}<small class="negative">{{ (-row.nearest_call.strike_distance_percent) | percent }} past · {{ row.nearest_call.days_to_expiration }} DTE</small>{% endif %}{% else %}<strong>NONE</strong><small>No open call</small>{% endif %}</div>
         <div><span>OPEN MARK P/L</span><strong class="{{ row.open_mark_profit_loss | pnl_class }}">{{ row.open_mark_profit_loss | money }}</strong><small>Unrealized estimate</small></div>
       </summary>
@@ -64,12 +64,12 @@
       <div class="position-detail">
         <div class="name-analytics">
           <div><span data-name-option-apr-label>OPTION INCOME APR / 4W</span><b data-name-option-apr>{{ active_window.option_apr | percent }}</b></div>
-          <div><span data-name-dividend-label>DIVIDENDS / 4W</span><b data-name-dividends>{{ active_window.dividends | money }}</b></div>
-          <div><span>AVG OPEN IV <i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i></span><b>{{ item.average_open_call_iv_percent | percent }}</b></div>
-          <div class="name-price-time" title="Local model sensitivity for this name's open options. Not cash or a forecast."><span>DELTA &middot; NEXT $1 / OPEN BOOK <i>MODEL</i></span>{% if price_time and price_time.up_one_dollar_effect is not none %}<b class="price-time-pair"><em>UP</em> <em class="{{ price_time.up_one_dollar_effect | pnl_class }}">{{ '+' if price_time.up_one_dollar_effect > 0 else '' }}{{ price_time.up_one_dollar_effect | money }}</em> <em>&middot; DOWN</em> <em class="{{ price_time.down_one_dollar_effect | pnl_class }}">{{ '+' if price_time.down_one_dollar_effect > 0 else '' }}{{ price_time.down_one_dollar_effect | money }}</em></b>{{ price_pressure_read(price_time, show_session=true, show_plain=false) }}{% else %}<b>&mdash;</b><small>NEEDS LIVE DELTA</small>{% endif %}</div>
-          <div><span>STRIKE BUFFER</span><b>{{ item.current_strike_buffer_percent | percent }}</b></div>
+          <div title="Sum of current marks on this name's open shorts, calls and puts.{% if row.open_option_entry_credit %} {{ row.open_option_entry_credit | money }} received.{% endif %} Mark, not ask. Includes intrinsic. Not cash or an order.{% if row.open_option_mark_is_prior_session %} Schwab's last option print is from an earlier session.{% endif %}"><span>OPTION VALUE NOW{% if row.open_option_mark_is_prior_session %} · PRIOR SESSION{% if row.open_option_mark_stamp %} · {{ row.open_option_mark_stamp }}{% endif %}{% endif %}</span><b{% if row.open_option_value_now is none %} class="muted"{% endif %}>{{ row.open_option_value_now | money }}</b></div>
+          <div><span>{{ row.open_iv_caption }} <i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i></span><b>{{ row.average_open_option_iv_percent | percent }}</b></div>
+          <div title="Nearest open short call as a percent of spot. Puts are not mixed into this buffer."><span>STRIKE BUFFER</span><b>{{ item.current_strike_buffer_percent | percent }}</b></div>
           <div><span data-name-capture-label>CAPTURE / 4W</span><b data-name-capture>{{ active_window.premium_capture_percent | percent }}</b></div>
-          <div title="Theoretical one-day option value decay across this stock's open short calls, holding other inputs constant."><span>MODEL THETA / DAY</span><b class="positive">+{{ item.open_call_theta_per_day | money }}</b></div>
+          <div title="Theoretical one-day option value decay across this stock's open short options, holding other inputs constant. Not cash."><span>MODEL THETA / DAY</span><b class="positive">+{{ row.open_option_theta_per_day | money }}</b></div>
+          <div class="name-price-time" title="Local model sensitivity for this name's open options. Not cash or a forecast."><span>DELTA &middot; NEXT $1 / OPEN BOOK <i>MODEL</i></span>{% if price_time and price_time.up_one_dollar_effect is not none %}<b class="price-time-pair"><em>UP</em> <em class="{{ price_time.up_one_dollar_effect | pnl_class }}">{{ '+' if price_time.up_one_dollar_effect > 0 else '' }}{{ price_time.up_one_dollar_effect | money }}</em> <em>&middot; DOWN</em> <em class="{{ price_time.down_one_dollar_effect | pnl_class }}">{{ '+' if price_time.down_one_dollar_effect > 0 else '' }}{{ price_time.down_one_dollar_effect | money }}</em></b><span class="name-price-time-read">{{ price_pressure_read(price_time, show_session=true, show_plain=false) }}</span>{% else %}<b>&mdash;</b><small>NEEDS LIVE DELTA</small>{% endif %}</div>
         </div>
 
       <div class="underlying-decision-grid" data-workspace-grid>
@@ -141,7 +141,7 @@
           aria-valuemin="36"
           aria-valuemax="64"
           aria-valuenow="44"
-          aria-valuetext="Price chart 44%, call status 56%"
+          aria-valuetext="Price chart 44%, option status 56%"
           data-workspace-splitter
           title="Drag to resize · Arrow keys adjust · Double-click resets"
         ><i aria-hidden="true"></i></div>
@@ -149,28 +149,25 @@
         <div id="{{ item.symbol | lower }}-call-pane" class="underlying-call-lane">
           <section class="call-clock-board" aria-label="{{ item.symbol }} nearest open options">
             <div class="call-clock-heading">
-              <div><span>OPEN OPTION STATUS</span><small>FIRST 3 BY EXPIRATION</small></div>
+              <div><span>OPEN OPTION STATUS</span><small>{{ row.priority_status_caption }}</small></div>
               <small>MARK / THETA <i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i></small>
             </div>
             <div class="underlying-priority-options">
-              {% for call in item.open_call_clocks[:3] %}{{ underlying_call_card(call, item, snapshot) }}{% endfor %}
-              {% if not item.open_call_clocks and not (row.live_underlying and row.live_underlying.puts) %}<p class="empty-state">No open short options for this underlying.</p>{% endif %}
+              {% for option in row.priority_options %}{{ name_option_card(option, item, snapshot) }}{% endfor %}
+              {% if not row.priority_options %}<p class="empty-state">No open short options for this underlying.</p>{% endif %}
             </div>
           </section>
         </div>
       </div>
 
-      {% set overflow_calls = item.open_call_clocks[3:] %}
-      {% set open_puts = row.live_underlying.puts if row.live_underlying else () %}
-      {% if overflow_calls or open_puts %}
+      {% if row.overflow_options %}
       <section class="underlying-contract-shelf" aria-label="{{ item.symbol }} remaining open options">
         <div class="contract-shelf-heading">
           <span>MORE OPEN OPTIONS</span>
-          <small>{{ overflow_calls | length }} CALL LINE{{ '' if overflow_calls | length == 1 else 'S' }}{% if open_puts %} &middot; {{ open_puts | length }} PUT LINE{{ '' if open_puts | length == 1 else 'S' }}{% endif %}</small>
+          <small>{% if row.overflow_call_count %}{{ row.overflow_call_count }} CALL LINE{{ '' if row.overflow_call_count == 1 else 'S' }}{% endif %}{% if row.overflow_call_count and row.overflow_put_count %} &middot; {% endif %}{% if row.overflow_put_count %}{{ row.overflow_put_count }} PUT LINE{{ '' if row.overflow_put_count == 1 else 'S' }}{% endif %}</small>
         </div>
         <div class="underlying-contract-grid">
-          {% for call in overflow_calls %}{{ underlying_call_card(call, item, snapshot) }}{% endfor %}
-          {% for put in open_puts %}{{ underlying_put_card(put, item) }}{% endfor %}
+          {% for option in row.overflow_options %}{{ name_option_card(option, item, snapshot) }}{% endfor %}
         </div>
       </section>
       {% endif %}
@@ -182,8 +179,8 @@
             <div><span>Expired</span><b>{{ item.expired_contracts }}</b></div>
             <div><span>Closed</span><b>{{ item.closed_contracts }}</b></div>
             <div><span>Rolled</span><b>{{ item.rolled_contracts }}</b></div>
-            <div class="called"><span>Assigned</span><b>{{ item.assigned_contracts }}</b><small>{{ item.called_away_shares }} SH</small></div>
-            <div><span>Open</span><b>{{ item.active_contracts }}</b></div>
+            <div class="called"><span>Assigned</span><b>{{ item.assigned_contracts }}</b><small>{{ item.called_away_shares }} C / {{ item.acquired_shares }} P</small></div>
+            <div><span>Open calls</span><b>{{ item.active_contracts }}</b></div>
           </div>
           <div class="execution-stats">
             <span>AVG STRIKE GAP <b>{{ item.average_strike_upside_percent | percent }}</b></span>

@@ -54,16 +54,16 @@
 .radar-candidate.is-roll-target > header b::after { content: " · NIBWICK TARGET"; color: var(--text); }
 .radar-rules { border-bottom: 1px solid var(--gold-soft); background: #0d0f11; }
 .radar-rules > header { display: flex; align-items: end; justify-content: space-between; gap: 20px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
-.radar-rules h2 { margin: 0; font-size: .72rem; }
+.radar-rules h2 { margin: 0; font: 680 .78rem/1.15 var(--sans); }
 .radar-rules > header > p { max-width: 520px; margin: 0; color: var(--muted); font: .46rem/1.5 var(--mono); text-align: right; }
 .radar-rules form { display: grid; grid-template-columns: repeat(6, minmax(95px, 1fr)) auto; }
 .radar-rules label { display: grid; gap: 6px; padding: 8px 9px; border-right: 1px solid var(--line); }
 .radar-rules input { width: 100%; height: 27px; border: 1px solid var(--line); padding: 0 6px; background: #08090a; color: var(--text); font: 650 .51rem var(--mono); outline: 0; }
 .radar-rules input:focus { border-color: var(--gold); }
 .radar-rules form > button { border: 0; border-left: 1px solid var(--gold-soft); padding-inline: 14px; background: #17140b; font-size: .44rem; }
-.radar-idle { display: grid; grid-template-columns: minmax(280px, 1fr) auto; min-height: 148px; align-items: center; gap: 40px; padding: 24px clamp(24px, 5vw, 80px); }
-.radar-idle h2 { margin: 0; font-size: 1rem; font-weight: 650; }
-.radar-idle p:last-child { max-width: 650px; margin: 9px 0 0; color: var(--muted); font-size: .62rem; line-height: 1.55; }
+.radar-idle { display: grid; grid-template-columns: minmax(280px, 1fr) auto; align-items: center; gap: 24px; padding: 12px 16px; }
+.radar-idle h2 { margin: 0; font: 680 .78rem/1.15 var(--sans); }
+.radar-idle p:last-child { max-width: 650px; margin: 7px 0 0; color: var(--muted); font: var(--type-meta)/1.45 var(--mono); }
 .radar-idle ol { display: flex; margin: 0; padding: 0; list-style: none; }
 .radar-idle li { display: grid; min-width: 104px; gap: 8px; border-left: 1px solid var(--line); padding: 9px 15px; }
 .radar-idle li:last-child { border-right: 1px solid var(--line); }
@@ -75,25 +75,25 @@
 .radar-loading b { color: var(--text); font: 750 .55rem var(--mono); }
 .radar-loading small { color: var(--subtle); font: .45rem var(--mono); }
 @keyframes radar-pulse { to { height: 15px; opacity: .45; } }
-.radar-verdict { display: grid; grid-template-columns: 110px minmax(0, 1fr) auto; min-height: 92px; border-bottom: 1px solid var(--line-strong); background: #101216; }
+.radar-verdict { display: grid; grid-template-columns: 110px minmax(0, 1fr) auto; min-height: 52px; border-bottom: 1px solid var(--line-strong); background: var(--surface-raised); }
 .radar-verdict-code { display: grid; place-content: center; gap: 5px; border-right: 1px solid var(--line); text-align: center; }
 .radar-verdict-code span { color: var(--gold); font: 850 .78rem var(--mono); letter-spacing: .08em; }
 .radar-verdict-code small { color: var(--text-tertiary); font: 700 var(--type-micro) var(--mono); }
-.radar-verdict-copy { align-self: center; padding: 12px 15px; }
-.radar-verdict-copy h2 { margin: 0; font-size: .92rem; }
-.radar-verdict-copy > p:last-child { margin: 6px 0 0; color: var(--muted); font-size: .57rem; line-height: 1.45; }
+.radar-verdict-copy { align-self: center; padding: 7px 11px; }
+.radar-verdict-copy h2 { margin: 0; font: 680 .78rem/1.15 var(--sans); }
+.radar-verdict-copy > p:last-child { margin: 4px 0 0; color: var(--muted); font: var(--type-meta)/1.45 var(--mono); }
 .radar-verdict-actions { display: grid; min-width: 170px; align-content: center; gap: 7px; padding: 10px 13px; border-left: 1px solid var(--line); text-align: right; }
 .radar-verdict-actions button { border: 0; padding: 0; background: transparent; color: var(--gold); font-size: var(--type-control); text-align: right; }
 .radar-verdict-actions span { color: var(--text-tertiary); font: var(--type-micro) var(--mono); }
 .radar-context-strip { display: grid; grid-template-columns: repeat(6, 1fr); border-bottom: 1px solid var(--line-strong); }
-.radar-context-strip > div { display: grid; min-height: 82px; align-content: center; gap: 6px; padding: 9px 11px; border-right: 1px solid var(--line); }
+.radar-context-strip > div { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 3px; padding: 7px 10px; border-right: 1px solid var(--line); }
 .radar-context-strip > div:last-child { border-right: 0; }
-.radar-context-strip span, .radar-context-strip small { color: var(--text-tertiary); font: var(--type-micro) var(--mono); }
-.radar-context-strip strong { font: 750 .76rem var(--mono); }
+.radar-context-strip span, .radar-context-strip small { color: var(--text-tertiary); font: 650 var(--type-control)/1.2 var(--mono); letter-spacing: .04em; }
+.radar-context-strip strong { font: 750 var(--type-body)/1.15 var(--mono); letter-spacing: -.01em; }
 .radar-warning { border-bottom: 1px solid var(--gold-soft); padding: 7px 11px; background: #151208; color: var(--gold); font: .45rem/1.5 var(--mono); }
 .radar-map-panel { scroll-margin-top: 46px; border-bottom: 1px solid var(--line-strong); background: #090b0d; }
-.radar-map-panel > header { display: flex; min-height: 54px; align-items: center; justify-content: space-between; gap: 18px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: #0d0f11; }
-.radar-map-panel h2 { margin: 0; font-size: .76rem; }
+.radar-map-panel > header { display: flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 18px; padding: 7px 11px; border-bottom: 1px solid var(--line); background: var(--surface-raised); }
+.radar-map-panel h2 { margin: 0; font: 680 .78rem/1.15 var(--sans); }
 .radar-map-controls { display: flex; align-items: center; gap: 8px; }
 .radar-map-controls > span { color: var(--text-tertiary); font: var(--type-micro) var(--mono); }
 .radar-indicator-controls { display: none; height: 28px; align-items: center; border: 1px solid var(--line-strong); background: #090a0c; }
@@ -197,7 +197,7 @@
 .radar-map-panel > footer p { margin: 0; color: var(--muted); font: .44rem/1.45 var(--mono); }
 .radar-map-panel > footer span { flex: 0 0 auto; color: var(--gold); font: 700 var(--type-micro) var(--mono); }
 .radar-candidate-panel > header { display: flex; min-height: 50px; align-items: center; justify-content: space-between; gap: 20px; padding: 9px 12px; border-bottom: 1px solid var(--line); }
-.radar-candidate-panel h2 { margin: 0; font-size: .78rem; }
+.radar-candidate-panel h2 { margin: 0; font: 680 .78rem/1.15 var(--sans); }
 .radar-candidate-panel > header > span { color: var(--text-tertiary); font: var(--type-micro) var(--mono); }
 .radar-candidates { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .radar-candidate { min-width: 0; border-right: 1px solid var(--line-strong); border-bottom: 1px solid var(--line); background: #0d0f11; cursor: pointer; outline: 0; transition: background 100ms ease, box-shadow 100ms ease; }
@@ -213,10 +213,10 @@
 .radar-candidate > header b { color: var(--gold); font: 800 .51rem var(--mono); }
 .radar-candidate > header span { color: var(--text-tertiary); font: var(--type-micro) var(--mono); }
 .radar-candidate-hero { display: grid; grid-template-columns: 1fr 1fr; }
-.radar-candidate-hero > div { display: grid; min-height: 80px; align-content: center; gap: 5px; padding: 9px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.radar-candidate-hero > div { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 3px; padding: 7px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .radar-candidate-hero > div:last-child { border-right: 0; }
 .radar-candidate span, .radar-candidate small { color: var(--text-tertiary); font: var(--type-micro) var(--mono); }
-.radar-candidate strong { font: 800 .82rem var(--mono); }
+.radar-candidate strong { font: 750 var(--type-body)/1.15 var(--mono); letter-spacing: -.01em; }
 .radar-candidate .radar-credit-pace { color: var(--gold); font-weight: 750; letter-spacing: .025em; }
 .radar-candidate-roll { display: grid; grid-template-columns: 1.35fr .65fr; border-bottom: 1px solid var(--line-strong); background: #0b0e0f; }
 .radar-candidate-roll > div { display: grid; min-height: 58px; align-content: center; gap: 4px; padding: 7px 10px; border-right: 1px solid var(--line); }

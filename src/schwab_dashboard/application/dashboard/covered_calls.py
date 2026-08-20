@@ -155,6 +155,7 @@ class OpenCallClock:
     session_state: OptionSessionState = OptionSessionState.ACTIVE
     contract_multiplier: Decimal = Decimal("100")
     price_time_read: PriceTimeRead | None = None
+    quote_observed_at: datetime | None = None
 
     @property
     def can_close_or_roll(self) -> bool:
@@ -209,6 +210,7 @@ class CallSaleRecord:
     sale_signal: str
     closed_on: Date | None
     fees: Decimal
+    option_side: str = "CALL"
 
 
 @dataclass(frozen=True, slots=True)
@@ -268,6 +270,7 @@ class UnderlyingCallStats:
     tone: str
     current_session_change_percent: Decimal | None = None
     current_week_change_percent: Decimal | None = None
+    acquired_shares: int = 0
 
     @property
     def open_call_theta_per_day(self) -> Decimal:

@@ -7,6 +7,7 @@ from schwab_dashboard.application.dashboard.cash_activity import (
     build_cash_activity_windows,
 )
 from schwab_dashboard.application.dashboard.cashflows import build_call_cash_events
+from schwab_dashboard.application.dashboard.calculations import broker_day_profit_loss
 from schwab_dashboard.application.dashboard.expiration_calendar import (
     build_expiration_calendar,
 )
@@ -73,11 +74,11 @@ class DemoDashboardReader:
             ),
             D("0"),
         )
-        day_profit_loss = sum(
-            ((position.day_profit_loss or D("0")) for position in positions), D("0")
-        )
         total_value = stock_value + option_value + cash_value
-        previous_value = total_value - day_profit_loss
+        day_profit_loss, day_profit_loss_percent = broker_day_profit_loss(
+            positions,
+            current_account_value=total_value,
+        )
         monthly_performance = build_monthly_performance()
         performance_windows = build_performance_windows(
             call_history, stock_value, as_of, monthly_performance
@@ -143,9 +144,7 @@ class DemoDashboardReader:
                 stock_value=stock_value,
                 option_value=option_value,
                 day_profit_loss=day_profit_loss,
-                day_profit_loss_percent=(day_profit_loss / previous_value * 100).quantize(
-                    D("0.0001")
-                ),
+                day_profit_loss_percent=day_profit_loss_percent,
             ),
             income=IncomeSummary(
                 week=D("80.00"),

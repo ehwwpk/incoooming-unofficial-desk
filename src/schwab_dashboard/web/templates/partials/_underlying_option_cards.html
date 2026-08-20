@@ -1,4 +1,5 @@
 {% from "partials/_option_value_meter.html" import option_value_meter %}
+{% from "partials/_option_term_meter.html" import option_term_meter %}
 {% from "partials/_price_time_fact.html" import price_pressure_row, delta_move_pair %}
 
 {% macro underlying_call_card(call, item, snapshot) -%}
@@ -38,19 +39,11 @@
     </div>
     <div class="option-mark-metrics">
       <div><span>PREMIUM RECEIVED</span><strong>{{ call.entry_credit | money(0) }}</strong><small>{{ call.entry_credit_per_share | money }}/share</small></div>
-      <div><span>OPTION VALUE NOW</span><strong>{{ call.current_option_value | money(0) }}</strong><small>{{ call.mark_per_share | money }}/share current mark</small></div>
+      <div><span>OPTION VALUE NOW</span><strong title="{% if call.quote_observed_on %}{{ call.quote_status }} {{ call.quote_observed_on }}{% endif %}">{{ call.current_option_value | money(0) }}</strong><small>{{ call.mark_per_share | money }}/share current mark</small></div>
     </div>
   </div>
   <div class="option-meter-pair">
-    <div class="option-term-meter call-term-meter" style="--term-progress: {{ call.elapsed_time_percent | number(1) }}%">
-      <div class="option-term-labels">
-        <span>SOLD {{ call.sold_on.strftime('%b %d') | upper }}</span>
-        <strong>{{ call.elapsed_time_percent | percent }} TERM USED</strong>
-        <span>EXP {{ call.expires_on.strftime('%b %d') | upper }} &middot; {{ call.days_to_expiration }} DTE</span>
-      </div>
-      <div class="option-term-track" role="progressbar" aria-label="{{ item.symbol }} ${{ '%g' | format(call.strike) }} call term elapsed" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ call.elapsed_time_percent | number(1) }}"><span></span><i></i></div>
-      <small class="option-meter-caption">CALENDAR TIME SINCE SALE</small>
-    </div>
+    {{ option_term_meter(call.elapsed_time_percent, call.sold_on, call.expires_on, call.days_to_expiration, item.symbol ~ ' $' ~ ('%g' | format(call.strike)) ~ ' call term elapsed') }}
     {{ option_value_meter(call.option_value_vs_credit_percent, call.mark_per_share, call.entry_credit_per_share) }}
   </div>
   <div class="call-context-strip">
@@ -82,7 +75,7 @@
 </article>
 {%- endmacro %}
 
-{% macro underlying_put_card(put, item) -%}
+{% macro underlying_put_card(put, item, snapshot) -%}
 {% set price_time = put.price_time_read %}
 <article
   id="{{ put.option_symbol | option_anchor }}"
@@ -96,32 +89,59 @@
   data-option-side="put"
   data-option-expiration="{{ put.expires_on.isoformat() }}"
   data-option-strike="{{ put.strike }}"
+  data-option-campaign="{{ put.campaign_id }}"
 >
   <header>
     <div>
       <strong>-{{ put.contracts }} {{ put.expires_on.strftime('%b %d') | upper }} ${{ '%g' | format(put.strike) }}P</strong>
+      {% if put.campaign_label %}<span class="call-campaign-chip" title="This live position belongs to chart campaign {{ put.campaign_label }}">{{ put.campaign_label }}</span>{% endif %}
       <span>SHORT PUT</span>
-      {% if put.strike_distance_per_share is not none and put.strike_distance_per_share >= 0 %}
+      <span>{{ put.decay_stage }}</span>
+      {% if put.strike_distance_per_share is not none and put.strike_distance_percent is not none and put.strike_distance_per_share >= 0 %}
       <span class="call-strike-distance positive">{{ put.strike_distance_per_share | money }} / {{ put.strike_distance_percent | percent }} TO STRIKE</span>
-      {% elif put.strike_distance_per_share is not none %}
+      {% elif put.strike_distance_per_share is not none and put.strike_distance_percent is not none %}
       <span class="call-strike-distance negative">{{ (-put.strike_distance_per_share) | money }} / {{ (-put.strike_distance_percent) | percent }} PAST STRIKE</span>
+      {% endif %}
+      {% if put.effective_entry_per_share is not none %}
+      <span class="put-effective-entry" title="Stock purchase price if assigned: strike minus premium received. Not a claim the put is cash secured.">EFF ENTRY {{ put.effective_entry_per_share | money }}/SH</span>
       {% endif %}
     </div>
     <div><b>{{ put.days_to_expiration }}</b><span>DTE</span></div>
   </header>
-  <div class="call-context-strip put-context-strip">
+  <div class="call-economics">
+    <div class="call-open-result">
+      <span>OPEN P/L AT CURRENT MARK</span>
+      <strong class="{{ put.open_profit_loss | pnl_class }}">{{ put.open_profit_loss | money }}</strong>
+      <small>Unrealized &middot; latest Schwab mark</small>
+    </div>
+    <div class="option-mark-metrics">
+      <div><span>PREMIUM RECEIVED</span><strong>{{ put.entry_credit | money(0) }}</strong><small>{{ put.entry_credit_per_share | money }}/share</small></div>
+      <div><span>OPTION VALUE NOW</span><strong title="{% if put.quote_observed_on %}{{ put.quote_status }} {{ put.quote_observed_on }}{% endif %}">{{ put.current_option_value | money(0) }}</strong><small>{{ put.mark_per_share | money }}/share current mark</small></div>
+    </div>
+  </div>
+  <div class="option-meter-pair">
+    {{ option_term_meter(put.elapsed_time_percent, put.sold_on, put.expires_on, put.days_to_expiration, item.symbol ~ ' $' ~ ('%g' | format(put.strike)) ~ ' put term elapsed') }}
+    {{ option_value_meter(put.option_value_vs_credit_percent, put.mark_per_share, put.entry_credit_per_share) }}
+  </div>
+  <div class="call-context-strip">
     <span>
-      <span>MARK</span>
-      <b>{{ put.estimated_mark_per_share | money }}</b>
-      <small>{{ put.bid_per_share | money }} bid &middot; {{ put.ask_per_share | money }} ask</small>
+      <span>TIME VALUE NOW</span>
+      <b>{{ put.remaining_extrinsic_value | money(0) }}</b>
     </span>
+    {% if put.intrinsic_value > 0 %}
+    <span class="negative">
+      <span>INTRINSIC</span>
+      <b>{{ put.intrinsic_value | money(0) }}</b>
+    </span>
+    {% else %}
     <span>
-      <span>OPEN P/L</span>
-      <b class="{{ put.open_profit_loss | pnl_class }}">{{ put.open_profit_loss | money }}</b>
+      <span>INTRINSIC</span>
+      <b>$0 / OTM</b>
     </span>
+    {% endif %}
     <span title="Time decay if price and IV hold still">
-      <span>THETA / DAY</span>
-      <b class="positive">+{{ (-(put.theta_per_share or 0) * put.position_scale) | money }}</b>
+      <span>THETA / DAY <i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i></span>
+      <b class="positive">+{{ put.short_theta_per_day | money }}</b>
     </span>
     <span title="Gamma-adjusted dollar consequence of this position's delta for the next $1 underlying move. Model sensitivity, not a forecast.">
       <span>DELTA &middot; NEXT $1 MOVE</span>
@@ -130,4 +150,8 @@
   </div>
   {{ price_pressure_row(price_time) }}
 </article>
+{%- endmacro %}
+
+{% macro name_option_card(option, item, snapshot) -%}
+{% if option.side == "call" %}{{ underlying_call_card(option.call, item, snapshot) }}{% else %}{{ underlying_put_card(option.put, item, snapshot) }}{% endif %}
 {%- endmacro %}

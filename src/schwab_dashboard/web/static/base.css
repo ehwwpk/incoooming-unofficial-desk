@@ -106,14 +106,7 @@ kbd { border: 1px solid var(--line-strong); padding: 2px 3px; background: var(--
 }
 .nibwick-aisle { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
 .nibwick-glare { display: none; pointer-events: none; }
-.nibwick-tick {
-  position: absolute;
-  top: 0;
-  color: var(--text-tertiary);
-  font: 650 .36rem/1 var(--mono);
-  opacity: .16;
-  transition: color 90ms steps(1, end), opacity 90ms steps(1, end), transform 90ms steps(1, end);
-}
+.nibwick-tick { position: absolute; top: 0; color: var(--text-tertiary); font: 650 .36rem/1 var(--mono); opacity: .16; transition: color 90ms steps(1, end), opacity 90ms steps(1, end), transform 90ms steps(1, end); }
 .nibwick-tick[data-side="left"] { left: 3px; }
 .nibwick-tick[data-side="right"] { right: 3px; }
 .nibwick-tick.is-lit { color: var(--gold); opacity: .82; }

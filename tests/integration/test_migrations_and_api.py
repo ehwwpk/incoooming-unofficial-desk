@@ -46,6 +46,7 @@ def test_initial_migration_supports_local_api(tmp_path: Path) -> None:
         payload = dashboard.json()
         assert payload["mode"] == "live"
         assert payload["positions"] == []
+        assert payload["campaigns"] == []
         assert payload["cash_events"] == []
         assert payload["cash_activity_windows"] == []
         assert payload["cash_chart_series"] == []

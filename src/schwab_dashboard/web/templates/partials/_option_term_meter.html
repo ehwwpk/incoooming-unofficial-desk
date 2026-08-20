@@ -1,0 +1,23 @@
+{% macro option_term_meter(elapsed_percent, sold_on, expires_on, days_to_expiration, aria_label) -%}
+{% if elapsed_percent is not none %}
+<div class="option-term-meter call-term-meter" style="--term-progress: {{ elapsed_percent | number(1) }}%">
+  <div class="option-term-labels">
+    <span>SOLD {{ sold_on.strftime('%b %d') | upper }}</span>
+    <strong>{{ elapsed_percent | percent }} TERM USED</strong>
+    <span>EXP {{ expires_on.strftime('%b %d') | upper }} &middot; {{ days_to_expiration }} DTE</span>
+  </div>
+  <div class="option-term-track" role="progressbar" aria-label="{{ aria_label }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ elapsed_percent | number(1) }}"><span></span><i></i></div>
+  <small class="option-meter-caption">CALENDAR TIME SINCE SALE</small>
+</div>
+{% else %}
+<div class="option-term-meter call-term-meter is-unavailable" role="group" aria-label="Calendar time since sale unavailable">
+  <div class="option-term-labels">
+    <span>OPENING DATE UNAVAILABLE</span>
+    <strong>TERM NOT GUESSED</strong>
+    <span>EXP {{ expires_on.strftime('%b %d') | upper }} &middot; {{ days_to_expiration }} DTE</span>
+  </div>
+  <div class="option-term-track" aria-hidden="true"><span></span></div>
+  <small class="option-meter-caption">CALENDAR TIME SINCE SALE</small>
+</div>
+{% endif %}
+{%- endmacro %}

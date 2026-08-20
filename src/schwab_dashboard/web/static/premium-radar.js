@@ -448,8 +448,8 @@
     setText(
       "[data-radar-comparison-title]",
       isRollReview
-        ? `Later ${projection.mode === "cash_secured_put" ? "puts" : "calls"} in listed expiry and strike order`
-        : "Up to nine contracts worth comparing",
+        ? `Later ${projection.mode === "cash_secured_put" ? "puts" : "calls"}`
+        : "Comparisons",
     );
     if (
       policySummary

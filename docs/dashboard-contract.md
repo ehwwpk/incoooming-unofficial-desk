@@ -92,7 +92,7 @@ Daily cash and daily theta are never interchangeable. Cash appears only on execu
 
 ## Accounting definitions
 
-- Live `TODAY` change is current Schwab liquidation value minus Schwab's start-of-day liquidation value and minus normalized same-market-day external transfers. The market day is derived in America/New_York, not from the UTC date or the host computer's local date. Deposits and withdrawals are disclosed beside the result but are never called profit or loss. The adjusted dollar result is divided by the start-of-day liquidation value. Position-level day P/L is only a fallback when account-level values are unavailable; the header never mixes a position sum with an unrelated account-value denominator.
+- Live `DAY P/L` is the sum of every open position's Schwab `currentDayProfitLoss` (or the imported day column) on the latest completed sync, across every asset type and account in that snapshot. It is the StreetSmart / mobile day tape versus official prior regular-session close, not the change in liquidation value. Percent is those dollars divided by implied prior account value (`NET LIQ` or net position value minus the tape). Deposits and withdrawals are not part of this chip; they never enter broker day P/L. If a book has positions but none of them carry a day print, the chip is blank rather than a false zero. Results time-weighted return remains on the liquidation path and is a different identity.
 - Gross premium is `premium per share × contracts × 100`.
 - Net premium cash flow is gross premium minus executed buy-to-close cash outflow. It describes cash transactions, not mark-to-market profit.
 - Total cash income is net premium cash flow plus dividends.

@@ -15,6 +15,8 @@ from schwab_dashboard.application.dashboard.covered_calls import CoveredCallPort
 from schwab_dashboard.application.dashboard.expiration_calendar import (
     build_expiration_calendar,
 )
+from schwab_dashboard.application.dashboard.live_call_history import project_call_sale_records
+from schwab_dashboard.application.dashboard.live_campaigns import project_campaign_summaries
 from schwab_dashboard.application.dashboard.live_performance import build_live_performance
 from schwab_dashboard.application.dashboard.live_positions import build_live_position_book
 from schwab_dashboard.application.dashboard.live_underlying_stats import (
@@ -129,8 +131,6 @@ class ReadDashboard:
         portfolio = summarize_portfolio(
             positions,
             balances,
-            cash_movements=cash_movements,
-            as_of=as_of,
         )
         live_book = build_live_position_book(
             positions,
@@ -179,6 +179,12 @@ class ReadDashboard:
             open_call_contracts=live_book.open_call_contracts,
             open_put_contracts=live_book.open_put_contracts,
         )
+        campaigns = project_campaign_summaries(
+            executions,
+            lifecycle_events,
+            live_book=live_book,
+            as_of=as_of_market_date,
+        )
         has_live_records = bool(positions or executions or cash_movements or lifecycle_events)
         base_risk = summarize_risk(positions)
         active_risk_options = tuple(
@@ -218,7 +224,7 @@ class ReadDashboard:
                 default=None,
             ),
             largest_position_percent=base_risk.largest_position_percent,
-            open_campaigns=0,
+            open_campaigns=sum(item.status == "OPEN" for item in campaigns),
         )
         return DashboardSnapshot(
             mode="live",
@@ -244,11 +250,16 @@ class ReadDashboard:
             cash_events=performance.cash_events,
             cash_activity_windows=(performance.cash_activity_windows if has_live_records else ()),
             cash_chart_series=performance.cash_chart_series if has_live_records else (),
-            campaigns=(),
+            campaigns=campaigns,
             covered_calls=performance.covered_calls,
             underlyings=underlyings,
             alerts=alerts,
-            call_history=(),
+            call_history=project_call_sale_records(
+                executions,
+                lifecycle_events,
+                daily_bars=daily_bars,
+                as_of=as_of_market_date,
+            ),
             performance_windows=performance.performance_windows if has_live_records else (),
             monthly_performance=performance.monthly_performance if has_live_records else (),
             strategy_attribution=(),

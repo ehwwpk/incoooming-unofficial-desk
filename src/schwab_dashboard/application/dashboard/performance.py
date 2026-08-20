@@ -57,6 +57,7 @@ class MonthlyPerformanceSummary:
     is_partial: bool
     coverage_status: str = "observed"
     coverage_note: str = ""
+    acquired_shares: int = 0
 
 
 @dataclass(frozen=True, slots=True)
