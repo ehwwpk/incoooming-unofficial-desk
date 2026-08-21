@@ -78,6 +78,8 @@ class SchwabAccountMapper:
         if average_price_value is None:
             average_price_value = payload.get("averagePrice")
 
+        day_profit_loss, day_profit_loss_percent = self._market_day_profit_loss(payload)
+
         return BrokerPosition(
             instrument_key=instrument_key,
             symbol=symbol,
@@ -86,10 +88,8 @@ class SchwabAccountMapper:
             short_quantity=short_quantity,
             average_price=self._optional_decimal(average_price_value),
             market_value=self._optional_decimal(payload.get("marketValue")),
-            day_profit_loss=self._optional_decimal(payload.get("currentDayProfitLoss")),
-            day_profit_loss_percent=self._optional_decimal(
-                payload.get("currentDayProfitLossPercentage")
-            ),
+            day_profit_loss=day_profit_loss,
+            day_profit_loss_percent=day_profit_loss_percent,
             description=str(instrument.get("description") or "").strip(),
             underlying_symbol=(
                 str(instrument.get("underlyingSymbol") or "").strip()
@@ -104,6 +104,43 @@ class SchwabAccountMapper:
             long_open_profit_loss=self._optional_decimal(payload.get("longOpenProfitLoss")),
             short_open_profit_loss=self._optional_decimal(payload.get("shortOpenProfitLoss")),
         )
+
+    @classmethod
+    def _market_day_profit_loss(
+        cls,
+        payload: Mapping[str, Any],
+    ) -> tuple[Decimal | None, Decimal | None]:
+        """Remove same-session trade cash from Schwab's position day tape.
+
+        Schwab can fold ``currentDayCost`` into ``currentDayProfitLoss``. That makes
+        a purchase look like a market loss (and an opening sale look like a gain),
+        even though neither cash movement is investment performance. The raw broker
+        payload remains in ``raw_broker_events`` for audit; normalized positions keep
+        only the market component used by the dashboard.
+        """
+
+        reported = cls._optional_decimal(payload.get("currentDayProfitLoss"))
+        reported_percent = cls._optional_decimal(
+            payload.get("currentDayProfitLossPercentage")
+        )
+        if reported is None:
+            return None, reported_percent
+
+        current_day_cost = cls._optional_decimal(payload.get("currentDayCost"))
+        if current_day_cost is None or current_day_cost == 0:
+            return reported, reported_percent
+
+        market_profit_loss = reported + current_day_cost
+        market_value = cls._optional_decimal(payload.get("marketValue"))
+        if market_value is None:
+            return market_profit_loss, None
+
+        prior_market_value = market_value - market_profit_loss
+        if prior_market_value == 0:
+            return market_profit_loss, None
+
+        market_percent = market_profit_loss / abs(prior_market_value) * Decimal("100")
+        return market_profit_loss, market_percent
 
     def _map_balances(self, account: Mapping[str, Any]) -> BrokerAccountBalances:
         current = account.get("currentBalances") or {}
