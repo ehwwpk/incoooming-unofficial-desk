@@ -130,8 +130,12 @@ def test_wave_two_desk_pulse_rows_share_column_grid_and_tight_stacking() -> None
     observed_rule = _rule_block(desk_css, ".income-observed-bar {")
     assert "repeat(4," in observed_rule, "observed bar should share the 4-column pulse grid"
     pulse_cells = _rule_block(desk_css, ".pulse-income-grid > div,")
-    assert "margin-top: auto" not in pulse_cells, "pulse cells should stack tightly, not pin captions"
-    assert "align-content: center" in pulse_cells, "pulse cells should vertically center their stack"
+    assert "margin-top: auto" not in pulse_cells, (
+        "pulse cells should stack tightly, not pin captions"
+    )
+    assert "align-content: center" in pulse_cells, (
+        "pulse cells should vertically center their stack"
+    )
     position_cells = _rule_block(desk_css, ".position-book > summary > div {")
     assert "margin-top: auto" not in position_cells, "name row cells should stack tightly"
 

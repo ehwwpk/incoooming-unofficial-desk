@@ -109,6 +109,15 @@ def test_put_decay_stage_does_not_invent_a_cycle_without_sale_date() -> None:
         put_decay_stage(3, None, session_label="ACTIVE", can_close_or_roll=True) == "EXPIRING SOON"
     )
     assert put_decay_stage(21, None, session_label="ACTIVE", can_close_or_roll=True) == "OPEN TERM"
-    assert put_decay_stage(21, D("20"), session_label="ACTIVE", can_close_or_roll=True) == "EARLY CYCLE"
-    assert put_decay_stage(21, D("50"), session_label="ACTIVE", can_close_or_roll=True) == "MID CYCLE"
-    assert put_decay_stage(21, D("80"), session_label="ACTIVE", can_close_or_roll=True) == "LATE CYCLE"
+    assert (
+        put_decay_stage(21, D("20"), session_label="ACTIVE", can_close_or_roll=True)
+        == "EARLY CYCLE"
+    )
+    assert (
+        put_decay_stage(21, D("50"), session_label="ACTIVE", can_close_or_roll=True)
+        == "MID CYCLE"
+    )
+    assert (
+        put_decay_stage(21, D("80"), session_label="ACTIVE", can_close_or_roll=True)
+        == "LATE CYCLE"
+    )

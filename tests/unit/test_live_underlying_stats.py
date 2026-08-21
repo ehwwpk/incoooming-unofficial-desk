@@ -154,7 +154,10 @@ def test_live_underlying_projection_restores_chart_clocks_and_theta() -> None:
     assert len(underlying.open_call_clocks) == 1
     assert underlying.open_call_clocks[0].sold_on == sold_at.date()
     assert underlying.open_call_clocks[0].roll_quote_candidates[0].strike == D("70")
-    assert all(item.strike > D("65") for item in underlying.open_call_clocks[0].roll_quote_candidates)
+    assert all(
+        item.strike > D("65")
+        for item in underlying.open_call_clocks[0].roll_quote_candidates
+    )
     assert underlying.open_call_clocks[0].position_delta_share_equivalent == D("-60")
     assert underlying.open_call_clocks[0].position_gamma_delta_change_per_dollar == D("-4")
     assert underlying.open_call_clocks[0].position_vega_per_volatility_point == D("-10")

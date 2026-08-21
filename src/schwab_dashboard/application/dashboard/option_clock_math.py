@@ -63,7 +63,7 @@ def short_option_value_vs_credit(
     entry_credit: Decimal,
     current_liability: Decimal,
 ) -> OptionValueRead:
-    """Scale 0–100% of entry credit; excess is reported, never used to rescale."""
+    """Scale 0-100% of entry credit; excess is reported, never used to rescale."""
 
     if entry_credit:
         versus = current_liability / entry_credit * HUNDRED

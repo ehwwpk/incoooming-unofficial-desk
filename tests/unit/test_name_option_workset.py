@@ -224,7 +224,12 @@ def test_name_iv_and_theta_include_open_puts() -> None:
     heavy = replace(
         row,
         put_clocks=(
-            replace(put, implied_volatility_percent=D("90"), contracts=20, short_theta_per_day=D("4")),
+            replace(
+                put,
+                implied_volatility_percent=D("90"),
+                contracts=20,
+                short_theta_per_day=D("4"),
+            ),
         ),
     )
 

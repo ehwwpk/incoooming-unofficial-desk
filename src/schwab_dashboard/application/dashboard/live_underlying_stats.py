@@ -24,10 +24,13 @@ from schwab_dashboard.application.dashboard.models import (
     LiveUnderlyingPosition,
     PositionSummary,
 )
-
 from schwab_dashboard.application.dashboard.short_premium import (
     is_closing_buy as _is_closing_buy,
+)
+from schwab_dashboard.application.dashboard.short_premium import (
     is_opening_sale as _is_opening_sale,
+)
+from schwab_dashboard.application.dashboard.short_premium import (
     is_short_premium_execution,
 )
 

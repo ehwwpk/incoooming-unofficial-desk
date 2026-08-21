@@ -3,13 +3,13 @@ from decimal import Decimal
 
 from schwab_dashboard.application.performance.baselines import build_static_share_baseline
 from schwab_dashboard.application.performance.models import ReturnPoint
+from schwab_dashboard.application.performance.projection import build_performance_comparison
 from schwab_dashboard.application.performance.share_replay import (
     apply_discretionary_equity,
     classify_forced_equity,
     scaled_dividend,
 )
 from schwab_dashboard.application.performance.stock_leverage import stock_leverage_ratio
-from schwab_dashboard.application.performance.projection import build_performance_comparison
 
 D = Decimal
 
