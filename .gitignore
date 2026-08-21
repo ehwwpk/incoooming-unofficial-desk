@@ -10,6 +10,7 @@
 .tmp/
 .pytest-tmp/
 .pytest-tmp-*/
+.pytest-cov-tmp/
 .mypy_cache/
 .ruff_cache/
 __pycache__/

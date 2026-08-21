@@ -7,11 +7,6 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from schwab_dashboard.application.dashboard.anchors import option_contract_anchor
-from schwab_dashboard.application.market_time import (
-    market_date,
-    quote_session_stamp,
-    quote_session_state,
-)
 from schwab_dashboard.application.dashboard.covered_calls import (
     OpenCallClock,
     UnderlyingCallStats,
@@ -24,6 +19,11 @@ from schwab_dashboard.application.dashboard.models import (
 from schwab_dashboard.application.dashboard.open_put_clocks import (
     OpenPutClock,
     build_open_put_clocks,
+)
+from schwab_dashboard.application.market_time import (
+    market_date,
+    quote_session_stamp,
+    quote_session_state,
 )
 from schwab_dashboard.application.risk.models import UnderlyingRiskView
 from schwab_dashboard.application.risk.projection import build_open_risk_summary

@@ -141,7 +141,8 @@ def test_option_card_pressure_read_sits_on_one_bottom_row() -> None:
     assert "UP-MOVE" not in rendered
     assert "HEATING" not in rendered
     assert "LAST SESSION" in rendered
-    assert "<footer" not in rendered[rendered.index("option-pressure-row") : rendered.index("option-pressure-row") + 400]
+    pressure_start = rendered.index("option-pressure-row")
+    assert "<footer" not in rendered[pressure_start : pressure_start + 400]
     assert rendered.index("call-context-strip") < rendered.index("option-pressure-row")
     strip_end = rendered.index("option-pressure-row")
     strip_chunk = rendered[rendered.rfind("call-context-strip", 0, strip_end) : strip_end]
@@ -241,7 +242,10 @@ def test_open_call_workspace_keeps_exact_dte_in_expanded_contract_context() -> N
     assert "5D STOCK" in rendered
     assert "price-pressure-plain" in rendered
     assert "price-pressure-plain" in rendered
-    assert "pressure is heating" in rendered or "pressure is cooling" in rendered or "roughly flat" in rendered
+    assert any(
+        phrase in rendered
+        for phrase in ("pressure is heating", "pressure is cooling", "roughly flat")
+    )
     assert "LAST SESSION" in rendered
     assert "IV +1" in rendered
     assert "MODEL INPUTS" in rendered
@@ -403,7 +407,11 @@ def test_live_book_and_name_strip_keep_compact_pressure() -> None:
         assert "price-pressure-plain" not in chunk
         if "price-pressure-line" in chunk:
             assert "LAST SESSION" in chunk
-    analytics = re.search(r'class="name-analytics">(.*?)</div>\s*<div class="underlying-decision-grid"', names_html, flags=re.S)
+    analytics = re.search(
+        r'class="name-analytics">(.*?)</div>\s*<div class="underlying-decision-grid"',
+        names_html,
+        flags=re.S,
+    )
     assert analytics is not None
     cells = re.findall(r"<div(?: class=\"([^\"]*)\")?", analytics.group(1))
     assert len(cells) == 7
@@ -470,7 +478,8 @@ def test_stale_option_mark_names_prior_session_on_the_tape_title() -> None:
         snapshot=snapshot,
         desk_overview=replace(overview, position_rows=(stale, *overview.position_rows[1:])),
     )
-    assert "OPTION VALUE NOW · PRIOR SESSION" in html or "OPTION VALUE NOW · PRIOR SESSION".replace(" · ", " &middot; ") in html
+    prior_session = "OPTION VALUE NOW · PRIOR SESSION"
+    assert prior_session in html or prior_session.replace(" · ", " &middot; ") in html
 
 
 def test_period_script_survives_removed_dividend_tape_label() -> None:
@@ -727,7 +736,8 @@ def test_open_contracts_are_calls_plus_puts_not_broker_lines() -> None:
     assert f"<b>{overview.open_call_contracts}</b> CALLS · <b>2</b> PUTS" in names
     assert "OPTION POSITIONS" not in names
     assert "OPEN POSITIONS" not in ktos_contracts
-    assert f"<span>OPEN CONTRACTS</span><strong>{ktos_row.open_contracts}</strong>" in ktos_contracts
+    contract_count = f"<span>OPEN CONTRACTS</span><strong>{ktos_row.open_contracts}</strong>"
+    assert contract_count in ktos_contracts
     assert "8 calls · 2 puts" in ktos_contracts
     assert f"<strong>{line_count}</strong>" not in ktos_contracts
     assert "covered" not in ktos_contracts
@@ -747,7 +757,10 @@ def test_open_contracts_are_calls_plus_puts_not_broker_lines() -> None:
     assert "Not cash." in ktos_card
     assert "OPEN OPTION POSITIONS" not in pulse
     assert "distinct strikes" not in pulse
-    assert f"<span>OPEN CONTRACTS</span>\n        <strong>{overview.open_contracts}</strong>" in pulse
+    pulse_contracts = (
+        f"<span>OPEN CONTRACTS</span>\n        <strong>{overview.open_contracts}</strong>"
+    )
+    assert pulse_contracts in pulse
     assert f"{overview.open_call_contracts} calls · 2 puts" in pulse
 
 

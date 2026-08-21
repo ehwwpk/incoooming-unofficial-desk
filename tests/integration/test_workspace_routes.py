@@ -79,7 +79,8 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert '["camera", 1600]' in nibwick_js
         assert "PEER" not in nibwick_js
         assert (
-            'status.textContent = praying ? "PRAY" : studying ? "STUDY" : clearing ? "CLEAR" : "PATROL"'
+            'status.textContent = praying ? "PRAY" : studying ? "STUDY" '
+            ': clearing ? "CLEAR" : "PATROL"'
             in nibwick_js
         )
         assert "data-rail-link" not in desk.text

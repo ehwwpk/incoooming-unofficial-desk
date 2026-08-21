@@ -367,7 +367,9 @@ def _open_put_row(option: LiveOpenOptionPosition) -> OpenPutRow:
         entry_credit_per_share=entry_credit_per_share,
         effective_entry_per_share=put_effective_entry_per_share(
             strike=option.strike,
-            entry_credit_per_share=option.entry_credit_per_share if entry_credit_available else None,
+            entry_credit_per_share=(
+                option.entry_credit_per_share if entry_credit_available else None
+            ),
         ),
         entry_credit=entry_credit,
         current_liability=current_liability,

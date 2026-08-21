@@ -64,7 +64,8 @@ WORKSPACE_CATALOG = (
         short_label="RADAR",
         eyebrow="FORWARD PREMIUM RESEARCH",
         description=(
-            "Start from a name in the book, check a roll, or type a ticker. Seller rules stay inspectable."
+            "Start from a name in the book, check a roll, or type a ticker. "
+            "Seller rules stay inspectable."
         ),
         route="/workspaces/radar",
         template_name="workspaces/_premium_radar.html",
