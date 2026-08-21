@@ -95,3 +95,69 @@ def test_maps_balances_and_short_call_identity() -> None:
     assert position.expiration_date.isoformat() == "2026-09-18"
     assert position.strike == Decimal("75")
     assert position.short_open_profit_loss == Decimal("160")
+
+
+def test_removes_same_session_purchase_cash_from_schwab_day_profit_loss() -> None:
+    records = SchwabAccountMapper().map_records(
+        [{"accountNumber": "12345678", "hashValue": "hash-abc"}],
+        [
+            {
+                "securitiesAccount": {
+                    "accountNumber": "12345678",
+                    "positions": [
+                        {
+                            "longQuantity": 800,
+                            "shortQuantity": 0,
+                            "marketValue": 164480,
+                            "currentDayCost": 15654,
+                            "currentDayProfitLoss": -15790,
+                            "currentDayProfitLossPercentage": -8.76,
+                            "instrument": {
+                                "symbol": "CVX",
+                                "assetType": "EQUITY",
+                            },
+                        }
+                    ],
+                }
+            }
+        ],
+    )
+
+    position = records[0].positions[0]
+    assert position.day_profit_loss == Decimal("-136")
+    assert position.day_profit_loss_percent == (
+        Decimal("-136") / Decimal("164616") * Decimal("100")
+    )
+
+
+def test_removes_opening_option_credit_from_schwab_day_profit_loss() -> None:
+    records = SchwabAccountMapper().map_records(
+        [{"accountNumber": "12345678", "hashValue": "hash-abc"}],
+        [
+            {
+                "securitiesAccount": {
+                    "accountNumber": "12345678",
+                    "positions": [
+                        {
+                            "longQuantity": 0,
+                            "shortQuantity": 2,
+                            "marketValue": -4,
+                            "currentDayCost": -56,
+                            "currentDayProfitLoss": 86,
+                            "currentDayProfitLossPercentage": 95.56,
+                            "instrument": {
+                                "symbol": "CVX   260821C00210000",
+                                "assetType": "OPTION",
+                            },
+                        }
+                    ],
+                }
+            }
+        ],
+    )
+
+    position = records[0].positions[0]
+    assert position.day_profit_loss == Decimal("30")
+    assert position.day_profit_loss_percent == (
+        Decimal("30") / Decimal("34") * Decimal("100")
+    )
