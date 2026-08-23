@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from collections.abc import Callable
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -37,9 +38,16 @@ ZERO = Decimal("0")
 
 
 class CsvDashboardReader:
-    def __init__(self, *, store: SourceDatasetStore, dataset_id: str) -> None:
+    def __init__(
+        self,
+        *,
+        store: SourceDatasetStore,
+        dataset_id: str,
+        clock: Callable[[], datetime] | None = None,
+    ) -> None:
         self._store = store
         self._dataset_id = dataset_id
+        self._clock = clock or _utc_now
 
     def execute(self) -> DashboardSnapshot:
         dataset = self._store.get_dataset(self._dataset_id)
@@ -60,11 +68,13 @@ class CsvDashboardReader:
         lifecycle_events = tuple(
             _analytics_record(item["normalized"]) for item in records if item["kind"] == "lifecycle"
         )
+        evaluated_at = self._clock()
         as_of = dataset.created_at
         portfolio = summarize_portfolio(positions)
         live_book = build_live_position_book(
             positions,
             as_of=as_of.date(),
+            evaluated_at=evaluated_at,
             executions=executions,
         )
         open_premium_pace = build_open_premium_pace(live_book, executions)
@@ -254,3 +264,7 @@ def _optional_decimal(value: object) -> Decimal | None:
 
 def _optional_date(value: object) -> date | None:
     return date.fromisoformat(str(value)) if value else None
+
+
+def _utc_now() -> datetime:
+    return datetime.now(UTC)

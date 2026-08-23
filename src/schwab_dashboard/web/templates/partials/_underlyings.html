@@ -1,5 +1,6 @@
 {% from "partials/_underlying_option_cards.html" import name_option_card %}
 {% from "partials/_price_time_fact.html" import price_pressure_read %}
+{% from "partials/_settlement_item.html" import settlement_item %}
 <section class="section-block" id="underlyings">
   {% set live_book = snapshot.live_position_book %}
   <div class="section-heading terminal-heading position-section-heading">
@@ -10,7 +11,7 @@
     >
       <span><b>{{ snapshot.underlyings | length if snapshot.underlyings else (live_book.underlyings | length if live_book else 0) }}</b> STOCKS</span>
       <span><b>{{ snapshot.covered_calls.total_shares | number(0) if snapshot.underlyings else (live_book.total_shares | number(0) if live_book else 0) }}</b> SHARES</span>
-      <span><b>{{ desk_overview.open_contracts }}</b> OPEN CONTRACTS</span>
+      <span><b>{{ desk_overview.open_contracts }}</b> TRADABLE CONTRACTS</span>
       <span><b>{{ desk_overview.open_call_contracts }}</b> CALL{{ '' if desk_overview.open_call_contracts == 1 else 'S' }}{% if desk_overview.open_put_contracts %} · <b>{{ desk_overview.open_put_contracts }}</b> PUT{{ '' if desk_overview.open_put_contracts == 1 else 'S' }}{% endif %}</span>
     </div>
   </div>
@@ -42,9 +43,9 @@
             </span>
           </div>
         </div>
-        <div><span>SHARES</span><strong>{{ item.shares }}</strong><small>{{ item.contract_capacity }} lots · {{ item.coverage_percent | percent }} covered by short calls</small></div>
+        <div><span>SHARES</span><strong>{{ item.shares }}</strong><small>{{ item.contract_capacity }} lots · {{ row.broker_reported_call_contracts }} committed{% if row.pending_settlement_contracts %} · includes settlement{% endif %}</small></div>
         <div class="position-income"><span data-name-option-label>NET OPTION INCOME / 4 WEEKS</span><strong data-name-option-cash>{{ active_window.option_cash | money }}</strong><small><b data-name-dividends>{{ active_window.dividends | money }}</b> dividends</small></div>
-        <div class="position-contracts"><span>OPEN CONTRACTS</span><strong>{{ row.open_contracts }}</strong><small>{{ row.open_call_contracts | contract_sides(row.open_put_contracts) }}</small></div>
+        <div class="position-contracts"><span>TRADABLE CONTRACTS</span><strong>{{ row.open_contracts }}</strong><small>{{ row.open_call_contracts | contract_sides(row.open_put_contracts) }}</small></div>
         <div class="position-nearest"><span>NEAREST STRIKE</span>{% if row.nearest_call %}<strong>${{ '%g' | format(row.nearest_call.strike) }}C</strong>{% if row.nearest_call.strike_distance_per_share >= 0 %}<small>{{ row.nearest_call.strike_distance_percent | percent }} above · {{ row.nearest_call.days_to_expiration }} DTE</small>{% else %}<small class="negative">{{ (-row.nearest_call.strike_distance_percent) | percent }} past · {{ row.nearest_call.days_to_expiration }} DTE</small>{% endif %}{% else %}<strong>NONE</strong><small>No open call</small>{% endif %}</div>
         <div><span>OPEN MARK P/L</span><strong class="{{ row.open_mark_profit_loss | pnl_class }}">{{ row.open_mark_profit_loss | money }}</strong><small>Unrealized estimate</small></div>
       </summary>
@@ -170,6 +171,15 @@
           {% for option in row.overflow_options %}{{ name_option_card(option, item, snapshot) }}{% endfor %}
         </div>
       </section>
+      {% endif %}
+
+      {% if row.settling_options %}
+      <details class="name-settlement-queue">
+        <summary><span>TRADING CLOSED · WAITING ON SCHWAB</span><small>{{ row.pending_settlement_contracts }} CONTRACT{{ '' if row.pending_settlement_contracts == 1 else 'S' }} · LAST-MARK P/L {{ row.pending_last_mark_profit_loss | money }}</small><i aria-hidden="true"></i></summary>
+        <div class="settlement-register">
+          {% for option in row.settling_options %}{{ settlement_item(option.side, option.record_id, item.symbol, option.contracts, option.strike, option.expires_on, option.session_label, option.expiration_assessment, option.current_option_value, option.open_profit_loss) }}{% endfor %}
+        </div>
+      </details>
       {% endif %}
 
         <section class="underlying-history" aria-label="{{ item.symbol }} execution outcomes and basis">

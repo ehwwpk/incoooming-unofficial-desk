@@ -16,6 +16,8 @@ from schwab_dashboard.application.dashboard.option_clock_math import (
     short_option_term,
     short_option_value_vs_credit,
 )
+from schwab_dashboard.application.expiration import OptionExpirationAssessment
+from schwab_dashboard.application.market_time import OptionSessionState
 from schwab_dashboard.application.risk.price_time import PriceTimeRead
 
 ZERO = Decimal("0")
@@ -57,6 +59,10 @@ class OpenPutClock:
     quote_observed_at: datetime | None = None
     quote_observed_on: date | None = None
     quote_status: str = "UNAVAILABLE"
+    session_state: OptionSessionState = OptionSessionState.ACTIVE
+    session_label: str = "OPEN"
+    can_close_or_roll: bool = True
+    expiration_assessment: OptionExpirationAssessment | None = None
 
 
 def build_open_put_clocks(
@@ -100,9 +106,7 @@ def _clock(
         contracts=put.contracts,
     )
     short_theta = (
-        -(put.theta_per_share or ZERO) * multiplier * contracts
-        if put.can_close_or_roll
-        else ZERO
+        -(put.theta_per_share or ZERO) * multiplier * contracts if put.can_close_or_roll else ZERO
     )
     campaign_id, campaign_label = _resolve_put_campaign(put, campaigns)
     return OpenPutClock(
@@ -148,6 +152,10 @@ def _clock(
             put.quote_observed_at.date() if put.quote_observed_at is not None else None
         ),
         quote_status=(put.quote_quality or "unavailable").upper(),
+        session_state=put.session_state,
+        session_label=put.session_label,
+        can_close_or_roll=put.can_close_or_roll,
+        expiration_assessment=put.expiration_assessment,
     )
 
 

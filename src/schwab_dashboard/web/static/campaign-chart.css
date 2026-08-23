@@ -210,6 +210,10 @@
   box-shadow: 0 0 0 1px rgba(133, 139, 142, .12);
 }
 .campaign-rail-track i.is-open { background: var(--gold); }
+.campaign-rail-track i.is-settling {
+  background: repeating-linear-gradient(90deg, #8b7a45 0 8px, transparent 8px 13px);
+  opacity: .72;
+}
 .campaign-rail-result { justify-content: flex-end; }
 .campaign-rail-result b { color: var(--muted); font-size: 7px; }
 .campaign-rail-result span { color: var(--text); }

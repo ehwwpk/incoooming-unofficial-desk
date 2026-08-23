@@ -5,6 +5,7 @@ from decimal import Decimal
 from schwab_dashboard.application.dashboard.live_positions import build_live_position_book
 from schwab_dashboard.application.dashboard.models import PositionSummary
 from schwab_dashboard.application.dashboard.overview import build_desk_overview
+from schwab_dashboard.application.market_time import OptionSessionState
 from schwab_dashboard.application.ports.brokerage_data import (
     BrokerageSourceProfile,
     BrokerCapability,
@@ -57,6 +58,84 @@ def test_open_book_projection_reconciles_to_dashboard_open_mark() -> None:
     assert projection.risk is not None
     assert projection.risk.context.method == "signed-open-option-greek-aggregation"
     assert projection.risk.theta_estimate_per_day == projection.theta_estimate_per_day
+
+
+def test_open_book_removes_settling_contracts_from_tradable_theta() -> None:
+    snapshot = DemoDashboardReader().execute()
+    changed_underlyings = tuple(
+        replace(
+            underlying,
+            open_call_clocks=tuple(
+                replace(clock, session_state=OptionSessionState.SETTLEMENT_PENDING)
+                for clock in underlying.open_call_clocks
+            ),
+        )
+        for underlying in snapshot.underlyings
+    )
+
+    projection = build_open_book(replace(snapshot, underlyings=changed_underlyings))
+
+    assert projection.actionable_positions == 0
+    assert projection.pending_settlement_positions == projection.total_positions
+    assert projection.theta_estimate_per_day == 0
+    assert projection.same_day_theta_estimate_per_day == 0
+    assert projection.later_theta_estimate_per_day == 0
+
+
+def test_desk_overview_separates_settlement_inventory_from_tradable_metrics() -> None:
+    snapshot = DemoDashboardReader().execute()
+    live_book = build_live_position_book(
+        snapshot.positions,
+        as_of=snapshot.as_of,
+        evaluated_at=snapshot.as_of,
+    )
+    settlement_state = OptionSessionState.SETTLEMENT_PENDING
+    changed_underlyings = tuple(
+        replace(
+            underlying,
+            open_call_clocks=tuple(
+                replace(clock, session_state=settlement_state)
+                for clock in underlying.open_call_clocks
+            ),
+        )
+        for underlying in snapshot.underlyings
+    )
+    changed_live_book = replace(
+        live_book,
+        calls=tuple(replace(option, session_state=settlement_state) for option in live_book.calls),
+        puts=tuple(replace(option, session_state=settlement_state) for option in live_book.puts),
+        underlyings=tuple(
+            replace(
+                underlying,
+                calls=tuple(
+                    replace(option, session_state=settlement_state) for option in underlying.calls
+                ),
+                puts=tuple(
+                    replace(option, session_state=settlement_state) for option in underlying.puts
+                ),
+            )
+            for underlying in live_book.underlyings
+        ),
+    )
+
+    overview = build_desk_overview(
+        replace(
+            snapshot,
+            underlyings=changed_underlyings,
+            live_position_book=changed_live_book,
+        )
+    )
+
+    assert overview.open_positions == 0
+    assert overview.open_contracts == 0
+    assert overview.open_call_contracts == 0
+    assert overview.open_put_contracts == 0
+    assert overview.open_mark_profit_loss == 0
+    assert overview.daily_theta == 0
+    assert overview.nearest_call is None
+    assert overview.next_expiring_option is None
+    assert overview.pending_settlement_positions == overview.broker_reported_positions
+    assert overview.pending_settlement_contracts == overview.broker_reported_contracts
 
 
 def test_open_book_risk_normalizes_naive_sqlite_sync_timestamps() -> None:

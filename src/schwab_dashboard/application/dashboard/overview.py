@@ -20,6 +20,7 @@ from schwab_dashboard.application.dashboard.open_put_clocks import (
     OpenPutClock,
     build_open_put_clocks,
 )
+from schwab_dashboard.application.expiration import OptionExpirationAssessment
 from schwab_dashboard.application.market_time import (
     market_date,
     quote_session_stamp,
@@ -87,6 +88,49 @@ class NameOptionSlot:
         assert self.put is not None
         return self.put.strike_distance_percent
 
+    @property
+    def can_close_or_roll(self) -> bool:
+        clock = self.call if self.call is not None else self.put
+        assert clock is not None
+        return clock.can_close_or_roll
+
+    @property
+    def contracts(self) -> int:
+        clock = self.call if self.call is not None else self.put
+        assert clock is not None
+        return clock.contracts
+
+    @property
+    def session_label(self) -> str:
+        clock = self.call if self.call is not None else self.put
+        assert clock is not None
+        return clock.session_label
+
+    @property
+    def expiration_assessment(self) -> OptionExpirationAssessment | None:
+        clock = self.call if self.call is not None else self.put
+        assert clock is not None
+        return clock.expiration_assessment
+
+    @property
+    def current_option_value(self) -> Decimal:
+        clock = self.call if self.call is not None else self.put
+        assert clock is not None
+        return clock.current_option_value
+
+    @property
+    def open_profit_loss(self) -> Decimal:
+        clock = self.call if self.call is not None else self.put
+        assert clock is not None
+        return clock.open_profit_loss
+
+    @property
+    def record_id(self) -> str:
+        if self.call is not None:
+            return self.call.record_id
+        assert self.put is not None
+        return self.put.option_symbol
+
 
 @dataclass(frozen=True, slots=True)
 class DeskPositionRow:
@@ -103,14 +147,35 @@ class DeskPositionRow:
     risk: UnderlyingRiskView | None
     put_clocks: tuple[OpenPutClock, ...] = ()
     evaluated_at: datetime | None = None
+    pending_settlement_positions: int = 0
+    pending_settlement_contracts: int = 0
+    pending_last_mark_profit_loss: Decimal = ZERO
+    broker_reported_call_contracts: int = 0
+    broker_reported_put_contracts: int = 0
 
     @property
     def open_contracts(self) -> int:
         return self.open_call_contracts + self.open_put_contracts
 
     @property
+    def broker_reported_contracts(self) -> int:
+        return self.broker_reported_call_contracts + self.broker_reported_put_contracts
+
+    @property
     def open_options(self) -> tuple[NameOptionSlot, ...]:
-        return ordered_name_options(self.underlying.open_call_clocks, self.put_clocks)
+        return tuple(
+            slot
+            for slot in ordered_name_options(self.underlying.open_call_clocks, self.put_clocks)
+            if slot.can_close_or_roll
+        )
+
+    @property
+    def settling_options(self) -> tuple[NameOptionSlot, ...]:
+        return tuple(
+            slot
+            for slot in ordered_name_options(self.underlying.open_call_clocks, self.put_clocks)
+            if not slot.can_close_or_roll
+        )
 
     @property
     def priority_options(self) -> tuple[NameOptionSlot, ...]:
@@ -136,8 +201,15 @@ class DeskPositionRow:
 
     @property
     def open_option_theta_per_day(self) -> Decimal:
-        return self.underlying.open_call_theta_per_day + sum(
-            (clock.short_theta_per_day for clock in self.put_clocks),
+        return sum(
+            (
+                clock.short_theta_per_day
+                for clock in self.underlying.open_call_clocks
+                if clock.can_close_or_roll
+            ),
+            ZERO,
+        ) + sum(
+            (clock.short_theta_per_day for clock in self.put_clocks if clock.can_close_or_roll),
             ZERO,
         )
 
@@ -149,19 +221,30 @@ class DeskPositionRow:
         instead of a fake $0.00 overlay. Zero marks on live shorts stay zero.
         """
 
-        if not self.underlying.open_call_clocks and not self.put_clocks:
+        actionable_calls = tuple(
+            clock for clock in self.underlying.open_call_clocks if clock.can_close_or_roll
+        )
+        actionable_puts = tuple(clock for clock in self.put_clocks if clock.can_close_or_roll)
+        if not actionable_calls and not actionable_puts:
             return None
         return sum(
-            (clock.current_option_value for clock in self.underlying.open_call_clocks),
+            (clock.current_option_value for clock in actionable_calls),
             ZERO,
-        ) + sum((clock.current_option_value for clock in self.put_clocks), ZERO)
+        ) + sum((clock.current_option_value for clock in actionable_puts), ZERO)
 
     @property
     def open_option_entry_credit(self) -> Decimal:
         return sum(
-            (clock.entry_credit for clock in self.underlying.open_call_clocks),
+            (
+                clock.entry_credit
+                for clock in self.underlying.open_call_clocks
+                if clock.can_close_or_roll
+            ),
             ZERO,
-        ) + sum((clock.entry_credit for clock in self.put_clocks), ZERO)
+        ) + sum(
+            (clock.entry_credit for clock in self.put_clocks if clock.can_close_or_roll),
+            ZERO,
+        )
 
     @property
     def open_option_mark_is_prior_session(self) -> bool:
@@ -192,17 +275,22 @@ class DeskPositionRow:
         return None
 
     @property
-    def _mark_clocks(self) -> tuple[object, ...]:
-        return (*self.underlying.open_call_clocks, *self.put_clocks)
+    def _mark_clocks(self) -> tuple[OpenCallClock | OpenPutClock, ...]:
+        clocks: list[OpenCallClock | OpenPutClock] = []
+        clocks.extend(
+            clock for clock in self.underlying.open_call_clocks if clock.can_close_or_roll
+        )
+        clocks.extend(clock for clock in self.put_clocks if clock.can_close_or_roll)
+        return tuple(clocks)
 
-    def _clock_is_prior(self, clock: object) -> bool:
+    def _clock_is_prior(self, clock: OpenCallClock | OpenPutClock) -> bool:
         evaluated = self._mark_evaluated_at
         if evaluated is None:
             return False
-        observed_at = getattr(clock, "quote_observed_at", None)
+        observed_at = clock.quote_observed_at
         if observed_at is not None:
             return quote_session_state(observed_at, evaluated_at=evaluated).is_prior_session
-        observed_on = getattr(clock, "quote_observed_on", None)
+        observed_on = clock.quote_observed_on
         if observed_on is None:
             return False
         return observed_on < market_date(evaluated)
@@ -213,12 +301,12 @@ class DeskPositionRow:
             *(
                 (clock.implied_volatility_percent, clock.contracts)
                 for clock in self.underlying.open_call_clocks
-                if clock.implied_volatility_percent is not None
+                if clock.can_close_or_roll and clock.implied_volatility_percent is not None
             ),
             *(
                 (clock.implied_volatility_percent, clock.contracts)
                 for clock in self.put_clocks
-                if clock.implied_volatility_percent is not None
+                if clock.can_close_or_roll and clock.implied_volatility_percent is not None
             ),
         ]
         weight = sum(contracts for _, contracts in samples)
@@ -233,10 +321,9 @@ class DeskPositionRow:
     def open_iv_caption(self) -> str:
         """Call-only copy when puts exist but none of them reported IV."""
 
-        put_iv = any(
-            clock.implied_volatility_percent is not None for clock in self.put_clocks
-        )
-        if self.put_clocks and not put_iv:
+        actionable_puts = tuple(clock for clock in self.put_clocks if clock.can_close_or_roll)
+        put_iv = any(clock.implied_volatility_percent is not None for clock in actionable_puts)
+        if actionable_puts and not put_iv:
             return "AVG OPEN CALL IV"
         return "AVG OPEN IV"
 
@@ -261,6 +348,13 @@ class DeskOverview:
     open_call_positions: int
     open_call_contracts: int
     daily_theta: Decimal
+    broker_reported_positions: int = 0
+    broker_reported_contracts: int = 0
+    pending_settlement_positions: int = 0
+    pending_settlement_contracts: int = 0
+    pending_last_mark_profit_loss: Decimal = ZERO
+    broker_reported_call_contracts: int = 0
+    broker_reported_put_contracts: int = 0
 
 
 def ordered_name_options(
@@ -307,25 +401,28 @@ def build_desk_overview(snapshot: DashboardSnapshot) -> DeskOverview:
 
     for underlying in snapshot.underlyings:
         calls = tuple(underlying.open_call_clocks)
-        call_focuses = tuple(_call_focus(underlying.symbol, call) for call in calls)
+        actionable_calls = tuple(call for call in calls if call.can_close_or_roll)
+        settling_calls = tuple(call for call in calls if not call.can_close_or_roll)
+        call_focuses = tuple(_call_focus(underlying.symbol, call) for call in actionable_calls)
         all_calls.extend(call_focuses)
         live_underlying = live_by_symbol.get(underlying.symbol)
         put_positions = tuple(live_underlying.puts) if live_underlying is not None else ()
-        open_call_contracts, open_put_contracts = _open_contract_counts(
-            underlying, live_underlying
-        )
+        actionable_puts = tuple(put for put in put_positions if put.can_close_or_roll)
+        settling_puts = tuple(put for put in put_positions if not put.can_close_or_roll)
+        open_call_contracts = sum(call.contracts for call in actionable_calls)
+        open_put_contracts = sum(put.contracts for put in actionable_puts)
         rows.append(
             DeskPositionRow(
                 underlying=underlying,
                 nearest_call=_nearest_call(call_focuses),
-                open_positions=len(calls) + len(put_positions),
+                open_positions=len(actionable_calls) + len(actionable_puts),
                 open_call_contracts=open_call_contracts,
                 open_put_contracts=open_put_contracts,
                 open_mark_profit_loss=sum(
-                    (call.open_profit_loss for call in calls),
+                    (call.open_profit_loss for call in actionable_calls),
                     ZERO,
                 )
-                + sum((put.open_profit_loss or ZERO for put in put_positions), ZERO),
+                + sum((put.open_profit_loss or ZERO for put in actionable_puts), ZERO),
                 alert_count=alert_counts[underlying.symbol],
                 live_underlying=live_underlying,
                 risk=risk_by_symbol.get(underlying.symbol),
@@ -334,6 +431,15 @@ def build_desk_overview(snapshot: DashboardSnapshot) -> DeskOverview:
                     campaigns=snapshot.campaigns,
                 ),
                 evaluated_at=snapshot.as_of,
+                pending_settlement_positions=len(settling_calls) + len(settling_puts),
+                pending_settlement_contracts=sum(call.contracts for call in settling_calls)
+                + sum(put.contracts for put in settling_puts),
+                pending_last_mark_profit_loss=sum(
+                    (call.open_profit_loss for call in settling_calls), ZERO
+                )
+                + sum((put.open_profit_loss or ZERO for put in settling_puts), ZERO),
+                broker_reported_call_contracts=sum(call.contracts for call in calls),
+                broker_reported_put_contracts=sum(put.contracts for put in put_positions),
             )
         )
 
@@ -342,11 +448,11 @@ def build_desk_overview(snapshot: DashboardSnapshot) -> DeskOverview:
         all_options = all_calls + all_puts
         return DeskOverview(
             position_rows=(),
-            open_positions=live_book.open_call_positions + live_book.open_put_positions,
-            open_contracts=live_book.open_call_contracts + live_book.open_put_contracts,
+            open_positions=len(live_book.actionable_options),
+            open_contracts=live_book.actionable_contracts,
             contract_capacity=live_book.contract_capacity,
             coverage_percent=live_book.coverage_percent,
-            open_mark_profit_loss=live_book.total_open_mark_profit_loss,
+            open_mark_profit_loss=live_book.actionable_open_mark_profit_loss,
             nearest_call=_nearest_call(all_calls),
             next_expiring_option=min(
                 (option for option in all_options if option.can_close_or_roll),
@@ -356,28 +462,52 @@ def build_desk_overview(snapshot: DashboardSnapshot) -> DeskOverview:
             dividend_overlap_contracts=0,
             alert_count=len(snapshot.alerts),
             underlying_count=len(live_book.underlyings),
-            open_put_positions=live_book.open_put_positions,
-            open_put_contracts=live_book.open_put_contracts,
-            open_call_positions=live_book.open_call_positions,
-            open_call_contracts=live_book.open_call_contracts,
-            daily_theta=snapshot.risk.daily_theta,
+            open_put_positions=sum(put.can_close_or_roll for put in live_book.puts),
+            open_put_contracts=sum(
+                put.contracts for put in live_book.puts if put.can_close_or_roll
+            ),
+            open_call_positions=sum(call.can_close_or_roll for call in live_book.calls),
+            open_call_contracts=sum(
+                call.contracts for call in live_book.calls if call.can_close_or_roll
+            ),
+            daily_theta=sum(
+                (
+                    option.price_time_read.theta_per_day or ZERO
+                    for option in live_book.actionable_options
+                ),
+                ZERO,
+            ),
+            broker_reported_positions=len(live_book.options),
+            broker_reported_contracts=sum(option.contracts for option in live_book.options),
+            pending_settlement_positions=len(live_book.settling_options),
+            pending_settlement_contracts=live_book.settling_contracts,
+            pending_last_mark_profit_loss=live_book.settling_last_mark_profit_loss,
+            broker_reported_call_contracts=sum(call.contracts for call in live_book.calls),
+            broker_reported_put_contracts=sum(put.contracts for put in live_book.puts),
         )
 
-    open_put_positions = live_book.open_put_positions if live_book is not None else 0
-    open_put_contracts = live_book.open_put_contracts if live_book is not None else 0
+    actionable_puts = tuple(
+        put for put in (live_book.puts if live_book is not None else ()) if put.can_close_or_roll
+    )
+    open_put_positions = len(actionable_puts)
+    open_put_contracts = sum(put.contracts for put in actionable_puts)
+    actionable_call_clocks = tuple(
+        clock
+        for underlying in snapshot.underlyings
+        for clock in underlying.open_call_clocks
+        if clock.can_close_or_roll
+    )
     all_options = all_calls + all_puts
     return DeskOverview(
         position_rows=tuple(rows),
         open_positions=len(all_calls) + open_put_positions,
-        open_contracts=snapshot.covered_calls.active_contracts + open_put_contracts,
+        open_contracts=sum(clock.contracts for clock in actionable_call_clocks)
+        + open_put_contracts,
         contract_capacity=snapshot.covered_calls.contract_capacity,
         coverage_percent=snapshot.covered_calls.coverage_percent,
         open_mark_profit_loss=(
-            snapshot.covered_calls.open_mark_profit_loss
-            + sum(
-                (put.open_profit_loss or ZERO for put in (live_book.puts if live_book else ())),
-                ZERO,
-            )
+            sum((clock.open_profit_loss for clock in actionable_call_clocks), ZERO)
+            + sum((put.open_profit_loss or ZERO for put in actionable_puts), ZERO)
         ),
         nearest_call=_nearest_call(all_calls),
         next_expiring_option=min(
@@ -393,8 +523,31 @@ def build_desk_overview(snapshot: DashboardSnapshot) -> DeskOverview:
         open_put_positions=open_put_positions,
         open_put_contracts=open_put_contracts,
         open_call_positions=len(all_calls),
-        open_call_contracts=snapshot.covered_calls.active_contracts,
-        daily_theta=snapshot.risk.daily_theta,
+        open_call_contracts=sum(clock.contracts for clock in actionable_call_clocks),
+        daily_theta=sum((row.open_option_theta_per_day for row in rows), ZERO),
+        broker_reported_positions=(len(live_book.options) if live_book is not None else 0),
+        broker_reported_contracts=(
+            sum(option.contracts for option in live_book.options) if live_book is not None else 0
+        ),
+        pending_settlement_positions=(
+            len(live_book.settling_options) if live_book is not None else 0
+        ),
+        pending_settlement_contracts=(live_book.settling_contracts if live_book is not None else 0),
+        pending_last_mark_profit_loss=(
+            live_book.settling_last_mark_profit_loss if live_book is not None else ZERO
+        ),
+        broker_reported_call_contracts=(
+            sum(call.contracts for call in live_book.calls)
+            if live_book is not None
+            else sum(
+                clock.contracts
+                for underlying in snapshot.underlyings
+                for clock in underlying.open_call_clocks
+            )
+        ),
+        broker_reported_put_contracts=(
+            sum(put.contracts for put in live_book.puts) if live_book is not None else 0
+        ),
     )
 
 

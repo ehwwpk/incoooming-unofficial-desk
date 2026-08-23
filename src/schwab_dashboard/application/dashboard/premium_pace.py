@@ -35,7 +35,7 @@ def build_open_premium_pace(
     daily figure is withheld instead of extrapolating an unverified term.
     """
 
-    options = (*book.calls, *book.puts)
+    options = tuple(option for option in (*book.calls, *book.puts) if option.can_close_or_roll)
     total_contracts = sum(option.contracts for option in options)
     opening_credit = ZERO
     daily_pace = ZERO
@@ -63,9 +63,7 @@ def build_open_premium_pace(
 
     complete = total_contracts > 0 and timed_contracts == total_contracts
     verified_pace = daily_pace if complete else None
-    weighted_term = (
-        opening_credit / daily_pace if complete and daily_pace > ZERO else None
-    )
+    weighted_term = opening_credit / daily_pace if complete and daily_pace > ZERO else None
     return OpenPremiumPace(
         daily_pace=verified_pace,
         opening_credit=opening_credit,
@@ -80,7 +78,9 @@ def build_demo_premium_pace(
 ) -> OpenPremiumPace:
     """Build the same pace from fully modeled demo call clocks."""
 
-    clocks = tuple(clock for item in underlyings for clock in item.open_call_clocks)
+    clocks = tuple(
+        clock for item in underlyings for clock in item.open_call_clocks if clock.can_close_or_roll
+    )
     opening_credit = sum((clock.entry_credit for clock in clocks), ZERO)
     daily_pace = sum(
         (
@@ -154,8 +154,7 @@ def _weighted_inverse_term(
     total_weight = sum((weight for weight, _ in weighted_terms), ZERO)
     if total_weight <= ZERO:
         weighted_terms = [
-            (lot.contracts, Decimal(max(1, (expires_on - lot.opened_on).days)))
-            for lot in lots
+            (lot.contracts, Decimal(max(1, (expires_on - lot.opened_on).days))) for lot in lots
         ]
         total_weight = sum((weight for weight, _ in weighted_terms), ZERO)
     if total_weight <= ZERO:

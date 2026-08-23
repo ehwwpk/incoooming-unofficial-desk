@@ -7,6 +7,8 @@ from sqlalchemy import inspect
 
 from schwab_dashboard.application.errors import AuthenticationRequiredError
 from schwab_dashboard.application.market_time import option_session_cache_partition
+from schwab_dashboard.application.performance.models import PerformanceComparison
+from schwab_dashboard.application.performance.periods import PerformancePeriod
 from schwab_dashboard.application.ports.dashboard import DashboardReader
 from schwab_dashboard.application.ports.opportunity_market import OpportunityMarketGateway
 from schwab_dashboard.application.services.cached_campaign_chart import (
@@ -25,6 +27,9 @@ from schwab_dashboard.application.services.read_campaign_chart import (
     ReadSnapshotCampaignChart,
 )
 from schwab_dashboard.application.services.read_dashboard import ReadDashboard
+from schwab_dashboard.application.services.read_performance_comparison import (
+    ReadPerformanceComparison,
+)
 from schwab_dashboard.application.services.record_ledger_activity import RecordLedgerActivity
 from schwab_dashboard.application.services.record_market_observations import (
     RecordMarketObservations,
@@ -116,6 +121,10 @@ class Container:
             key_prefix=("campaign-chart", "schwab"),
             cache_partition=_live_option_session_partition,
         )
+        self._performance_comparison_reader = ReadPerformanceComparison(
+            analytics_reader=self._analytics_reader,
+            margin_interest_rate_percent=self.settings.margin_interest_rate_percent,
+        )
         self.opportunity_store = SqlOpportunityStore(self.session_factory)
         self.source_store = SqlSourceDatasetStore(self.session_factory)
         self.market_history_refresh = MarketHistoryRefreshPolicy(
@@ -190,6 +199,14 @@ class Container:
             delegate=ReadSnapshotCampaignChart(self.read_dashboard(normalized_source)),
             cache=self._runtime_cache,
             key_prefix=("campaign-chart", normalized_source),
+        )
+
+    def read_performance_comparison(
+        self, period: PerformancePeriod
+    ) -> PerformanceComparison:
+        return self._runtime_cache.get_or_load(
+            (("performance-comparison", "schwab", period.value), _live_option_session_partition()),
+            lambda: self._performance_comparison_reader.execute(period),
         )
 
     def sync_accounts(self) -> SyncAccountsAndPositions:

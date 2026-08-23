@@ -12,6 +12,7 @@ from schwab_dashboard.application.dashboard.models import (
     LiveUnderlyingPosition,
     PositionSummary,
 )
+from schwab_dashboard.application.expiration import assess_option_expiration
 from schwab_dashboard.application.market_time import (
     market_date,
     option_session_state,
@@ -65,6 +66,11 @@ def build_live_position_book(
         quote = option_quotes.get(_canonical(position.symbol), {})
         option_type = str(position.option_type or "").upper()
         session_state = option_session_state(position.expiration_date, session_clock)
+        official_expiration_close = _official_expiration_close(
+            position.underlying_symbol,
+            expires_on=position.expiration_date,
+            daily_bars=daily_bars,
+        )
         opened_on = remaining_open_lot_date(position.symbol, executions)
         distance = (
             position.strike - underlying_price
@@ -135,6 +141,15 @@ def build_live_position_book(
                 max(0, (position.expiration_date - opened_on).days)
                 if opened_on is not None
                 else None
+            ),
+            expiration_assessment=assess_option_expiration(
+                option_side=option_type,
+                session_state=session_state,
+                strike=position.strike,
+                contracts=contracts,
+                contract_multiplier=position.contract_multiplier or HUNDRED,
+                official_close=official_expiration_close,
+                latest_underlying_price=underlying_price,
             ),
         )
         if option_type == "CALL":
@@ -325,6 +340,26 @@ def _weekly_reference_price(
     if len(rows) < offset:
         return None
     return _optional_decimal(rows[-offset].get("close"))
+
+
+def _official_expiration_close(
+    symbol: str,
+    *,
+    expires_on: date,
+    daily_bars: Sequence[Mapping[str, object]],
+) -> Decimal | None:
+    """Return only an exact expiration-session close, never a nearby proxy."""
+
+    matches = [
+        row
+        for row in daily_bars
+        if _canonical(str(row.get("symbol") or "")) == _canonical(symbol)
+        and row.get("trade_date") is not None
+        and _date(row.get("trade_date")) == expires_on
+    ]
+    if not matches:
+        return None
+    return _optional_decimal(matches[-1].get("close"))
 
 
 def _optional_datetime(value: object) -> datetime | None:

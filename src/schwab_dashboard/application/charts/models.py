@@ -60,6 +60,20 @@ class ChartCampaign:
     net_cash: Decimal
     legs: tuple[ChartLeg, ...]
     risk_reference: ChartRiskReference | None = None
+    settlement: ChartSettlementState | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ChartSettlementState:
+    """Provisional post-trading state for a broker-reported open campaign."""
+
+    session_state: str
+    session_label: str
+    expectation: str
+    expectation_label: str
+    reference_price: Decimal | None
+    reference_label: str
+    can_close_or_roll: bool
 
 
 @dataclass(frozen=True, slots=True)

@@ -176,6 +176,7 @@ def _clock(
         contract_multiplier=call.contract_multiplier,
         price_time_read=call.price_time_read,
         quote_observed_at=call.quote_observed_at,
+        expiration_assessment=call.expiration_assessment,
     )
 
 

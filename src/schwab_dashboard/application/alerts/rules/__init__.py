@@ -5,11 +5,15 @@ from schwab_dashboard.application.alerts.rules.option_proximity import (
     evaluate_call_expiration_pressures,
     evaluate_short_put_pressure,
 )
+from schwab_dashboard.application.alerts.rules.settlement import (
+    evaluate_settlement_attention,
+)
 
 __all__ = [
     "evaluate_call_expiration_pressure",
     "evaluate_call_expiration_pressures",
     "evaluate_dividend_overlap",
     "evaluate_fast_move",
+    "evaluate_settlement_attention",
     "evaluate_short_put_pressure",
 ]

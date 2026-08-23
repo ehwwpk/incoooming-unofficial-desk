@@ -63,7 +63,7 @@
       {% if not loop.first %}hidden{% endif %}
     >
       <div class="nibwick-note-brief"><p>{{ alert.message }}</p></div>
-      <dl{% if alert.facts | length == 4 %} class="four-up"{% endif %}>
+      <dl{% if alert.facts | length == 4 %} class="four-up"{% elif alert.facts | length == 3 %} class="three-up"{% endif %}>
         {% for fact in alert.facts %}<div><dt>{{ fact.label }}</dt><dd><strong>{{ fact.value }}</strong>{% if fact.detail %}<span>{{ fact.detail }}</span>{% endif %}</dd></div>{% endfor %}
       </dl>
       {% if alert.roll_scenarios %}

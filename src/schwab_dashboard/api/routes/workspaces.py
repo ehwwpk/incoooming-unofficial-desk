@@ -1,4 +1,4 @@
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
@@ -8,6 +8,10 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from schwab_dashboard.api.dependencies import get_container
 from schwab_dashboard.api.source_context import selected_source_key, source_label
+from schwab_dashboard.application.performance.periods import (
+    PERFORMANCE_PERIODS,
+    PerformancePeriod,
+)
 from schwab_dashboard.application.rolls.board import build_roll_board
 from schwab_dashboard.application.rolls.catalog import build_roll_source_catalog
 from schwab_dashboard.application.workspaces.catalog import get_workspace, list_workspaces
@@ -37,6 +41,7 @@ def workspace_page(
     workspace_key: WorkspaceKey,
     request: Request,
     container: ContainerDependency,
+    period: PerformancePeriod = PerformancePeriod.ALL,
 ) -> Response:
     page_built_at = datetime.now(UTC)
     if workspace_key is WorkspaceKey.DESK:
@@ -50,6 +55,15 @@ def workspace_page(
         snapshot = container.read_dashboard(source_key).execute()
     except LookupError:
         return RedirectResponse(url="/sources", status_code=303)
+    if (
+        workspace_key is WorkspaceKey.ATTRIBUTION
+        and source_key == "schwab"
+        and period is not PerformancePeriod.ALL
+    ):
+        snapshot = replace(
+            snapshot,
+            performance_comparison=container.read_performance_comparison(period),
+        )
     dataset = (
         container.source_store.get_dataset(source_key.removeprefix("csv:"))
         if source_key.startswith("csv:")
@@ -80,6 +94,12 @@ def workspace_page(
             row.symbol: row for row in build_volatility_rows(snapshot)
         }
     elif workspace_key is WorkspaceKey.ATTRIBUTION and snapshot.performance_comparison:
+        if source_key == "schwab":
+            context["selected_performance_period"] = period.value
+            context["performance_period_options"] = tuple(
+                {"value": item.value, "label": item.label}
+                for item in PERFORMANCE_PERIODS
+            )
         context["performance_comparison_payload"] = jsonable_encoder(
             asdict(snapshot.performance_comparison)
         )

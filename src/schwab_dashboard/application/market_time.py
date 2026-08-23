@@ -5,46 +5,46 @@ from enum import StrEnum
 from zoneinfo import ZoneInfo
 
 MARKET_TIME_ZONE = ZoneInfo("America/New_York")
-OPTION_LAST_TRADE = time(16, 15)
+STANDARD_OPTION_LAST_TRADE = time(16, 0)
+SCHWAB_EXERCISE_CUTOFF = time(17, 0)
 WEEKDAY_LABEL_LIMIT_DAYS = 6
 
 
 class OptionSessionState(StrEnum):
-    """What the clock allows for a broker-reported option position.
-
-    Broker inventory can remain visible after its last trading session while
-    exercise, assignment, and overnight position settlement are still pending.
-    Keeping that state separate from a genuinely tradable position prevents the
-    dashboard from offering an impossible close or roll after the session ends.
-    """
+    """What the clock allows for a broker-reported option position."""
 
     ACTIVE = "active"
     EXPIRING_TODAY = "expiring_today"
-    CLOSED_PENDING_SETTLEMENT = "closed_pending_settlement"
+    EXERCISE_WINDOW_OPEN = "exercise_window_open"
+    SETTLEMENT_PENDING = "settlement_pending"
     EXPIRED_STALE = "expired_stale"
+
+    # Compatibility alias for older callers. New code uses the explicit phase.
+    CLOSED_PENDING_SETTLEMENT = "settlement_pending"
 
     @property
     def can_close_or_roll(self) -> bool:
         return self in {self.ACTIVE, self.EXPIRING_TODAY}
 
     @property
+    def is_settling(self) -> bool:
+        return not self.can_close_or_roll
+
+    @property
     def label(self) -> str:
-        return {
-            self.ACTIVE: "OPEN",
-            self.EXPIRING_TODAY: "EXPIRING TODAY",
-            self.CLOSED_PENDING_SETTLEMENT: "TRADING CLOSED · SETTLEMENT PENDING",
-            self.EXPIRED_STALE: "EXPIRED · BROKER UPDATE PENDING",
-        }[self]
+        if self is self.ACTIVE:
+            return "OPEN"
+        if self is self.EXPIRING_TODAY:
+            return "EXPIRING TODAY"
+        if self is self.EXERCISE_WINDOW_OPEN:
+            return "TRADING CLOSED · EXERCISE WINDOW OPEN"
+        if self is self.SETTLEMENT_PENDING:
+            return "TRADING CLOSED · SETTLEMENT PENDING"
+        return "EXPIRED · BROKER UPDATE PENDING"
 
 
 class QuoteSession(StrEnum):
-    """Whether a broker quote belongs to the session the reader is watching.
-
-    A sync can succeed at 9:27 a.m. on Monday and still return Friday's last
-    print for a name that has not traded yet. Reporting only the sync outcome
-    hides that gap, so the quote carries its own session verdict and the desk
-    can label a prior-session price instead of passing it off as today's move.
-    """
+    """Whether a broker quote belongs to the session the reader is watching."""
 
     CURRENT_SESSION = "current_session"
     PRIOR_SESSION = "prior_session"
@@ -56,12 +56,7 @@ class QuoteSession(StrEnum):
 
 
 def market_date(value: date | datetime) -> date:
-    """Return the U.S. equity-market calendar date for a normalized timestamp.
-
-    Broker timestamps persisted without an offset are normalized UTC values, so
-    naive datetimes are interpreted as UTC rather than as the machine's local zone.
-    Plain dates are already calendar values and pass through unchanged.
-    """
+    """Return the U.S. equity-market date for a normalized timestamp."""
 
     if not isinstance(value, datetime):
         return value
@@ -81,17 +76,7 @@ def quote_session_state(
     *,
     evaluated_at: date | datetime,
 ) -> QuoteSession:
-    """Decide whether a quote was printed in the reader's own market session.
-
-    The comparison runs on market calendar dates rather than elapsed hours, so a
-    Friday 8:00 p.m. Eastern print does not roll into Saturday through its UTC
-    date, and a Pacific reader opening the desk at 6:40 a.m. Monday is judged
-    against Monday in New York rather than against a local date.
-
-    A quote with no timestamp is ``UNKNOWN`` instead of current: imported CSV
-    books and demo fixtures carry no broker clock, and inventing one for them
-    would be the same false confidence this classifier exists to remove.
-    """
+    """Decide whether a quote was printed in the reader's market session."""
 
     if observed_at is None:
         return QuoteSession.UNKNOWN
@@ -101,7 +86,7 @@ def quote_session_state(
 
 
 def market_clock_label(value: datetime) -> str:
-    """Render an instant as a wall-clock time an Eastern-market reader recognizes."""
+    """Render an instant as an Eastern wall-clock time."""
 
     market_now = market_datetime(value)
     hour = market_now.hour % 12 or 12
@@ -114,11 +99,7 @@ def market_day_label(
     *,
     evaluated_at: date | datetime | None = None,
 ) -> str:
-    """Name a session day, switching to a calendar date once the weekday repeats.
-
-    ``FRI`` is unambiguous for a print from the weekend just passed. Beyond a
-    week it could name either Friday, so the label becomes an explicit date.
-    """
+    """Name a session day, using a date once a weekday becomes ambiguous."""
 
     if evaluated_at is not None:
         elapsed = (market_date(evaluated_at) - market_date(value)).days
@@ -132,12 +113,7 @@ def quote_session_stamp(
     *,
     evaluated_at: date | datetime | None = None,
 ) -> str:
-    """Stamp a quote with an absolute session time rather than an elapsed age.
-
-    Dashboard snapshots are cached, so a relative age such as "3h ago" would
-    keep aging inside the cache while the underlying quote never changed. An
-    absolute Eastern stamp stays true for as long as the page is held.
-    """
+    """Stamp a quote with an absolute Eastern session time."""
 
     return f"{market_day_label(value, evaluated_at=evaluated_at)} {market_clock_label(value)}"
 
@@ -145,18 +121,22 @@ def quote_session_stamp(
 def option_session_state(
     expires_on: date,
     evaluated_at: date | datetime,
+    *,
+    last_trade_at: time | None = None,
+    exercise_cutoff_at: time | None = None,
 ) -> OptionSessionState:
-    """Classify a short option without conflating DTE with tradability.
+    """Classify a short option without conflating DTE, trading, and settlement.
 
-    The 4:15 p.m. Eastern bound is deliberately the final regular/curb close
-    across the supported U.S. equity and ETF option universe. Some classes stop
-    at 4:00 p.m.; using the later bound avoids falsely declaring an eligible
-    contract closed while it may still trade. Exchange early-close sessions are
-    a separate calendar concern and should be supplied by a future exchange
-    calendar adapter rather than guessed here.
+    Standard U.S. equity and ETF options stop trading at 4:00 p.m. Eastern.
+    Product-specific or early-close boundaries can be supplied by the caller;
+    this function deliberately does not maintain a brittle symbol allowlist.
 
-    A plain date has no trustworthy session clock, so same-day positions remain
-    ``EXPIRING_TODAY``. Live readers pass a timezone-aware wall-clock instant.
+    Trading close is not final settlement. Schwab's published customer exercise
+    cutoff is 5:00 p.m. Eastern, after which broker inventory can remain visible
+    overnight while exercise and assignment are processed.
+
+    A plain date has no trustworthy clock, so same-day positions remain
+    ``EXPIRING_TODAY``. Live readers pass a timezone-aware instant.
     """
 
     if not isinstance(evaluated_at, datetime):
@@ -171,16 +151,26 @@ def option_session_state(
         return OptionSessionState.ACTIVE
     if market_now.date() > expires_on:
         return OptionSessionState.EXPIRED_STALE
-    if market_now.timetz().replace(tzinfo=None) >= OPTION_LAST_TRADE:
-        return OptionSessionState.CLOSED_PENDING_SETTLEMENT
-    return OptionSessionState.EXPIRING_TODAY
+    wall_clock = market_now.timetz().replace(tzinfo=None)
+    trade_close = last_trade_at or STANDARD_OPTION_LAST_TRADE
+    exercise_cutoff = exercise_cutoff_at or SCHWAB_EXERCISE_CUTOFF
+    if wall_clock < trade_close:
+        return OptionSessionState.EXPIRING_TODAY
+    if wall_clock < exercise_cutoff:
+        return OptionSessionState.EXERCISE_WINDOW_OPEN
+    return OptionSessionState.SETTLEMENT_PENDING
 
 
 def option_session_cache_partition(value: datetime) -> tuple[date, str]:
-    """Partition a live snapshot at the boundary that changes option actions."""
+    """Partition a live snapshot at boundaries that change available actions."""
 
     market_now = market_datetime(value)
+    wall_clock = market_now.timetz().replace(tzinfo=None)
     phase = (
-        "post_close" if market_now.timetz().replace(tzinfo=None) >= OPTION_LAST_TRADE else "open"
+        "settlement_pending"
+        if wall_clock >= SCHWAB_EXERCISE_CUTOFF
+        else "exercise_window"
+        if wall_clock >= STANDARD_OPTION_LAST_TRADE
+        else "open"
     )
     return (market_now.date(), phase)

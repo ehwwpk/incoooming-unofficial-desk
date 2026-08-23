@@ -373,12 +373,14 @@ def test_campaign_template_renames_heading_and_has_empty_state() -> None:
     filled = templates.env.get_template("partials/_campaigns.html").render(snapshot=snapshot)
     open_count = sum(item.status == "OPEN" for item in snapshot.campaigns)
     closed_count = len(snapshot.campaigns) - open_count
-    assert "<h2>Campaigns</h2>" in filled
+    assert "<b>CAMPAIGNS</b>" in filled
+    assert 'data-campaigns-drawer' in filled
+    assert '<details class="workspace-panel results-disclosure campaigns-drawer" id="campaigns" data-campaigns-drawer>' in filled
     assert "Call campaigns" not in filled
     assert "KTOS" in filled
     assert open_count == 6
     assert closed_count > 0
-    assert f"{open_count} OPEN / {len(snapshot.campaigns)} TOTAL" in filled
+    assert f"{open_count} OPEN · {len(snapshot.campaigns)} TOTAL" in filled
     assert 'id="campaigns-open"' in filled
     assert ' data-workspace-section="campaigns-open" open>' in filled
     assert 'id="campaigns-closed"' in filled
@@ -394,7 +396,7 @@ def test_campaign_template_renames_heading_and_has_empty_state() -> None:
         snapshot=replace(snapshot, campaigns=()),
     )
     assert "No short-premium campaigns in this ledger." in empty
-    assert "0 OPEN / 0 TOTAL" in empty
+    assert "0 OPEN · 0 TOTAL" in empty
     assert 'id="campaigns-open"' not in empty
     assert 'id="campaigns-closed"' not in empty
 
@@ -433,7 +435,7 @@ def test_campaign_template_renames_heading_and_has_empty_state() -> None:
     )
     assert 'id="campaigns-open"' not in closed_html
     assert ' data-workspace-section="campaigns-closed" open>' in closed_html
-    assert f"0 OPEN / {len(closed_only)} TOTAL" in closed_html
+    assert f"0 OPEN · {len(closed_only)} TOTAL" in closed_html
 
 
 def _execution(

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import replace
+from datetime import date
 from decimal import Decimal
 
 from schwab_dashboard.application.rolls.models import (
@@ -177,7 +178,7 @@ def _nearby_frontier(
     *,
     limit: int,
 ) -> tuple[RollCandidate, ...]:
-    by_expiry: dict[object, list[RollCandidate]] = {}
+    by_expiry: dict[date, list[RollCandidate]] = {}
     for candidate in eligible:
         by_expiry.setdefault(candidate.expires_on, []).append(candidate)
     selected: list[RollCandidate] = []

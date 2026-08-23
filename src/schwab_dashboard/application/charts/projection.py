@@ -14,6 +14,7 @@ from schwab_dashboard.application.charts.models import (
     ChartInterval,
     ChartLeg,
     ChartRiskReference,
+    ChartSettlementState,
     ChartShareEvent,
 )
 from schwab_dashboard.application.dashboard.covered_calls import UnderlyingCallStats
@@ -25,6 +26,7 @@ def build_campaign_chart(
     *,
     daily_bars: Sequence[Mapping[str, object]] = (),
     intraday_bars: Sequence[Mapping[str, object]] = (),
+    settlement_by_contract: Mapping[str, ChartSettlementState] | None = None,
 ) -> CampaignChart:
     """Project the reconciled option ledger into one broker-neutral chart contract.
 
@@ -67,12 +69,13 @@ def build_campaign_chart(
 
     risk_references = _risk_references(underlying)
     _add_strike_spot_fallbacks(underlying, grouped, risk_references)
+    settlement_lookup = settlement_by_contract or {}
     campaigns = tuple(
         _campaign(
             campaign_id,
             legs,
-            risk_references.get(campaign_id)
-            or risk_references.get(_risk_key(_latest_leg(legs))),
+            risk_references.get(campaign_id) or risk_references.get(_risk_key(_latest_leg(legs))),
+            settlement_lookup.get(_risk_key(_latest_leg(legs))),
         )
         for campaign_id, legs in sorted(
             grouped.items(),
@@ -134,6 +137,7 @@ def _campaign(
     campaign_id: str,
     legs: list[ChartLeg],
     risk_reference: ChartRiskReference | None,
+    settlement: ChartSettlementState | None,
 ) -> ChartCampaign:
     ordered = tuple(
         sorted(legs, key=lambda item: (_time_sort_key(item.time), item.sequence, item.leg_index))
@@ -142,11 +146,14 @@ def _campaign(
     # Opening sales remain part of the lifecycle after a campaign resolves.
     # Only the latest reconciled leg owns the campaign's current state.
     is_open = latest.is_open
+    status = "OPEN" if is_open else latest.outcome.upper()
+    if is_open and settlement is not None and not settlement.can_close_or_roll:
+        status = settlement.session_state.upper()
     return ChartCampaign(
         id=campaign_id,
         label=ordered[0].campaign_label,
         option_side=ordered[0].option_side,
-        status="OPEN" if is_open else latest.outcome.upper(),
+        status=status,
         confidence=_lowest_confidence(item.confidence for item in ordered),
         opened_on=_date(ordered[0].time),
         latest_on=_date(latest.time),
@@ -155,7 +162,14 @@ def _campaign(
         # otherwise be counted twice by a presentation projection.
         net_cash=latest.campaign_net_cash,
         legs=ordered,
-        risk_reference=risk_reference if is_open else None,
+        # A closed expiration session has no remaining tradable obligation path.
+        # Keep the provisional settlement read, but never draw it as a forecast.
+        risk_reference=(
+            risk_reference
+            if is_open and (settlement is None or settlement.can_close_or_roll)
+            else None
+        ),
+        settlement=settlement if is_open else None,
     )
 
 

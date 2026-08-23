@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time
 from zoneinfo import ZoneInfo
 
 from schwab_dashboard.application.market_time import (
@@ -35,16 +35,30 @@ def test_friday_expiration_stops_being_actionable_after_final_option_close() -> 
     assert (
         option_session_state(
             expires_on,
-            datetime(2026, 8, 14, 13, 14, tzinfo=PACIFIC),
+            datetime(2026, 8, 14, 12, 59, tzinfo=PACIFIC),
         )
         is OptionSessionState.EXPIRING_TODAY
     )
     assert (
         option_session_state(
             expires_on,
-            datetime(2026, 8, 14, 13, 15, tzinfo=PACIFIC),
+            datetime(2026, 8, 14, 13, 0, tzinfo=PACIFIC),
         )
-        is OptionSessionState.CLOSED_PENDING_SETTLEMENT
+        is OptionSessionState.EXERCISE_WINDOW_OPEN
+    )
+    assert (
+        option_session_state(
+            expires_on,
+            datetime(2026, 8, 14, 13, 59, tzinfo=PACIFIC),
+        )
+        is OptionSessionState.EXERCISE_WINDOW_OPEN
+    )
+    assert (
+        option_session_state(
+            expires_on,
+            datetime(2026, 8, 14, 14, 0, tzinfo=PACIFIC),
+        )
+        is OptionSessionState.SETTLEMENT_PENDING
     )
     assert (
         option_session_state(
@@ -52,6 +66,38 @@ def test_friday_expiration_stops_being_actionable_after_final_option_close() -> 
             datetime(2026, 8, 14, 18, 28, tzinfo=PACIFIC),
         )
         is OptionSessionState.CLOSED_PENDING_SETTLEMENT
+    )
+
+
+def test_option_close_and_exercise_boundaries_follow_eastern_dst_from_utc() -> None:
+    """The same New York wall clock resolves to different UTC hours by season."""
+
+    summer_expiry = date(2026, 8, 21)
+    winter_expiry = date(2026, 1, 16)
+
+    assert (
+        option_session_state(summer_expiry, datetime(2026, 8, 21, 19, 59, tzinfo=UTC))
+        is OptionSessionState.EXPIRING_TODAY
+    )
+    assert (
+        option_session_state(summer_expiry, datetime(2026, 8, 21, 20, 0, tzinfo=UTC))
+        is OptionSessionState.EXERCISE_WINDOW_OPEN
+    )
+    assert (
+        option_session_state(summer_expiry, datetime(2026, 8, 21, 21, 0, tzinfo=UTC))
+        is OptionSessionState.SETTLEMENT_PENDING
+    )
+    assert (
+        option_session_state(winter_expiry, datetime(2026, 1, 16, 20, 59, tzinfo=UTC))
+        is OptionSessionState.EXPIRING_TODAY
+    )
+    assert (
+        option_session_state(winter_expiry, datetime(2026, 1, 16, 21, 0, tzinfo=UTC))
+        is OptionSessionState.EXERCISE_WINDOW_OPEN
+    )
+    assert (
+        option_session_state(winter_expiry, datetime(2026, 1, 16, 22, 0, tzinfo=UTC))
+        is OptionSessionState.SETTLEMENT_PENDING
     )
 
 
@@ -130,8 +176,33 @@ def test_quote_stamp_names_a_date_once_the_weekday_could_mean_two_sessions() -> 
 
 
 def test_live_cache_partition_turns_over_at_the_option_close_boundary() -> None:
-    before = option_session_cache_partition(datetime(2026, 8, 14, 13, 14, tzinfo=PACIFIC))
-    after = option_session_cache_partition(datetime(2026, 8, 14, 13, 15, tzinfo=PACIFIC))
+    before = option_session_cache_partition(datetime(2026, 8, 14, 12, 59, tzinfo=PACIFIC))
+    exercise = option_session_cache_partition(datetime(2026, 8, 14, 13, 0, tzinfo=PACIFIC))
+    after = option_session_cache_partition(datetime(2026, 8, 14, 14, 0, tzinfo=PACIFIC))
 
     assert before == (date(2026, 8, 14), "open")
-    assert after == (date(2026, 8, 14), "post_close")
+    assert exercise == (date(2026, 8, 14), "exercise_window")
+    assert after == (date(2026, 8, 14), "settlement_pending")
+
+
+def test_nonstandard_or_early_close_boundaries_can_be_injected() -> None:
+    expires_on = date(2026, 8, 14)
+
+    assert (
+        option_session_state(
+            expires_on,
+            datetime(2026, 8, 14, 13, 0, tzinfo=EASTERN),
+            last_trade_at=time(13, 0),
+            exercise_cutoff_at=time(14, 0),
+        )
+        is OptionSessionState.EXERCISE_WINDOW_OPEN
+    )
+    assert (
+        option_session_state(
+            expires_on,
+            datetime(2026, 8, 14, 14, 0, tzinfo=EASTERN),
+            last_trade_at=time(13, 0),
+            exercise_cutoff_at=time(14, 0),
+        )
+        is OptionSessionState.SETTLEMENT_PENDING
+    )

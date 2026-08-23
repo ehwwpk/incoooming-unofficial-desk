@@ -1,14 +1,29 @@
 {% from "partials/_open_call_row.html" import open_call_row %}
 {% from "partials/_open_put_row.html" import open_put_row %}
+{% from "partials/_settlement_item.html" import settlement_item %}
 
 <section class="workspace-metric-strip operator-strip" aria-label="Open option summary">
-  <div><span>BROKER-REPORTED OBLIGATIONS</span><strong>{{ open_book.total_positions }} <small>OPTION LINES</small></strong><small>{{ open_book.total_contracts }} contracts{% if open_book.pending_settlement_positions %} · {{ open_book.pending_settlement_positions }} trading closed{% endif %}</small></div>
-  <div><span>PREMIUM RECEIVED</span><strong>{{ open_book.entry_credit | money }}</strong><small>Opening cash on live short options</small></div>
-  <div><span>OPEN MARK P/L</span><strong class="{{ open_book.open_profit_loss | pnl_class }}">{{ open_book.open_profit_loss | money }}</strong><small>Unrealized · option value now {{ open_book.current_liability | money }}</small></div>
+  <div><span>TRADABLE OBLIGATIONS</span><strong>{{ open_book.actionable_positions }} <small>OPTION LINES</small></strong><small>{{ open_book.actionable_contracts }} contracts{% if open_book.pending_settlement_positions %} · {{ open_book.pending_settlement_positions }} waiting on Schwab{% endif %}</small></div>
+  <div><span>BROKER-REPORTED PREMIUM</span><strong>{{ open_book.entry_credit | money }}</strong><small>Opening credits on positions Schwab still reports</small></div>
+  <div><span>TRADABLE OPEN MARK P/L</span><strong class="{{ open_book.actionable_open_profit_loss | pnl_class }}">{{ open_book.actionable_open_profit_loss | money }}</strong><small>Unrealized · option value now {{ open_book.actionable_current_liability | money }}</small></div>
   <div title="Current theoretical theta across the open short-option book. It reprices with spot, implied volatility, and time; it is not cash income or a four-week pace."><span>CURRENT MODEL THETA / DAY</span><strong class="positive">+{{ open_book.theta_estimate_per_day | money }}</strong><small>0 DTE {{ open_book.same_day_theta_estimate_per_day | money }} · later expiries {{ open_book.later_theta_estimate_per_day | money }}</small></div>
 </section>
 
 {% include "partials/_risk_lens.html" %}
+
+{% if open_book.pending_settlement_positions %}
+<details id="settlement-queue" class="workspace-panel open-book-section settlement-queue" data-open-book-section="settlement" open>
+  <summary class="workspace-panel-heading">
+    <div><p class="eyebrow">EXPIRATION DESK</p><h2>Trading closed · waiting on Schwab</h2></div>
+    <div class="open-book-section-control"><span>{{ open_book.pending_settlement_positions }} LINE{{ '' if open_book.pending_settlement_positions == 1 else 'S' }} · {{ open_book.pending_settlement_contracts }} CONTRACT{{ '' if open_book.pending_settlement_contracts == 1 else 'S' }} · LAST-MARK P/L {{ open_book.pending_last_mark_profit_loss | money }}</span><i aria-hidden="true"></i></div>
+  </summary>
+  <p class="settlement-queue-note">These contracts can no longer be closed or rolled. The expiration-day close can suggest the likely outcome, but expiration, exercise, and assignment stay provisional until Schwab updates the account.</p>
+  <div class="settlement-register">
+    {% for row in open_book.settling_call_rows %}{{ settlement_item('call', row.record_id, row.symbol, row.contracts, row.strike, row.expires_on, row.session_label, row.expiration_assessment, row.current_liability, row.open_profit_loss) }}{% endfor %}
+    {% for row in open_book.settling_put_rows %}{{ settlement_item('put', row.option_symbol, row.symbol, row.contracts, row.strike, row.expires_on, row.session_label, row.expiration_assessment, row.current_liability, row.open_profit_loss) }}{% endfor %}
+  </div>
+</details>
+{% endif %}
 
 <details class="workspace-panel open-book-section roll-board" data-open-book-section="roll-board" open>
   <summary class="workspace-panel-heading">
@@ -66,15 +81,15 @@
 <details class="workspace-panel open-book-section" data-open-book-section="contracts">
   <summary class="workspace-panel-heading">
     <div><p class="eyebrow">LIVE CONTRACTS</p><h2>Open options</h2></div>
-    <div class="open-book-section-control"><span>{{ open_book.groups | length }} STOCKS · {{ open_book.total_positions }} LINES · {{ open_book.total_contracts }} CONTRACTS</span><i aria-hidden="true"></i></div>
+    <div class="open-book-section-control"><span>{{ open_book.actionable_groups | length }} STOCKS · {{ open_book.actionable_positions }} LINES · {{ open_book.actionable_contracts }} CONTRACTS</span><i aria-hidden="true"></i></div>
   </summary>
   <div class="open-call-register">
-    {% for group in open_book.groups %}
+    {% for group in open_book.actionable_groups %}
     <section class="open-call-group" data-context-symbol-row="{{ group.symbol }}">
       <header>
         <div class="open-call-group-title">
           <button class="symbol-focus" type="button" data-set-symbol="{{ group.symbol }}">{{ group.symbol }}</button>
-          <span>{{ group.position_count }} POSITION{{ '' if group.position_count == 1 else 'S' }} · {{ group.contract_count }} CONTRACT{{ '' if group.contract_count == 1 else 'S' }}{% if group.realized_volatility_percent is not none %} · RV {{ group.realized_volatility_percent | percent }}{% endif %}</span>
+          <span>{{ group.actionable_position_count }} POSITION{{ '' if group.actionable_position_count == 1 else 'S' }} · {{ group.actionable_contract_count }} CONTRACT{{ '' if group.actionable_contract_count == 1 else 'S' }}{% if group.realized_volatility_percent is not none %} · RV {{ group.realized_volatility_percent | percent }}{% endif %}</span>
         </div>
         <div><span>NEAREST BUFFER</span><b class="{{ group.nearest_buffer_percent | pnl_class }}">{{ group.nearest_buffer_percent | percent }}</b></div>
         <div><span>NEXT EXPIRY</span><b>{{ group.next_expiration_dte }} DTE</b><small>{{ group.next_expiration | short_date }}</small></div>
@@ -88,16 +103,16 @@
         <div><span>MODEL DECAY / DAY</span><b class="positive">+{{ group.theta_estimate_per_day | money }}</b></div>
       </header>
       <div class="open-call-group-rows">
-        {% for row in group.rows %}{{ open_call_row(row) }}{% endfor %}
+        {% for row in group.rows %}{% if row.can_close_or_roll %}{{ open_call_row(row) }}{% endif %}{% endfor %}
       </div>
     </section>
-    {% else %}{% if not open_book.put_rows %}<p class="empty-state">No normalized open short options are available.</p>{% endif %}{% endfor %}
+    {% else %}{% if not open_book.actionable_put_rows %}<p class="empty-state">No tradable short options are open.</p>{% endif %}{% endfor %}
   </div>
-  {% if open_book.put_rows %}
+  {% if open_book.actionable_put_rows %}
   <section class="open-put-register" aria-label="Open short puts">
-    <header><b>SHORT PUTS</b><span>{{ open_book.put_rows | length }} LINES · {{ open_book.put_contracts }} CONTRACTS</span></header>
+    <header><b>SHORT PUTS</b><span>{{ open_book.actionable_put_rows | length }} LINES · {{ open_book.actionable_put_contracts }} CONTRACTS</span></header>
     <div class="open-put-group-rows">
-      {% for row in open_book.put_rows %}{{ open_put_row(row) }}{% endfor %}
+      {% for row in open_book.actionable_put_rows %}{{ open_put_row(row) }}{% endfor %}
     </div>
   </section>
   {% endif %}

@@ -13,6 +13,8 @@ FONT_SIZE_PATTERN = re.compile(
     r"(?:font-size\s*:\s*|font\s*:[^;{}]*?\s)"
     r"(?P<size>\d*\.?\d+)(?P<unit>px|rem)"
 )
+TYPE_TOKEN_DECLARATION_PATTERN = re.compile(r"(?P<token>--type-[\w-]+)\s*:")
+TYPE_TOKEN_REFERENCE_PATTERN = re.compile(r"var\((?P<token>--type-[\w-]+)\)")
 
 
 def _to_pixels(size: str, unit: str) -> float:
@@ -67,6 +69,25 @@ def test_typography_tokens_keep_dense_ui_readable() -> None:
         assert f"{token}: {value};" in base_css
 
 
+def test_every_referenced_typography_token_is_declared() -> None:
+    stylesheets = tuple(STATIC_DIR.glob("*.css"))
+    declared = {
+        match["token"]
+        for stylesheet in stylesheets
+        for match in TYPE_TOKEN_DECLARATION_PATTERN.finditer(stylesheet.read_text(encoding="utf-8"))
+    }
+    undefined: list[str] = []
+    for stylesheet in stylesheets:
+        for line_number, line in enumerate(
+            stylesheet.read_text(encoding="utf-8").splitlines(), start=1
+        ):
+            for match in TYPE_TOKEN_REFERENCE_PATTERN.finditer(line):
+                if match["token"] not in declared:
+                    undefined.append(f"{stylesheet.name}:{line_number} references {match['token']}")
+
+    assert not undefined, "\n".join(undefined)
+
+
 def test_tertiary_text_meets_small_text_contrast_on_core_surfaces() -> None:
     foreground = "#898c94"
     for background in ("#090a0b", "#0d0f11", "#111317"):
@@ -117,7 +138,7 @@ def test_wave_one_fact_strips_do_not_fake_cell_height() -> None:
         ("performance.css", ".period-primary > div {"),
         ("open-book.css", ".option-fact-strip > div {"),
         ("desk-overview.css", ".live-position-facts > div, .live-call-row > div {"),
-        ("results-cash.css", ".performance-compare-tape > div {"),
+        ("results-cash.css", ".performance-metric-item {"),
     )
     for filename, opener in recipes:
         stylesheet = (STATIC_DIR / filename).read_text(encoding="utf-8")

@@ -26,6 +26,7 @@
 .workspace-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 0 -10px; padding: 9px 11px; border-bottom: 1px solid var(--line-strong); background: var(--surface); }
 .workspace-heading .eyebrow { margin: 0; font-size: .47rem; }
 .workspace-heading h1 { margin: 0; font: 700 .78rem var(--mono); letter-spacing: .035em; }
+.workspace-heading-results { min-height: 44px; padding-block: 7px; }
 .workspace-actions { display: flex; gap: 7px; }
 .workspace-action, .workspace-actions button { display: inline-flex; align-items: center; border: 1px solid var(--line-strong); padding: 8px 10px; background: #0b0c0e; color: var(--muted); font: 700 .48rem var(--mono); }
 .workspace-actions button { color: var(--gold); }

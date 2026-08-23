@@ -19,6 +19,7 @@ from schwab_dashboard.application.dashboard.option_clock_math import (
     short_option_term,
     short_option_value_vs_credit,
 )
+from schwab_dashboard.application.expiration import OptionExpirationAssessment
 from schwab_dashboard.application.market_time import OptionSessionState
 from schwab_dashboard.application.policy.evaluate import evaluate_policy_fit
 from schwab_dashboard.application.policy.models import CallPolicy
@@ -82,6 +83,7 @@ class OpenCallRow:
     session_state: OptionSessionState
     session_label: str
     can_close_or_roll: bool
+    expiration_assessment: OptionExpirationAssessment | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,6 +99,10 @@ class OpenCallGroup:
     open_profit_loss: Decimal
     premium_capture_percent: Decimal
     theta_estimate_per_day: Decimal
+    actionable_position_count: int = 0
+    actionable_contract_count: int = 0
+    pending_settlement_position_count: int = 0
+    pending_settlement_contract_count: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -155,6 +161,7 @@ class OpenPutRow:
     session_state: OptionSessionState
     session_label: str
     can_close_or_roll: bool
+    expiration_assessment: OptionExpirationAssessment | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -175,7 +182,37 @@ class OpenBookProjection:
     later_theta_estimate_per_day: Decimal
     pending_settlement_positions: int
     pending_settlement_contracts: int
+    actionable_positions: int
+    actionable_contracts: int
+    actionable_current_liability: Decimal
+    actionable_open_profit_loss: Decimal
+    pending_last_mark_liability: Decimal
+    pending_last_mark_profit_loss: Decimal
     risk: OpenRiskSummary | None
+
+    @property
+    def actionable_groups(self) -> tuple[OpenCallGroup, ...]:
+        return tuple(group for group in self.groups if group.actionable_position_count)
+
+    @property
+    def actionable_put_rows(self) -> tuple[OpenPutRow, ...]:
+        return tuple(row for row in self.put_rows if row.can_close_or_roll)
+
+    @property
+    def settling_call_rows(self) -> tuple[OpenCallRow, ...]:
+        return tuple(row for row in self.rows if not row.can_close_or_roll)
+
+    @property
+    def settling_put_rows(self) -> tuple[OpenPutRow, ...]:
+        return tuple(row for row in self.put_rows if not row.can_close_or_roll)
+
+    @property
+    def actionable_call_contracts(self) -> int:
+        return sum(row.contracts for row in self.rows if row.can_close_or_roll)
+
+    @property
+    def actionable_put_contracts(self) -> int:
+        return sum(row.contracts for row in self.put_rows if row.can_close_or_roll)
 
 
 @dataclass(frozen=True, slots=True)
@@ -216,11 +253,12 @@ def build_open_book(snapshot: DashboardSnapshot) -> OpenBookProjection:
         if not underlying_rows:
             continue
         actionable_rows = tuple(row for row in underlying_rows if row.can_close_or_roll)
+        pending_rows = tuple(row for row in underlying_rows if not row.can_close_or_roll)
         summary_rows = actionable_rows or underlying_rows
         nearest = min(summary_rows, key=lambda row: abs(row.strike_distance_percent))
         next_expiring = min(summary_rows, key=lambda row: row.expires_on)
-        entry_credit = sum((row.entry_credit for row in underlying_rows), Decimal(0))
-        current_liability = sum((row.current_liability for row in underlying_rows), Decimal(0))
+        entry_credit = sum((row.entry_credit for row in actionable_rows), Decimal(0))
+        current_liability = sum((row.current_liability for row in actionable_rows), Decimal(0))
         groups.append(
             OpenCallGroup(
                 symbol=underlying.symbol,
@@ -230,18 +268,20 @@ def build_open_book(snapshot: DashboardSnapshot) -> OpenBookProjection:
                 nearest_buffer_percent=nearest.strike_distance_percent,
                 next_expiration=next_expiring.expires_on,
                 next_expiration_dte=next_expiring.days_to_expiration,
-                realized_volatility_percent=_realized_volatility_percent(
-                    underlying, snapshot
-                ),
-                open_profit_loss=sum((row.open_profit_loss for row in underlying_rows), Decimal(0)),
+                realized_volatility_percent=_realized_volatility_percent(underlying, snapshot),
+                open_profit_loss=sum((row.open_profit_loss for row in actionable_rows), Decimal(0)),
                 premium_capture_percent=(
                     (entry_credit - current_liability) / entry_credit * Decimal("100")
                     if entry_credit
                     else Decimal(0)
                 ),
                 theta_estimate_per_day=sum(
-                    (row.theta_estimate_per_day for row in underlying_rows), Decimal(0)
+                    (row.theta_estimate_per_day for row in actionable_rows), Decimal(0)
                 ),
+                actionable_position_count=len(actionable_rows),
+                actionable_contract_count=sum((row.contracts for row in actionable_rows), 0),
+                pending_settlement_position_count=len(pending_rows),
+                pending_settlement_contract_count=sum((row.contracts for row in pending_rows), 0),
             )
         )
     grouped_rows = tuple(row for group in groups for row in group.rows)
@@ -253,10 +293,18 @@ def build_open_book(snapshot: DashboardSnapshot) -> OpenBookProjection:
     )
     call_contracts = sum((row.contracts for row in grouped_rows), 0)
     put_contracts = sum((row.contracts for row in put_rows), 0)
-    all_rows = grouped_rows + put_rows
-    theta_estimate_per_day = sum((row.theta_estimate_per_day for row in all_rows), Decimal(0))
+    all_rows: tuple[OpenCallRow | OpenPutRow, ...] = (*grouped_rows, *put_rows)
+    actionable_row_list: list[OpenCallRow | OpenPutRow] = []
+    pending_row_list: list[OpenCallRow | OpenPutRow] = []
+    for row in all_rows:
+        (actionable_row_list if row.can_close_or_roll else pending_row_list).append(row)
+    book_actionable_rows = tuple(actionable_row_list)
+    book_pending_rows = tuple(pending_row_list)
+    theta_estimate_per_day = sum(
+        (row.theta_estimate_per_day for row in book_actionable_rows), Decimal(0)
+    )
     same_day_theta_estimate_per_day = sum(
-        (row.theta_estimate_per_day for row in all_rows if row.days_to_expiration == 0),
+        (row.theta_estimate_per_day for row in book_actionable_rows if row.days_to_expiration == 0),
         Decimal(0),
     )
     return OpenBookProjection(
@@ -278,9 +326,21 @@ def build_open_book(snapshot: DashboardSnapshot) -> OpenBookProjection:
         theta_estimate_per_day=theta_estimate_per_day,
         same_day_theta_estimate_per_day=same_day_theta_estimate_per_day,
         later_theta_estimate_per_day=(theta_estimate_per_day - same_day_theta_estimate_per_day),
-        pending_settlement_positions=sum(not row.can_close_or_roll for row in all_rows),
-        pending_settlement_contracts=sum(
-            row.contracts for row in all_rows if not row.can_close_or_roll
+        pending_settlement_positions=len(book_pending_rows),
+        pending_settlement_contracts=sum((row.contracts for row in book_pending_rows), 0),
+        actionable_positions=len(book_actionable_rows),
+        actionable_contracts=sum((row.contracts for row in book_actionable_rows), 0),
+        actionable_current_liability=sum(
+            (row.current_liability for row in book_actionable_rows), Decimal(0)
+        ),
+        actionable_open_profit_loss=sum(
+            (row.open_profit_loss for row in book_actionable_rows), Decimal(0)
+        ),
+        pending_last_mark_liability=sum(
+            (row.current_liability for row in book_pending_rows), Decimal(0)
+        ),
+        pending_last_mark_profit_loss=sum(
+            (row.open_profit_loss for row in book_pending_rows), Decimal(0)
         ),
         risk=build_open_risk_summary(snapshot),
     )
@@ -414,6 +474,7 @@ def _open_put_row(option: LiveOpenOptionPosition) -> OpenPutRow:
         session_state=option.session_state,
         session_label=option.session_label,
         can_close_or_roll=option.can_close_or_roll,
+        expiration_assessment=option.expiration_assessment,
     )
 
 
@@ -502,6 +563,7 @@ def _open_call_row(
         session_state=clock.session_state,
         session_label=clock.session_label,
         can_close_or_roll=clock.can_close_or_roll,
+        expiration_assessment=clock.expiration_assessment,
     )
 
 

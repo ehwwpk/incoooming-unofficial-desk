@@ -3,6 +3,7 @@ from dataclasses import asdict, replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
+from types import SimpleNamespace
 
 from fastapi.encoders import jsonable_encoder
 
@@ -17,6 +18,7 @@ from schwab_dashboard.application.dashboard.overview import (
     build_desk_overview,
     open_contract_side_copy,
 )
+from schwab_dashboard.application.expiration import ExpirationExpectation
 from schwab_dashboard.application.market_time import QuoteSession
 from schwab_dashboard.application.performance.projection import build_performance_comparison
 from schwab_dashboard.application.risk.price_time import build_price_time_read
@@ -39,6 +41,29 @@ def test_profit_loss_css_class_uses_numeric_sign() -> None:
     assert pnl_class(Decimal("-1")) == "negative"
     assert pnl_class(Decimal("0")) == "muted"
     assert pnl_class("not-a-number") == "muted"
+
+
+def test_settlement_row_is_provisional_and_never_offers_a_dead_trade_action() -> None:
+    assessment = SimpleNamespace(
+        expectation=ExpirationExpectation.EXPECTED_ASSIGNMENT,
+        expectation_label="EXPECTED ASSIGNMENT",
+        reference_price=Decimal("206.25"),
+        reference_label="EXPIRATION-DAY CLOSE",
+        distance_per_share=Decimal("1.25"),
+        assignment_shares=100,
+        assignment_notional=Decimal("20500"),
+    )
+    rendered = templates.env.from_string(
+        """{% from 'partials/_settlement_item.html' import settlement_item %}
+        {{ settlement_item('call', 'abc', 'CVX', 1, 205, expires_on,
+        'TRADING CLOSED · WAITING ON SCHWAB', assessment, 1, 99) }}"""
+    ).render(expires_on=date(2026, 8, 21), assessment=assessment)
+
+    assert "SHARE SALE EXPECTED" in rendered
+    assert "Not booked until Schwab confirms it" in rendered
+    assert "TRADING CLOSED · WAITING ON SCHWAB" in rendered
+    assert "ROLL" not in rendered
+    assert "CLOSE POSITION" not in rendered
 
 
 def test_basis_lens_renders_positive_surplus_after_full_capital_recovery() -> None:
@@ -191,7 +216,7 @@ def test_desk_put_card_matches_call_clocks_and_refuses_cash_secured_copy() -> No
     assert "OPTION VALUE / CREDIT" in rendered
     assert "TIME VALUE NOW" in rendered
     assert "$0 / OTM" in rendered
-    assert "data-option-side=\"put\"" in rendered
+    assert 'data-option-side="put"' in rendered
     assert 'data-option-campaign=""' in rendered
     assert clock.decay_stage in rendered
 
@@ -213,6 +238,35 @@ def test_live_summary_deep_links_to_the_exact_nearest_contract() -> None:
     assert "weighted days" in rendered
     assert "DIVIDEND OVERLAP" not in rendered
     assert rendered.index("NIBWICK NOTES") < rendered.index("AVG PREMIUM PACE / DAY")
+
+
+def test_settlement_link_occupies_the_observed_income_cell_not_the_live_book() -> None:
+    snapshot = DemoDashboardReader().execute()
+    overview = replace(
+        build_desk_overview(snapshot),
+        pending_settlement_contracts=12,
+        pending_last_mark_profit_loss=Decimal("216.87"),
+    )
+    rendered = templates.env.get_template("partials/_summary.html").render(
+        snapshot=snapshot,
+        desk_overview=overview,
+    )
+
+    observed = re.search(
+        r'<footer class="income-observed-bar"[^>]*>(.*?)</footer>',
+        rendered,
+        flags=re.S,
+    )
+    live_panel = rendered.split('<article class="pulse-panel live-book-pulse">', 1)[1]
+
+    assert observed is not None
+    assert 'class="desk-settlement-strip"' in observed.group(1)
+    assert "BROKER CONFIRMATION PENDING" in observed.group(1)
+    assert f"{overview.pending_settlement_contracts} CONTRACTS" in observed.group(1)
+    assert "12 CONTRACTS · TRADING CLOSED" not in observed.group(1)
+    assert "<small>TRADING CLOSED" in observed.group(1)
+    assert "last-mark P/L $216.87 is provisional" in observed.group(1)
+    assert 'class="desk-settlement-strip"' not in live_panel
 
 
 def test_open_call_workspace_keeps_exact_dte_in_expanded_contract_context() -> None:
@@ -315,12 +369,8 @@ def _render_pressure_read(**kwargs) -> str:
 
 def test_compact_pressure_read_keeps_face_and_session_without_plain_english() -> None:
     price_time = _heating_price_time_read()
-    compact = _render_pressure_read(
-        price_time=price_time, show_session=True, show_plain=False
-    )
-    full = _render_pressure_read(
-        price_time=price_time, show_session=True, show_plain=True
-    )
+    compact = _render_pressure_read(price_time=price_time, show_session=True, show_plain=False)
+    full = _render_pressure_read(price_time=price_time, show_session=True, show_plain=True)
     defaulted = _render_pressure_read(price_time=price_time)
 
     assert "price-pressure-line" in compact
@@ -605,7 +655,6 @@ def test_open_contract_side_copy_omits_a_zero_side() -> None:
     assert open_contract_side_copy(9, 2) == "9 calls · 2 puts"
 
 
-
 def _prior_session_underlying(stats) -> LiveUnderlyingPosition:
     return LiveUnderlyingPosition(
         symbol=stats.symbol,
@@ -732,16 +781,16 @@ def test_open_contracts_are_calls_plus_puts_not_broker_lines() -> None:
     assert ktos_row.open_put_contracts == 2
     assert ktos_row.open_contracts == 10
     assert line_count == 3
-    assert f"<b>{overview.open_contracts}</b> OPEN CONTRACTS" in names
+    assert f"<b>{overview.open_contracts}</b> TRADABLE CONTRACTS" in names
     assert f"<b>{overview.open_call_contracts}</b> CALLS · <b>2</b> PUTS" in names
     assert "OPTION POSITIONS" not in names
     assert "OPEN POSITIONS" not in ktos_contracts
-    contract_count = f"<span>OPEN CONTRACTS</span><strong>{ktos_row.open_contracts}</strong>"
+    contract_count = f"<span>TRADABLE CONTRACTS</span><strong>{ktos_row.open_contracts}</strong>"
     assert contract_count in ktos_contracts
     assert "8 calls · 2 puts" in ktos_contracts
     assert f"<strong>{line_count}</strong>" not in ktos_contracts
     assert "covered" not in ktos_contracts
-    assert "lots · " in ktos_card and "covered by short calls" in ktos_card
+    assert "lots · " in ktos_card and "committed" in ktos_card
     assert "<span>Open calls</span><b>8</b>" in ktos_card
     assert "CASH-SECURED PUT" not in ktos_card
     assert "SHORT PUT" in ktos_card
@@ -758,7 +807,7 @@ def test_open_contracts_are_calls_plus_puts_not_broker_lines() -> None:
     assert "OPEN OPTION POSITIONS" not in pulse
     assert "distinct strikes" not in pulse
     pulse_contracts = (
-        f"<span>OPEN CONTRACTS</span>\n        <strong>{overview.open_contracts}</strong>"
+        f"<span>TRADABLE CONTRACTS</span>\n        <strong>{overview.open_contracts}</strong>"
     )
     assert pulse_contracts in pulse
     assert f"{overview.open_call_contracts} calls · 2 puts" in pulse
@@ -782,10 +831,10 @@ def test_demo_name_row_open_contracts_match_call_lots_not_strikes() -> None:
     assert overview.open_positions == 6
     assert overview.open_contracts == 18
     assert cvx.active_contracts == 6
-    assert "<b>18</b> OPEN CONTRACTS" in rendered
+    assert "<b>18</b> TRADABLE CONTRACTS" in rendered
     assert "<b>18</b> CALLS" in rendered
     assert "OPTION POSITIONS" not in rendered
-    assert "<span>OPEN CONTRACTS</span><strong>6</strong>" in cvx_contracts
+    assert "<span>TRADABLE CONTRACTS</span><strong>6</strong>" in cvx_contracts
     assert "6 calls" in cvx_contracts
     assert "<strong>3</strong>" not in cvx_contracts
     assert "OPEN OPTION POSITIONS" not in pulse
@@ -864,17 +913,46 @@ def test_short_put_row_pairs_received_premium_with_estimated_buyback_cost() -> N
     assert "MODEL INPUTS" in rendered
 
 
-def test_results_spine_keeps_tape_above_the_chart_and_drops_workshop_copy() -> None:
+def test_results_spine_keeps_series_key_beside_chart_and_economics_below_it() -> None:
     snapshot = DemoDashboardReader().execute()
     comparison = _results_comparison()
+    comparison = replace(
+        comparison,
+        spine=replace(
+            comparison.spine,
+            risk=replace(
+                comparison.spine.risk,
+                status="early_sample",
+                observations=9,
+                annualized_volatility_percent=Decimal("33.98"),
+            ),
+        ),
+    )
     rendered = templates.env.get_template("workspaces/_strategy_review.html").render(
         snapshot=replace(snapshot, performance_comparison=comparison),
         performance_comparison_payload=jsonable_encoder(asdict(comparison)),
     )
 
-    assert "Performance spine" in rendered
-    assert "performance-compare-tape" in rendered
+    assert "<h2>Benchmark</h2>" in rendered
+    assert "Performance spine" not in rendered
+    assert "Benchmark comparison" not in rendered
+    assert "NORMALIZED RETURN PATH" not in rendered
+    assert "FIRST OBSERVED VALUE = 0.00%" not in rendered
+    assert "data-performance-sample" not in rendered
+    assert "performance-compare-tape" not in rendered
+    assert "performance-metric-rail" in rendered
+    assert "data-performance-compare-canvas" in rendered
+    assert "data-performance-compare-svg" not in rendered
     assert "<h3>Drawdown</h3>" in rendered
+    assert "EARLY SAMPLE &middot; 9 SESSIONS" in rendered
+    assert "EARLY ESTIMATE &middot; 9 SESSIONS" in rendered
+    assert "33.98%" in rendered
+    assert "performance-risk-withheld" not in rendered
+    assert "needs 252" not in rendered
+    assert "Observed peak to trough" in rendered
+    assert rendered.count("data-results-window-math") == 1
+    assert rendered.count("data-monthly-performance") == 1
+    assert rendered.count("data-campaigns-drawer") == 1
     assert "<h3>Net liquidity</h3>" in rendered
     assert "RISK TAPE" not in rendered
     assert "CAPITAL USE" not in rendered
@@ -883,10 +961,13 @@ def test_results_spine_keeps_tape_above_the_chart_and_drops_workshop_copy() -> N
     assert "Net Liquidity, Maintenance, and Buying Power" not in rendered
     assert "Net liq, maintenance, buying power" not in rendered
     assert "Credits, buybacks, live marks" in rendered
-    assert "YOUR BOOK · TIME-WEIGHTED" in rendered or "YOUR BOOK &middot; TIME-WEIGHTED" in rendered
-    assert "STARTING STOCK + YOUR SHARE TRADES" in rendered
-    assert "SPY PRICE" in rendered
-    assert "SPY AT YOUR STOCK LEVERAGE" in rendered
+    assert ">MANAGED</span>" in rendered
+    assert ">STARTING SHARES</span>" in rendered
+    assert ">MANAGEMENT DIFFERENCE</span>" in rendered
+    assert ">SPY</span>" in rendered
+    assert "SPY &times; EXPOSURE" in rendered
+    assert "cash flows removed" in rendered
+    assert "share trades, no options" in rendered
     assert "MANAGED BOOK" not in rendered
     assert "SAME STARTING SHARES" not in rendered
     assert "Put to" in rendered
@@ -900,12 +981,14 @@ def test_results_spine_keeps_tape_above_the_chart_and_drops_workshop_copy() -> N
     assert "PRIMARY COUNTERFACTUAL" in rendered
     assert "<span>SLIPPAGE</span>" not in rendered
     assert "ASSIGNMENT LEDGER" not in rendered
-    assert rendered.index("performance-compare-tape") < rendered.index(
-        "performance-compare-chart"
-    )
-    assert rendered.index("performance-compare-chart") < rendered.index(
-        "performance-coverage-rail"
-    )
+    benchmark_heading = rendered.index("<h2>Benchmark</h2>")
+    chart_stage_start = rendered.index('class="performance-compare-stage"')
+    chart_stage_end = rendered.index("performance-economics-strip")
+    chart_key = rendered.index("performance-metric-rail")
+    assert benchmark_heading < chart_stage_start < chart_key
+    assert rendered.index("performance-compare-chart") < chart_key < chart_stage_end
+    assert chart_key < rendered.index("performance-management-card")
+    assert chart_stage_end < rendered.index("data-performance-comparison-payload")
 
 
 def test_results_spine_shows_assignment_ledger_only_when_shares_moved() -> None:

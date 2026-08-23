@@ -8,6 +8,8 @@
   }).format(Number(value || 0));
   const strike = (value) => Number(value || 0).toFixed(Number(value || 0) % 1 ? 1 : 0);
   const plural = (value, word) => `${value} ${word}${value === 1 ? "" : "s"}`;
+  const settling = (campaign) => Boolean(campaign?.settlement)
+    && campaign.settlement.can_close_or_roll === false;
 
   function timestamp(value) {
     const raw = String(value || "");
@@ -129,12 +131,16 @@
     const identity = document.createElement("span");
     const side = String(campaign.option_side || "call").toUpperCase();
     const current = [...(campaign.legs || [])].reverse().find((leg) => Boolean(leg.is_open));
-    identity.textContent = campaign.status === "OPEN" && current
+    identity.textContent = settling(campaign) && current
+      ? `${campaign.label} \u00b7 TRADING CLOSED \u00b7 ${campaign.settlement.expectation_label}`
+      : campaign.status === "OPEN" && current
       ? `${campaign.label} \u00b7 NOW OPEN ${contractPhrase(current).toUpperCase()} \u00b7 EXP ${expiry(current).toUpperCase()}`
       : `${campaign.label} \u00b7 ${side} FINISHED`;
     const story = document.createElement("p");
     const moves = storySteps(campaign);
-    const ending = campaign.status === "OPEN" ? "Still working." : "Campaign finished.";
+    const ending = settling(campaign)
+      ? "No close or roll remains. Schwab confirmation is still pending."
+      : campaign.status === "OPEN" ? "Still working." : "Campaign finished.";
     story.textContent = `${ending} ${money(campaign.net_cash)} net cash across ${plural(moves.length, "move")}.`;
     target.append(identity, story);
     appendTimeline(target, moves);
@@ -152,19 +158,20 @@
     appendTimeline(target, campaigns.map((campaign) => ({
       time: campaign.latest_on,
       exact: campaign.latest_on,
-      text: `${campaign.label} \u00b7 ${campaign.status === "OPEN" ? "still working" : "finished"} \u00b7 ${money(campaign.net_cash)} net cash`,
+      text: `${campaign.label} \u00b7 ${settling(campaign) ? "trading closed; settlement pending" : campaign.status === "OPEN" ? "still working" : "finished"} \u00b7 ${money(campaign.net_cash)} net cash`,
     })));
   }
 
   function renderOverview(target, campaigns) {
     if (!target) return;
     const open = campaigns.filter((campaign) => campaign.status === "OPEN").length;
-    const finished = campaigns.length - open;
+    const pending = campaigns.filter(settling).length;
+    const finished = campaigns.length - open - pending;
     target.innerHTML = "";
     const identity = document.createElement("span");
     identity.textContent = "CAMPAIGN MAP";
     const summary = document.createElement("p");
-    summary.textContent = `${open} still working \u00b7 ${finished} finished. Hover to peek; click to hold one story.`;
+    summary.textContent = `${open} still working \u00b7 ${pending} settling \u00b7 ${finished} finished. Hover to peek; click to hold one story.`;
     target.append(identity, summary);
   }
 

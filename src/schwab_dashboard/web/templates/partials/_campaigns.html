@@ -21,11 +21,9 @@
 {%- endmacro %}
 {% set open_campaigns = snapshot.campaigns | selectattr('status', 'equalto', 'OPEN') | list %}
 {% set closed_campaigns = snapshot.campaigns | rejectattr('status', 'equalto', 'OPEN') | list %}
-<section class="workspace-panel" id="campaigns">
-  <header class="workspace-panel-heading">
-    <div><p class="eyebrow">ROLL-AWARE LEDGER</p><h2>Campaigns</h2></div>
-    <span>{{ open_campaigns | length }} OPEN / {{ snapshot.campaigns | length }} TOTAL</span>
-  </header>
+<details class="workspace-panel results-disclosure campaigns-drawer" id="campaigns" data-campaigns-drawer>
+  <summary><span><b>CAMPAIGNS</b><small>OPEN AND COMPLETED ROLL PATHS</small></span><span><strong>{{ open_campaigns | length }} OPEN · {{ snapshot.campaigns | length }} TOTAL</strong><i aria-hidden="true"></i></span></summary>
+  <div class="campaigns-drawer-body">
 
   {% if snapshot.campaigns %}
   {% if open_campaigns %}
@@ -47,4 +45,5 @@
   {% else %}
   <p class="empty-state">No short-premium campaigns in this ledger.</p>
   {% endif %}
-</section>
+  </div>
+</details>

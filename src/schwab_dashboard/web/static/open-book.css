@@ -36,6 +36,20 @@
 .open-book-section-control > i::before { content: "+ OPEN"; }
 .open-book-section[open] .open-book-section-control > i::before { content: "− CLOSE"; }
 
+.settlement-queue { border-top-color: var(--gold); }
+.settlement-queue > summary { background: #11100c; }
+.settlement-queue-note {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  margin: 0;
+  padding: 6px 12px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font: 540 var(--type-copy-sm)/1.4 var(--sans);
+}
+
 .risk-lens { --risk-column: minmax(92px, .7fr); }
 .risk-lens-heading { min-height: 54px; }
 .risk-lens-headline {

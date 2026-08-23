@@ -80,8 +80,7 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "PEER" not in nibwick_js
         assert (
             'status.textContent = praying ? "PRAY" : studying ? "STUDY" '
-            ': clearing ? "CLEAR" : "PATROL"'
-            in nibwick_js
+            ': clearing ? "CLEAR" : "PATROL"' in nibwick_js
         )
         assert "data-rail-link" not in desk.text
         assert "<kbd>F1</kbd>" not in desk.text
@@ -139,11 +138,23 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert " · RV " in risk.text
 
         assert review.status_code == 200
-        assert "Cash windows" in review.text
+        assert 'class="workspace-breadcrumb"' not in review.text
+        assert "RESULTS EXPLAINED" not in review.text
+        assert "<h1>Results</h1>" in review.text
+        assert "PERFORMANCE SPINE" not in review.text
+        assert "Performance spine" not in review.text
+        assert "Benchmark comparison" not in review.text
+        assert "WINDOW MATH" in review.text
         assert "EXECUTED CASH" in review.text
         assert "Versus shares" in review.text
-        assert "<h2>Campaigns</h2>" in review.text
+        assert "<b>CAMPAIGNS</b>" in review.text
         assert "Call campaigns" not in review.text
+        assert review.text.count("data-results-window-math") == 1
+        assert review.text.count("data-monthly-performance") == 1
+        assert review.text.count("data-campaigns-drawer") == 1
+        assert '<details class="workspace-panel results-disclosure results-window-math" data-results-window-math>' in review.text
+        assert '<details class="workspace-panel monthly-performance results-disclosure" data-monthly-performance>' in review.text
+        assert '<details class="workspace-panel results-disclosure campaigns-drawer" id="campaigns" data-campaigns-drawer>' in review.text
         campaigns_start = review.text.index('id="campaigns"')
         campaigns_html = review.text[campaigns_start : review.text.index("recorded-outcomes-title")]
         assert 'id="campaigns-open"' in campaigns_html
@@ -154,6 +165,8 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "MONTH BY MONTH" in review.text
         assert "THROUGH AUG 07" in review.text
         assert "Cash cadence" in review.text
+        assert '<details class="workspace-panel results-disclosure results-cash-panel" data-results-cash>' in review.text
+        assert '<details class="workspace-panel results-disclosure results-cash-panel" data-results-cash open>' not in review.text
         assert review.text.count("data-results-cash-series") == 3
         assert 'data-results-cash-period="quarter"' in review.text
         assert 'data-results-cash-period="ytd"' in review.text
@@ -412,7 +425,7 @@ def test_empty_live_ledger_keeps_workspaces_available_before_broker_auth(tmp_pat
     try:
         risk, results, volatility, records = asyncio.run(_request_pre_auth_workspaces(container))
         assert risk.status_code == 200
-        assert "No normalized open short options are available" in risk.text
+        assert "No tradable short options are open" in risk.text
         assert 'data-workspace-key="risk"' in risk.text
         assert results.status_code == 200
         assert "No performance ledger is available yet" in results.text

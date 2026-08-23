@@ -6,6 +6,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from schwab_dashboard.application.charts import build_campaign_chart
+from schwab_dashboard.application.charts.models import ChartSettlementState
 from schwab_dashboard.application.dashboard.covered_calls import PriceEvent
 from schwab_dashboard.infrastructure.demo.dashboard import DemoDashboardReader
 
@@ -127,9 +128,7 @@ def test_campaign_chart_preserves_verified_execution_time_without_inventing_csv_
     )
 
     chart = build_campaign_chart(changed)
-    legs = {
-        leg.sequence: leg for campaign in chart.campaigns for leg in campaign.legs
-    }
+    legs = {leg.sequence: leg for campaign in chart.campaigns for leg in campaign.legs}
 
     assert legs[exact.sequence].time == exact_at
     assert legs[exact.sequence].time_precision == "exact"
@@ -174,6 +173,32 @@ def test_open_campaigns_fall_back_to_strike_and_spot_without_inventing_iv() -> N
         for campaign in open_campaigns
         if campaign.risk_reference is not None
     )
+
+
+def test_settling_campaign_keeps_history_but_drops_the_tradable_risk_path() -> None:
+    snapshot = DemoDashboardReader().execute()
+    underlying = snapshot.underlyings[0]
+    baseline = build_campaign_chart(underlying)
+    open_campaign = next(campaign for campaign in baseline.campaigns if campaign.status == "OPEN")
+    latest = open_campaign.legs[-1]
+    key = f"{latest.option_side}:{latest.expiration.isoformat()}:{latest.strike.normalize()}"
+    settlement = ChartSettlementState(
+        session_state="settlement_pending",
+        session_label="TRADING CLOSED · WAITING ON SCHWAB",
+        expectation="expected_worthless",
+        expectation_label="EXPECTED WORTHLESS",
+        reference_price=underlying.current_price,
+        reference_label="EXPIRATION-DAY CLOSE",
+        can_close_or_roll=False,
+    )
+
+    chart = build_campaign_chart(underlying, settlement_by_contract={key: settlement})
+    changed = next(campaign for campaign in chart.campaigns if campaign.id == open_campaign.id)
+
+    assert changed.status == "SETTLEMENT_PENDING"
+    assert changed.settlement == settlement
+    assert changed.risk_reference is None
+    assert changed.legs == open_campaign.legs
 
 
 def _events_by_campaign(events: Sequence[PriceEvent]) -> dict[str, list[PriceEvent]]:

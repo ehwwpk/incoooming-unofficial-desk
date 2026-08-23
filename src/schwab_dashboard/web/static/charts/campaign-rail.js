@@ -134,6 +134,8 @@
       const track = document.createElement("span");
       track.className = "campaign-rail-track";
       const first = campaign.legs[0];
+      const isSettling = Boolean(campaign.settlement)
+        && campaign.settlement.can_close_or_roll === false;
       const coverage = this.market.coverage();
       const rangeStart = Date.parse(`${day(this.selection.start || coverage.from)}T00:00:00Z`);
       const rangeEnd = Date.parse(`${day(this.selection.end || coverage.to)}T00:00:00Z`);
@@ -141,6 +143,8 @@
       const startAt = Date.parse(`${day(first.time)}T00:00:00Z`);
       const endAt = campaign.status === "OPEN"
         ? rangeEnd
+        : isSettling
+          ? Date.parse(`${day(latest.expiration)}T00:00:00Z`)
         : Date.parse(`${day(latest.time)}T00:00:00Z`);
       const left = Math.max(0, Math.min(100, (startAt - rangeStart) / spanDays * 100));
       const right = Math.max(left, Math.min(100, (endAt - rangeStart) / spanDays * 100));
@@ -149,19 +153,24 @@
         span.style.left = `${left}%`;
         span.style.width = `${Math.max(1, right - left)}%`;
         span.classList.toggle("is-open", campaign.status === "OPEN");
-        span.title = campaign.status === "OPEN"
+        span.classList.toggle("is-settling", isSettling);
+        span.title = isSettling
+          ? `Trading closed at expiration; ${campaign.settlement.expectation_label.toLowerCase()}; broker confirmation pending`
+          : campaign.status === "OPEN"
           ? `Still open from ${day(first.time)} through the latest chart date`
           : `Open from ${day(first.time)} until ${day(latest.time)}`;
         track.append(span);
       }
-      track.setAttribute("aria-label", campaign.status === "OPEN"
+      track.setAttribute("aria-label", isSettling
+        ? `Campaign trading closed at expiration; broker confirmation pending`
+        : campaign.status === "OPEN"
         ? `Campaign has remained open since ${day(first.time)}`
         : `Campaign ran from ${day(first.time)} through ${day(latest.time)}`);
 
       const result = document.createElement("span");
       result.className = "campaign-rail-result";
       const status = document.createElement("b");
-      status.textContent = campaign.status === "OPEN" ? "OPEN" : campaign.status;
+      status.textContent = isSettling ? "SETTLING" : campaign.status === "OPEN" ? "OPEN" : campaign.status;
       const cash = document.createElement("span");
       cash.textContent = money(campaign.net_cash);
       result.append(status, cash);

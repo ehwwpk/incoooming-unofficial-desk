@@ -5,6 +5,7 @@ from datetime import UTC, date, datetime
 from typing import Any
 
 from sqlalchemy import and_, func, or_, select
+from sqlalchemy.sql.elements import ColumnElement
 
 from schwab_dashboard.infrastructure.database.engine import SessionFactory
 from schwab_dashboard.infrastructure.database.tables.account import (
@@ -534,11 +535,13 @@ class SqlLiveAnalyticsReader:
     ) -> tuple[str, ...] | None:
         if unbounded:
             return None
-        conditions = []
+        conditions: list[ColumnElement[bool]] = []
         if symbols:
             conditions.append(InstrumentTable.symbol.in_(symbols))
         if underlyings:
-            chain = [InstrumentTable.underlying_symbol.in_(underlyings)]
+            chain: list[ColumnElement[bool]] = [
+                InstrumentTable.underlying_symbol.in_(underlyings)
+            ]
             if expiration_on_or_after is not None:
                 chain.append(InstrumentTable.expiration_date >= expiration_on_or_after)
             conditions.append(and_(*chain))

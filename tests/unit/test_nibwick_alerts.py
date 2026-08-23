@@ -7,9 +7,11 @@ from schwab_dashboard.application.alerts.rules import (
     evaluate_call_expiration_pressure,
     evaluate_call_expiration_pressures,
     evaluate_fast_move,
+    evaluate_settlement_attention,
     evaluate_short_put_pressure,
 )
 from schwab_dashboard.application.dashboard.models import LiveOpenOptionPosition
+from schwab_dashboard.application.expiration import assess_option_expiration
 from schwab_dashboard.application.market_time import OptionSessionState
 from schwab_dashboard.infrastructure.demo.dashboard import DemoDashboardReader
 
@@ -125,6 +127,74 @@ def test_nibwick_stops_offering_expired_friday_trading_actions() -> None:
         )
         == ()
     )
+
+
+def test_routine_worthless_expiration_stays_in_register_without_a_nibwick_interrupt() -> None:
+    assessment = assess_option_expiration(
+        option_side="CALL",
+        session_state=OptionSessionState.SETTLEMENT_PENDING,
+        strike=D("65"),
+        contracts=1,
+        contract_multiplier=D("100"),
+        official_close=D("63"),
+        latest_underlying_price=D("63"),
+    )
+
+    assert (
+        evaluate_settlement_attention(
+            symbol="KTOS",
+            option_symbol="KTOS  260814C00065000",
+            assessment=assessment,
+        )
+        is None
+    )
+
+
+def test_expected_assignment_note_reports_consequence_without_a_dead_roll_action() -> None:
+    assessment = assess_option_expiration(
+        option_side="PUT",
+        session_state=OptionSessionState.SETTLEMENT_PENDING,
+        strike=D("60"),
+        contracts=2,
+        contract_multiplier=D("100"),
+        official_close=D("58"),
+        latest_underlying_price=D("58"),
+    )
+
+    alert = evaluate_settlement_attention(
+        symbol="KTOS",
+        option_symbol="KTOS  260814P00060000",
+        assessment=assessment,
+    )
+
+    assert alert is not None
+    assert alert.reason_code == "assignment_expected"
+    assert "200 shares may be assigned" in alert.message
+    assert alert.roll_source_option_symbol == "KTOS  260814P00060000"
+    assert alert.no_clean_roll_reason is not None
+    assert "Trading has closed" in alert.no_clean_roll_reason
+
+
+def test_missing_official_close_note_names_the_data_gap_plainly() -> None:
+    assessment = assess_option_expiration(
+        option_side="CALL",
+        session_state=OptionSessionState.SETTLEMENT_PENDING,
+        strike=D("65"),
+        contracts=1,
+        contract_multiplier=D("100"),
+        official_close=None,
+        latest_underlying_price=D("63"),
+    )
+
+    alert = evaluate_settlement_attention(
+        symbol="KTOS",
+        option_symbol="KTOS  260814C00065000",
+        assessment=assessment,
+    )
+
+    assert alert is not None
+    assert alert.reason_code == "expiration_close_missing"
+    assert "expiration-day close" in alert.message
 
 
 def test_alert_identity_changes_only_across_material_state_bands() -> None:

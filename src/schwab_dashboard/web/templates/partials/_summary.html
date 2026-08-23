@@ -33,10 +33,17 @@
         <small>Selected cash normalized to one month</small>
       </div>
     </div>
-    <footer class="income-observed-bar" aria-label="Observed monthly option cash statistics">
+    <footer class="income-observed-bar" aria-label="Income observations and broker settlement status">
       <div><span>{{ 'ROLLING 365 FULL-MONTH AVG' if completed_cash_months | length >= 12 else 'OBSERVED FULL-MONTH AVG' }}</span><b>{{ snapshot.operator_metrics.rolling_year_monthly_average | money }}</b><small>{{ completed_cash_months | length }} complete month{{ '' if completed_cash_months | length == 1 else 's' }} in normalized history</small></div>
       <div><span>{% if completed_cash_months %}LATEST {{ [3, completed_cash_months | length] | min }} FULL MONTH{{ '' if completed_cash_months | length == 1 else 'S' }}{% else %}LATEST FULL MONTHS{% endif %}</span><b>{{ snapshot.operator_metrics.rolling_three_month_average | money }}</b><small>{% if completed_cash_months %}{{ completed_cash_months[-3].label if completed_cash_months | length >= 3 else completed_cash_months[0].label }}–{{ completed_cash_months[-1].label }} average{% else %}First full month still underway{% endif %}</small></div>
       <div><span>MEDIAN FULL MONTH</span><b>{{ snapshot.operator_metrics.median_completed_month | money }}</b><small>{{ snapshot.operator_metrics.completed_months }} completed months</small></div>
+      {% if desk_overview.pending_settlement_contracts %}
+      <a class="desk-settlement-strip" href="/workspaces/risk#settlement-queue" title="Trading has closed for {{ desk_overview.pending_settlement_contracts }} contract{{ '' if desk_overview.pending_settlement_contracts == 1 else 's' }}. Schwab confirmation is pending; last-mark P/L {{ desk_overview.pending_last_mark_profit_loss | money }} is provisional.">
+        <span>BROKER CONFIRMATION PENDING</span>
+        <b>{{ desk_overview.pending_settlement_contracts }} CONTRACT{{ '' if desk_overview.pending_settlement_contracts == 1 else 'S' }}</b>
+        <small>TRADING CLOSED <i aria-hidden="true">→</i></small>
+      </a>
+      {% endif %}
     </footer>
   </article>
 
@@ -47,14 +54,14 @@
     </header>
     <div class="live-book-grid">
       <div>
-        <span>OPEN CONTRACTS</span>
+        <span>TRADABLE CONTRACTS</span>
         <strong>{{ desk_overview.open_contracts }}</strong>
         <small>{{ desk_overview.open_call_contracts | contract_sides(desk_overview.open_put_contracts) }}</small>
       </div>
       <div>
-        <span>SHARE LOTS COVERED</span>
-        <strong>{{ desk_overview.open_call_contracts }}/{{ desk_overview.contract_capacity }}</strong>
-        <small>{{ desk_overview.coverage_percent | percent }} covered by short calls</small>
+        <span>SHARE LOTS COMMITTED</span>
+        <strong>{{ desk_overview.broker_reported_call_contracts }}/{{ desk_overview.contract_capacity }}</strong>
+        <small>Broker-reported short calls{% if desk_overview.pending_settlement_contracts %} · includes settlement{% endif %}</small>
       </div>
       <a class="nearest-call" {% if desk_overview.nearest_call %}href="#{{ desk_overview.nearest_call.anchor_id }}"{% else %}aria-disabled="true"{% endif %}>
         <span>CLOSEST CALL TO STRIKE</span>

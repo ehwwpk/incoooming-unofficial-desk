@@ -9,6 +9,7 @@ from schwab_dashboard.application.alerts.rules import (
     evaluate_call_expiration_pressures,
     evaluate_dividend_overlap,
     evaluate_fast_move,
+    evaluate_settlement_attention,
     evaluate_short_put_pressure,
 )
 from schwab_dashboard.application.dashboard.covered_calls import UnderlyingCallStats
@@ -25,6 +26,14 @@ def build_desk_alerts(
 ) -> tuple[DeskAlert, ...]:
     alerts: list[DeskAlert] = []
     for underlying in underlyings:
+        for call in underlying.open_call_clocks:
+            settlement_alert = evaluate_settlement_attention(
+                symbol=underlying.symbol,
+                option_symbol=call.record_id,
+                assessment=call.expiration_assessment,
+            )
+            if settlement_alert is not None:
+                alerts.append(settlement_alert)
         dividend = evaluate_dividend_overlap(underlying, as_of=as_of)
         if dividend is not None:
             alerts.append(dividend)
@@ -44,6 +53,13 @@ def build_desk_alerts(
         alerts.extend(by_contract.values())
     put_alerts_by_symbol: dict[str, list[DeskAlert]] = {}
     for put in put_positions:
+        settlement_alert = evaluate_settlement_attention(
+            symbol=put.underlying_symbol,
+            option_symbol=put.option_symbol,
+            assessment=put.expiration_assessment,
+        )
+        if settlement_alert is not None:
+            alerts.append(settlement_alert)
         put_alert = evaluate_short_put_pressure(put)
         if put_alert is not None:
             put_alerts_by_symbol.setdefault(put_alert.symbol, []).append(put_alert)

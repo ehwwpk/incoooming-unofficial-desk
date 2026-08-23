@@ -28,6 +28,7 @@ from schwab_dashboard.application.dashboard.performance import (
     QuarterPerformanceSummary,
     StrategyAttributionSummary,
 )
+from schwab_dashboard.application.expiration import OptionExpirationAssessment
 from schwab_dashboard.application.market_time import (
     OptionSessionState,
     QuoteSession,
@@ -176,6 +177,7 @@ class LiveOpenOptionPosition:
     underlying_week_reference_price: Decimal | None = None
     opened_on: date | None = None
     original_days_to_expiration: int | None = None
+    expiration_assessment: OptionExpirationAssessment | None = None
 
     @property
     def can_close_or_roll(self) -> bool:
@@ -296,6 +298,28 @@ class LiveUnderlyingPosition:
         )
 
     @property
+    def actionable_options(self) -> tuple[LiveOpenOptionPosition, ...]:
+        return tuple(option for option in (*self.calls, *self.puts) if option.can_close_or_roll)
+
+    @property
+    def settling_options(self) -> tuple[LiveOpenOptionPosition, ...]:
+        return tuple(option for option in (*self.calls, *self.puts) if not option.can_close_or_roll)
+
+    @property
+    def actionable_open_mark_profit_loss(self) -> Decimal:
+        return sum(
+            (option.open_profit_loss or Decimal("0") for option in self.actionable_options),
+            Decimal("0"),
+        )
+
+    @property
+    def settling_last_mark_profit_loss(self) -> Decimal:
+        return sum(
+            (option.open_profit_loss or Decimal("0") for option in self.settling_options),
+            Decimal("0"),
+        )
+
+    @property
     def estimated_option_theta_per_day(self) -> Decimal:
         return self.estimated_theta_per_day + self.estimated_put_theta_per_day
 
@@ -330,6 +354,40 @@ class LivePositionBook:
     def total_open_mark_profit_loss(self) -> Decimal:
         return self.open_mark_profit_loss + sum(
             (put.open_profit_loss or Decimal("0") for put in self.puts),
+            Decimal("0"),
+        )
+
+    @property
+    def options(self) -> tuple[LiveOpenOptionPosition, ...]:
+        return (*self.calls, *self.puts)
+
+    @property
+    def actionable_options(self) -> tuple[LiveOpenOptionPosition, ...]:
+        return tuple(option for option in self.options if option.can_close_or_roll)
+
+    @property
+    def settling_options(self) -> tuple[LiveOpenOptionPosition, ...]:
+        return tuple(option for option in self.options if not option.can_close_or_roll)
+
+    @property
+    def actionable_contracts(self) -> int:
+        return sum(option.contracts for option in self.actionable_options)
+
+    @property
+    def settling_contracts(self) -> int:
+        return sum(option.contracts for option in self.settling_options)
+
+    @property
+    def actionable_open_mark_profit_loss(self) -> Decimal:
+        return sum(
+            (option.open_profit_loss or Decimal("0") for option in self.actionable_options),
+            Decimal("0"),
+        )
+
+    @property
+    def settling_last_mark_profit_loss(self) -> Decimal:
+        return sum(
+            (option.open_profit_loss or Decimal("0") for option in self.settling_options),
             Decimal("0"),
         )
 

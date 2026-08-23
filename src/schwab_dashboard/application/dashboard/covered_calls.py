@@ -6,6 +6,7 @@ from datetime import date as Date
 from datetime import datetime
 from decimal import Decimal
 
+from schwab_dashboard.application.expiration import OptionExpirationAssessment
 from schwab_dashboard.application.market_time import OptionSessionState
 from schwab_dashboard.application.risk.price_time import PriceTimeRead
 
@@ -156,6 +157,7 @@ class OpenCallClock:
     contract_multiplier: Decimal = Decimal("100")
     price_time_read: PriceTimeRead | None = None
     quote_observed_at: datetime | None = None
+    expiration_assessment: OptionExpirationAssessment | None = None
 
     @property
     def can_close_or_roll(self) -> bool:

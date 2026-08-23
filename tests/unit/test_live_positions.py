@@ -8,6 +8,7 @@ from schwab_dashboard.application.dashboard.models import (
     LiveUnderlyingPosition,
     PositionSummary,
 )
+from schwab_dashboard.application.expiration import ExpirationExpectation
 from schwab_dashboard.application.market_time import OptionSessionState, QuoteSession
 
 D = Decimal
@@ -251,9 +252,9 @@ def test_portfolio_sums_every_asset_type_on_the_broker_tape() -> None:
     )
 
     assert summary.day_profit_loss == D("2242.75")
-    assert summary.day_profit_loss_percent == D("2242.75") / (
-        D("135797.61") - D("2242.75")
-    ) * D("100")
+    assert summary.day_profit_loss_percent == D("2242.75") / (D("135797.61") - D("2242.75")) * D(
+        "100"
+    )
 
 
 def test_portfolio_day_pl_ignores_deposits_and_stale_bod_nl() -> None:
@@ -305,9 +306,9 @@ def test_portfolio_day_pl_does_not_follow_the_readers_calendar() -> None:
     )
 
     assert summary.day_profit_loss == D("1258.60")
-    assert summary.day_profit_loss_percent == D("1258.60") / (
-        D("136057.17") - D("1258.60")
-    ) * D("100")
+    assert summary.day_profit_loss_percent == D("1258.60") / (D("136057.17") - D("1258.60")) * D(
+        "100"
+    )
 
 
 def test_portfolio_empty_book_is_a_flat_session_not_a_blank() -> None:
@@ -505,6 +506,13 @@ def test_expired_friday_inventory_stays_visible_but_loses_trading_actions() -> N
         as_of=date(2026, 8, 14),
         evaluated_at=datetime(2026, 8, 14, 18, 28, tzinfo=PACIFIC),
         option_market=option_market,
+        daily_bars=(
+            {
+                "symbol": "KTOS",
+                "trade_date": date(2026, 8, 14),
+                "close": D("63"),
+            },
+        ),
     )
 
     assert book.open_call_positions == 1
@@ -515,5 +523,11 @@ def test_expired_friday_inventory_stays_visible_but_loses_trading_actions() -> N
     )
     assert all(not option.can_close_or_roll for option in (*book.calls, *book.puts))
     assert all(not option.roll_quote_candidates for option in (*book.calls, *book.puts))
+    assert all(
+        option.expiration_assessment is not None
+        and option.expiration_assessment.reference_is_official_close
+        and option.expiration_assessment.expectation is ExpirationExpectation.EXPECTED_WORTHLESS
+        for option in (*book.calls, *book.puts)
+    )
     assert book.underlyings[0].estimated_theta_per_day == D("0")
     assert book.underlyings[0].estimated_put_theta_per_day == D("0")

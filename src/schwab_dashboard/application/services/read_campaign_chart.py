@@ -4,12 +4,13 @@ from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime
 
 from schwab_dashboard.application.charts import build_campaign_chart
-from schwab_dashboard.application.charts.models import CampaignChart
+from schwab_dashboard.application.charts.models import CampaignChart, ChartSettlementState
 from schwab_dashboard.application.dashboard.calculations import map_positions
 from schwab_dashboard.application.dashboard.live_positions import build_live_position_book
 from schwab_dashboard.application.dashboard.live_underlying_stats import (
     build_live_underlying_stats,
 )
+from schwab_dashboard.application.dashboard.models import LivePositionBook
 from schwab_dashboard.application.market_time import market_date
 from schwab_dashboard.application.ports.analytics import LiveAnalyticsReader
 from schwab_dashboard.application.ports.dashboard import DashboardReader
@@ -99,6 +100,7 @@ class ReadLiveCampaignChart:
             underlying,
             daily_bars=daily_bars,
             intraday_bars=intraday_bars,
+            settlement_by_contract=_settlement_by_contract(live_book),
         )
 
 
@@ -117,7 +119,10 @@ class ReadSnapshotCampaignChart:
         )
         if underlying is None:
             raise LookupError(f"No chart history is available for {normalized}.")
-        return build_campaign_chart(underlying)
+        return build_campaign_chart(
+            underlying,
+            settlement_by_contract=_settlement_by_contract(snapshot.live_position_book),
+        )
 
 
 def _position_matches(symbol: str, underlying_symbol: str | None, requested: str) -> bool:
@@ -136,3 +141,29 @@ def _matching_rows(
 
 def _utc_now() -> datetime:
     return datetime.now(UTC)
+
+
+def _settlement_by_contract(
+    live_book: LivePositionBook | None,
+) -> dict[str, ChartSettlementState]:
+    if live_book is None:
+        return {}
+    result: dict[str, ChartSettlementState] = {}
+    for option in live_book.options:
+        assessment = option.expiration_assessment
+        if assessment is None:
+            continue
+        key = (
+            f"{option.option_type.lower()}:{option.expires_on.isoformat()}:"
+            f"{option.strike.normalize()}"
+        )
+        result[key] = ChartSettlementState(
+            session_state=option.session_state.value,
+            session_label=option.session_label,
+            expectation=assessment.expectation.value,
+            expectation_label=assessment.expectation_label,
+            reference_price=assessment.reference_price,
+            reference_label=assessment.reference_label,
+            can_close_or_roll=option.can_close_or_roll,
+        )
+    return result
