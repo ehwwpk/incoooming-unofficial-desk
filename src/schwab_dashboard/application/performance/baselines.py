@@ -16,7 +16,6 @@ from schwab_dashboard.application.performance.share_replay import (
     live_long_quantity,
     scaled_dividend,
 )
-from schwab_dashboard.application.performance.stock_leverage import leverage_on
 
 ZERO = Decimal("0")
 HUNDRED = Decimal("100")
@@ -99,14 +98,13 @@ def build_static_share_baseline(
     actual_points: Sequence[ReturnPoint],
     executions: Sequence[dict[str, Any]] = (),
     lifecycle_events: Sequence[dict[str, Any]] = (),
-    balance_history: Sequence[dict[str, Any]] = (),
     annual_interest_rate_percent: Decimal = Decimal("11"),
 ) -> ComparisonSeries:
     """Starting long lots plus discretionary share trades, no overlay.
 
-    Option premium and marks stay out. Assignment and expiration stock legs stay
-    out. Daily leverage is live long stock over stock-ex-overlay capital, not
-    account maintenance. Dividends scale to the freeze's own lots.
+    Opening non-stock cash is frozen. It subsequently changes only for owner
+    transfers, discretionary equity trades, share-adjusted dividends, and
+    financing. Option activity and assignment/exercise delivery stay out.
     """
     start = _frozen_start(
         position_history=position_history,
@@ -128,9 +126,7 @@ def build_static_share_baseline(
     cumulative_factor = Decimal("1")
     previous_day = anchor_day
     omitted_days = 0
-    used_leverage = False
     interest_paid = ZERO
-    dividend_cash = ZERO
     for day, _opening_stock in start.stock_series:
         elapsed = (day - previous_day).days
         if cash < ZERO and elapsed > 0 and day != anchor_day:
@@ -156,26 +152,22 @@ def build_static_share_baseline(
         )
         if omitted:
             omitted_days += 1
-        day_dividends = _scaled_dividends_on(
-            cash_movements,
-            quantities,
-            position_history,
-            day=day,
+        day_dividends = (
+            _scaled_dividends_on(
+                cash_movements,
+                quantities,
+                position_history,
+                day=day,
+            )
+            if day > anchor_day
+            else ZERO
         )
         cash += day_dividends
-        dividend_cash += day_dividends
         stock_value, day_carried = _value_lots(daily_bars, quantities, day)
         carried.update(day_carried)
         if stock_value is None:
             continue
-        ratio = leverage_on(balance_history, day)
-        if ratio is not None:
-            used_leverage = True
-            nav = stock_value / ratio
-            cash = nav - stock_value
-            value = nav
-        else:
-            value = stock_value + cash
+        value = stock_value + cash
         daily_return: Decimal | None = None
         if previous:
             daily_return = (value - previous - flow) / previous * HUNDRED
@@ -195,29 +187,21 @@ def build_static_share_baseline(
     final_return = points[-1].cumulative_return_percent if points else None
     note = (
         "Starting long stock lots plus later discretionary share trades. Assignment and "
-        "expiration stock legs are ignored. Option premium and marks stay out. Owner "
+        "exercise delivery is ignored; expiration has no stock delivery. Option premium "
+        "and marks stay out. The opening non-stock cash residual remains frozen except for "
+        "financing and the listed cash events. Owner "
         "transfers arrive as idle cash and returns are chained time-weighted, matching "
         "the managed book. Dividends scale to the freeze's lots versus live lots that day."
     )
-    if used_leverage:
-        note = (
-            f"{note} Daily leverage is live long stock over net liquidation minus option "
-            "marks, not account maintenance."
-        )
-    else:
-        note = (
-            f"{note} Stock-ex-overlay leverage was not stored for these sessions, so the "
-            "opening cash residual is kept except where share trades move it."
-        )
     if interest_paid:
         note = (
-            f"{note} Borrow after the leverage plug is charged "
+            f"{note} Borrow on the frozen residual is charged "
             f"{annual_interest_rate_percent:.2f}% on a 360-day basis."
         )
     if omitted_days:
         note = (
-            f"{note} {omitted_days} session(s) had an assignment-like share print that "
-            "could not be paired, so that equity was not copied."
+            f"{note} {omitted_days} session(s) had an ambiguous assignment/exercise share "
+            "print, so that account-symbol-day was not copied."
         )
     if shorted:
         note = (

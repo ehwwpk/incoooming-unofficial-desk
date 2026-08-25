@@ -26,3 +26,11 @@ def test_sync_reports_missing_authorization_without_traceback() -> None:
     assert result.exit_code == 1
     assert "Not ready: Schwab app credentials are missing" in result.output
     assert "Traceback" not in result.output
+
+
+def test_auth_complete_from_stdin_requires_a_callback() -> None:
+    result = CliRunner().invoke(app, ["auth-complete", "--from-stdin"], input="")
+
+    assert result.exit_code == 1
+    assert "no callback URL was received" in result.output
+    assert "Traceback" not in result.output

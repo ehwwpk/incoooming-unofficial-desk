@@ -22,11 +22,11 @@ def calculate_assignment_impact(
     assignments = tuple(
         row
         for row in lifecycle_events
-        if str(row.get("event_type") or "").lower() == "assignment"
+        if _assignment_event(row.get("event_type"))
         and _inside(_date(row.get("occurred_at")), coverage_start, coverage_end)
     )
-    calls = tuple(row for row in assignments if str(row.get("option_side")) == "call")
-    puts = tuple(row for row in assignments if str(row.get("option_side")) == "put")
+    calls = tuple(row for row in assignments if _option_side(row.get("option_side")) == "call")
+    puts = tuple(row for row in assignments if _option_side(row.get("option_side")) == "put")
     call_contracts = sum((int(abs(_decimal(row.get("option_quantity")))) for row in calls), 0)
     put_contracts = sum((int(abs(_decimal(row.get("option_quantity")))) for row in puts), 0)
     called_away = sum((_shares(row) for row in calls), 0)
@@ -43,9 +43,7 @@ def calculate_assignment_impact(
             if strike is None or close is None:
                 missing_reference = True
                 continue
-            references.append(
-                max(ZERO, close - _decimal(strike)) * Decimal(_shares(row))
-            )
+            references.append(max(ZERO, close - _decimal(strike)) * Decimal(_shares(row)))
     if not assignments:
         status = "no_assignments"
         note = "No short-option assignments fall inside the valued return window."
@@ -89,7 +87,28 @@ def _shares(row: dict[str, Any]) -> int:
     stock_quantity = abs(_decimal(row.get("stock_quantity")))
     if stock_quantity:
         return int(stock_quantity)
-    return int(abs(_decimal(row.get("option_quantity"))) * STANDARD_SHARES)
+    raw_multiplier = row.get("contract_multiplier")
+    if raw_multiplier is None:
+        raw_multiplier = row.get("multiplier")
+    multiplier = STANDARD_SHARES if raw_multiplier is None else _decimal(raw_multiplier)
+    return int(abs(_decimal(row.get("option_quantity"))) * multiplier)
+
+
+def _assignment_event(value: object) -> bool:
+    return _normalized_token(value) in {"assignment", "assigned"}
+
+
+def _option_side(value: object) -> str | None:
+    normalized = _normalized_token(value)
+    if normalized in {"call", "c"}:
+        return "call"
+    if normalized in {"put", "p"}:
+        return "put"
+    return None
+
+
+def _normalized_token(value: object) -> str:
+    return str(value or "").strip().casefold().split(".")[-1]
 
 
 def _inside(value: date | None, start: date | None, end: date | None) -> bool:

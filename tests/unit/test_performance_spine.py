@@ -126,9 +126,7 @@ def test_assignment_impact_labels_called_away_upside_as_reference() -> None:
                 "stock_quantity": D("200"),
             },
         ),
-        daily_bars=(
-            {"symbol": "CVX", "trade_date": date(2026, 8, 13), "close": D("201")},
-        ),
+        daily_bars=({"symbol": "CVX", "trade_date": date(2026, 8, 13), "close": D("201")},),
         coverage_start=date(2026, 8, 1),
         coverage_end=date(2026, 8, 13),
     )
@@ -137,6 +135,65 @@ def test_assignment_impact_labels_called_away_upside_as_reference() -> None:
     assert result.assigned_call_contracts == 2
     assert result.called_away_shares == 200
     assert result.period_end_upside_reference == D("1200")
+
+
+def test_assignment_impact_normalizes_aliases_sides_and_share_multipliers() -> None:
+    result = calculate_assignment_impact(
+        lifecycle_events=(
+            {
+                "event_type": " Assigned ",
+                "option_side": "CALL",
+                "occurred_at": datetime(2026, 8, 12, 20, tzinfo=UTC),
+                "underlying_symbol": "CVX",
+                "strike": D("10"),
+                "option_quantity": D("2"),
+                "stock_quantity": D("150"),
+                "contract_multiplier": D("25"),
+            },
+            {
+                "event_type": "ASSIGNMENT",
+                "option_side": "p",
+                "occurred_at": datetime(2026, 8, 12, 20, tzinfo=UTC),
+                "underlying_symbol": "KTOS",
+                "option_quantity": D("2"),
+                "contract_multiplier": D("25"),
+            },
+            {
+                "event_type": "assigned",
+                "option_side": "Put",
+                "occurred_at": datetime(2026, 8, 12, 20, tzinfo=UTC),
+                "underlying_symbol": "KTOS",
+                "option_quantity": D("1"),
+                "multiplier": D("10"),
+            },
+            {
+                "event_type": "assignment",
+                "option_side": "put",
+                "occurred_at": datetime(2026, 8, 12, 20, tzinfo=UTC),
+                "underlying_symbol": "KTOS",
+                "option_quantity": D("1"),
+            },
+            {
+                "event_type": "exercised",
+                "option_side": "call",
+                "occurred_at": datetime(2026, 8, 12, 20, tzinfo=UTC),
+                "underlying_symbol": "CVX",
+                "strike": D("10"),
+                "option_quantity": D("1"),
+                "stock_quantity": D("100"),
+            },
+        ),
+        daily_bars=({"symbol": "CVX", "trade_date": date(2026, 8, 13), "close": D("12")},),
+        coverage_start=date(2026, 8, 1),
+        coverage_end=date(2026, 8, 13),
+    )
+
+    assert result.status == "ready"
+    assert result.assigned_call_contracts == 2
+    assert result.called_away_shares == 150
+    assert result.assigned_put_contracts == 4
+    assert result.acquired_shares == 160
+    assert result.period_end_upside_reference == D("300")
 
 
 def _point(day: str, value: str, daily_return: str | None) -> ReturnPoint:

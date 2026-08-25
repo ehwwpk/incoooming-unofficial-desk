@@ -7,6 +7,7 @@ from schwab_dashboard.application.performance.projection import build_performanc
 from schwab_dashboard.application.performance.share_replay import (
     apply_discretionary_equity,
     classify_forced_equity,
+    execution_keys,
     scaled_dividend,
 )
 from schwab_dashboard.application.performance.stock_leverage import stock_leverage_ratio
@@ -121,6 +122,177 @@ def test_put_assignment_equity_buy_does_not_increase_freeze_shares() -> None:
     assert cash == D("94000")
 
 
+def test_duplicate_unkeyed_fills_have_stable_occurrence_keys_and_match_as_one_delivery() -> None:
+    executions = (
+        _equity(None, account="...1234", side="buy", quantity="100", price="60"),
+        _equity(None, account="...1234", side="buy", quantity="100", price="60"),
+    )
+    copied = tuple(dict(row) for row in executions)
+    first_keys = tuple(key for key, _row in execution_keys(executions))
+    copied_keys = tuple(key for key, _row in execution_keys(copied))
+
+    assert first_keys == copied_keys
+    assert first_keys[0] != first_keys[1]
+    assert first_keys[0].endswith(":1")
+    assert first_keys[1].endswith(":2")
+
+    forced, uncertain = classify_forced_equity(
+        executions=executions,
+        lifecycle_events=(
+            _lifecycle(
+                "assigned",
+                account="...1234",
+                option_side="PUT",
+                stock_quantity="200",
+            ),
+        ),
+    )
+    assert forced == frozenset(first_keys)
+    assert not uncertain
+
+    quantities, cash, omitted = apply_discretionary_equity(
+        {"KTOS": D("100")},
+        D("94000"),
+        executions=copied,
+        after=date(2026, 8, 11),
+        through=date(2026, 8, 12),
+        forced_keys=forced,
+        uncertain_symbol_days=uncertain,
+    )
+    assert quantities == {"KTOS": D("100")}
+    assert cash == D("94000")
+    assert omitted is False
+
+
+def test_expiration_does_not_turn_an_equity_trade_into_forced_delivery() -> None:
+    executions = (_equity("manual-sale", side="sell", quantity="100", price="60"),)
+    forced, uncertain = classify_forced_equity(
+        executions=executions,
+        lifecycle_events=(
+            _lifecycle(
+                "expiration",
+                option_side="call",
+                stock_quantity="100",
+            ),
+        ),
+    )
+    assert not forced
+    assert not uncertain
+
+    quantities, cash, omitted = apply_discretionary_equity(
+        {"KTOS": D("200")},
+        D("88000"),
+        executions=executions,
+        after=date(2026, 8, 11),
+        through=date(2026, 8, 12),
+        forced_keys=forced,
+        uncertain_symbol_days=uncertain,
+    )
+    assert quantities == {"KTOS": D("100")}
+    assert cash == D("94000")
+    assert omitted is False
+
+
+def test_exercise_aliases_use_the_opposite_delivery_directions_from_assignment() -> None:
+    executions = (
+        _equity("call-exercise", side="BUY", quantity="100", price="60"),
+        _equity("put-exercise", symbol="CVX", side="SELL", quantity="100", price="195"),
+    )
+    lifecycle = (
+        _lifecycle("Exercised", option_side="CALL", stock_quantity="100"),
+        _lifecycle(
+            "EXERCISE",
+            symbol="CVX",
+            option_side="Put",
+            strike="195",
+            stock_quantity="100",
+        ),
+    )
+
+    forced, uncertain = classify_forced_equity(
+        executions=executions,
+        lifecycle_events=lifecycle,
+    )
+
+    assert forced == frozenset({"call-exercise", "put-exercise"})
+    assert not uncertain
+
+
+def test_forced_delivery_matching_is_isolated_by_account() -> None:
+    executions = (
+        _equity("forced", account="...1111", side="buy", quantity="100", price="60"),
+        _equity("manual", account="...2222", side="buy", quantity="100", price="60"),
+    )
+    forced, uncertain = classify_forced_equity(
+        executions=executions,
+        lifecycle_events=(
+            _lifecycle(
+                "assignment",
+                account="...1111",
+                option_side="put",
+                stock_quantity="100",
+            ),
+        ),
+    )
+    assert forced == frozenset({"forced"})
+    assert not uncertain
+
+    quantities, cash, omitted = apply_discretionary_equity(
+        {"KTOS": D("100")},
+        D("94000"),
+        executions=executions,
+        after=date(2026, 8, 11),
+        through=date(2026, 8, 12),
+        forced_keys=forced,
+        uncertain_symbol_days=uncertain,
+    )
+    assert quantities == {"KTOS": D("200")}
+    assert cash == D("88000")
+    assert omitted is False
+
+
+def test_split_delivery_uses_the_only_quantity_subset() -> None:
+    executions = (
+        _equity("split-40", side="buy", quantity="40", price="60"),
+        _equity("split-60", side="buy", quantity="60", price="60"),
+        _equity("manual-25", side="buy", quantity="25", price="60"),
+    )
+    forced, uncertain = classify_forced_equity(
+        executions=executions,
+        lifecycle_events=(_lifecycle("assigned", option_side="put", stock_quantity="100"),),
+    )
+
+    assert forced == frozenset({"split-40", "split-60"})
+    assert not uncertain
+
+
+def test_ambiguous_quantity_subsets_omit_the_account_symbol_day() -> None:
+    executions = (
+        _equity("whole", side="buy", quantity="200", price="60"),
+        _equity("half-1", side="buy", quantity="100", price="60"),
+        _equity("half-2", side="buy", quantity="100", price="60"),
+    )
+    forced, uncertain = classify_forced_equity(
+        executions=executions,
+        lifecycle_events=(_lifecycle("assignment", option_side="put", stock_quantity="200"),),
+    )
+    assert not forced
+    assert uncertain == frozenset({("", "KTOS", date(2026, 8, 12))})
+
+    quantities, cash, omitted = apply_discretionary_equity(
+        {"KTOS": D("100")},
+        D("94000"),
+        executions=executions,
+        after=date(2026, 8, 11),
+        through=date(2026, 8, 12),
+        forced_keys=forced,
+        uncertain_symbol_days=uncertain,
+    )
+    assert quantities == {"KTOS": D("100")}
+    assert cash == D("94000")
+    assert omitted is True
+
+
 def test_stock_leverage_ignores_maintenance_and_uses_stock_ex_overlay_capital() -> None:
     row = {
         "liquidation_value": D("100000"),
@@ -172,7 +344,7 @@ def test_option_premium_does_not_enter_freeze_nav() -> None:
     assert freeze.return_percent == D("0.3")
     assert freeze.points[-1].value == D("100300")
     assert comparison.option_overlay.return_percent == D("5")
-    assert comparison.methodology_version == "incoooming-performance-v3"
+    assert comparison.methodology_version == "incoooming-performance-v4"
 
 
 def test_scaled_dividend_hits_freeze_nav() -> None:
@@ -228,6 +400,81 @@ def test_scaled_dividend_hits_freeze_nav() -> None:
     assert series.points[-1].value - series.points[0].value == D("125")
 
 
+def test_static_baseline_keeps_opening_residual_and_excludes_assigned_put_delivery() -> None:
+    points = (
+        ReturnPoint(
+            date=date(2026, 8, 11),
+            value=D("100000"),
+            external_flow=D("0"),
+            daily_return_percent=None,
+            cumulative_return_percent=None,
+            quality="observed",
+        ),
+        ReturnPoint(
+            date=date(2026, 8, 12),
+            value=D("50000"),
+            external_flow=D("0"),
+            daily_return_percent=D("-50"),
+            cumulative_return_percent=D("-50"),
+            quality="observed",
+        ),
+    )
+    series = build_static_share_baseline(
+        position_history=(_lot("KTOS", "100", "2026-08-11T20:00:00+00:00"),),
+        daily_bars=(
+            {"symbol": "KTOS", "trade_date": date(2026, 8, 11), "close": D("60")},
+            {"symbol": "KTOS", "trade_date": date(2026, 8, 12), "close": D("50")},
+        ),
+        cash_movements=(),
+        actual_points=points,
+        executions=(_equity("assigned-put", side="buy", quantity="100", price="60"),),
+        lifecycle_events=(_lifecycle("assigned", option_side="PUT", stock_quantity="100"),),
+    )
+
+    assert series.points[0].value == D("100000")
+    assert series.points[-1].value == D("99000")
+    assert series.return_percent == D("-1")
+
+
+def test_opening_day_dividend_is_not_added_twice_to_the_frozen_residual() -> None:
+    points = (
+        ReturnPoint(
+            date=date(2026, 8, 11),
+            value=D("100000"),
+            external_flow=D("0"),
+            daily_return_percent=None,
+            cumulative_return_percent=None,
+            quality="observed",
+        ),
+        ReturnPoint(
+            date=date(2026, 8, 12),
+            value=D("100000"),
+            external_flow=D("0"),
+            daily_return_percent=D("0"),
+            cumulative_return_percent=D("0"),
+            quality="observed",
+        ),
+    )
+    series = build_static_share_baseline(
+        position_history=(_lot("KTOS", "100", "2026-08-11T20:00:00+00:00"),),
+        daily_bars=(
+            {"symbol": "KTOS", "trade_date": date(2026, 8, 11), "close": D("60")},
+            {"symbol": "KTOS", "trade_date": date(2026, 8, 12), "close": D("60")},
+        ),
+        cash_movements=(
+            {
+                "occurred_at": datetime(2026, 8, 11, 12, tzinfo=UTC),
+                "movement_type": "dividend",
+                "symbol": "KTOS",
+                "amount": D("100"),
+            },
+        ),
+        actual_points=points,
+    )
+
+    assert tuple(point.value for point in series.points) == (D("100000"), D("100000"))
+
+
 def _lot(symbol: str, quantity: str, observed: str) -> dict[str, object]:
     return {
         "sync_run_id": "run-1",
@@ -245,4 +492,46 @@ def _balance(observed: str, liquidation: str) -> dict[str, object]:
         "observed_at": datetime.fromisoformat(observed),
         "liquidation_value": D(liquidation),
         "initial_liquidation_value": D(liquidation),
+    }
+
+
+def _equity(
+    key: str | None,
+    *,
+    account: str = "",
+    symbol: str = "KTOS",
+    side: str,
+    quantity: str,
+    price: str,
+) -> dict[str, object]:
+    return {
+        "external_key": key,
+        "account_mask": account,
+        "occurred_at": datetime(2026, 8, 12, 20, tzinfo=UTC),
+        "asset_type": "equity",
+        "symbol": symbol,
+        "side": side,
+        "quantity": D(quantity),
+        "price": D(price),
+    }
+
+
+def _lifecycle(
+    event_type: str,
+    *,
+    account: str = "",
+    symbol: str = "KTOS",
+    option_side: str,
+    strike: str = "60",
+    stock_quantity: str,
+) -> dict[str, object]:
+    return {
+        "event_type": event_type,
+        "account_mask": account,
+        "option_side": option_side,
+        "occurred_at": datetime(2026, 8, 12, 20, tzinfo=UTC),
+        "underlying_symbol": symbol,
+        "strike": D(strike),
+        "option_quantity": D("1"),
+        "stock_quantity": D(stock_quantity),
     }

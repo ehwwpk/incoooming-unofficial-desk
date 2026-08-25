@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import NoReturn
 
@@ -62,9 +63,19 @@ def auth_complete(
         default=None,
         help="Entire URL from the browser address bar after Schwab authorization.",
     ),
+    from_stdin: bool = typer.Option(
+        default=False,
+        help="Read the callback URL from standard input without echoing it.",
+    ),
 ) -> None:
     """Exchange a pasted Schwab callback URL and store the token in Windows Credential Manager."""
-    pasted_url = callback_url or typer.prompt("Paste the entire callback URL", hide_input=True)
+    if from_stdin:
+        pasted_url = sys.stdin.readline().strip()
+        if not pasted_url:
+            typer.echo("Not ready: no callback URL was received on standard input.", err=True)
+            raise typer.Exit(code=1)
+    else:
+        pasted_url = callback_url or typer.prompt("Paste the entire callback URL", hide_input=True)
     container = Container()
     try:
         try:
@@ -178,9 +189,7 @@ def campaign_audit() -> None:
             f"{audit.exact_campaigns} exact / {audit.inferred_campaigns} inferred / "
             f"{audit.unknown_campaigns} unknown"
         )
-        typer.echo(
-            f"Excluded long-option lifecycle events: {audit.excluded_long_lifecycle_events}"
-        )
+        typer.echo(f"Excluded long-option lifecycle events: {audit.excluded_long_lifecycle_events}")
         typer.echo(f"Adjusted-contract events observed: {audit.adjusted_contract_events}")
         typer.echo(
             "Campaign cash: "
@@ -188,8 +197,7 @@ def campaign_audit() -> None:
             f"variance {audit.cash_variance}"
         )
         typer.echo(
-            "Legacy chart removal gate: "
-            f"{'PASS' if audit.legacy_removal_gate_passed else 'HOLD'}"
+            f"Legacy chart removal gate: {'PASS' if audit.legacy_removal_gate_passed else 'HOLD'}"
         )
     finally:
         container.close()

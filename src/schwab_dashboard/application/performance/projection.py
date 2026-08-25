@@ -126,7 +126,6 @@ def build_performance_comparison(
         actual_points=actual_points,
         executions=executions,
         lifecycle_events=lifecycle_events,
-        balance_history=balance_history,
         annual_interest_rate_percent=margin_interest_rate_percent,
     )
     option_overlay = build_executed_option_overlay(
@@ -216,7 +215,7 @@ def build_performance_comparison(
     if external_flows:
         warnings.append("Deposits and withdrawals are excluded before returns are chained.")
     return PerformanceComparison(
-        methodology_version="incoooming-performance-v3",
+        methodology_version="incoooming-performance-v4",
         range_label=(
             f"{actual_points[0].date:%b %d}-{actual_points[-1].date:%b %d, %Y}"
             if actual_points

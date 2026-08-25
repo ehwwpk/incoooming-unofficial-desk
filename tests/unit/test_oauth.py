@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from base64 import b64decode
 from datetime import UTC, datetime, timedelta
+from urllib.parse import parse_qs, urlparse
 
 import httpx
 import pytest
@@ -32,6 +34,17 @@ def test_callback_exchange_stores_token() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "POST"
         assert request.url.path == "/oauth/token"
+        assert request.headers["accept"] == "application/json"
+        assert request.headers["content-type"].startswith("application/x-www-form-urlencoded")
+        scheme, encoded_credentials = request.headers["authorization"].split(" ", 1)
+        assert scheme == "Basic"
+        assert b64decode(encoded_credentials).decode() == "app-key:app-secret"
+        form = parse_qs(request.content.decode())
+        assert form == {
+            "grant_type": ["authorization_code"],
+            "code": ["abc@123"],
+            "redirect_uri": ["https://127.0.0.1:8182/"],
+        }
         return httpx.Response(
             200,
             json={
@@ -51,6 +64,41 @@ def test_callback_exchange_stores_token() -> None:
     assert token.access_token == "access-one"
     assert store.token is not None
     assert store.token.refresh_token == "refresh-one"
+
+
+def test_authorization_url_uses_the_exact_configured_callback() -> None:
+    oauth, client = _oauth(httpx.MockTransport(lambda _: httpx.Response(500)), MemoryTokenStore())
+    try:
+        parsed = urlparse(oauth.authorization_url())
+    finally:
+        client.close()
+
+    assert parsed.scheme == "https"
+    assert parsed.netloc == "api.example"
+    assert parsed.path == "/oauth/authorize"
+    assert parse_qs(parsed.query) == {
+        "client_id": ["app-key"],
+        "redirect_uri": ["https://127.0.0.1:8182/"],
+    }
+
+
+def test_callback_exchange_rejects_a_different_origin_before_token_request() -> None:
+    called = False
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal called
+        called = True
+        return httpx.Response(500)
+
+    oauth, client = _oauth(httpx.MockTransport(handler), MemoryTokenStore())
+    try:
+        with pytest.raises(AuthenticationRequiredError) as caught:
+            oauth.exchange_callback_url("https://localhost:8182/?code=abc%40123")
+    finally:
+        client.close()
+
+    assert "does not match" in str(caught.value)
+    assert called is False
 
 
 def test_expired_access_token_is_refreshed_without_losing_refresh_token() -> None:
@@ -96,3 +144,54 @@ def test_token_rejection_reports_safe_provider_code_without_description() -> Non
     message = str(caught.value)
     assert "HTTP 400, invalid_grant" in message
     assert "do not echo" not in message
+
+
+def test_nested_schwab_rejection_reports_vetted_reason() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            400,
+            json={
+                "error": "unsupported_token_type",
+                "error_description": (
+                    '400 Bad Request: "{\\"error\\":\\"invalid_grant\\",'
+                    '\\"error_description\\":\\"Authorization code is invalid, '
+                    'expired or revoked\\"}"'
+                ),
+            },
+        )
+
+    oauth, client = _oauth(httpx.MockTransport(handler), MemoryTokenStore())
+    try:
+        with pytest.raises(AuthenticationRequiredError) as caught:
+            oauth.exchange_callback_url("https://127.0.0.1:8182/?code=spent")
+    finally:
+        client.close()
+
+    message = str(caught.value)
+    assert "HTTP 400, invalid_grant" in message
+    assert "invalid, expired, or revoked" in message
+    assert "400 Bad Request" not in message
+
+
+def test_nested_schwab_rejection_identifies_bad_client_credentials() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            401,
+            json={
+                "error": "unsupported_token_type",
+                "error_description": (
+                    '{"error":"invalid_client","error_description":"Invalid client authentication"}'
+                ),
+            },
+        )
+
+    oauth, client = _oauth(httpx.MockTransport(handler), MemoryTokenStore())
+    try:
+        with pytest.raises(AuthenticationRequiredError) as caught:
+            oauth.exchange_callback_url("https://127.0.0.1:8182/?code=fresh")
+    finally:
+        client.close()
+
+    message = str(caught.value)
+    assert "HTTP 401, invalid_client" in message
+    assert "rejected the app key or app secret" in message
