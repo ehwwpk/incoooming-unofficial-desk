@@ -47,6 +47,18 @@ from schwab_dashboard.application.rolls.models import RollQuote
 
 
 @dataclass(frozen=True, slots=True)
+class AccountDayProfitLoss:
+    """One flow-neutral account return link, expressed in dollars and percent."""
+
+    status: str
+    profit_loss: Decimal | None
+    profit_loss_percent: Decimal | None
+    external_cash_flow: Decimal
+    as_of: date | None
+    previous_as_of: date | None
+
+
+@dataclass(frozen=True, slots=True)
 class PortfolioSummary:
     total_value: Decimal
     invested_value: Decimal
@@ -64,6 +76,13 @@ class PortfolioSummary:
     buying_power: Decimal | None = None
     available_funds: Decimal | None = None
     maintenance_requirement: Decimal | None = None
+    day_profit_loss_source: str = "open_positions"
+    day_profit_loss_as_of: date | None = None
+    day_profit_loss_previous_as_of: date | None = None
+    open_position_day_profit_loss: Decimal | None = None
+    open_position_day_profit_loss_percent: Decimal | None = None
+    day_profit_loss_reconciliation_gap: Decimal | None = None
+    day_profit_loss_reconciliation_status: str = "not_available"
 
 
 @dataclass(frozen=True, slots=True)

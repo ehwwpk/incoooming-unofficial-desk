@@ -286,7 +286,7 @@ def test_portfolio_day_pl_is_blank_when_every_position_lacks_a_print() -> None:
     assert summary.day_profit_loss_percent is None
 
 
-def test_portfolio_treats_missing_prints_as_zero_inside_a_mixed_book() -> None:
+def test_portfolio_refuses_partial_open_position_day_pl() -> None:
     summary = summarize_portfolio(
         (
             _position(day_profit_loss=D("100")),
@@ -295,8 +295,9 @@ def test_portfolio_treats_missing_prints_as_zero_inside_a_mixed_book() -> None:
         ({"liquidation_value": D("100000")},),
     )
 
-    assert summary.day_profit_loss == D("100")
-    assert summary.day_profit_loss_percent == D("100") / D("99900") * D("100")
+    assert summary.day_profit_loss is None
+    assert summary.day_profit_loss_percent is None
+    assert summary.open_position_day_profit_loss is None
 
 
 def test_portfolio_day_pl_does_not_follow_the_readers_calendar() -> None:

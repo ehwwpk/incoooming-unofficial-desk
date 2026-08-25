@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from schwab_dashboard.application.alerts import build_desk_alerts
 from schwab_dashboard.application.dashboard.calculations import (
+    account_day_profit_loss,
     map_positions,
     summarize_allocations,
     summarize_portfolio,
@@ -128,9 +129,19 @@ class ReadDashboard:
         daily_bars = self._analytics_reader.list_daily_bars(symbols=daily_bar_symbols)
         balance_history = self._analytics_reader.list_balance_history()
 
+        performance_comparison = build_performance_comparison(
+            balance_history=balance_history,
+            cash_movements=cash_movements,
+            position_history=position_history,
+            daily_bars=daily_bars,
+            executions=executions,
+            lifecycle_events=lifecycle_events,
+            margin_interest_rate_percent=self._margin_interest_rate_percent,
+        )
         portfolio = summarize_portfolio(
             positions,
             balances,
+            account_day=account_day_profit_loss(performance_comparison.actual.points),
         )
         live_book = build_live_position_book(
             positions,
@@ -277,15 +288,7 @@ class ReadDashboard:
             risk=risk,
             live_position_book=live_book,
             latest_sync_attempt=latest_sync_attempt,
-            performance_comparison=build_performance_comparison(
-                balance_history=balance_history,
-                cash_movements=cash_movements,
-                position_history=position_history,
-                daily_bars=daily_bars,
-                executions=executions,
-                lifecycle_events=lifecycle_events,
-                margin_interest_rate_percent=self._margin_interest_rate_percent,
-            ),
+            performance_comparison=performance_comparison,
             recent_option_activity=recent_option_activity,
             option_outcomes=option_outcomes,
             open_premium_pace=open_premium_pace,

@@ -171,6 +171,9 @@ def test_realistic_csv_book_projects_inventory_options_income_and_dividend(
         assert dataset.position_count == 6
         assert dataset.activity_count == 4
         assert snapshot.mode == "csv"
+        assert snapshot.portfolio.day_profit_loss is None
+        assert snapshot.portfolio.day_profit_loss_source == "unavailable"
+        assert snapshot.portfolio.open_position_day_profit_loss is not None
         assert snapshot.live_position_book is not None
         assert snapshot.live_position_book.total_shares == 2_000
         assert snapshot.live_position_book.open_call_contracts == 7

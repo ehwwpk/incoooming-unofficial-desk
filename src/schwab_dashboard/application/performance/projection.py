@@ -114,10 +114,8 @@ def build_performance_comparison(
         cash_movements,
         calendar=calendar,
     )
-    calculated = tuple(
-        point for point in actual_points if point.cumulative_return_percent is not None
-    )
-    actual_return = calculated[-1].cumulative_return_percent if calculated else None
+    calculated = tuple(point for point in actual_points if point.daily_return_percent is not None)
+    actual_return = actual_points[-1].cumulative_return_percent if actual_points else None
     external_flows = sum((point.external_flow for point in actual_points), ZERO)
     shares_baseline = build_static_share_baseline(
         position_history=position_history,
@@ -215,7 +213,7 @@ def build_performance_comparison(
     if external_flows:
         warnings.append("Deposits and withdrawals are excluded before returns are chained.")
     return PerformanceComparison(
-        methodology_version="incoooming-performance-v4",
+        methodology_version="incoooming-performance-v5",
         range_label=(
             f"{actual_points[0].date:%b %d}-{actual_points[-1].date:%b %d, %Y}"
             if actual_points

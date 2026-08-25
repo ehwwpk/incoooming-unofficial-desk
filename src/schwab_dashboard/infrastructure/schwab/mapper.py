@@ -110,13 +110,15 @@ class SchwabAccountMapper:
         cls,
         payload: Mapping[str, Any],
     ) -> tuple[Decimal | None, Decimal | None]:
-        """Remove same-session trade cash from Schwab's position day tape.
+        """Normalize only a cost field proven stale by unchanged share counts.
 
-        Schwab can fold ``currentDayCost`` into ``currentDayProfitLoss``. That makes
-        a purchase look like a market loss (and an opening sale look like a gain),
-        even though neither cash movement is investment performance. The raw broker
-        payload remains in ``raw_broker_events`` for audit; normalized positions keep
-        only the market component used by the dashboard.
+        ``currentDayCost`` is not consistently a same-session cash flow. Schwab has
+        also carried it onto the next session.  Adding it unconditionally reverses
+        real losses on new positions and assignment deliveries.  Previous-session
+        quantities give the only position-local evidence that the cost is stale: the
+        relevant long/short count must be present and exactly unchanged. Otherwise
+        the broker-reported P/L and percent pass through untouched. Account DAY P/L
+        is calculated independently from net-liquidation history.
         """
 
         reported = cls._optional_decimal(payload.get("currentDayProfitLoss"))
@@ -128,6 +130,8 @@ class SchwabAccountMapper:
 
         current_day_cost = cls._optional_decimal(payload.get("currentDayCost"))
         if current_day_cost is None or current_day_cost == 0:
+            return reported, reported_percent
+        if not cls._quantity_unchanged_from_previous_session(payload):
             return reported, reported_percent
 
         market_profit_loss = reported + current_day_cost
@@ -141,6 +145,19 @@ class SchwabAccountMapper:
 
         market_percent = market_profit_loss / abs(prior_market_value) * Decimal("100")
         return market_profit_loss, market_percent
+
+    @classmethod
+    def _quantity_unchanged_from_previous_session(cls, payload: Mapping[str, Any]) -> bool:
+        current_long = cls._decimal(payload.get("longQuantity"), default=Decimal("0"))
+        current_short = cls._decimal(payload.get("shortQuantity"), default=Decimal("0"))
+        previous_long = cls._optional_decimal(payload.get("previousSessionLongQuantity"))
+        previous_short = cls._optional_decimal(payload.get("previousSessionShortQuantity"))
+
+        if current_long > 0:
+            return previous_long is not None and previous_long == current_long
+        if current_short > 0:
+            return previous_short is not None and previous_short == current_short
+        return False
 
     def _map_balances(self, account: Mapping[str, Any]) -> BrokerAccountBalances:
         current = account.get("currentBalances") or {}

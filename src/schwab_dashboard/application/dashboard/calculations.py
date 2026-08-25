@@ -7,11 +7,13 @@ from decimal import Decimal
 from typing import Any
 
 from schwab_dashboard.application.dashboard.models import (
+    AccountDayProfitLoss,
     AllocationSlice,
     PortfolioSummary,
     PositionSummary,
     RiskSummary,
 )
+from schwab_dashboard.application.performance.models import ReturnPoint
 
 ZERO = Decimal("0")
 OPTION_DAY_PERCENT_MARK_FLOOR = Decimal("0.50")
@@ -70,18 +72,60 @@ def broker_day_profit_loss(
     if not positions:
         return ZERO, ZERO
     reported = tuple(position.day_profit_loss for position in positions)
-    if all(value is None for value in reported):
+    if any(value is None for value in reported):
         return None, None
-    day_profit_loss = sum((value or ZERO for value in reported), ZERO)
+    day_profit_loss = sum((value for value in reported if value is not None), ZERO)
     prior_value = current_account_value - day_profit_loss
     if prior_value == ZERO:
         return day_profit_loss, ZERO
     return day_profit_loss, day_profit_loss / prior_value * Decimal("100")
 
 
+def account_day_profit_loss(
+    points: Sequence[ReturnPoint],
+) -> AccountDayProfitLoss:
+    """Read the latest complete flow-neutral link from the managed return path.
+
+    The homepage and Results must use the same identity.  A day is therefore
+    available only when the return engine linked two consecutive aggregate
+    net-liquidation snapshots with unchanged account coverage.
+    """
+
+    if len(points) < 2:
+        return AccountDayProfitLoss(
+            status="not_available",
+            profit_loss=None,
+            profit_loss_percent=None,
+            external_cash_flow=ZERO,
+            as_of=points[-1].date if points else None,
+            previous_as_of=None,
+        )
+    previous, current = points[-2:]
+    linked_qualities = {"linked", "linked_after_incomplete_history"}
+    if current.daily_return_percent is None or current.quality not in linked_qualities:
+        return AccountDayProfitLoss(
+            status=current.quality,
+            profit_loss=None,
+            profit_loss_percent=None,
+            external_cash_flow=current.external_flow,
+            as_of=current.date,
+            previous_as_of=previous.date,
+        )
+    return AccountDayProfitLoss(
+        status="linked",
+        profit_loss=current.value - previous.value - current.external_flow,
+        profit_loss_percent=current.daily_return_percent,
+        external_cash_flow=current.external_flow,
+        as_of=current.date,
+        previous_as_of=previous.date,
+    )
+
+
 def summarize_portfolio(
     positions: Sequence[PositionSummary],
     balances: Sequence[dict[str, Any]] = (),
+    *,
+    account_day: AccountDayProfitLoss | None = None,
 ) -> PortfolioSummary:
     stock_value = sum(
         (
@@ -114,10 +158,38 @@ def summarize_portfolio(
         [_optional_decimal(row.get("maintenance_requirement")) for row in balances]
     )
     total_value = liquidation_value if liquidation_value is not None else net_position_value
-    day_profit_loss, day_percent = broker_day_profit_loss(
+    open_day_profit_loss, open_day_percent = broker_day_profit_loss(
         positions,
         current_account_value=total_value,
     )
+    if account_day is None:
+        day_profit_loss = open_day_profit_loss
+        day_percent = open_day_percent
+        day_flow = ZERO
+        day_source = "open_positions"
+        day_as_of = None
+        day_previous_as_of = None
+    else:
+        day_profit_loss = account_day.profit_loss
+        day_percent = account_day.profit_loss_percent
+        day_flow = account_day.external_cash_flow
+        day_source = "net_liquidation" if account_day.status == "linked" else "unavailable"
+        day_as_of = account_day.as_of
+        day_previous_as_of = account_day.previous_as_of
+    reconciliation_gap = (
+        open_day_profit_loss - day_profit_loss
+        if open_day_profit_loss is not None and day_profit_loss is not None
+        else None
+    )
+    if day_profit_loss is None:
+        reconciliation_status = "account_day_unavailable"
+    elif open_day_profit_loss is None:
+        reconciliation_status = "open_positions_unavailable"
+    else:
+        tolerance = max(Decimal("5"), abs(total_value) * Decimal("0.0001"))
+        reconciliation_status = (
+            "aligned" if abs(reconciliation_gap or ZERO) <= tolerance else "diverged"
+        )
     return PortfolioSummary(
         total_value=total_value,
         invested_value=net_position_value,
@@ -126,7 +198,7 @@ def summarize_portfolio(
         option_value=option_value,
         day_profit_loss=day_profit_loss,
         day_profit_loss_percent=day_percent,
-        day_external_cash_flow=ZERO,
+        day_external_cash_flow=day_flow,
         gross_position_value=gross_position_value,
         net_position_value=net_position_value,
         liquidation_value=liquidation_value,
@@ -135,6 +207,13 @@ def summarize_portfolio(
         buying_power=buying_power,
         available_funds=available_funds,
         maintenance_requirement=maintenance,
+        day_profit_loss_source=day_source,
+        day_profit_loss_as_of=day_as_of,
+        day_profit_loss_previous_as_of=day_previous_as_of,
+        open_position_day_profit_loss=open_day_profit_loss,
+        open_position_day_profit_loss_percent=open_day_percent,
+        day_profit_loss_reconciliation_gap=reconciliation_gap,
+        day_profit_loss_reconciliation_status=reconciliation_status,
     )
 
 

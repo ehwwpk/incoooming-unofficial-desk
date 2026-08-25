@@ -49,6 +49,32 @@ def test_utc_after_hours_snapshots_stay_on_the_same_market_day() -> None:
     assert comparison.actual.return_percent is None
 
 
+def test_return_chain_fails_closed_when_account_coverage_changes() -> None:
+    first_account = _balance("2026-08-11T20:00:00+00:00", "50000", "50000")
+    second_account = {
+        **_balance("2026-08-11T20:00:00+00:00", "50000", "50000"),
+        "account_mask": "...5678",
+    }
+    comparison = build_performance_comparison(
+        balance_history=(
+            first_account,
+            second_account,
+            _balance("2026-08-12T20:00:00+00:00", "51000", "50000"),
+            _balance("2026-08-13T20:00:00+00:00", "52000", "51000"),
+        ),
+        cash_movements=(),
+    )
+
+    assert [point.quality for point in comparison.actual.points] == [
+        "observed_anchor",
+        "account_coverage_changed",
+        "linked_after_incomplete_history",
+    ]
+    assert comparison.actual.points[-1].daily_return_percent == D("1000") / D("51000") * D("100")
+    assert comparison.actual.points[-1].cumulative_return_percent is None
+    assert comparison.actual.return_percent is None
+
+
 def test_comparison_refuses_to_invent_missing_benchmarks() -> None:
     comparison = build_performance_comparison(balance_history=(), cash_movements=())
 

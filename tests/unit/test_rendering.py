@@ -553,7 +553,11 @@ def test_desk_header_uses_day_pl_not_today_nl_change() -> None:
         / "dashboard.html"
     ).read_text(encoding="utf-8")
 
-    assert "DAY P/L" in page
+    assert "ACCOUNT DAY P/L" in page
+    assert "OPEN POS P/L" in page
+    assert "UNRECONCILED" in page
+    assert "OWNER FLOW EXCL" in page
+    assert "P/L GAP" in page
     assert "TODAY <b" not in page
     assert "flow-adjusted-note" not in page
     assert "DEPOSIT EXCLUDED" not in page
@@ -941,6 +945,8 @@ def test_results_spine_keeps_series_key_beside_chart_and_economics_below_it() ->
     assert "data-performance-sample" not in rendered
     assert "performance-compare-tape" not in rendered
     assert "performance-metric-rail" in rendered
+    assert "CUMULATIVE RETURN LINES" in rendered
+    assert "latest day" in rendered
     assert "data-performance-compare-canvas" in rendered
     assert "data-performance-compare-svg" not in rendered
     assert "<h3>Drawdown</h3>" in rendered

@@ -7,6 +7,7 @@ from typing import Any
 
 from schwab_dashboard.application.alerts import build_desk_alerts
 from schwab_dashboard.application.dashboard.calculations import (
+    account_day_profit_loss,
     summarize_allocations,
     summarize_portfolio,
     summarize_risk,
@@ -70,7 +71,10 @@ class CsvDashboardReader:
         )
         evaluated_at = self._clock()
         as_of = dataset.created_at
-        portfolio = summarize_portfolio(positions)
+        portfolio = summarize_portfolio(
+            positions,
+            account_day=account_day_profit_loss(()),
+        )
         live_book = build_live_position_book(
             positions,
             as_of=as_of.date(),

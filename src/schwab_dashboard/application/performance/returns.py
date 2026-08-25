@@ -53,6 +53,8 @@ def build_time_weighted_returns(
     cumulative_factor = Decimal("1")
     previous_value: Decimal | None = None
     previous_day: date | None = None
+    previous_accounts: frozenset[str] | None = None
+    chain_complete = True
     for day, accounts in sorted(grouped.items()):
         rows = tuple(accounts.values())
         current_values = [_optional_decimal(row.get("liquidation_value")) for row in rows]
@@ -75,10 +77,18 @@ def build_time_weighted_returns(
         # processing lands between the last sync and the next session, and
         # measuring from the broker's opening silently discards the P/L in that
         # seam instead of attributing it to anyone.
-        if previous_value is not None and previous_value != ZERO:
+        current_accounts = frozenset(accounts)
+        same_account_coverage = previous_accounts is None or current_accounts == previous_accounts
+        if previous_value is not None and not same_account_coverage:
+            quality = "account_coverage_changed"
+            chain_complete = False
+        elif previous_value == ZERO:
+            quality = "zero_prior_value"
+            chain_complete = False
+        elif previous_value is not None and previous_value != ZERO:
             daily_return = (value - previous_value - flow) / previous_value * HUNDRED
             cumulative_factor *= Decimal("1") + daily_return / HUNDRED
-            quality = "linked"
+            quality = "linked" if chain_complete else "linked_after_incomplete_history"
         points.append(
             ReturnPoint(
                 date=day,
@@ -87,7 +97,7 @@ def build_time_weighted_returns(
                 daily_return_percent=daily_return,
                 cumulative_return_percent=(
                     (cumulative_factor - Decimal("1")) * HUNDRED
-                    if daily_return is not None
+                    if daily_return is not None and chain_complete
                     else None
                 ),
                 quality=quality,
@@ -95,6 +105,7 @@ def build_time_weighted_returns(
         )
         previous_value = value
         previous_day = day
+        previous_accounts = current_accounts
     return tuple(points)
 
 

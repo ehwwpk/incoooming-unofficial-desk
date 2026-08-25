@@ -31,11 +31,11 @@
     </div>
     <div class="performance-spine-grid" aria-label="Performance analysis">
       <aside class="performance-metric-rail" aria-label="Chart line key">
-        <header><span>RETURN LINES</span><span>{{ comparison.range_label | upper }}</span></header>
+        <header><span>CUMULATIVE RETURN LINES</span><span>{{ comparison.range_label | upper }}</span></header>
         <span class="performance-metric-item performance-actual-coverage">
           <span class="performance-series-key"><i aria-hidden="true"></i>MANAGED</span>
           <strong class="{{ matched.managed_return_percent | pnl_class }}">{{ matched.managed_return_percent | percent(2) }}</strong>
-          <small>cash flows removed{% if comparison.actual.return_percent is not none and comparison.actual.points and comparison.actual.points[-1].date != matched.as_of %} &middot; through {{ comparison.actual.points[-1].date.strftime('%b %d') | upper }}{% endif %}</small>
+          <small>cash flows removed{% if comparison.actual.points and comparison.actual.points[-1].daily_return_percent is not none %} &middot; latest day <b class="{{ comparison.actual.points[-1].daily_return_percent | pnl_class }}">{{ comparison.actual.points[-1].daily_return_percent | percent(2) }}</b> {{ comparison.actual.points[-1].date.strftime('%b %d') | upper }}{% elif comparison.actual.return_percent is not none and comparison.actual.points and comparison.actual.points[-1].date != matched.as_of %} &middot; through {{ comparison.actual.points[-1].date.strftime('%b %d') | upper }}{% endif %}</small>
         </span>
         <span class="performance-metric-item performance-shares-coverage">
           <span class="performance-series-key"><i aria-hidden="true"></i>STARTING SHARES</span>

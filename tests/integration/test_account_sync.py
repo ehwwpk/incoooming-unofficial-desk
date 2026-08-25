@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -9,7 +10,8 @@ from sqlalchemy import func, select
 from schwab_dashboard.application.errors import SyncValidationError
 from schwab_dashboard.application.ports.broker import BrokerAccountRecord
 from schwab_dashboard.application.services.sync_accounts import SyncAccountsAndPositions
-from schwab_dashboard.domain.broker import BrokerAccount, BrokerPosition
+from schwab_dashboard.domain.broker import BrokerAccount, BrokerAccountBalances, BrokerPosition
+from schwab_dashboard.infrastructure.database.analytics_reader import SqlLiveAnalyticsReader
 from schwab_dashboard.infrastructure.database.tables import (
     AccountTable,
     PositionSnapshotTable,
@@ -108,6 +110,31 @@ def test_each_real_sync_creates_a_new_observation(
         assert session.scalar(select(func.count()).select_from(RawBrokerEventTable)) == 2
         assert session.scalar(select(func.count()).select_from(AccountTable)) == 1
         assert session.scalar(select(func.count()).select_from(PositionSnapshotTable)) == 2
+
+
+def test_balance_history_excludes_snapshots_from_noncompleted_runs(
+    database_runtime: tuple[object, object, object],
+) -> None:
+    _, session_factory, uow_factory = database_runtime
+    record = replace(
+        _record(_position()),
+        balances=BrokerAccountBalances(liquidation_value=Decimal("100000")),
+    )
+    result = SyncAccountsAndPositions(
+        broker=FakeBrokerGateway([record]),  # type: ignore[arg-type]
+        uow_factory=uow_factory,  # type: ignore[arg-type]
+        parser_version="test-v1",
+    ).execute()
+    reader = SqlLiveAnalyticsReader(session_factory)  # type: ignore[arg-type]
+    assert len(reader.list_balance_history()) == 1
+
+    with session_factory() as session:  # type: ignore[operator]
+        run = session.get(SyncRunTable, result.run_id)
+        assert run is not None
+        run.status = "failed"
+        session.commit()
+
+    assert reader.list_balance_history() == ()
 
 
 def test_activity_run_does_not_hide_latest_position_snapshot(

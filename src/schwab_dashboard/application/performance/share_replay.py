@@ -141,23 +141,42 @@ def live_long_quantity(
     symbol: str,
     day: date,
 ) -> Decimal | None:
-    grouped: dict[date, Decimal] = defaultdict(lambda: ZERO)
+    snapshots: dict[tuple[str, str, str], Decimal] = defaultdict(lambda: ZERO)
+    snapshot_order: dict[tuple[str, str, str], tuple[date, str, str]] = {}
     for row in position_history:
-        if str(row.get("asset_type") or "").upper() == "OPTION":
-            continue
-        if str(row.get("symbol") or "").upper() != symbol:
-            continue
         observed = row.get("observed_at")
         if observed is None:
             continue
         observed_day = market_date(observed) if isinstance(observed, datetime) else observed
         if not isinstance(observed_day, date) or observed_day > day:
             continue
-        grouped[observed_day] += _decimal(row.get("net_quantity"))
-    if not grouped:
+        account = _account(row) or "account"
+        observed_key = (
+            observed.isoformat() if isinstance(observed, (date, datetime)) else str(observed)
+        )
+        run_key = str(row.get("sync_run_id") or "")
+        snapshot_key = (account, observed_key, run_key)
+        # Seeing any position proves this account snapshot exists.  Initialize
+        # it even when the target symbol is absent, because absence from a
+        # complete later snapshot means the shares were sold, not that the last
+        # non-zero quantity should be carried forever.
+        snapshots[snapshot_key] += ZERO
+        if (
+            str(row.get("asset_type") or "").upper() != "OPTION"
+            and str(row.get("symbol") or "").upper() == symbol
+        ):
+            snapshots[snapshot_key] += _decimal(row.get("net_quantity"))
+        snapshot_order[snapshot_key] = (observed_day, observed_key, run_key)
+    if not snapshots:
         return None
-    chosen = max(grouped)
-    qty = grouped[chosen]
+    latest_by_account: dict[str, tuple[tuple[date, str, str], Decimal]] = {}
+    for snapshot_key, quantity in snapshots.items():
+        account = snapshot_key[0]
+        order = snapshot_order[snapshot_key]
+        current = latest_by_account.get(account)
+        if current is None or current[0] < order:
+            latest_by_account[account] = (order, quantity)
+    qty = sum((quantity for _order, quantity in latest_by_account.values()), ZERO)
     return qty if qty > ZERO else ZERO
 
 

@@ -38,6 +38,8 @@ class SqlLiveAnalyticsReader:
             rows = session.execute(
                 select(AccountBalanceSnapshotTable, AccountTable)
                 .join(AccountTable, AccountTable.id == AccountBalanceSnapshotTable.account_id)
+                .join(SyncRunTable, SyncRunTable.id == AccountBalanceSnapshotTable.sync_run_id)
+                .where(SyncRunTable.status == "completed")
                 .order_by(AccountBalanceSnapshotTable.observed_at, AccountTable.account_mask)
             ).all()
         return tuple(

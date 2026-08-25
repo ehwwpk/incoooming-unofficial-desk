@@ -8,6 +8,7 @@ from schwab_dashboard.application.performance.share_replay import (
     apply_discretionary_equity,
     classify_forced_equity,
     execution_keys,
+    live_long_quantity,
     scaled_dividend,
 )
 from schwab_dashboard.application.performance.stock_leverage import stock_leverage_ratio
@@ -316,6 +317,29 @@ def test_dividend_scales_to_freeze_lots() -> None:
     assert credited == D("125")
 
 
+def test_live_long_quantity_uses_latest_snapshot_per_account_not_every_sync() -> None:
+    history = (
+        _lot("KTOS", "1000", "2026-08-24T14:00:00+00:00"),
+        _lot("KTOS", "1100", "2026-08-24T20:00:00+00:00"),
+        {
+            **_lot("KTOS", "200", "2026-08-24T19:00:00+00:00"),
+            "account_mask": "...5678",
+            "sync_run_id": "run-second-account",
+        },
+    )
+
+    assert live_long_quantity(history, "KTOS", date(2026, 8, 24)) == D("1300")
+
+
+def test_live_long_quantity_reads_absence_from_later_snapshot_as_zero() -> None:
+    history = (
+        _lot("KTOS", "1000", "2026-08-21T20:00:00+00:00"),
+        _lot("CVX", "800", "2026-08-24T20:00:00+00:00"),
+    )
+
+    assert live_long_quantity(history, "KTOS", date(2026, 8, 24)) == D("0")
+
+
 def test_option_premium_does_not_enter_freeze_nav() -> None:
     comparison = build_performance_comparison(
         balance_history=(
@@ -344,7 +368,7 @@ def test_option_premium_does_not_enter_freeze_nav() -> None:
     assert freeze.return_percent == D("0.3")
     assert freeze.points[-1].value == D("100300")
     assert comparison.option_overlay.return_percent == D("5")
-    assert comparison.methodology_version == "incoooming-performance-v4"
+    assert comparison.methodology_version == "incoooming-performance-v5"
 
 
 def test_scaled_dividend_hits_freeze_nav() -> None:

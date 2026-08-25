@@ -97,7 +97,7 @@ def test_maps_balances_and_short_call_identity() -> None:
     assert position.short_open_profit_loss == Decimal("160")
 
 
-def test_removes_same_session_purchase_cash_from_schwab_day_profit_loss() -> None:
+def test_removes_stale_cost_when_long_quantity_is_unchanged_from_prior_session() -> None:
     records = SchwabAccountMapper().map_records(
         [{"accountNumber": "12345678", "hashValue": "hash-abc"}],
         [
@@ -108,6 +108,7 @@ def test_removes_same_session_purchase_cash_from_schwab_day_profit_loss() -> Non
                         {
                             "longQuantity": 800,
                             "shortQuantity": 0,
+                            "previousSessionLongQuantity": 800,
                             "marketValue": 164480,
                             "currentDayCost": 15654,
                             "currentDayProfitLoss": -15790,
@@ -130,7 +131,7 @@ def test_removes_same_session_purchase_cash_from_schwab_day_profit_loss() -> Non
     )
 
 
-def test_removes_opening_option_credit_from_schwab_day_profit_loss() -> None:
+def test_removes_stale_cost_when_short_quantity_is_unchanged_from_prior_session() -> None:
     records = SchwabAccountMapper().map_records(
         [{"accountNumber": "12345678", "hashValue": "hash-abc"}],
         [
@@ -141,6 +142,7 @@ def test_removes_opening_option_credit_from_schwab_day_profit_loss() -> None:
                         {
                             "longQuantity": 0,
                             "shortQuantity": 2,
+                            "previousSessionShortQuantity": 2,
                             "marketValue": -4,
                             "currentDayCost": -56,
                             "currentDayProfitLoss": 86,
@@ -158,6 +160,82 @@ def test_removes_opening_option_credit_from_schwab_day_profit_loss() -> None:
 
     position = records[0].positions[0]
     assert position.day_profit_loss == Decimal("30")
-    assert position.day_profit_loss_percent == (
-        Decimal("30") / Decimal("34") * Decimal("100")
+    assert position.day_profit_loss_percent == (Decimal("30") / Decimal("34") * Decimal("100"))
+
+
+@pytest.mark.parametrize(
+    ("position", "expected_profit_loss"),
+    (
+        (
+            {
+                "longQuantity": 1100,
+                "shortQuantity": 0,
+                "previousSessionLongQuantity": 1000,
+                "marketValue": 58586,
+                "currentDayCost": 6000,
+                "currentDayProfitLoss": -4544,
+                "currentDayProfitLossPercentage": -7.2,
+                "instrument": {"symbol": "KTOS", "assetType": "EQUITY"},
+            },
+            Decimal("-4544"),
+        ),
+        (
+            {
+                "longQuantity": 0,
+                "shortQuantity": 2,
+                "previousSessionShortQuantity": 0,
+                "marketValue": -160,
+                "currentDayCost": -184,
+                "currentDayProfitLoss": 24,
+                "currentDayProfitLossPercentage": 13.04,
+                "instrument": {
+                    "symbol": "URNM  260918C00070000",
+                    "assetType": "OPTION",
+                },
+            },
+            Decimal("24"),
+        ),
+    ),
+)
+def test_preserves_broker_day_pl_when_current_quantity_changed(
+    position: dict[str, object],
+    expected_profit_loss: Decimal,
+) -> None:
+    records = SchwabAccountMapper().map_records(
+        [{"accountNumber": "12345678", "hashValue": "hash-abc"}],
+        [{"securitiesAccount": {"accountNumber": "12345678", "positions": [position]}}],
     )
+
+    mapped = records[0].positions[0]
+    assert mapped.day_profit_loss == expected_profit_loss
+    assert mapped.day_profit_loss_percent == Decimal(
+        str(position["currentDayProfitLossPercentage"])
+    )
+
+
+def test_preserves_broker_day_pl_when_previous_quantity_is_missing() -> None:
+    records = SchwabAccountMapper().map_records(
+        [{"accountNumber": "12345678", "hashValue": "hash-abc"}],
+        [
+            {
+                "securitiesAccount": {
+                    "accountNumber": "12345678",
+                    "positions": [
+                        {
+                            "longQuantity": 25,
+                            "shortQuantity": 0,
+                            "marketValue": 5000,
+                            "currentDayCost": 4900,
+                            "currentDayProfitLoss": -100,
+                            "currentDayProfitLossPercentage": -2,
+                            "instrument": {"symbol": "CVX", "assetType": "EQUITY"},
+                        }
+                    ],
+                }
+            }
+        ],
+    )
+
+    position = records[0].positions[0]
+    assert position.day_profit_loss == Decimal("-100")
+    assert position.day_profit_loss_percent == Decimal("-2")
