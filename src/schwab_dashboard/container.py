@@ -270,6 +270,10 @@ class Container:
         )
 
     def sync_full(self, *, trigger: str) -> FullSyncResult:
+        # Validate configuration before the coordinator records a sync run.
+        # A fresh checkout may not have a migrated database yet, and missing
+        # credentials should still produce the actionable authorization error.
+        self.require_oauth()
         result = self.sync_coordinator.execute(trigger=trigger)
         self._runtime_cache.invalidate()
         return result
