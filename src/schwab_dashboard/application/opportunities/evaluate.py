@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
+from schwab_dashboard.application.market_time import market_date
 from schwab_dashboard.application.opportunities.eligibility import evaluate_gates, passes
 from schwab_dashboard.application.opportunities.expiration_map import build_expiration_map
 from schwab_dashboard.application.opportunities.frontier import (
@@ -169,7 +170,7 @@ def evaluate_radar(
     expiration_map = build_expiration_map(
         bundle=bundle,
         candidates=selected,
-        as_of=evaluated_at.date(),
+        as_of=market_date(evaluated_at),
     )
     if roll_selection is not None:
         direction = "higher" if mode is RadarMode.COVERED_CALL else "same or lower"
@@ -192,7 +193,7 @@ def evaluate_radar(
             verdict="ROLL REVIEW",
             headline=f"{len(selected)} nearby listed {noun}(s) at later {direction} strikes",
             reasons=(
-                "The ladder is the next listed expiries and strikes, not a slogan contest.",
+                "The ladder is limited to the next listed expiries and nearby strikes.",
                 "Credits use the replacement bid and the current option's buy-to-close ask.",
             ),
             candidates=selected,
@@ -296,7 +297,7 @@ def _candidate(
     now: datetime,
     atm_iv: Decimal | None,
 ) -> RadarCandidate:
-    dte = days_to_expiration(contract.expiration_date, as_of=now.date())
+    dte = days_to_expiration(contract.expiration_date, as_of=market_date(now))
     bid = contract.bid or Decimal("0")
     ask = contract.ask or bid
     middle = midpoint(bid, ask)
@@ -379,6 +380,7 @@ def _candidate(
         gates=gates,
         reasons=reasons,
         theta=contract.theta,
+        contract_multiplier=contract.multiplier,
     )
 
 
@@ -393,9 +395,7 @@ def _passes_research_gates(candidate: RadarCandidate) -> bool:
 def _passes_roll_research_gates(candidate: RadarCandidate) -> bool:
     """Waive opening-sale filters; the selector still requires a positive bid."""
 
-    return all(
-        gate.code != "side" or gate.status.value != "fail" for gate in candidate.gates
-    )
+    return all(gate.code != "side" or gate.status.value != "fail" for gate in candidate.gates)
 
 
 def _planning_headline(
@@ -405,6 +405,10 @@ def _planning_headline(
     policy: RadarPolicy,
     five_day: Decimal | None,
 ) -> str:
+    if mode is RadarMode.COVERED_CALL and not account.account_scope_resolved:
+        return "Call comparisons loaded; choose one account before sizing a covered lot"
+    if mode is RadarMode.COVERED_CALL and not account.delivery_terms_resolved:
+        return "Call comparisons loaded; an open call has unresolved share delivery"
     if mode is RadarMode.COVERED_CALL and account.available_call_lots == 0:
         return "Call comparisons loaded; no uncovered share lot is available"
     if (
@@ -468,11 +472,19 @@ def _wait_reasons(
     if for_roll:
         if not contracts:
             return ("The source returned no supported contracts in this window.",)
-        return (
-            "Later listed contracts need a positive bid and a protective strike.",
-        )
+        return ("Later listed contracts need a positive bid and a protective strike.",)
     reasons: list[str] = []
-    if mode is RadarMode.COVERED_CALL and account.available_call_lots == 0:
+    if mode is RadarMode.COVERED_CALL and not account.account_scope_resolved:
+        reasons.append(
+            "This symbol is held in more than one account. Choose an account before sizing a "
+            "covered call."
+        )
+    elif mode is RadarMode.COVERED_CALL and not account.delivery_terms_resolved:
+        reasons.append(
+            "Available covered-call lots are withheld until every open call's share "
+            "delivery is known."
+        )
+    elif mode is RadarMode.COVERED_CALL and account.available_call_lots == 0:
         reasons.append("No uncommitted 100-share lot is available for another covered call.")
     if mode is RadarMode.CASH_SECURED_PUT:
         if policy.maximum_effective_entry is None:

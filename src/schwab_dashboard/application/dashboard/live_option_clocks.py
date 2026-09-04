@@ -14,6 +14,12 @@ from schwab_dashboard.application.dashboard.covered_calls import (
     RollQuoteCandidate,
 )
 from schwab_dashboard.application.dashboard.models import LiveOpenOptionPosition
+from schwab_dashboard.application.dashboard.short_premium import (
+    is_closing_buy,
+    is_opening_sale,
+    is_option_execution,
+)
+from schwab_dashboard.application.market_time import ledger_market_date, market_date
 from schwab_dashboard.application.rolls.collect import collect_roll_quotes
 from schwab_dashboard.application.rolls.models import RollQuote
 from schwab_dashboard.domain.instruments import OptionSide
@@ -35,14 +41,19 @@ def build_open_call_clocks(
     return tuple(
         _clock(
             call,
-            opening_rows=remaining_opening_rows(call.option_symbol, executions),
+            opening_rows=remaining_opening_rows(
+                call.option_symbol,
+                executions,
+                account_id=call.account_id,
+                account_mask=call.account_mask,
+            ),
             campaign_ledger=campaign_ledger,
             daily_bars=daily_bars,
             option_market=option_market,
             as_of=as_of,
         )
         for call in calls
-        if call.underlying_symbol == symbol
+        if _canonical(call.underlying_symbol) == _canonical(symbol)
     )
 
 
@@ -60,48 +71,73 @@ def _clock(
         fallback=call.option_symbol,
         campaign_ledger=campaign_ledger,
     )
-    sold_on = min((_row_date(row) for row in opening_rows), default=as_of)
+    sold_on = min((_row_date(row) for row in opening_rows), default=call.opened_on)
     underlying_at_sale = (
-        _close_on_or_before(
-            call.underlying_symbol,
-            sold_on,
-            daily_bars,
-        )
-        or call.underlying_price
-        or ZERO
+        _close_on_or_before(call.underlying_symbol, sold_on, daily_bars)
+        if sold_on is not None
+        else None
     )
-    original_dte = max(0, (call.expires_on - sold_on).days)
-    elapsed_days = max(0, (as_of - sold_on).days)
+    original_dte = (
+        max(0, (call.expires_on - sold_on).days)
+        if sold_on is not None
+        else call.original_days_to_expiration
+    )
+    elapsed_days = max(0, (as_of - sold_on).days) if sold_on is not None else None
     elapsed_percent = (
         min(HUNDRED, Decimal(elapsed_days) / Decimal(original_dte) * HUNDRED)
-        if original_dte
+        if elapsed_days is not None and original_dte
         else HUNDRED
+        if elapsed_days is not None and original_dte == 0
+        else None
     )
-    mark = call.estimated_mark_per_share or ZERO
-    entry = call.entry_credit_per_share or ZERO
+    mark = abs(call.estimated_mark_per_share) if call.estimated_mark_per_share is not None else None
+    entry = abs(call.entry_credit_per_share) if call.entry_credit_per_share is not None else None
     contracts = Decimal(call.contracts)
-    multiplier = call.contract_multiplier
-    entry_credit = entry * multiplier * contracts
-    current_value = mark * multiplier * contracts
+    multiplier = abs(call.contract_multiplier)
+    entry_credit = entry * multiplier * contracts if entry is not None else None
+    current_value = call.current_option_value
     open_profit_loss = (
-        call.open_profit_loss if call.open_profit_loss is not None else entry_credit - current_value
+        call.open_profit_loss
+        if call.open_profit_loss is not None
+        else entry_credit - current_value
+        if entry_credit is not None and current_value is not None
+        else None
     )
-    intrinsic_per_share = max(
-        ZERO,
-        (call.underlying_price or ZERO) - call.strike,
+    intrinsic_value = (
+        max(ZERO, call.underlying_price - call.strike)
+        * call.deliverable_shares_per_contract
+        * contracts
+        if call.underlying_price is not None and call.deliverable_shares_per_contract is not None
+        else None
     )
-    intrinsic_value = intrinsic_per_share * multiplier * contracts
-    time_value = max(ZERO, current_value - intrinsic_value)
-    short_theta = max(
-        ZERO,
-        -(call.theta_per_share or ZERO) * multiplier * contracts,
+    time_value = (
+        max(ZERO, current_value - intrinsic_value)
+        if current_value is not None and intrinsic_value is not None
+        else None
     )
-    if not call.can_close_or_roll:
-        short_theta = ZERO
-    spread = max(ZERO, (call.ask_per_share or mark) - (call.bid_per_share or mark))
-    spread_percent = spread / mark * HUNDRED if mark else ZERO
+    short_theta = (
+        max(ZERO, -call.theta_per_share * multiplier * contracts)
+        if call.theta_per_share is not None and call.can_close_or_roll
+        else ZERO
+        if not call.can_close_or_roll
+        else None
+    )
+    spread = (
+        max(ZERO, call.ask_per_share - call.bid_per_share)
+        if call.ask_per_share is not None and call.bid_per_share is not None
+        else None
+    )
+    spread_percent = (
+        spread / mark * HUNDRED
+        if spread is not None and mark is not None and mark != ZERO
+        else None
+    )
     remaining_percent = (
-        Decimal(call.days_to_expiration) / Decimal(original_dte) * HUNDRED if original_dte else ZERO
+        Decimal(call.days_to_expiration) / Decimal(original_dte) * HUNDRED
+        if original_dte
+        else ZERO
+        if original_dte == 0
+        else None
     )
     return OpenCallClock(
         record_id=call.option_symbol,
@@ -113,12 +149,12 @@ def _clock(
         strike=call.strike,
         contracts=call.contracts,
         underlying_at_sale=underlying_at_sale,
-        close_ask_per_share=call.ask_per_share or mark,
-        bid_per_share=call.bid_per_share or mark,
+        close_ask_per_share=call.ask_per_share,
+        bid_per_share=call.bid_per_share,
         spread_per_share=spread,
         spread_percent_of_mark=spread_percent,
         quote_observed_on=(
-            call.quote_observed_at.date() if call.quote_observed_at is not None else None
+            market_date(call.quote_observed_at) if call.quote_observed_at is not None else None
         ),
         quote_status=(call.quote_quality or "unavailable").upper(),
         implied_volatility_percent=call.implied_volatility_percent,
@@ -145,28 +181,36 @@ def _clock(
         elapsed_days=elapsed_days,
         elapsed_time_percent=elapsed_percent,
         days_to_expiration=call.days_to_expiration,
-        strike_distance_per_share=call.strike_distance_per_share or ZERO,
-        strike_distance_percent=call.strike_distance_percent or ZERO,
+        strike_distance_per_share=call.strike_distance_per_share,
+        strike_distance_percent=call.strike_distance_percent,
         mark_per_share=mark,
         entry_credit_per_share=entry,
         entry_credit=entry_credit,
         current_option_value=current_value,
         open_profit_loss=open_profit_loss,
         credit_capture_percent=(
-            open_profit_loss / entry_credit * HUNDRED if entry_credit else ZERO
+            open_profit_loss / entry_credit * HUNDRED
+            if open_profit_loss is not None and entry_credit
+            else None
         ),
         option_value_vs_credit_percent=(
-            current_value / entry_credit * HUNDRED if entry_credit else ZERO
+            current_value / entry_credit * HUNDRED
+            if current_value is not None and entry_credit
+            else None
         ),
         intrinsic_value=intrinsic_value,
         remaining_extrinsic_value=time_value,
-        theta_per_share=call.theta_per_share or ZERO,
+        theta_per_share=call.theta_per_share,
         short_theta_per_day=short_theta,
         theta_decay_percent_of_extrinsic=(
-            short_theta / time_value * HUNDRED if time_value else ZERO
+            short_theta / time_value * HUNDRED if short_theta is not None and time_value else None
         ),
-        theta_days_of_time_value=(time_value / short_theta if short_theta else ZERO),
-        time_remaining_percent=max(ZERO, min(HUNDRED, remaining_percent)),
+        theta_days_of_time_value=(
+            time_value / short_theta if time_value is not None and short_theta else None
+        ),
+        time_remaining_percent=(
+            max(ZERO, min(HUNDRED, remaining_percent)) if remaining_percent is not None else None
+        ),
         decay_stage=(
             _decay_stage(call.days_to_expiration, elapsed_percent)
             if call.can_close_or_roll
@@ -174,31 +218,38 @@ def _clock(
         ),
         session_state=call.session_state,
         contract_multiplier=call.contract_multiplier,
+        deliverable_shares_per_contract=call.deliverable_shares_per_contract,
         price_time_read=call.price_time_read,
         quote_observed_at=call.quote_observed_at,
         expiration_assessment=call.expiration_assessment,
+        account_mask=call.account_mask,
+        account_id=call.account_id,
     )
 
 
 def remaining_opening_rows(
     option_symbol: str,
     executions: Sequence[Mapping[str, object]],
+    *,
+    account_id: str | None = None,
+    account_mask: str | None = None,
 ) -> tuple[Mapping[str, object], ...]:
     rows = sorted(
         (
             row
             for row in executions
             if _canonical(str(row.get("symbol"))) == _canonical(option_symbol)
-            and str(row.get("asset_type")) == "option"
+            and is_option_execution(row)
+            and _matches_account(row, account_id=account_id, account_mask=account_mask)
         ),
         key=_row_date,
     )
     lots: list[list[object]] = []
     for row in rows:
         quantity = _decimal(row.get("quantity"))
-        if str(row.get("side")) == "sell" and str(row.get("position_effect")) == "opening":
+        if is_opening_sale(row):
             lots.append([row, quantity])
-        elif str(row.get("side")) == "buy" and str(row.get("position_effect")) == "closing":
+        elif is_closing_buy(row):
             remaining = quantity
             while remaining > ZERO and lots:
                 available = lots[0][1]
@@ -215,6 +266,9 @@ def remaining_opening_rows(
 def remaining_open_lot_date(
     option_symbol: str,
     executions: Sequence[Mapping[str, object]],
+    *,
+    account_id: str | None = None,
+    account_mask: str | None = None,
 ) -> date | None:
     """Return the oldest still-open short lot date for an option contract.
 
@@ -222,7 +276,12 @@ def remaining_open_lot_date(
     one place prevents call and put clocks from disagreeing after partial closes.
     """
 
-    rows = remaining_opening_rows(option_symbol, executions)
+    rows = remaining_opening_rows(
+        option_symbol,
+        executions,
+        account_id=account_id,
+        account_mask=account_mask,
+    )
     return min((_row_date(row) for row in rows), default=None)
 
 
@@ -277,20 +336,27 @@ def _close_on_or_before(
     value: date,
     daily_bars: Sequence[Mapping[str, object]],
 ) -> Decimal | None:
-    rows = [
-        row
-        for row in daily_bars
-        if str(row.get("symbol")) == symbol and _date(row.get("trade_date")) <= value
-    ]
+    rows = []
+    for row in daily_bars:
+        close = _optional_decimal(row.get("close"))
+        if (
+            _canonical(str(row.get("symbol") or "")) == _canonical(symbol)
+            and _date(row.get("trade_date")) <= value
+            and close is not None
+            and close > ZERO
+        ):
+            rows.append(row)
     if not rows:
         return None
     latest = max(rows, key=lambda row: _date(row.get("trade_date")))
-    return _decimal(latest.get("close"))
+    return _optional_decimal(latest.get("close"))
 
 
-def _decay_stage(days_to_expiration: int, elapsed_percent: Decimal) -> str:
+def _decay_stage(days_to_expiration: int, elapsed_percent: Decimal | None) -> str:
     if days_to_expiration <= 7:
         return "EXPIRING SOON"
+    if elapsed_percent is None:
+        return "TERM UNKNOWN"
     if elapsed_percent < Decimal("33"):
         return "EARLY CYCLE"
     if elapsed_percent < Decimal("70"):
@@ -299,7 +365,10 @@ def _decay_stage(days_to_expiration: int, elapsed_percent: Decimal) -> str:
 
 
 def _row_date(row: Mapping[str, object]) -> date:
-    return _date(row.get("occurred_at"))
+    value = row.get("occurred_at")
+    if isinstance(value, (date, datetime)):
+        return ledger_market_date(value)
+    return _date(value)
 
 
 def _date(value: object) -> date:
@@ -312,6 +381,23 @@ def _date(value: object) -> date:
 
 def _decimal(value: object) -> Decimal:
     return ZERO if value is None else Decimal(str(value))
+
+
+def _optional_decimal(value: object) -> Decimal | None:
+    return None if value is None else Decimal(str(value))
+
+
+def _matches_account(
+    row: Mapping[str, object],
+    *,
+    account_id: str | None,
+    account_mask: str | None,
+) -> bool:
+    row_account_id = str(row.get("account_id") or "").strip()
+    if account_id and row_account_id:
+        return row_account_id == account_id
+    row_mask = str(row.get("account_mask") or "").strip()
+    return not row_mask or not account_mask or row_mask == account_mask
 
 
 def _optional_int(value: object) -> int | None:

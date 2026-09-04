@@ -35,6 +35,14 @@ from schwab_dashboard.application.dashboard.short_premium import (
     is_short_premium_execution,
     option_cash_action_label,
 )
+from schwab_dashboard.application.market_time import ledger_market_date
+from schwab_dashboard.application.option_lifecycle import (
+    delivered_shares,
+    lifecycle_event_type,
+    option_contracts,
+    option_side,
+)
+from schwab_dashboard.application.values import sum_if_complete
 
 ZERO = Decimal("0")
 HUNDRED = Decimal("100")
@@ -60,22 +68,30 @@ def build_live_performance(
     cash_movements: Sequence[Mapping[str, object]],
     lifecycle_events: Sequence[Mapping[str, object]],
     live_book: LivePositionBook,
-    covered_capital: Decimal,
+    covered_capital: Decimal | None,
     as_of: date,
 ) -> LivePerformanceProjection:
     option_executions = tuple(row for row in executions if is_short_premium_execution(row))
-    dividends = tuple(row for row in cash_movements if str(row.get("movement_type")) == "dividend")
+    dividends = tuple(
+        row
+        for row in cash_movements
+        if str(row.get("movement_type") or "").strip().casefold().split(".")[-1] == "dividend"
+    )
     assignments = tuple(
-        row for row in lifecycle_events if str(row.get("event_type")) == "assignment"
+        row
+        for row in lifecycle_events
+        if lifecycle_event_type(row.get("event_type")) == "assignment"
     )
     call_assignments = tuple(
-        row for row in assignments if str(row.get("option_side")) == "call"
+        row for row in assignments if option_side(row.get("option_side")) == "call"
     )
     put_assignments = tuple(
-        row for row in assignments if str(row.get("option_side")) == "put"
+        row for row in assignments if option_side(row.get("option_side")) == "put"
     )
     expirations = tuple(
-        row for row in lifecycle_events if str(row.get("event_type")) == "expiration"
+        row
+        for row in lifecycle_events
+        if lifecycle_event_type(row.get("event_type")) == "expiration"
     )
     windows = tuple(
         _window(
@@ -114,6 +130,7 @@ def build_live_performance(
             dividends=window.dividends,
             net_option_cash=window.option_cash,
             total_strategy_cash=window.total_cash,
+            fees=window.fees,
             events=tuple(
                 event
                 for event in cash_events
@@ -175,7 +192,7 @@ def _window(
     executions: Sequence[Mapping[str, object]],
     dividends: Sequence[Mapping[str, object]],
     lifecycle_events: Sequence[Mapping[str, object]],
-    covered_capital: Decimal,
+    covered_capital: Decimal | None,
 ) -> PerformanceWindowSummary:
     trades = [row for row in executions if start <= _row_date(row) <= end]
     window_dividends = [row for row in dividends if start <= _row_date(row) <= end]
@@ -183,6 +200,7 @@ def _window(
     gross = sum((_gross_credit(row) for row in trades), ZERO)
     buyback = sum((_closing_debit(row) for row in trades), ZERO)
     option_cash = sum((_decimal(row.get("net_cash")) for row in trades), ZERO)
+    fees = sum((_decimal(row.get("fees")) for row in trades), ZERO)
     dividend_cash = sum((_decimal(row.get("amount")) for row in window_dividends), ZERO)
     days = (end - start).days + 1
     annual_factor = Decimal("365") / Decimal(days)
@@ -203,17 +221,18 @@ def _window(
         completed_trades=len(completed),
         win_rate=ZERO,
         annualized_option_yield=(
-            option_cash / covered_capital * annual_factor * HUNDRED if covered_capital else ZERO
+            option_cash / covered_capital * annual_factor * HUNDRED if covered_capital else None
         ),
         annualized_total_yield=(
             (option_cash + dividend_cash) / covered_capital * annual_factor * HUNDRED
             if covered_capital
-            else ZERO
+            else None
         ),
         monthly_option_run_rate=option_cash / Decimal(days) * MONTH_DAYS,
         monthly_total_run_rate=(option_cash + dividend_cash) / Decimal(days) * MONTH_DAYS,
-        premium_capture_percent=((gross - buyback) / gross * HUNDRED if gross else ZERO),
+        premium_capture_percent=(option_cash / gross * HUNDRED if gross else ZERO),
         buyback_drag_percent=(buyback / gross * HUNDRED if gross else ZERO),
+        fees=fees,
     )
 
 
@@ -223,7 +242,7 @@ def _monthly_performance(
     call_assignments: Sequence[Mapping[str, object]],
     put_assignments: Sequence[Mapping[str, object]],
     *,
-    covered_capital: Decimal,
+    covered_capital: Decimal | None,
     as_of: date,
 ) -> tuple[MonthlyPerformanceSummary, ...]:
     dated_rows = (*executions, *dividends, *call_assignments, *put_assignments)
@@ -267,21 +286,17 @@ def _monthly_performance(
                 closing_debits=closing,
                 fees=sum((_decimal(row.get("fees")) for row in trades), ZERO),
                 assigned_contracts=sum(
-                    (int(_decimal(row.get("option_quantity"))) for row in month_call_assignments),
+                    (option_contracts(row) for row in month_call_assignments),
                     0,
                 )
                 + sum(
-                    (int(_decimal(row.get("option_quantity"))) for row in month_put_assignments),
+                    (option_contracts(row) for row in month_put_assignments),
                     0,
                 ),
                 called_away_shares=sum(
-                    int(_decimal(row.get("option_quantity"))) * 100
-                    for row in month_call_assignments
+                    (delivered_shares(row) for row in month_call_assignments), ZERO
                 ),
-                acquired_shares=sum(
-                    int(_decimal(row.get("option_quantity"))) * 100
-                    for row in month_put_assignments
-                ),
+                acquired_shares=sum((delivered_shares(row) for row in month_put_assignments), ZERO),
                 average_covered_capital=covered_capital,
                 is_partial=month.year == as_of.year and month.month == as_of.month,
                 coverage_status=(
@@ -345,7 +360,7 @@ def _covered_call_summary(
     expirations: Sequence[Mapping[str, object]],
     *,
     live_book: LivePositionBook,
-    covered_capital: Decimal,
+    covered_capital: Decimal | None,
     r365: PerformanceWindowSummary,
 ) -> CoveredCallPortfolioSummary:
     openings = [row for row in executions if _is_opening_sale(row)]
@@ -354,20 +369,10 @@ def _covered_call_summary(
     buyback = sum((_closing_debit(row) for row in executions), ZERO)
     option_cash = sum((_decimal(row.get("net_cash")) for row in executions), ZERO)
     dividend_cash = sum((_decimal(row.get("amount")) for row in dividends), ZERO)
-    open_credit = sum(
-        (
-            (option.entry_credit_per_share or ZERO)
-            * Decimal("100")
-            * Decimal(option.contracts)
-            for option in (*live_book.calls, *live_book.puts)
-        ),
-        ZERO,
-    )
-    open_value = sum(
-        (abs(option.market_value or ZERO) for option in (*live_book.calls, *live_book.puts)),
-        ZERO,
-    )
-    assigned_contracts = sum((int(_decimal(row.get("option_quantity"))) for row in assignments), 0)
+    options = (*live_book.calls, *live_book.puts)
+    open_credit = sum_if_complete(option.entry_credit for option in options)
+    open_value = sum_if_complete(option.current_option_value for option in options)
+    assigned_contracts = sum((option_contracts(row) for row in assignments), 0)
     return CoveredCallPortfolioSummary(
         total_shares=live_book.total_shares,
         contract_capacity=live_book.contract_capacity,
@@ -375,13 +380,11 @@ def _covered_call_summary(
         coverage_percent=live_book.coverage_percent,
         call_tickets=len(openings),
         contracts_sold=sum((int(_decimal(row.get("quantity"))) for row in openings), 0),
-        expired_contracts=sum(
-            (int(_decimal(row.get("option_quantity"))) for row in expirations), 0
-        ),
+        expired_contracts=sum((option_contracts(row) for row in expirations), 0),
         closed_contracts=sum((int(_decimal(row.get("quantity"))) for row in closings), 0),
         rolled_contracts=count_rolled_contracts(executions),
         assigned_contracts=assigned_contracts,
-        called_away_shares=assigned_contracts * 100,
+        called_away_shares=sum((delivered_shares(row) for row in assignments), ZERO),
         gross_premium=gross,
         buyback_cost=buyback,
         net_option_cash=option_cash,
@@ -394,7 +397,7 @@ def _covered_call_summary(
         win_rate=ZERO,
         annualized_option_yield=r365.annualized_option_yield,
         annualized_total_cash_yield=r365.annualized_total_yield,
-        premium_capture_percent=((gross - buyback) / gross * HUNDRED if gross else ZERO),
+        premium_capture_percent=(option_cash / gross * HUNDRED if gross else ZERO),
     )
 
 
@@ -444,10 +447,8 @@ def _closing_debit(row: Mapping[str, object]) -> Decimal:
 
 def _row_date(row: Mapping[str, object]) -> date:
     value = row.get("occurred_at")
-    if isinstance(value, datetime):
-        return value.date()
-    if isinstance(value, date):
-        return value
+    if isinstance(value, (date, datetime)):
+        return ledger_market_date(value)
     raise ValueError("Ledger row is missing its source date")
 
 

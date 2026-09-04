@@ -7,7 +7,7 @@
     <title>{{ workspace.label }} · Incoooming</title>
     <link rel="icon" href="{{ url_for('static', path='/nibwick-favicon.svg') }}?v=3" type="image/svg+xml">
     <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=112">
-    <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=13">
+    <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=14">
     {% if workspace.key.value == 'radar' %}<link rel="stylesheet" href="{{ url_for('static', path='/premium-radar.css') }}?v=18">{% endif %}
     {% if workspace.key.value == 'risk' %}<link rel="stylesheet" href="{{ url_for('static', path='/open-book.css') }}?v=19">{% endif %}
     {% if workspace.key.value == 'attribution' %}<link rel="stylesheet" href="{{ url_for('static', path='/results-cash.css') }}?v=19">{% endif %}
@@ -58,13 +58,17 @@
 
         {% if snapshot.is_demo %}
         <div class="workspace-demo-note" role="status">
-          <b>SIM</b><span>Real calculations over fictional fixtures. No brokerage connection or order path is active.</span>
+          <b>SIM</b><span>Fictional positions and simulated quotes, IV, and Greeks fixed to {{ snapshot.as_of | short_date }}. Calculations are real; no brokerage connection or order path is active.</span>
         </div>
         {% endif %}
         {% if snapshot.mode == 'csv' %}
         <div class="csv-source-note" role="status">
           <b>CSV BOOK</b>
-          <span>{{ active_source_label }} shows only capabilities supported by the imported files. Missing live market facts remain unavailable.</span>
+          {% if workspace.key.value == 'attribution' %}
+          <span>Imported trades can show executed cash and campaigns. Account returns and benchmark comparisons need dated balances and market history, so they remain unavailable.</span>
+          {% else %}
+          <span>{{ active_source_label }} shows only capabilities supported by the imported files. Missing live quotes, IV, Greeks, balances, and market history remain unavailable.</span>
+          {% endif %}
           <a href="/sources">SWITCH BOOK &rarr;</a>
         </div>
         {% endif %}
@@ -83,6 +87,6 @@
     <script src="{{ url_for('static', path='/workspace-disclosures.js') }}?v=2" defer></script>
     {% if snapshot.mode == 'live' %}<script src="{{ url_for('static', path='/auto-sync.js') }}?v=5" defer></script>{% endif %}
     {% if workspace.key.value == 'radar' %}<script src="{{ url_for('static', path='/premium-radar-indicators.js') }}?v=1" defer></script><script src="{{ url_for('static', path='/premium-radar-map.js') }}?v=5" defer></script><script src="{{ url_for('static', path='/premium-radar.js') }}?v=18" defer></script>{% endif %}
-    {% if workspace.key.value == 'attribution' %}<script src="{{ url_for('static', path='/vendor/lightweight-charts/lightweight-charts.standalone.production.js') }}?v=5.2.0" defer></script><script src="{{ url_for('static', path='/results-cash.js') }}?v=1" defer></script><script src="{{ url_for('static', path='/performance-compare.js') }}?v=15" defer></script>{% endif %}
+    {% if workspace.key.value == 'attribution' %}<script src="{{ url_for('static', path='/vendor/lightweight-charts/lightweight-charts.standalone.production.js') }}?v=5.2.0" defer></script><script src="{{ url_for('static', path='/results-cash.js') }}?v=1" defer></script><script src="{{ url_for('static', path='/performance-compare.js') }}?v=19" defer></script>{% endif %}
   </body>
 </html>

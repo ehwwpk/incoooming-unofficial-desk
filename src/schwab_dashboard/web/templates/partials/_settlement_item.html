@@ -12,15 +12,15 @@
   </header>
   <div class="settlement-read">
     {% if not assessment or assessment.reference_price is none %}
-    <p><b>CLOSING LINE MISSING</b><span>The contract cannot trade. Waiting for the expiration-day close and Schwab's account update.</span></p>
+    <p><b>CLOSING LINE MISSING</b><span>The contract cannot trade. Waiting for the expiration-day close and the source account update.</span></p>
     {% elif expectation == 'expected_worthless' %}
-    <p><b>LOOKS OUT OF THE MONEY</b><span>The {{ side_word }} finished {{ assessment.distance_per_share | money }} from the strike. Premium stays if Schwab confirms expiration.</span></p>
+    <p><b>LOOKS OUT OF THE MONEY</b><span>The {{ side_word }} finished {{ assessment.distance_per_share | money }} from the strike. Premium stays if the source confirms expiration.</span></p>
     {% elif expectation == 'expected_assignment' %}
-    <p><b>{{ 'SHARE SALE EXPECTED' if side_word == 'call' else 'SHARE PURCHASE EXPECTED' }}</b><span>{{ assessment.assignment_shares | number(0) }} shares at {{ strike | money }} &middot; {{ assessment.assignment_notional | money(0) }} strike value. Not booked until Schwab confirms it.</span></p>
+    <p><b>{{ 'SHARE SALE EXPECTED' if side_word == 'call' else 'SHARE PURCHASE EXPECTED' }}</b><span>{{ assessment.assignment_shares | quantity }} shares at {{ strike | money }} &middot; {{ assessment.assignment_notional | money(0) }} strike value. Not booked until the source confirms it.</span></p>
     {% elif expectation == 'near_strike' %}
-    <p><b>TOO CLOSE TO CALL CLEANLY</b><span>The expiration-day close finished {{ assessment.distance_per_share | money }} from the strike. Wait for Schwab's final position update.</span></p>
+    <p><b>TOO CLOSE TO CALL CLEANLY</b><span>The expiration-day close finished {{ assessment.distance_per_share | money }} from the strike. Wait for the source's final position update.</span></p>
     {% else %}
-    <p><b>OUTCOME UNCLEAR</b><span>Trading is over. Schwab has not confirmed expiration, exercise, or assignment yet.</span></p>
+    <p><b>OUTCOME UNCLEAR</b><span>Trading is over. The source has not confirmed expiration, exercise, or assignment yet.</span></p>
     {% endif %}
     <dl>
       <div><dt>{{ assessment.reference_label if assessment else 'REFERENCE' }}</dt><dd>{% if assessment and assessment.reference_price is not none %}{{ assessment.reference_price | money }}{% else %}&mdash;{% endif %}</dd></div>

@@ -1,7 +1,8 @@
 from dataclasses import replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
+from schwab_dashboard.application.dashboard.live_positions import build_live_position_book
 from schwab_dashboard.application.opportunities import evaluate_radar
 from schwab_dashboard.application.opportunities.eligibility import evaluate_gates
 from schwab_dashboard.application.opportunities.quote_math import (
@@ -9,6 +10,12 @@ from schwab_dashboard.application.opportunities.quote_math import (
     expected_move,
     simple_annualized_rate,
     spread_percent,
+)
+from schwab_dashboard.application.rolls import RollSource
+from schwab_dashboard.application.services.run_premium_radar import (
+    RadarRollRequest,
+    _account_context,
+    _find_open_roll_source,
 )
 from schwab_dashboard.domain.instruments import OptionSide
 from schwab_dashboard.domain.opportunity import (
@@ -19,9 +26,199 @@ from schwab_dashboard.domain.opportunity import (
     RadarRollSelectionContext,
     RadarState,
 )
+from schwab_dashboard.infrastructure.demo.dashboard import DemoDashboardReader
 from schwab_dashboard.infrastructure.demo.opportunity import DemoOpportunityMarketGateway
 
 NOW = datetime(2026, 8, 11, 18, tzinfo=UTC)
+
+
+def test_radar_withholds_new_call_lots_when_open_delivery_is_unresolved() -> None:
+    snapshot = DemoDashboardReader().execute()
+    stock = snapshot.positions[0]
+    unresolved = replace(
+        snapshot.positions[3],
+        underlying_symbol=stock.symbol,
+        option_type="CALL",
+        expiration_date=date(2026, 9, 18),
+        strike=Decimal("215"),
+        contract_multiplier=Decimal("150"),
+        is_non_standard=True,
+    )
+    live_book = build_live_position_book((stock, unresolved), as_of=snapshot.as_of)
+    policy = RadarPolicy(symbol=stock.symbol, mode=RadarMode.COVERED_CALL)
+
+    account = _account_context(
+        replace(snapshot, live_position_book=live_book),
+        symbol=stock.symbol,
+        policy=policy,
+    )
+
+    assert account.available_call_lots == 0
+    assert not account.delivery_terms_resolved
+
+
+def test_radar_does_not_combine_partial_share_lots_across_accounts() -> None:
+    snapshot = DemoDashboardReader().execute()
+    stock = snapshot.positions[0]
+    first_half = replace(stock, quantity=Decimal("50"), account_mask="...1111", account_id="a")
+    second_half = replace(stock, quantity=Decimal("50"), account_mask="...2222", account_id="b")
+    put = replace(
+        snapshot.positions[3],
+        account_mask="...1111",
+        account_id="a",
+        underlying_symbol=stock.symbol,
+        option_type="PUT",
+        expiration_date=date(2026, 9, 18),
+        strike=Decimal("180"),
+        contract_multiplier=Decimal("100"),
+        is_non_standard=False,
+    )
+    live_book = build_live_position_book(
+        (first_half, second_half, put),
+        as_of=snapshot.as_of,
+    )
+
+    account = _account_context(
+        replace(
+            snapshot,
+            positions=(first_half, second_half, put),
+            live_position_book=live_book,
+        ),
+        symbol=stock.symbol,
+        policy=RadarPolicy(symbol=stock.symbol, mode=RadarMode.COVERED_CALL),
+    )
+
+    assert account.shares == Decimal("100")
+    assert account.available_call_lots == 0
+    assert not account.account_scope_resolved
+
+
+def test_radar_subtracts_known_physical_delivery_before_sizing_new_calls() -> None:
+    snapshot = DemoDashboardReader().execute()
+    stock = replace(
+        snapshot.positions[0],
+        quantity=Decimal("450"),
+        account_mask="...1111",
+        account_id="a",
+    )
+    call_position = replace(
+        snapshot.positions[3],
+        quantity=Decimal("-2"),
+        account_mask="...1111",
+        account_id="a",
+        underlying_symbol=stock.symbol,
+        option_type="CALL",
+        expiration_date=date(2026, 9, 18),
+        strike=Decimal("215"),
+        contract_multiplier=Decimal("100"),
+        is_non_standard=False,
+    )
+    live_book = build_live_position_book((stock, call_position), as_of=snapshot.as_of)
+    underlying = live_book.underlyings[0]
+    adjusted_call = replace(
+        underlying.calls[0],
+        deliverable_shares_per_contract=Decimal("150"),
+    )
+    adjusted_book = replace(
+        live_book,
+        underlyings=(replace(underlying, calls=(adjusted_call,)),),
+        calls=(adjusted_call,),
+    )
+
+    account = _account_context(
+        replace(
+            snapshot,
+            positions=(stock, call_position),
+            live_position_book=adjusted_book,
+        ),
+        symbol=stock.symbol,
+        policy=RadarPolicy(symbol=stock.symbol, mode=RadarMode.COVERED_CALL),
+    )
+
+    assert account.covered_call_contracts == 2
+    assert account.available_call_lots == 1
+    assert account.delivery_terms_resolved
+
+
+def test_radar_releases_source_physical_delivery_when_sizing_a_roll() -> None:
+    snapshot = DemoDashboardReader().execute()
+    stock = replace(
+        snapshot.positions[0],
+        quantity=Decimal("300"),
+        account_mask="...1111",
+        account_id="a",
+    )
+    call_position = replace(
+        snapshot.positions[3],
+        account_mask="...1111",
+        account_id="a",
+        underlying_symbol=stock.symbol,
+        option_type="CALL",
+        expiration_date=date(2026, 9, 18),
+        strike=Decimal("215"),
+        contract_multiplier=Decimal("100"),
+        is_non_standard=False,
+    )
+    live_book = build_live_position_book((stock, call_position), as_of=snapshot.as_of)
+    underlying = live_book.underlyings[0]
+    adjusted_call = replace(
+        underlying.calls[0],
+        deliverable_shares_per_contract=Decimal("150"),
+    )
+    adjusted_book = replace(
+        live_book,
+        underlyings=(replace(underlying, calls=(adjusted_call,)),),
+        calls=(adjusted_call,),
+    )
+    source = RollSource(
+        symbol=stock.symbol,
+        option_symbol=adjusted_call.option_symbol,
+        option_side=OptionSide.CALL,
+        expires_on=adjusted_call.expires_on,
+        strike=adjusted_call.strike,
+        contracts=1,
+        close_ask_per_share=Decimal("1"),
+        current_price=Decimal("200"),
+        quote_status="LIVE",
+        contract_multiplier=Decimal("100"),
+        deliverable_shares_per_contract=Decimal("150"),
+        account_mask="...1111",
+        account_id="a",
+    )
+
+    account = _account_context(
+        replace(
+            snapshot,
+            positions=(stock, call_position),
+            live_position_book=adjusted_book,
+        ),
+        symbol=stock.symbol,
+        policy=RadarPolicy(symbol=stock.symbol, mode=RadarMode.COVERED_CALL),
+        roll_source=source,
+    )
+
+    assert account.available_call_lots == 3
+
+
+def test_call_roll_source_preserves_adjusted_contract_multiplier() -> None:
+    snapshot = DemoDashboardReader().execute()
+    underlying = snapshot.underlyings[0]
+    call = replace(underlying.open_call_clocks[0], contract_multiplier=Decimal("150"))
+    adjusted_underlying = replace(underlying, open_call_clocks=(call,))
+    adjusted_snapshot = replace(
+        snapshot,
+        underlyings=(adjusted_underlying, *snapshot.underlyings[1:]),
+    )
+
+    source = _find_open_roll_source(
+        adjusted_snapshot,
+        symbol=underlying.symbol,
+        mode=RadarMode.COVERED_CALL,
+        request=RadarRollRequest(source_option_symbol=call.record_id),
+    )
+
+    assert source is not None
+    assert source.contract_multiplier == Decimal("150")
 
 
 def test_radar_policy_defaults_are_preferences_not_capability_limits() -> None:
@@ -540,9 +737,7 @@ def test_radar_does_not_pad_a_horizon_with_sub_five_percent_contracts() -> None:
 
     assert projection.candidates
     assert projection.rejected_count > 0
-    assert all(
-        candidate.option_symbol != weak.option_symbol for candidate in projection.candidates
-    )
+    assert all(candidate.option_symbol != weak.option_symbol for candidate in projection.candidates)
     assert all(
         candidate.simple_annualized_rate_percent >= Decimal("5")
         for candidate in projection.candidates
@@ -580,9 +775,9 @@ def test_radar_roll_review_keeps_a_nearby_weekly_inside_five_dte() -> None:
     nearby = replace(
         template,
         option_symbol="KTOS-NEAR-WEEKLY",
-            expiration_date=NOW.date() + timedelta(days=4),
-            strike=Decimal("75"),
-            bid=Decimal("0.40"),
+        expiration_date=NOW.date() + timedelta(days=4),
+        strike=Decimal("75"),
+        bid=Decimal("0.40"),
         ask=Decimal("0.48"),
         mark=Decimal("0.44"),
         observed_at=NOW,

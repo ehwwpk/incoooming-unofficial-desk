@@ -46,6 +46,8 @@ class ChartLeg:
     detail: str
     confidence: str
     is_open: bool
+    contract_multiplier: Decimal = Decimal("100")
+    delivered_shares: Decimal | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,7 +96,7 @@ class ChartRiskReference:
 class ChartShareEvent:
     time: date
     action: str
-    shares: int
+    shares: Decimal
     price: Decimal
     detail: str
 

@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from schwab_dashboard.application.campaigns import (
     CampaignLinkConfidence,
+    campaign_record_key,
     reconcile_option_campaigns,
 )
 from schwab_dashboard.application.campaigns.audit import audit_campaign_ledger
@@ -33,6 +34,90 @@ def test_exact_roll_keeps_one_campaign_across_contracts() -> None:
         D("275"),
         D("250"),
     ]
+
+
+def test_shared_order_id_does_not_roll_between_different_underlyings() -> None:
+    open_cvx = {
+        **_execution("open-cvx", "open", "CVX-CALL-200", "sell", "opening", "200", 1),
+        "underlying_symbol": "CVX",
+    }
+    close_cvx = {
+        **_execution("close-cvx", "combo", "CVX-CALL-200", "buy", "closing", "-50", 2),
+        "underlying_symbol": "CVX",
+    }
+    open_ktos = _execution(
+        "open-ktos",
+        "combo",
+        "KTOS-CALL-75",
+        "sell",
+        "opening",
+        "125",
+        2,
+    )
+
+    ledger = reconcile_option_campaigns((open_cvx, close_cvx, open_ktos), ())
+
+    assert len(ledger.campaigns) == 2
+    assert (
+        ledger.annotation_for("close-cvx").campaign_id
+        != ledger.annotation_for(  # type: ignore[union-attr]
+            "open-ktos"
+        ).campaign_id
+    )  # type: ignore[union-attr]
+    assert {campaign.symbol for campaign in ledger.campaigns} == {"CVX", "KTOS"}
+
+
+def test_campaign_dates_use_the_market_day_for_aware_ledger_timestamps() -> None:
+    opening = _execution("late", "open", "CALL-65", "sell", "opening", "100", 12)
+    opening["occurred_at"] = datetime(2026, 8, 12, 0, 30, tzinfo=UTC)
+
+    ledger = reconcile_option_campaigns((opening,), ())
+
+    assert ledger.campaigns[0].opened_on == date(2026, 8, 11)
+
+
+def test_campaign_dates_use_the_market_day_for_aware_timestamp_strings() -> None:
+    opening = _execution("late-string", "open", "CALL-65", "sell", "opening", "100", 12)
+    opening["occurred_at"] = "2026-08-12T00:30:00+00:00"
+
+    ledger = reconcile_option_campaigns((opening,), ())
+
+    assert ledger.campaigns[0].opened_on == date(2026, 8, 11)
+
+
+def test_campaign_identity_prefers_account_id_over_colliding_account_masks() -> None:
+    first_open = _execution("open", "open", "CALL-65", "sell", "opening", "100", 1)
+    first_close = _execution("close", "close", "CALL-65", "buy", "closing", "-25", 2)
+    second_open = dict(first_open)
+    second_close = dict(first_close)
+    for row in (first_open, first_close):
+        row.update(account_id="account-a", account_mask="...1234")
+    for row in (second_open, second_close):
+        row.update(account_id="account-b", account_mask="...1234")
+
+    ledger = reconcile_option_campaigns(
+        (first_open, second_open, first_close, second_close),
+        (),
+    )
+
+    assert len(ledger.campaigns) == 2
+    first = ledger.annotation_for(campaign_record_key(first_open))
+    second = ledger.annotation_for(campaign_record_key(second_open))
+    assert first is not None and second is not None
+    assert first.campaign_id != second.campaign_id
+
+
+def test_incomplete_short_option_identity_is_excluded_and_breaks_cash_reconciliation() -> None:
+    opening = _execution("missing-underlying", "open", "CALL-65", "sell", "opening", "100", 1)
+    opening["underlying_symbol"] = None
+
+    ledger = reconcile_option_campaigns((opening,), ())
+    audit = audit_campaign_ledger(ledger, (opening,), ())
+
+    assert ledger.campaigns == ()
+    assert ledger.exclusion_for("missing-underlying") is not None
+    assert audit.cash_variance == D("-100")
+    assert audit.legacy_removal_gate_passed is False
 
 
 def test_unmatched_resolution_is_visible_as_unknown() -> None:
@@ -124,6 +209,50 @@ def test_partial_assignment_keeps_remaining_contracts_open() -> None:
     assert ledger.campaigns[0].event_keys == ("open", "partial-assignment")
 
 
+def test_assignment_alias_and_enum_style_execution_values_reconcile() -> None:
+    opening = {
+        **_execution("open", "order", "CALL-65", "SELL", "OPENING", "100", 1),
+        "asset_type": "AssetType.OPTION",
+        "option_side": "OptionSide.CALL",
+    }
+    lifecycle = (
+        {
+            "external_key": "assigned-alias",
+            "occurred_at": date(2026, 8, 2),
+            "event_type": "OptionLifecycleType.ASSIGNED",
+            "option_quantity": D("1"),
+            "symbol": "CALL-65",
+            "underlying_symbol": "KTOS",
+            "option_side": "C",
+        },
+    )
+
+    ledger = reconcile_option_campaigns((opening,), lifecycle)
+
+    assert ledger.campaigns[0].status == "ASSIGNED"
+
+
+def test_exercise_is_a_separate_exclusion_not_an_assignment() -> None:
+    lifecycle = (
+        {
+            "external_key": "long-exercise",
+            "occurred_at": date(2026, 8, 2),
+            "event_type": "exercised",
+            "option_quantity": D("1"),
+            "symbol": "CALL-65",
+            "underlying_symbol": "KTOS",
+            "option_side": "call",
+        },
+    )
+
+    ledger = reconcile_option_campaigns((), lifecycle)
+
+    assert ledger.campaigns == ()
+    exclusion = ledger.exclusion_for("long-exercise")
+    assert exclusion is not None
+    assert exclusion.reason.startswith("EXERCISE")
+
+
 def test_long_option_expiration_is_excluded_from_short_premium_campaigns() -> None:
     rows = (_execution("long-open", "order", "CALL-65", "buy", "opening", "-100", 1),)
     lifecycle = (
@@ -162,8 +291,49 @@ def test_campaign_audit_holds_removal_gate_for_unknown_or_adjusted_history() -> 
     audit = audit_campaign_ledger(ledger, (), lifecycle)
 
     assert audit.unknown_campaigns == 1
-    assert audit.adjusted_contract_events == 1
+    assert audit.nonstandard_contract_events == 1
     assert audit.legacy_removal_gate_passed is False
+
+
+def test_campaign_audit_normalizes_asset_type_and_multiplier_alias() -> None:
+    lifecycle = (
+        {
+            "external_key": "adjusted-alias",
+            "occurred_at": date(2026, 8, 2),
+            "event_type": "assignment",
+            "option_quantity": D("1"),
+            "symbol": "CALL-65",
+            "underlying_symbol": "KTOS",
+            "option_side": "call",
+            "asset_type": "AssetType.OPTION",
+            "multiplier": D("10"),
+        },
+    )
+
+    audit = audit_campaign_ledger(reconcile_option_campaigns((), lifecycle), (), lifecycle)
+
+    assert audit.nonstandard_contract_events == 1
+
+
+def test_campaign_audit_does_not_mislabel_a_standard_mini_contract_as_adjusted() -> None:
+    lifecycle = (
+        {
+            "external_key": "standard-mini",
+            "occurred_at": date(2026, 8, 2),
+            "event_type": "assignment",
+            "option_quantity": D("1"),
+            "symbol": "XSP7 260821C00050000",
+            "underlying_symbol": "XSP",
+            "option_side": "call",
+            "asset_type": "option",
+            "contract_multiplier": D("10"),
+            "deliverable": {"kind": "standard"},
+        },
+    )
+
+    audit = audit_campaign_ledger(reconcile_option_campaigns((), lifecycle), (), lifecycle)
+
+    assert audit.nonstandard_contract_events == 0
 
 
 def test_campaign_audit_proves_campaign_cash_matches_atomic_short_option_cash() -> None:
@@ -203,7 +373,7 @@ def test_adjusted_contract_assignment_remains_auditable_without_assuming_100_sha
     assert len(ledger.campaigns) == 1
     assert ledger.campaigns[0].status == "ASSIGNED"
     assert ledger.campaigns[0].event_keys == ("open", "adjusted-assignment")
-    assert audit.adjusted_contract_events == 1
+    assert audit.nonstandard_contract_events == 1
     assert audit.cash_variance == D("0")
     assert audit.legacy_removal_gate_passed is True
 

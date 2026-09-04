@@ -9,6 +9,7 @@ from schwab_dashboard.application.errors import AuthenticationRequiredError
 from schwab_dashboard.application.market_time import option_session_cache_partition
 from schwab_dashboard.application.performance.models import PerformanceComparison
 from schwab_dashboard.application.performance.periods import PerformancePeriod
+from schwab_dashboard.application.performance.projection import METHODOLOGY_VERSION
 from schwab_dashboard.application.ports.dashboard import DashboardReader
 from schwab_dashboard.application.ports.opportunity_market import OpportunityMarketGateway
 from schwab_dashboard.application.services.cached_campaign_chart import (
@@ -201,11 +202,17 @@ class Container:
             key_prefix=("campaign-chart", normalized_source),
         )
 
-    def read_performance_comparison(
-        self, period: PerformancePeriod
-    ) -> PerformanceComparison:
+    def read_performance_comparison(self, period: PerformancePeriod) -> PerformanceComparison:
         return self._runtime_cache.get_or_load(
-            (("performance-comparison", "schwab", period.value), _live_option_session_partition()),
+            (
+                (
+                    "performance-comparison",
+                    METHODOLOGY_VERSION,
+                    "schwab",
+                    period.value,
+                ),
+                _live_option_session_partition(),
+            ),
             lambda: self._performance_comparison_reader.execute(period),
         )
 
@@ -259,6 +266,7 @@ class Container:
             uow_factory=self.uow_factory,
             parser_version=self.settings.market_parser_version,
             history_refresh_policy=self.market_history_refresh,
+            analytics_reader=self._analytics_reader,
         )
 
     def sync_full(self, *, trigger: str) -> FullSyncResult:

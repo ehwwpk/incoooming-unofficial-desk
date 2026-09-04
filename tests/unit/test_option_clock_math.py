@@ -92,7 +92,7 @@ def test_put_intrinsic_inverts_from_the_call_and_hides_missing_spot() -> None:
 
     assert itm == D("1000")
     assert otm == D("0")
-    assert missing == D("0")
+    assert missing is None
 
 
 def test_put_effective_entry_is_strike_minus_credit_when_credit_exists() -> None:
@@ -114,10 +114,8 @@ def test_put_decay_stage_does_not_invent_a_cycle_without_sale_date() -> None:
         == "EARLY CYCLE"
     )
     assert (
-        put_decay_stage(21, D("50"), session_label="ACTIVE", can_close_or_roll=True)
-        == "MID CYCLE"
+        put_decay_stage(21, D("50"), session_label="ACTIVE", can_close_or_roll=True) == "MID CYCLE"
     )
     assert (
-        put_decay_stage(21, D("80"), session_label="ACTIVE", can_close_or_roll=True)
-        == "LATE CYCLE"
+        put_decay_stage(21, D("80"), session_label="ACTIVE", can_close_or_roll=True) == "LATE CYCLE"
     )

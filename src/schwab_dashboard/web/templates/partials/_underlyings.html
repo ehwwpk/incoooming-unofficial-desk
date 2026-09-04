@@ -10,7 +10,7 @@
       aria-label="Current open option contracts grouped by underlying"
     >
       <span><b>{{ snapshot.underlyings | length if snapshot.underlyings else (live_book.underlyings | length if live_book else 0) }}</b> STOCKS</span>
-      <span><b>{{ snapshot.covered_calls.total_shares | number(0) if snapshot.underlyings else (live_book.total_shares | number(0) if live_book else 0) }}</b> SHARES</span>
+      <span><b>{{ snapshot.covered_calls.total_shares | quantity if snapshot.underlyings else (live_book.total_shares | quantity if live_book else 0) }}</b> SHARES</span>
       <span><b>{{ desk_overview.open_contracts }}</b> TRADABLE CONTRACTS</span>
       <span><b>{{ desk_overview.open_call_contracts }}</b> CALL{{ '' if desk_overview.open_call_contracts == 1 else 'S' }}{% if desk_overview.open_put_contracts %} · <b>{{ desk_overview.open_put_contracts }}</b> PUT{{ '' if desk_overview.open_put_contracts == 1 else 'S' }}{% endif %}</span>
     </div>
@@ -30,10 +30,10 @@
             <div class="position-ticker-line"><strong>{{ item.symbol }}</strong>{% if row.alert_count %}<small class="position-alert-pill">{{ row.alert_count }} NOTE{{ '' if row.alert_count == 1 else 'S' }}</small>{% endif %}</div>
             <span>{{ item.company_name }}</span>
             <small class="position-price-value">{{ item.current_price | money }} · {{ item.market_value | money(0) }} value</small>
-            {% if prior_session %}<small class="position-quote-stamp" title="Schwab's last print for {{ item.symbol }} is from an earlier session, so this price is a close rather than a live quote.">PRIOR SESSION · {{ live_name.quote_stamp }}</small>{% endif %}
+            {% if prior_session %}<small class="position-quote-stamp" title="The last stored print for {{ item.symbol }} is from an earlier session, so this price is a close rather than a live quote.">PRIOR SESSION · {{ live_name.quote_stamp }}</small>{% endif %}
           </div>
           <div class="position-move-tape" aria-label="{{ item.symbol }} price changes">
-            <span title="{% if prior_session %}{{ item.symbol }} has no print in the current session. Last trade {{ live_name.quote_stamp }}.{% elif item.current_session_change_percent is not none %}Current market-session change from Schwab{% else %}Latest close versus the prior market-session close{% endif %}">
+            <span title="{% if prior_session %}{{ item.symbol }} has no print in the current session. Last trade {{ live_name.quote_stamp }}.{% elif item.current_session_change_percent is not none %}Current source-reported market-session change{% else %}Latest close versus the prior market-session close{% endif %}">
               <small>{{ live_name.session_move_label if live_name else 'DAY' }}</small>
               {% if prior_session %}<b class="muted">—</b>{% elif item.daily_price_change_percent is not none %}<b class="{{ item.daily_price_change_percent | pnl_class }}">{{ '+' if item.daily_price_change_percent > 0 else '' }}{{ item.daily_price_change_percent | percent(2) }}</b>{% else %}<b class="muted">—</b>{% endif %}
             </span>
@@ -43,11 +43,11 @@
             </span>
           </div>
         </div>
-        <div><span>SHARES</span><strong>{{ item.shares }}</strong><small>{{ item.contract_capacity }} lots · {{ row.broker_reported_call_contracts }} committed{% if row.pending_settlement_contracts %} · includes settlement{% endif %}</small></div>
-        <div class="position-income"><span data-name-option-label>NET OPTION INCOME / 4 WEEKS</span><strong data-name-option-cash>{{ active_window.option_cash | money }}</strong><small><b data-name-dividends>{{ active_window.dividends | money }}</b> dividends</small></div>
+        <div><span>SHARES</span><strong>{{ item.shares | quantity }}</strong><small>{{ item.contract_capacity }} lots · {{ row.broker_reported_call_contracts }} committed{% if row.pending_settlement_contracts %} · includes settlement{% endif %}</small></div>
+        <div class="position-income"><span data-name-option-label>NET EXECUTED OPTION CASH / 4 WEEKS</span><strong data-name-option-cash>{{ active_window.option_cash | money }}</strong><small><b data-name-dividends>{{ active_window.dividends | money }}</b> dividends</small></div>
         <div class="position-contracts"><span>TRADABLE CONTRACTS</span><strong>{{ row.open_contracts }}</strong><small>{{ row.open_call_contracts | contract_sides(row.open_put_contracts) }}</small></div>
-        <div class="position-nearest"><span>NEAREST STRIKE</span>{% if row.nearest_call %}<strong>${{ '%g' | format(row.nearest_call.strike) }}C</strong>{% if row.nearest_call.strike_distance_per_share >= 0 %}<small>{{ row.nearest_call.strike_distance_percent | percent }} above · {{ row.nearest_call.days_to_expiration }} DTE</small>{% else %}<small class="negative">{{ (-row.nearest_call.strike_distance_percent) | percent }} past · {{ row.nearest_call.days_to_expiration }} DTE</small>{% endif %}{% else %}<strong>NONE</strong><small>No open call</small>{% endif %}</div>
-        <div><span>OPEN MARK P/L</span><strong class="{{ row.open_mark_profit_loss | pnl_class }}">{{ row.open_mark_profit_loss | money }}</strong><small>Unrealized estimate</small></div>
+        <div class="position-nearest"><span>NEAREST STRIKE</span>{% if row.nearest_call %}<strong>${{ '%g' | format(row.nearest_call.strike) }}C</strong>{% if row.nearest_call.strike_distance_per_share is none or row.nearest_call.strike_distance_percent is none %}<small>Spot mark unavailable</small>{% elif row.nearest_call.strike_distance_per_share >= 0 %}<small>{{ row.nearest_call.strike_distance_percent | percent }} above · {{ row.nearest_call.days_to_expiration }} DTE</small>{% else %}<small class="negative">{{ (-row.nearest_call.strike_distance_percent) | percent }} past · {{ row.nearest_call.days_to_expiration }} DTE</small>{% endif %}{% else %}<strong>NONE</strong><small>No open call</small>{% endif %}</div>
+        <div><span>OPEN MARK P/L</span><strong class="{{ row.open_mark_profit_loss | pnl_class }}">{{ row.open_mark_profit_loss | money }}</strong><small>{% if row.open_mark_profit_loss is not none %}Unrealized estimate{% else %}Broker marks incomplete{% endif %}</small></div>
       </summary>
 
       <div hidden aria-hidden="true">
@@ -64,12 +64,12 @@
 
       <div class="position-detail">
         <div class="name-analytics">
-          <div><span data-name-option-apr-label>OPTION INCOME APR / 4W</span><b data-name-option-apr>{{ active_window.option_apr | percent }}</b></div>
-          <div title="Sum of current marks on this name's open shorts, calls and puts.{% if row.open_option_entry_credit %} {{ row.open_option_entry_credit | money }} received.{% endif %} Mark, not ask. Includes intrinsic. Not cash or an order.{% if row.open_option_mark_is_prior_session %} Schwab's last option print is from an earlier session.{% endif %}"><span>OPTION VALUE NOW{% if row.open_option_mark_is_prior_session %} · PRIOR SESSION{% if row.open_option_mark_stamp %} · {{ row.open_option_mark_stamp }}{% endif %}{% endif %}</span><b{% if row.open_option_value_now is none %} class="muted"{% endif %}>{{ row.open_option_value_now | money }}</b></div>
+          <div><span data-name-option-apr-label>OPTION CASH APR / 4W</span><b data-name-option-apr>{{ active_window.option_apr | percent }}</b></div>
+          <div title="Sum of current marks on this name's open shorts, calls and puts.{% if row.open_option_entry_credit %} {{ row.open_option_entry_credit | money }} received.{% endif %} Mark, not ask. Includes intrinsic. Not cash or an order.{% if row.open_option_mark_is_prior_session %} The last stored option print is from an earlier session.{% endif %}"><span>OPTION VALUE NOW{% if row.open_option_mark_is_prior_session %} · PRIOR SESSION{% if row.open_option_mark_stamp %} · {{ row.open_option_mark_stamp }}{% endif %}{% endif %}</span><b{% if row.open_option_value_now is none %} class="muted"{% endif %}>{{ row.open_option_value_now | money }}</b></div>
           <div><span>{{ row.open_iv_caption }} <i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i></span><b>{{ row.average_open_option_iv_percent | percent }}</b></div>
           <div title="Nearest open short call as a percent of spot. Puts are not mixed into this buffer."><span>STRIKE BUFFER</span><b>{{ item.current_strike_buffer_percent | percent }}</b></div>
           <div><span data-name-capture-label>CAPTURE / 4W</span><b data-name-capture>{{ active_window.premium_capture_percent | percent }}</b></div>
-          <div title="Theoretical one-day option value decay across this stock's open short options, holding other inputs constant. Not cash."><span>MODEL THETA / DAY</span><b class="positive">+{{ row.open_option_theta_per_day | money }}</b></div>
+          <div title="Theoretical one-day option value decay across this stock's open short options, holding other inputs constant. Not cash."><span>MODEL THETA / DAY</span><b class="{{ 'positive' if row.open_option_theta_per_day is not none else 'muted' }}">{% if row.open_option_theta_per_day is not none %}+{{ row.open_option_theta_per_day | money }}{% else %}&mdash;{% endif %}</b><small>{% if row.open_option_theta_per_day is none %}Greek coverage incomplete{% endif %}</small></div>
           <div class="name-price-time" title="Local model sensitivity for this name's open options. Not cash or a forecast."><span>DELTA &middot; NEXT $1 / OPEN BOOK <i>MODEL</i></span>{% if price_time and price_time.up_one_dollar_effect is not none %}<b class="price-time-pair"><em>UP</em> <em class="{{ price_time.up_one_dollar_effect | pnl_class }}">{{ '+' if price_time.up_one_dollar_effect > 0 else '' }}{{ price_time.up_one_dollar_effect | money }}</em> <em>&middot; DOWN</em> <em class="{{ price_time.down_one_dollar_effect | pnl_class }}">{{ '+' if price_time.down_one_dollar_effect > 0 else '' }}{{ price_time.down_one_dollar_effect | money }}</em></b><span class="name-price-time-read">{{ price_pressure_read(price_time, show_session=true, show_plain=false) }}</span>{% else %}<b>&mdash;</b><small>NEEDS LIVE DELTA</small>{% endif %}</div>
         </div>
 
@@ -198,8 +198,8 @@
             <span>TICKETS <b>{{ item.call_tickets }}</b></span>
           </div>
           <div class="basis-chip">
-            <span>LIFE INC {{ (item.lifetime_option_income + item.lifetime_dividends) | money(0) }}</span>
-            <span>INCOME-ADJ BASIS <b>{{ item.income_adjusted_basis_per_share | money }}/SH</b></span>
+            <span>LIFE NET CASH {{ (item.lifetime_option_income + item.lifetime_dividends) | money(0) }}</span>
+            <span>CASH-OFFSET BASIS <b>{{ item.income_adjusted_basis_per_share | money }}/SH</b></span>
             <span>{{ item.basis_offset_percent | percent }} BASIS OFFSET</span>
           </div>
         </section>
@@ -207,7 +207,7 @@
     </details>
     {% endfor %}
   </div>
-  {% elif live_book and live_book.underlyings %}
+  {% elif live_book and (live_book.underlyings or live_book.unmodeled_short_options) %}
   {% include "partials/_live_position_book.html" %}
   {% else %}
   <div class="panel empty-state">Per-symbol call attribution appears after transaction ingestion.</div>

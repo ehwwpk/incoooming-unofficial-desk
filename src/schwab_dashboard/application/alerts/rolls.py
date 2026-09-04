@@ -73,9 +73,13 @@ def _call_roll_result(
         expires_on=call.expires_on,
         strike=call.strike,
         contracts=call.contracts,
-        close_ask_per_share=call.close_ask_per_share,
+        close_ask_per_share=call.close_ask_per_share or ZERO,
         current_price=current_price,
         quote_status=call.quote_status,
+        contract_multiplier=call.contract_multiplier,
+        deliverable_shares_per_contract=call.deliverable_shares_per_contract,
+        account_mask=call.account_mask,
+        account_id=call.account_id,
     )
     quotes = tuple(
         RollQuote(
@@ -107,6 +111,9 @@ def _put_roll_result(put: LiveOpenOptionPosition, *, limit: int) -> RollSearchRe
         current_price=put.underlying_price or ZERO,
         quote_status=(put.quote_quality or "unavailable").upper(),
         contract_multiplier=put.contract_multiplier,
+        deliverable_shares_per_contract=put.deliverable_shares_per_contract,
+        account_mask=put.account_mask,
+        account_id=put.account_id,
     )
     return select_roll_candidates(
         source,

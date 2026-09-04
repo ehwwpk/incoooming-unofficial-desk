@@ -3,7 +3,9 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 
 import httpx
+import pytest
 
+from schwab_dashboard.application.errors import BrokerRequestError
 from schwab_dashboard.infrastructure.schwab.gateway import (
     SchwabReadOnlyMarketDataClient,
     SchwabReadOnlyTraderClient,
@@ -125,3 +127,51 @@ def test_daily_history_asks_for_a_window_that_reaches_the_session_just_closed() 
     # the live book by a day.
     assert requests[0].url.params["endDate"] == "1787000400000"
     assert requests[0].url.params["frequencyType"] == "daily"
+
+
+def test_trader_error_does_not_expose_account_hash_or_request_url() -> None:
+    account_hash = "private-account-hash"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, request=request, json={"message": "provider detail"})
+
+    oauth = StubOAuth()
+    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
+        client = SchwabReadOnlyTraderClient(
+            base_url="https://broker.test/trader/v1",
+            oauth=oauth,  # type: ignore[arg-type]
+            http_client=http_client,
+        )
+        with pytest.raises(BrokerRequestError) as caught:
+            client.get_transactions(
+                account_hash,
+                start_at=datetime(2026, 8, 1, tzinfo=UTC),
+                end_at=datetime(2026, 8, 2, tzinfo=UTC),
+                transaction_types="TRADE",
+            )
+
+    message = str(caught.value)
+    assert message == "Schwab transaction history failed (HTTP 500)."
+    assert account_hash not in message
+    assert "https://" not in message
+    assert "provider detail" not in message
+
+
+def test_market_transport_error_does_not_expose_symbol_or_request_url() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("network detail", request=request)
+
+    oauth = StubOAuth()
+    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
+        client = SchwabReadOnlyMarketDataClient(
+            base_url="https://broker.test/marketdata/v1",
+            oauth=oauth,  # type: ignore[arg-type]
+            http_client=http_client,
+        )
+        with pytest.raises(BrokerRequestError) as caught:
+            client.get_quotes(["PRIVATE"])
+
+    message = str(caught.value)
+    assert message == "Schwab quote lookup could not be reached."
+    assert "PRIVATE" not in message
+    assert "https://" not in message

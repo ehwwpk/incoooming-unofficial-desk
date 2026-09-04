@@ -6,7 +6,7 @@ from typing import Any
 
 import httpx
 
-from schwab_dashboard.application.errors import BrokerPayloadError
+from schwab_dashboard.application.errors import BrokerPayloadError, BrokerRequestError
 from schwab_dashboard.application.ports.broker import BrokerAccountRecord
 from schwab_dashboard.infrastructure.schwab.mapper import SchwabAccountMapper
 from schwab_dashboard.infrastructure.schwab.oauth import SchwabOAuthClient
@@ -27,10 +27,12 @@ class SchwabReadOnlyTraderClient:
         self._http = http_client
 
     def get_account_numbers(self) -> Sequence[Mapping[str, Any]]:
-        return self._get_list("/accounts/accountNumbers")
+        return self._get_list("/accounts/accountNumbers", operation="account-number lookup")
 
     def get_accounts_with_positions(self) -> Sequence[Mapping[str, Any]]:
-        return self._get_list("/accounts", params={"fields": "positions"})
+        return self._get_list(
+            "/accounts", params={"fields": "positions"}, operation="account snapshot"
+        )
 
     def get_transactions(
         self,
@@ -47,6 +49,7 @@ class SchwabReadOnlyTraderClient:
                 "endDate": _api_datetime(end_at),
                 "types": transaction_types,
             },
+            operation="transaction history",
         )
 
     def _get_list(
@@ -54,22 +57,29 @@ class SchwabReadOnlyTraderClient:
         path: str,
         *,
         params: Mapping[str, str] | None = None,
+        operation: str,
     ) -> Sequence[Mapping[str, Any]]:
-        response = self._http.get(
-            f"{self._base_url}{path}",
-            params=params,
-            headers=self._headers(self._oauth.access_token()),
-        )
-        if response.status_code == 401:
+        try:
             response = self._http.get(
                 f"{self._base_url}{path}",
                 params=params,
-                headers=self._headers(self._oauth.force_refresh()),
+                headers=self._headers(self._oauth.access_token()),
             )
-        response.raise_for_status()
+            if response.status_code == 401:
+                response = self._http.get(
+                    f"{self._base_url}{path}",
+                    params=params,
+                    headers=self._headers(self._oauth.force_refresh()),
+                )
+        except httpx.HTTPError as exc:
+            raise BrokerRequestError(f"Schwab {operation} could not be reached.") from exc
+        if response.is_error:
+            raise BrokerRequestError(f"Schwab {operation} failed (HTTP {response.status_code}).")
         payload: Any = response.json()
         if not isinstance(payload, list) or not all(isinstance(item, Mapping) for item in payload):
-            raise BrokerPayloadError(f"Schwab returned an unexpected list shape for {path}.")
+            raise BrokerPayloadError(
+                f"Schwab returned an unexpected response shape for {operation}."
+            )
         return payload
 
     @staticmethod
@@ -114,6 +124,7 @@ class SchwabReadOnlyMarketDataClient:
         return self._get_mapping(
             "/quotes",
             params={"symbols": ",".join(symbols), "fields": "quote,reference"},
+            operation="quote lookup",
         )
 
     def get_option_chain(
@@ -141,6 +152,7 @@ class SchwabReadOnlyMarketDataClient:
                 "fromDate": from_date.isoformat(),
                 "toDate": to_date.isoformat(),
             },
+            operation="option-chain lookup",
         )
 
     def get_daily_price_history(
@@ -165,6 +177,7 @@ class SchwabReadOnlyMarketDataClient:
                 "needExtendedHoursData": "false",
                 "endDate": str(int(window_end.timestamp() * 1000)),
             },
+            operation="daily price history",
         )
 
     def get_intraday_price_history(
@@ -188,6 +201,7 @@ class SchwabReadOnlyMarketDataClient:
                 "needExtendedHoursData": "true",
                 "needPreviousClose": "true",
             },
+            operation="intraday price history",
         )
 
     def _get_mapping(
@@ -195,22 +209,29 @@ class SchwabReadOnlyMarketDataClient:
         path: str,
         *,
         params: Mapping[str, str],
+        operation: str,
     ) -> Mapping[str, Any]:
-        response = self._http.get(
-            f"{self._base_url}{path}",
-            params=params,
-            headers=SchwabReadOnlyTraderClient._headers(self._oauth.access_token()),
-        )
-        if response.status_code == 401:
+        try:
             response = self._http.get(
                 f"{self._base_url}{path}",
                 params=params,
-                headers=SchwabReadOnlyTraderClient._headers(self._oauth.force_refresh()),
+                headers=SchwabReadOnlyTraderClient._headers(self._oauth.access_token()),
             )
-        response.raise_for_status()
+            if response.status_code == 401:
+                response = self._http.get(
+                    f"{self._base_url}{path}",
+                    params=params,
+                    headers=SchwabReadOnlyTraderClient._headers(self._oauth.force_refresh()),
+                )
+        except httpx.HTTPError as exc:
+            raise BrokerRequestError(f"Schwab {operation} could not be reached.") from exc
+        if response.is_error:
+            raise BrokerRequestError(f"Schwab {operation} failed (HTTP {response.status_code}).")
         payload: Any = response.json()
         if not isinstance(payload, Mapping):
-            raise BrokerPayloadError(f"Schwab returned an unexpected object shape for {path}.")
+            raise BrokerPayloadError(
+                f"Schwab returned an unexpected response shape for {operation}."
+            )
         return payload
 
 

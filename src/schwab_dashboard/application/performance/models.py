@@ -1,18 +1,31 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date as Date
 from decimal import Decimal
 
 
 @dataclass(frozen=True, slots=True)
 class ReturnPoint:
-    date: date
+    date: Date
     value: Decimal
     external_flow: Decimal
     daily_return_percent: Decimal | None
     cumulative_return_percent: Decimal | None
     quality: str
+    interval_return_percent: Decimal | None = None
+    value_quality: str = "unresolved"
+    return_quality: str = "unresolved"
+    valuation_phase: str = "unknown"
+    previous_date: Date | None = None
+    session_span: int = 0
+    price_coverage_percent: Decimal | None = None
+    estimated_symbols: tuple[str, ...] = ()
+    reconciliation_adjustment: Decimal = Decimal("0")
+    anchor_start: Date | None = None
+    anchor_end: Date | None = None
+    valuation_subtype: str | None = None
+    raw_reconstructed_value: Decimal | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,12 +50,13 @@ class MatchedComparison:
     """
 
     status: str
-    as_of: date | None
+    as_of: Date | None
     managed_return_percent: Decimal | None
     shares_return_percent: Decimal | None
     market_return_percent: Decimal | None
     levered_market_return_percent: Decimal | None
     method_note: str
+    quality: str = "unresolved"
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,6 +76,7 @@ class RiskStatistics:
     positive_day_percent: Decimal | None
     worst_day_percent: Decimal | None
     method_note: str
+    reconstructed_observations: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,17 +108,27 @@ class CapitalEfficiency:
     buying_power: Decimal | None
     available_funds: Decimal | None
     method_note: str
+    quality: str = "unresolved"
+    observed_sessions: int = 0
+    derived_sessions: int = 0
+    estimated_sessions: int = 0
+    unresolved_sessions: int = 0
 
 
 @dataclass(frozen=True, slots=True)
 class AssignmentImpact:
     status: str
     assigned_call_contracts: int
-    called_away_shares: int
+    called_away_shares: Decimal
     assigned_put_contracts: int
-    acquired_shares: int
+    acquired_shares: Decimal
     period_end_upside_reference: Decimal | None
     method_note: str
+    unknown_side_assignments: int = 0
+    unknown_side_contracts: int = 0
+    reference_as_of: Date | None = None
+    reference_age_days: int | None = None
+    reference_quality: str = "not_applicable"
 
 
 @dataclass(frozen=True, slots=True)
@@ -129,8 +154,8 @@ class PerformanceSpine:
 class PerformanceComparison:
     methodology_version: str
     range_label: str
-    coverage_start: date | None
-    coverage_end: date | None
+    coverage_start: Date | None
+    coverage_end: Date | None
     external_flows_excluded: Decimal
     actual: ComparisonSeries
     shares_without_options: ComparisonSeries
@@ -140,3 +165,5 @@ class PerformanceComparison:
     spine: PerformanceSpine
     warnings: tuple[str, ...]
     matched: MatchedComparison
+    reconstructed_sessions: int = 0
+    estimated_sessions: int = 0

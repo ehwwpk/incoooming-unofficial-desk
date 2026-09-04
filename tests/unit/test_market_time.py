@@ -4,6 +4,8 @@ from zoneinfo import ZoneInfo
 from schwab_dashboard.application.market_time import (
     OptionSessionState,
     QuoteSession,
+    ledger_market_date,
+    ledger_market_datetime,
     market_date,
     option_session_cache_partition,
     option_session_state,
@@ -22,6 +24,21 @@ def test_market_date_converts_utc_midnight_to_prior_eastern_day() -> None:
 
 def test_market_date_treats_persisted_naive_datetime_as_utc() -> None:
     assert market_date(datetime(2026, 8, 13, 2, 0)) == date(2026, 8, 12)
+
+
+def test_ledger_market_date_preserves_sqlite_date_only_sentinel() -> None:
+    assert ledger_market_date(datetime(2026, 8, 13)) == date(2026, 8, 13)
+    assert ledger_market_date(datetime(2026, 8, 13, 2, 0)) == date(2026, 8, 12)
+
+
+def test_ledger_market_datetime_returns_one_aware_market_clock() -> None:
+    date_only = ledger_market_datetime(datetime(2026, 8, 13))
+    timed = ledger_market_datetime(datetime(2026, 8, 13, 2, 0))
+    aware = ledger_market_datetime(datetime(2026, 8, 13, 2, 0, tzinfo=UTC))
+
+    assert date_only.tzinfo == EASTERN and date_only.date() == date(2026, 8, 13)
+    assert timed.tzinfo == EASTERN and timed.date() == date(2026, 8, 12)
+    assert aware == timed
 
 
 def test_market_date_observes_winter_offset_and_preserves_dates() -> None:

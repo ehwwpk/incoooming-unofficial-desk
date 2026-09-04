@@ -25,15 +25,56 @@ from schwab_dashboard.application.risk.price_time import build_price_time_read
 from schwab_dashboard.application.rolls.board import build_roll_board
 from schwab_dashboard.application.workspaces.projections import build_open_book
 from schwab_dashboard.infrastructure.demo.dashboard import DemoDashboardReader
-from schwab_dashboard.web.rendering import money, number, percent, pnl_class, templates
+from schwab_dashboard.web.rendering import money, number, percent, pnl_class, quantity, templates
 
 
 def test_financial_display_filters_are_consistent() -> None:
     assert money(Decimal("1234.5")) == "$1,234.50"
     assert money(Decimal("-42.25")) == "-$42.25"
     assert number(Decimal("12.25"), 1) == "12.2"
+    assert quantity(Decimal("1.2500000000")) == "1.25"
+    assert quantity(Decimal("2000")) == "2,000"
+    assert quantity(None) == "\N{EM DASH}"
     assert percent(Decimal("4.236"), 2) == "4.24%"
     assert money(None) == "—"
+
+
+def test_unmodeled_short_option_is_visible_instead_of_silently_dropped() -> None:
+    stock = PositionSummary(
+        account_mask="...1234",
+        symbol="KTOS",
+        description="Kratos Defense",
+        asset_type="EQUITY",
+        quantity=Decimal("100"),
+        average_price=Decimal("40"),
+        mark=Decimal("60"),
+        market_value=Decimal("6000"),
+        day_profit_loss=None,
+        day_profit_loss_percent=None,
+        strategy=None,
+    )
+    adjusted = replace(
+        stock,
+        symbol="KTOS1 260918C00075000",
+        description="Adjusted short call",
+        asset_type="OPTION",
+        quantity=Decimal("-1"),
+        underlying_symbol="KTOS",
+        option_type="CALL",
+        expiration_date=date(2026, 9, 18),
+        strike=Decimal("75"),
+        market_value=Decimal("-100"),
+        is_non_standard=True,
+    )
+    book = build_live_position_book((stock, adjusted), as_of=date(2026, 8, 10))
+
+    rendered = templates.env.get_template("partials/_live_position_book.html").render(
+        live_book=book
+    )
+
+    assert "MODELED OPTION TOTALS INCOMPLETE" in rendered
+    assert adjusted.symbol in rendered
+    assert "Premium multiplier is unavailable" in rendered
 
 
 def test_profit_loss_css_class_uses_numeric_sign() -> None:
@@ -60,7 +101,7 @@ def test_settlement_row_is_provisional_and_never_offers_a_dead_trade_action() ->
     ).render(expires_on=date(2026, 8, 21), assessment=assessment)
 
     assert "SHARE SALE EXPECTED" in rendered
-    assert "Not booked until Schwab confirms it" in rendered
+    assert "Not booked until the source confirms it" in rendered
     assert "TRADING CLOSED · WAITING ON SCHWAB" in rendered
     assert "ROLL" not in rendered
     assert "CLOSE POSITION" not in rendered
@@ -261,7 +302,7 @@ def test_settlement_link_occupies_the_observed_income_cell_not_the_live_book() -
 
     assert observed is not None
     assert 'class="desk-settlement-strip"' in observed.group(1)
-    assert "BROKER CONFIRMATION PENDING" in observed.group(1)
+    assert "SOURCE CONFIRMATION PENDING" in observed.group(1)
     assert f"{overview.pending_settlement_contracts} CONTRACTS" in observed.group(1)
     assert "12 CONTRACTS · TRADING CLOSED" not in observed.group(1)
     assert "<small>TRADING CLOSED" in observed.group(1)
@@ -540,7 +581,23 @@ def test_period_script_survives_removed_dividend_tape_label() -> None:
     assert 'card.querySelector("[data-name-dividend-label]")' in script
     assert "if (dividendLabel)" in script
     assert 'querySelectorAll("[data-name-dividends]")' in script
-    assert "periods.js') }}?v=21" in page
+    assert "periods.js') }}?v=22" in page
+
+
+def test_income_pulse_calls_cash_cash_and_discloses_unsettled_open_positions() -> None:
+    snapshot = DemoDashboardReader().execute()
+    rendered = templates.env.get_template("partials/_summary.html").render(
+        snapshot=snapshot,
+        desk_overview=build_desk_overview(snapshot),
+    )
+
+    assert "NET EXECUTED OPTION CASH /" in rendered
+    assert "credits &minus;" in rendered
+    assert "buybacks &minus;" in rendered
+    assert "fees; open positions remain" in rendered
+    assert "MONTHLY EXECUTED-CASH PACE" in rendered
+    assert "not completed profit" in rendered
+    assert "FULL-MONTH NET-CASH AVG" in rendered
 
 
 def test_desk_header_uses_day_pl_not_today_nl_change() -> None:
@@ -556,7 +613,8 @@ def test_desk_header_uses_day_pl_not_today_nl_change() -> None:
     assert "ACCOUNT DAY P/L" in page
     assert "OPEN POS P/L" in page
     assert "UNRECONCILED" in page
-    assert "OWNER FLOW EXCL" in page
+    assert "OWNER FLOW EXCL FROM RETURN" in page
+    assert "removed only from this displayed account return link" in page
     assert "P/L GAP" in page
     assert "TODAY <b" not in page
     assert "flow-adjusted-note" not in page
@@ -904,7 +962,7 @@ def test_short_put_row_pairs_received_premium_with_estimated_buyback_cost() -> N
 
     assert "IF ASSIGNED" not in rendered
     assert '<details class="open-option-row open-put-row' in rendered
-    assert "URNM CASH-SECURED PUT" in rendered
+    assert "URNM SHORT PUT" in rendered
     assert "PREMIUM / BUYBACK" in rendered
     assert "+$120.00" in rendered
     assert '<i class="negative">&minus;' in rendered
@@ -945,17 +1003,17 @@ def test_results_spine_keeps_series_key_beside_chart_and_economics_below_it() ->
     assert "data-performance-sample" not in rendered
     assert "performance-compare-tape" not in rendered
     assert "performance-metric-rail" in rendered
-    assert "CUMULATIVE RETURN LINES" in rendered
-    assert "latest day" in rendered
+    assert "SOLID CLOSE / DASH EST/PROV / DOT BRIDGE" in rendered
+    assert "latest session" in rendered
     assert "data-performance-compare-canvas" in rendered
     assert "data-performance-compare-svg" not in rendered
     assert "<h3>Drawdown</h3>" in rendered
-    assert "EARLY SAMPLE &middot; 9 SESSIONS" in rendered
+    assert "EARLY SAMPLE &middot; 9 OBSERVED RETURNS" in rendered
     assert "EARLY ESTIMATE &middot; 9 SESSIONS" in rendered
     assert "33.98%" in rendered
     assert "performance-risk-withheld" not in rendered
     assert "needs 252" not in rendered
-    assert "Observed peak to trough" in rendered
+    assert "Observed adjacent closes" in rendered
     assert rendered.count("data-results-window-math") == 1
     assert rendered.count("data-monthly-performance") == 1
     assert rendered.count("data-campaigns-drawer") == 1
@@ -966,13 +1024,19 @@ def test_results_spine_keeps_series_key_beside_chart_and_economics_below_it() ->
     assert "Drawdown, vol, and worst day" not in rendered
     assert "Net Liquidity, Maintenance, and Buying Power" not in rendered
     assert "Net liq, maintenance, buying power" not in rendered
-    assert "Credits, buybacks, live marks" in rendered
+    assert "Credits, buybacks, current option marks" in rendered
+    assert "CURRENT OPTION MARK P/L" in rendered
+    assert "the displayed snapshot" in rendered
+    assert "exact" in rendered and "inferred" in rendered
     assert ">MANAGED</span>" in rendered
     assert ">STARTING SHARES</span>" in rendered
     assert ">MANAGEMENT DIFFERENCE</span>" in rendered
     assert ">SPY</span>" in rendered
     assert "SPY &times; EXPOSURE" in rendered
+    assert "ESTIMATED PATH" in rendered
     assert "cash flows removed" in rendered
+    assert "OWNER CASH EXCLUDED FROM RETURNS" in rendered
+    assert "CALCULATED RETURN LINKS ONLY" in rendered
     assert "share trades, no options" in rendered
     assert "MANAGED BOOK" not in rendered
     assert "SAME STARTING SHARES" not in rendered
@@ -997,6 +1061,27 @@ def test_results_spine_keeps_series_key_beside_chart_and_economics_below_it() ->
     assert chart_stage_end < rendered.index("data-performance-comparison-payload")
 
 
+def test_performance_chart_keeps_bridge_provenance_through_the_right_anchor() -> None:
+    script = (
+        Path(__file__).resolve().parents[2]
+        / "src"
+        / "schwab_dashboard"
+        / "web"
+        / "static"
+        / "performance-compare.js"
+    ).read_text(encoding="utf-8")
+
+    assert 'previous?.valuationSubtype !== "endpoint_bridge"' in script
+    assert 'previous?.valuationSubtype === "endpoint_bridge"' in script
+    assert "collectLinkRuns" in script
+    assert "api.setData(run.map" in script
+    assert "included.has(point.date)" not in script
+    assert "RETURN ${actualPoint.returnQuality.toUpperCase()}" in script
+    assert '["derived", "estimated", "provisional"].includes(point.returnQuality)' in script
+    assert "managedPoints.slice(1)" in script
+    assert "payload?.matched?.quality" not in script
+
+
 def test_results_spine_shows_assignment_ledger_only_when_shares_moved() -> None:
     snapshot = DemoDashboardReader().execute()
     comparison = _results_comparison()
@@ -1009,6 +1094,10 @@ def test_results_spine_shows_assignment_ledger_only_when_shares_moved() -> None:
                 status="ready",
                 assigned_call_contracts=2,
                 called_away_shares=200,
+                period_end_upside_reference=Decimal("1200"),
+                reference_as_of=date(2026, 8, 12),
+                reference_age_days=0,
+                reference_quality="exact",
             ),
         ),
     )
@@ -1018,8 +1107,97 @@ def test_results_spine_shows_assignment_ledger_only_when_shares_moved() -> None:
     )
 
     assert "ASSIGNMENT LEDGER" in rendered
-    assert "Calls and puts assigned" in rendered
+    assert "Assigned contracts" in rendered
     assert "200 shares called away" in rendered
+    assert "EXACT &middot; oldest close AUG 12, 2026" in rendered
+
+
+def test_results_spine_discloses_unknown_assignment_side_and_stale_reference() -> None:
+    snapshot = DemoDashboardReader().execute()
+    comparison = _results_comparison()
+    assigned = replace(
+        comparison,
+        spine=replace(
+            comparison.spine,
+            assignment_impact=replace(
+                comparison.spine.assignment_impact,
+                status="partial",
+                assigned_call_contracts=2,
+                called_away_shares=200,
+                period_end_upside_reference=Decimal("1200"),
+                unknown_side_assignments=1,
+                unknown_side_contracts=3,
+                reference_as_of=date(2026, 8, 10),
+                reference_age_days=2,
+                reference_quality="stale",
+            ),
+        ),
+    )
+    rendered = templates.env.get_template("workspaces/_strategy_review.html").render(
+        snapshot=replace(snapshot, performance_comparison=assigned),
+        performance_comparison_payload=jsonable_encoder(asdict(assigned)),
+    )
+
+    assert "UNKNOWN-SIDE EVENTS" in rendered
+    assert "3 contracts excluded from directional totals" in rendered
+    assert "STALE &middot; oldest close AUG 10, 2026" in rendered
+    assert "2 calendar days before window end" in rendered
+
+
+def test_results_spine_discloses_capital_valuation_quality_and_counts() -> None:
+    snapshot = DemoDashboardReader().execute()
+    comparison = _results_comparison()
+    qualified = replace(
+        comparison,
+        spine=replace(
+            comparison.spine,
+            capital_efficiency=replace(
+                comparison.spine.capital_efficiency,
+                quality="estimated",
+                observed_sessions=1,
+                derived_sessions=2,
+                estimated_sessions=3,
+                unresolved_sessions=1,
+            ),
+        ),
+    )
+    rendered = templates.env.get_template("workspaces/_strategy_review.html").render(
+        snapshot=replace(snapshot, performance_comparison=qualified),
+        performance_comparison_payload=jsonable_encoder(asdict(qualified)),
+    )
+
+    assert "READY &middot; ESTIMATED" in rendered
+    assert (
+        "1 observed &middot; 2 reconstructed &middot; 3 estimated &middot; 1 unresolved" in rendered
+    )
+
+
+def test_results_spine_qualifies_inferred_campaigns_and_latest_stored_marks() -> None:
+    snapshot = DemoDashboardReader().execute()
+    comparison = _results_comparison()
+    qualified = replace(
+        comparison,
+        spine=replace(
+            comparison.spine,
+            option_economics=replace(
+                comparison.spine.option_economics,
+                status="review_needed",
+                closed_campaigns=3,
+                exact_closed_campaigns=1,
+                inferred_closed_campaigns=2,
+                closed_campaign_result=None,
+            ),
+        ),
+    )
+    rendered = templates.env.get_template("workspaces/_strategy_review.html").render(
+        snapshot=replace(snapshot, performance_comparison=qualified),
+        performance_comparison_payload=jsonable_encoder(asdict(qualified)),
+    )
+
+    assert "3 finished &middot; 1 exact &middot; 2 inferred &middot; TOTAL WITHHELD" in rendered
+    assert "CURRENT OPTION MARK P/L" in rendered
+    assert "Unrealized at the displayed snapshot" in rendered
+    assert "CURRENT OPTION LIABILITY" in rendered
 
 
 def _results_comparison():

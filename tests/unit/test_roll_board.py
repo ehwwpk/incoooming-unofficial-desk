@@ -51,6 +51,61 @@ def test_roll_board_ranks_an_urgent_call_and_exposes_candidates() -> None:
     assert projection.posture == "AT THE DESK"
 
 
+def test_roll_board_separates_premium_scale_from_known_share_delivery() -> None:
+    snapshot = DemoDashboardReader().execute()
+    underlying = snapshot.underlyings[0]
+    source = underlying.open_call_clocks[0]
+    adjusted = replace(
+        source,
+        contracts=2,
+        contract_multiplier=D("150"),
+        days_to_expiration=2,
+        strike_distance_per_share=D("-1"),
+        strike_distance_percent=D("-1"),
+        close_ask_per_share=D("1"),
+        roll_quote_candidates=(
+            RollQuoteCandidate(
+                option_symbol="ADJUSTED NEXT",
+                expires_on=source.expires_on + timedelta(days=7),
+                strike=source.strike + D("5"),
+                sell_bid_per_share=D("1.50"),
+                quote_source="TEST",
+            ),
+        ),
+    )
+    projection = build_roll_board(
+        replace(snapshot, underlyings=(replace(underlying, open_call_clocks=(adjusted,)),))
+    )
+    row = projection.rows[0]
+
+    assert row.source.contract_multiplier == D("150")
+    assert row.assignment_notional == source.strike * D("200")
+    assert row.candidates[0].net_roll_cash == D("150")
+
+
+def test_roll_board_withholds_comparison_when_share_delivery_is_unresolved() -> None:
+    snapshot = DemoDashboardReader().execute()
+    underlying = snapshot.underlyings[0]
+    source = replace(
+        underlying.open_call_clocks[0],
+        days_to_expiration=2,
+        strike_distance_per_share=D("-1"),
+        strike_distance_percent=D("-1"),
+        deliverable_shares_per_contract=None,
+    )
+
+    projection = build_roll_board(
+        replace(snapshot, underlyings=(replace(underlying, open_call_clocks=(source,)),))
+    )
+    row = projection.rows[0]
+
+    assert row.assignment_notional is None
+    assert projection.total_assignment_notional is None
+    assert row.candidates == ()
+    assert row.no_clean_reason is not None
+    assert "adjusted or unresolved deliverable" in row.no_clean_reason
+
+
 def test_roll_board_handles_short_puts_and_names_missing_market_data() -> None:
     snapshot = DemoDashboardReader().execute()
     expires_on = date(2026, 8, 15)
@@ -112,8 +167,7 @@ def test_roll_board_uses_data_fog_when_no_roll_math_can_be_verified() -> None:
         replace(
             underlying,
             open_call_clocks=tuple(
-                replace(call, roll_quote_candidates=())
-                for call in underlying.open_call_clocks
+                replace(call, roll_quote_candidates=()) for call in underlying.open_call_clocks
             ),
         )
         for underlying in snapshot.underlyings
@@ -124,6 +178,28 @@ def test_roll_board_uses_data_fog_when_no_roll_math_can_be_verified() -> None:
     assert projection.rows
     assert projection.no_clean_count == len(projection.rows)
     assert projection.posture == "DATA FOG"
+
+
+def test_roll_board_withholds_cash_math_when_call_ask_is_missing() -> None:
+    snapshot = DemoDashboardReader().execute()
+    underlying = snapshot.underlyings[0]
+    call = replace(
+        underlying.open_call_clocks[0],
+        days_to_expiration=2,
+        strike_distance_per_share=D("-1"),
+        strike_distance_percent=D("-1"),
+        close_ask_per_share=None,
+    )
+    updated = replace(underlying, open_call_clocks=(call,))
+
+    projection = build_roll_board(
+        replace(snapshot, underlyings=(updated, *snapshot.underlyings[1:]))
+    )
+    row = next(item for item in projection.rows if item.source.option_symbol == call.record_id)
+
+    assert row.candidates == ()
+    assert row.no_clean_reason is not None
+    assert "ask is unavailable" in row.no_clean_reason
 
 
 def test_roll_board_demo_call_replacements_move_up_and_out() -> None:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from datetime import date
 from decimal import Decimal
 
@@ -10,6 +10,7 @@ from schwab_dashboard.application.dashboard.covered_calls import (
     OpenCallClock,
     UnderlyingCallStats,
 )
+from schwab_dashboard.application.values import sum_if_complete
 from schwab_dashboard.infrastructure.demo.fixtures.daily_prices import DAILY_CLOSES
 from schwab_dashboard.infrastructure.demo.fixtures.holdings import HOLDINGS, HoldingFixture
 from schwab_dashboard.infrastructure.demo.fixtures.name_windows import build_name_windows
@@ -50,17 +51,17 @@ def build_covered_call_summary(
     open_call_credit = sum(
         (record.gross_premium for record in records if record.outcome == "Open"), ZERO
     )
-    open_call_mark_value = sum(
+    open_call_mark_value = sum_if_complete(
         (
             clock.current_option_value
             for underlying in underlyings
             for clock in underlying.open_call_clocks
         ),
-        ZERO,
     )
+    assert open_call_mark_value is not None
     annual_factor = YEAR_DAYS / QUARTER_DAYS
     return CoveredCallPortfolioSummary(
-        total_shares=sum(item.shares for item in underlyings),
+        total_shares=sum((item.shares for item in underlyings), ZERO),
         contract_capacity=sum(item.contract_capacity for item in underlyings),
         active_contracts=sum(item.active_contracts for item in underlyings),
         coverage_percent=_ratio(
@@ -73,7 +74,7 @@ def build_covered_call_summary(
         closed_contracts=_contracts(records, "Closed"),
         rolled_contracts=_contracts(records, "Rolled"),
         assigned_contracts=_contracts(records, "Assigned"),
-        called_away_shares=_contracts(records, "Assigned") * 100,
+        called_away_shares=D(_contracts(records, "Assigned") * 100),
         gross_premium=gross_premium,
         buyback_cost=sum((record.buyback_cost for record in records), ZERO),
         net_option_cash=net_option_cash,
@@ -108,7 +109,11 @@ def _summarize_holding(
     net_option_cash = sum((record.net_cash for record in symbol_records), ZERO)
     gross_premium = sum((record.gross_premium for record in symbol_records), ZERO)
     weighted_upside = sum(
-        (record.strike_upside_percent * record.contracts for record in symbol_records), ZERO
+        (
+            _required_decimal(record.strike_upside_percent) * record.contracts
+            for record in symbol_records
+        ),
+        ZERO,
     )
     weighted_dte = sum(record.days_to_expiration * record.contracts for record in symbol_records)
     original_cost_basis = holding.average_cost * holding.shares
@@ -117,10 +122,13 @@ def _summarize_holding(
     annual_factor = YEAR_DAYS / QUARTER_DAYS
     price_points = build_daily_price_points(DAILY_CLOSES[holding.symbol])
     prices = [point.price for point in price_points]
+    open_call_clocks = tuple(
+        _open_call_clock(record, holding.current_price, as_of) for record in open_records
+    )
     return UnderlyingCallStats(
         symbol=holding.symbol,
         company_name=holding.company_name,
-        shares=holding.shares,
+        shares=D(holding.shares),
         average_cost=holding.average_cost,
         current_price=holding.current_price,
         market_value=market_value,
@@ -134,7 +142,7 @@ def _summarize_holding(
         closed_contracts=_contracts(symbol_records, "Closed"),
         rolled_contracts=_contracts(symbol_records, "Rolled"),
         assigned_contracts=_contracts(symbol_records, "Assigned"),
-        called_away_shares=_contracts(symbol_records, "Assigned") * 100,
+        called_away_shares=D(_contracts(symbol_records, "Assigned") * 100),
         gross_premium=gross_premium,
         buyback_cost=sum((record.buyback_cost for record in symbol_records), ZERO),
         net_option_cash=net_option_cash,
@@ -146,8 +154,16 @@ def _summarize_holding(
         quarter_total_cash_apr=(
             (net_option_cash + holding.quarter_dividends) / market_value * annual_factor * 100
         ).quantize(TENTH),
-        average_open_call_iv_percent=holding.average_open_call_iv_percent,
-        average_open_call_delta=holding.average_open_call_delta,
+        average_open_call_iv_percent=_weighted_average(
+            (clock.implied_volatility_percent, clock.contracts)
+            for clock in open_call_clocks
+            if clock.implied_volatility_percent is not None
+        ),
+        average_open_call_delta=_weighted_average(
+            (abs(clock.delta), clock.contracts)
+            for clock in open_call_clocks
+            if clock.delta is not None
+        ),
         current_strike_buffer_percent=_current_strike_buffer(open_records, holding.current_price),
         next_ex_dividend_date=holding.next_ex_dividend_date,
         dividend_per_share=holding.dividend_per_share,
@@ -164,9 +180,7 @@ def _summarize_holding(
         average_days_to_expiration=(D(weighted_dte) / contract_count).quantize(TENTH),
         win_rate=_ratio(sum(1 for record in completed if record.net_cash > ZERO), len(completed)),
         performance_windows=build_name_windows(holding.symbol, market_value),
-        open_call_clocks=tuple(
-            _open_call_clock(record, holding.current_price, as_of) for record in open_records
-        ),
+        open_call_clocks=open_call_clocks,
         thirteen_week_low=min(prices),
         thirteen_week_mid=((min(prices) + max(prices)) / 2).quantize(D("0.01")),
         thirteen_week_high=max(prices),
@@ -214,6 +228,16 @@ def _contracts(records: Sequence[CallSaleRecord], outcome: str) -> int:
 
 def _ratio(numerator: int, denominator: int) -> Decimal:
     return (D(numerator) / D(denominator) * 100).quantize(TENTH) if denominator else ZERO
+
+
+def _weighted_average(values: Iterable[tuple[Decimal, int]]) -> Decimal | None:
+    rows = tuple(values)
+    weight = sum((contracts for _, contracts in rows), 0)
+    return (
+        sum((value * D(contracts) for value, contracts in rows), ZERO) / D(weight)
+        if weight
+        else None
+    )
 
 
 def _open_call_clock(record: CallSaleRecord, current_price: Decimal, as_of: date) -> OpenCallClock:
@@ -300,3 +324,11 @@ def _decay_stage(days_to_expiration: int) -> str:
     if days_to_expiration <= 35:
         return "DECAY BUILDING"
     return "EARLY CYCLE"
+
+
+def _required_decimal(value: Decimal | None) -> Decimal:
+    """Narrow price context guaranteed by the fictional demo fixtures."""
+
+    if value is None:
+        raise ValueError("demo call history requires complete price context")
+    return value

@@ -3,21 +3,28 @@
 {% from "partials/_settlement_item.html" import settlement_item %}
 
 <section class="workspace-metric-strip operator-strip" aria-label="Open option summary">
-  <div><span>TRADABLE OBLIGATIONS</span><strong>{{ open_book.actionable_positions }} <small>OPTION LINES</small></strong><small>{{ open_book.actionable_contracts }} contracts{% if open_book.pending_settlement_positions %} · {{ open_book.pending_settlement_positions }} waiting on Schwab{% endif %}</small></div>
-  <div><span>BROKER-REPORTED PREMIUM</span><strong>{{ open_book.entry_credit | money }}</strong><small>Opening credits on positions Schwab still reports</small></div>
-  <div><span>TRADABLE OPEN MARK P/L</span><strong class="{{ open_book.actionable_open_profit_loss | pnl_class }}">{{ open_book.actionable_open_profit_loss | money }}</strong><small>Unrealized · option value now {{ open_book.actionable_current_liability | money }}</small></div>
-  <div title="Current theoretical theta across the open short-option book. It reprices with spot, implied volatility, and time; it is not cash income or a four-week pace."><span>CURRENT MODEL THETA / DAY</span><strong class="positive">+{{ open_book.theta_estimate_per_day | money }}</strong><small>0 DTE {{ open_book.same_day_theta_estimate_per_day | money }} · later expiries {{ open_book.later_theta_estimate_per_day | money }}</small></div>
+  <div><span>TRADABLE OBLIGATIONS</span><strong>{{ open_book.actionable_positions }} <small>OPTION LINES</small></strong><small>{{ open_book.actionable_contracts }} contracts{% if open_book.pending_settlement_positions %} · {{ open_book.pending_settlement_positions }} waiting on source confirmation{% endif %}</small></div>
+  <div><span>POSITION OPENING CREDIT</span><strong>{{ open_book.entry_credit | money }}</strong><small>{% if open_book.entry_credit is not none %}Opening credits tied to currently reported positions{% else %}Opening credits incomplete{% endif %}</small></div>
+  <div><span>TRADABLE OPEN MARK P/L</span><strong class="{{ open_book.actionable_open_profit_loss | pnl_class }}">{{ open_book.actionable_open_profit_loss | money }}</strong><small>{% if open_book.actionable_open_profit_loss is not none and open_book.actionable_current_liability is not none %}Unrealized · option value now {{ open_book.actionable_current_liability | money }}{% else %}Marks or costs incomplete{% endif %}</small></div>
+  <div title="Current theoretical theta across the open short-option book. It reprices with spot, implied volatility, and time; it is not cash income or a four-week pace."><span>CURRENT MODEL THETA / DAY</span><strong class="{{ 'positive' if open_book.theta_estimate_per_day is not none else 'muted' }}">{% if open_book.theta_estimate_per_day is not none %}+{{ open_book.theta_estimate_per_day | money }}{% else %}&mdash;{% endif %}</strong><small>{% if open_book.theta_estimate_per_day is not none %}0 DTE {{ open_book.same_day_theta_estimate_per_day | money }} · later expiries {{ open_book.later_theta_estimate_per_day | money }}{% else %}Greek coverage incomplete{% endif %}</small></div>
 </section>
+
+{% if snapshot.live_position_book and snapshot.live_position_book.unmodeled_short_options %}
+<aside class="option-data-warning" role="status">
+  <strong>OPEN-BOOK TOTALS INCOMPLETE</strong>
+  <span>{{ snapshot.live_position_book.unmodeled_short_options | length }} source-reported short option position{{ '' if snapshot.live_position_book.unmodeled_short_options | length == 1 else 's' }} lack the contract data needed for safe calculations. They are excluded from the totals below.</span>
+</aside>
+{% endif %}
 
 {% include "partials/_risk_lens.html" %}
 
 {% if open_book.pending_settlement_positions %}
 <details id="settlement-queue" class="workspace-panel open-book-section settlement-queue" data-open-book-section="settlement" open>
   <summary class="workspace-panel-heading">
-    <div><p class="eyebrow">EXPIRATION DESK</p><h2>Trading closed · waiting on Schwab</h2></div>
+    <div><p class="eyebrow">EXPIRATION DESK</p><h2>Trading closed · waiting on source confirmation</h2></div>
     <div class="open-book-section-control"><span>{{ open_book.pending_settlement_positions }} LINE{{ '' if open_book.pending_settlement_positions == 1 else 'S' }} · {{ open_book.pending_settlement_contracts }} CONTRACT{{ '' if open_book.pending_settlement_contracts == 1 else 'S' }} · LAST-MARK P/L {{ open_book.pending_last_mark_profit_loss | money }}</span><i aria-hidden="true"></i></div>
   </summary>
-  <p class="settlement-queue-note">These contracts can no longer be closed or rolled. The expiration-day close can suggest the likely outcome, but expiration, exercise, and assignment stay provisional until Schwab updates the account.</p>
+  <p class="settlement-queue-note">These contracts can no longer be closed or rolled. The expiration-day close can suggest the likely outcome, but expiration, exercise, and assignment stay provisional until the source updates the account.</p>
   <div class="settlement-register">
     {% for row in open_book.settling_call_rows %}{{ settlement_item('call', row.record_id, row.symbol, row.contracts, row.strike, row.expires_on, row.session_label, row.expiration_assessment, row.current_liability, row.open_profit_loss) }}{% endfor %}
     {% for row in open_book.settling_put_rows %}{{ settlement_item('put', row.option_symbol, row.symbol, row.contracts, row.strike, row.expires_on, row.session_label, row.expiration_assessment, row.current_liability, row.open_profit_loss) }}{% endfor %}
@@ -28,7 +35,7 @@
 <details class="workspace-panel open-book-section roll-board" data-open-book-section="roll-board" open>
   <summary class="workspace-panel-heading">
     <div><p class="eyebrow">NIBWICK ROLL BOARD</p><h2>{{ roll_board.posture | title }}</h2></div>
-    <div class="open-book-section-control"><span>{{ roll_board.rows | length }} POSITIONS · {{ roll_board.total_contracts }} CONTRACTS · {{ roll_board.attention_count }} NEED ATTENTION · {{ roll_board.total_assignment_notional | money(0) }} AT STRIKE</span><i aria-hidden="true"></i></div>
+    <div class="open-book-section-control"><span>{{ roll_board.rows | length }} POSITIONS · {{ roll_board.total_contracts }} CONTRACTS · {{ roll_board.attention_count }} NEED ATTENTION · {% if roll_board.total_assignment_notional is not none %}{{ roll_board.total_assignment_notional | money(0) }} AT STRIKE{% else %}DELIVERY TERMS INCOMPLETE{% endif %}</span><i aria-hidden="true"></i></div>
   </summary>
   <div class="roll-board-register">
     {% for row in roll_board.rows %}
@@ -38,7 +45,7 @@
         <span class="roll-board-clock">{{ row.days_to_expiration }} DTE · {{ row.source.expires_on | short_date }} · {{ row.source.quote_status }}</span>
         <span class="roll-board-urgency">{{ row.urgency }}</span>
         <strong class="roll-board-distance {{ row.strike_distance_per_share | pnl_class }}">{{ row.strike_distance_per_share | money }} / {{ row.strike_distance_percent | percent }}</strong>
-        <small class="roll-board-notional">{{ row.assignment_notional | money(0) }} AT STRIKE</small>
+        <small class="roll-board-notional">{% if row.assignment_notional is not none %}{{ row.assignment_notional | money(0) }} AT STRIKE{% else %}DELIVERY UNRESOLVED{% endif %}</small>
       </header>
       {% if row.candidates %}
       <div class="roll-board-candidates">
@@ -71,7 +78,7 @@
     {% for bucket in snapshot.expiration_calendar %}
     <article class="{{ 'post-close' if not bucket.can_close_or_roll }}">
       <time datetime="{{ bucket.expires_on.isoformat() }}"><b>{{ bucket.expires_on.strftime('%b %d') | upper }}</b><span>{% if bucket.can_close_or_roll %}{{ bucket.days_to_expiration }} DTE{% else %}{{ bucket.session_label }}{% endif %}</span></time>
-      <div><strong>{% if bucket.call_contracts %}{{ bucket.call_contracts }} CALLS{% endif %}{% if bucket.call_contracts and bucket.put_contracts %} · {% endif %}{% if bucket.put_contracts %}{{ bucket.put_contracts }} PUTS{% endif %} / {{ bucket.committed_shares }} SHARES</strong><span>{{ bucket.opening_credit | money }} received · {{ bucket.estimated_close_value | money }} value now</span></div>
+      <div><strong>{% if bucket.call_contracts %}{{ bucket.call_contracts }} CALLS{% endif %}{% if bucket.call_contracts and bucket.put_contracts %} · {% endif %}{% if bucket.put_contracts %}{{ bucket.put_contracts }} PUTS{% endif %} / {% if bucket.committed_shares is not none %}{{ bucket.committed_shares | quantity }} SHARES{% else %}SHARE DELIVERY UNKNOWN{% endif %}</strong><span>{% if bucket.opening_credit is not none and bucket.estimated_close_value is not none %}{{ bucket.opening_credit | money }} received · {{ bucket.estimated_close_value | money }} value now{% else %}Opening credit or current value unavailable{% endif %}</span></div>
       <div><strong class="{{ bucket.nearest_strike_buffer_percent | pnl_class }}">{{ bucket.nearest_strike_buffer_percent | percent }} NEAREST BUFFER</strong><span>{{ bucket.event_labels | join(' · ') if bucket.event_labels else 'No known dividend event before expiry' }}</span></div>
     </article>
     {% else %}<p class="empty-state">No open option expirations are available.</p>{% endfor %}
@@ -80,7 +87,7 @@
 
 <details class="workspace-panel open-book-section" data-open-book-section="contracts">
   <summary class="workspace-panel-heading">
-    <div><p class="eyebrow">LIVE CONTRACTS</p><h2>Open options</h2></div>
+    <div><p class="eyebrow">OPEN CONTRACTS</p><h2>Open options</h2></div>
     <div class="open-book-section-control"><span>{{ open_book.actionable_groups | length }} STOCKS · {{ open_book.actionable_positions }} LINES · {{ open_book.actionable_contracts }} CONTRACTS</span><i aria-hidden="true"></i></div>
   </summary>
   <div class="open-call-register">
@@ -91,16 +98,16 @@
           <button class="symbol-focus" type="button" data-set-symbol="{{ group.symbol }}">{{ group.symbol }}</button>
           <span>{{ group.actionable_position_count }} POSITION{{ '' if group.actionable_position_count == 1 else 'S' }} · {{ group.actionable_contract_count }} CONTRACT{{ '' if group.actionable_contract_count == 1 else 'S' }}{% if group.realized_volatility_percent is not none %} · RV {{ group.realized_volatility_percent | percent }}{% endif %}</span>
         </div>
-        <div><span>NEAREST BUFFER</span><b class="{{ group.nearest_buffer_percent | pnl_class }}">{{ group.nearest_buffer_percent | percent }}</b></div>
+        <div><span>NEAREST BUFFER</span><b class="{{ group.nearest_buffer_percent | pnl_class }}">{{ group.nearest_buffer_percent | percent }}</b><small>{% if group.nearest_buffer_percent is none %}Spot unavailable{% endif %}</small></div>
         <div><span>NEXT EXPIRY</span><b>{{ group.next_expiration_dte }} DTE</b><small>{{ group.next_expiration | short_date }}</small></div>
         <div class="open-call-group-pl">
           <span>OPEN P/L</span>
           <div class="open-book-pl-line">
             <b class="{{ group.open_profit_loss | pnl_class }}">{{ group.open_profit_loss | money }}</b>
-            <small class="{{ group.premium_capture_percent | pnl_class }}">{{ group.premium_capture_percent | percent }} CAPTURED</small>
+            <small class="{{ group.premium_capture_percent | pnl_class }}">{% if group.premium_capture_percent is not none %}{{ group.premium_capture_percent | percent }} CAPTURED{% else %}MARK OR ENTRY UNAVAILABLE{% endif %}</small>
           </div>
         </div>
-        <div><span>MODEL DECAY / DAY</span><b class="positive">+{{ group.theta_estimate_per_day | money }}</b></div>
+        <div><span>MODEL DECAY / DAY</span><b class="{{ 'positive' if group.theta_estimate_per_day is not none else 'muted' }}">{% if group.theta_estimate_per_day is not none %}+{{ group.theta_estimate_per_day | money }}{% else %}&mdash;{% endif %}</b></div>
       </header>
       <div class="open-call-group-rows">
         {% for row in group.rows %}{% if row.can_close_or_roll %}{{ open_call_row(row) }}{% endif %}{% endfor %}

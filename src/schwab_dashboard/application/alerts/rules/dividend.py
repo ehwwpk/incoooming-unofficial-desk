@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 
 from schwab_dashboard.application.alerts.context import (
     DividendReviewContext,
@@ -13,6 +14,7 @@ from schwab_dashboard.application.formatting import compact_decimal
 
 DIVIDEND_REVIEW_WINDOW_DAYS = 5
 DIVIDEND_WATCH_WINDOW_DAYS = 2
+ZERO = Decimal("0")
 
 
 def evaluate_dividend_overlap(
@@ -37,8 +39,16 @@ def evaluate_dividend_overlap(
         return None
 
     call_contexts = tuple(
-        build_dividend_review_context(underlying, crossing_calls=(call,), as_of=as_of)
+        context
         for call in crossing_calls
+        if (
+            context := build_dividend_review_context(
+                underlying,
+                crossing_calls=(call,),
+                as_of=as_of,
+            )
+        )
+        is not None
     )
     in_the_money_calls = tuple(item for item in call_contexts if item.is_in_the_money)
     if not in_the_money_calls:
@@ -63,7 +73,7 @@ def evaluate_dividend_overlap(
         key=lambda item: abs(item.strike_distance_per_share),
     )
     exposed_contracts = sum(item.call.contracts for item in relevant_calls)
-    exposed_shares = exposed_contracts * 100
+    exposed_shares = sum((item.call.obligated_shares or ZERO for item in relevant_calls), ZERO)
     amount_in_the_money = abs(context.strike_distance_per_share)
     percent_in_the_money = abs(context.strike_distance_percent)
     if sensitive_calls:
@@ -84,7 +94,8 @@ def evaluate_dividend_overlap(
             f"${compact_decimal(context.call.strike)} call, and ex-dividend is "
             f"{_days_text(days_until).lower()}. Across "
             f"{exposed_contracts} contract{'s' if exposed_contracts != 1 else ''} "
-            f"({exposed_shares} shares), the ${underlying.dividend_per_share:.2f} "
+            f"({compact_decimal(exposed_shares)} shares), the "
+            f"${underlying.dividend_per_share:.2f} "
             f"dividend exceeds remaining time value by ${time_value_shortfall:.2f}/share. "
             "That is the classic early-assignment pressure setup—not a prediction. "
             "Check the live mark before acting."
@@ -126,7 +137,7 @@ def evaluate_dividend_overlap(
                 "EXPOSED CALL",
                 f"{underlying.symbol} ${compact_decimal(context.call.strike)}C",
                 f"{exposed_contracts} CONTRACT{'S' if exposed_contracts != 1 else ''} "
-                f"· {exposed_shares} SHARES",
+                f"· {compact_decimal(exposed_shares)} SHARES",
             ),
             AlertFact(
                 "IN THE MONEY",

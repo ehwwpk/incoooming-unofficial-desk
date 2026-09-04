@@ -71,7 +71,7 @@ def test_first_visit_chooses_a_source_and_csv_book_remains_isolated(tmp_path: Pa
         assert "Get Incoooming" in gateway.text
         assert "DATA HEALTH" in gateway.text
         assert 'href="/workspaces/records"' in gateway.text
-        assert "/static/incoooming-operators.png" in gateway.text
+        assert "/static/incoooming-operators.png" not in gateway.text
         assert "brand-nibwick-mark" not in gateway.text
         assert gateway.text.count("/static/nibwick-favicon.svg") >= 1
         assert "gateway-option-chart" in gateway.text
@@ -83,7 +83,7 @@ def test_first_visit_chooses_a_source_and_csv_book_remains_isolated(tmp_path: Pa
         assert "$240C" in gateway.text
         assert "gateway-event-mini" in gateway.text
         assert gateway.text.count("gateway-event-hit event-") == 6
-        assert "HOVER A SQUARE FOR DETAILS" in gateway.text
+        assert "HOVER OR FOCUS A SQUARE FOR DETAILS" in gateway.text
         assert "gateway-daily-points" in gateway.text
         assert "gateway-chart-now" in gateway.text
         assert gateway.text.count("gateway-chart-event event-") == 6
@@ -101,7 +101,7 @@ def test_first_visit_chooses_a_source_and_csv_book_remains_isolated(tmp_path: Pa
         assert "Connect your approved Schwab app." in gateway.text
         assert "Wake the live book." not in gateway.text
         assert "Bring your own ledger." in gateway.text
-        assert "Kick the tires with fake money." in gateway.text
+        assert "Explore a fictional portfolio." in gateway.text
         assert 'type="radio" name="broker" value="robinhood"' in gateway.text
         assert gateway.text.count("/static/nibwick-favicon.svg") >= 1
         favicon = (
@@ -123,7 +123,7 @@ def test_first_visit_chooses_a_source_and_csv_book_remains_isolated(tmp_path: Pa
         assert "gateway-promenade" not in gateway.text
         assert "data-source-route=" not in gateway.text
         assert "()___()" not in gateway.text
-        assert "THE FORMAT IS VERIFIED." in gateway.text
+        assert "FORMAT CHECKED." in gateway.text
         assert "Preview stops mismatches and uncertain rows" in gateway.text
         assert imported.status_code == 303
         assert imported.headers["location"] == "/"
@@ -171,14 +171,29 @@ def test_realistic_csv_book_projects_inventory_options_income_and_dividend(
         assert dataset.position_count == 6
         assert dataset.activity_count == 4
         assert snapshot.mode == "csv"
+        assert snapshot.portfolio.total_value == Decimal("215606.00")
+        assert snapshot.portfolio.gross_position_value == Decimal("217056.00")
         assert snapshot.portfolio.day_profit_loss is None
         assert snapshot.portfolio.day_profit_loss_source == "unavailable"
         assert snapshot.portfolio.open_position_day_profit_loss is not None
         assert snapshot.live_position_book is not None
         assert snapshot.live_position_book.total_shares == 2_000
         assert snapshot.live_position_book.open_call_contracts == 7
+        assert snapshot.risk.daily_theta is None
+        assert all(
+            call.implied_volatility_percent is None
+            and call.delta is None
+            and call.gamma is None
+            and call.theta_per_share is None
+            and call.vega is None
+            for call in snapshot.live_position_book.calls
+        )
         assert {item.symbol for item in snapshot.underlyings} == {"CVX", "KTOS", "URNM"}
-        assert snapshot.income.month == Decimal("1049.79")
+        assert all(item.average_open_call_iv_percent is None for item in snapshot.underlyings)
+        assert all(item.average_open_call_delta is None for item in snapshot.underlyings)
+        # Fixture activity is in August; use the quarter so this assertion does
+        # not expire when the wall clock crosses into September.
+        assert snapshot.income.quarter == Decimal("1049.79")
         assert snapshot.income.year_to_date == Decimal("2246.79")
         assert any(item.action_label == "DIVIDEND RECEIVED" for item in snapshot.cash_events)
         assert len(snapshot.campaigns) == 3
@@ -191,6 +206,22 @@ def test_realistic_csv_book_projects_inventory_options_income_and_dividend(
         assert all(item.option_side == "CALL" for item in snapshot.call_history)
         assert all(item.sale_signal == "" for item in snapshot.call_history)
         assert [item.contracts for item in snapshot.call_history] == [2, 3, 2]
+
+        dashboard, results, risk, api = asyncio.run(_render_csv_book(container, dataset.id))
+        assert all(response.status_code == 200 for response in (dashboard, results, risk, api))
+        assert "IMPORTED POS" in dashboard.text
+        assert "$215,606.00" in dashboard.text
+        assert "Portfolio value covers imported positions, not brokerage cash" in dashboard.text
+        assert "imported position mark" in dashboard.text
+        assert "latest Schwab mark" not in dashboard.text
+        assert "Account returns and benchmark comparisons need dated balances" in results.text
+        assert "Net option cash" in results.text
+        assert "data-performance-comparison-payload" not in results.text
+        assert "POSITION OPENING CREDIT" in risk.text
+        assert "MODEL INPUTS" in risk.text
+        assert "PER SHARE / UNAVAILABLE" in risk.text
+        assert api.json()["mode"] == "csv"
+        assert api.json()["portfolio"]["total_value"] == "215606.00"
     finally:
         container.close()
 
@@ -225,7 +256,7 @@ async def _exercise_gateway(container: Container) -> tuple[httpx.Response, ...]:
     transport = httpx.ASGITransport(app=create_app(container))
     async with httpx.AsyncClient(
         transport=transport,
-        base_url="http://test",
+        base_url="http://127.0.0.1:8182",
         follow_redirects=False,
     ) as client:
         first = await client.get("/")
@@ -254,3 +285,22 @@ async def _exercise_gateway(container: Container) -> tuple[httpx.Response, ...]:
             data={"source_key": "schwab"},
         )
     return first, gateway, imported, dashboard, live_switch
+
+
+async def _render_csv_book(
+    container: Container,
+    dataset_id: str,
+) -> tuple[httpx.Response, ...]:
+    transport = httpx.ASGITransport(app=create_app(container))
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://127.0.0.1:8182",
+        follow_redirects=False,
+        cookies={"incoooming_source": f"csv:{dataset_id}"},
+    ) as client:
+        return (
+            await client.get("/"),
+            await client.get("/workspaces/attribution"),
+            await client.get("/workspaces/risk"),
+            await client.get("/api/v1/dashboard"),
+        )

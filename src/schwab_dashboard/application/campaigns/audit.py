@@ -19,7 +19,7 @@ class CampaignAudit:
     inferred_campaigns: int
     unknown_campaigns: int
     excluded_long_lifecycle_events: int
-    adjusted_contract_events: int
+    nonstandard_contract_events: int
     source_net_cash: Decimal
     campaign_net_cash: Decimal
     cash_variance: Decimal
@@ -39,10 +39,10 @@ def audit_campaign_ledger(
     lifecycle_events: Sequence[Mapping[str, object]],
 ) -> CampaignAudit:
     confidence = Counter(campaign.confidence.value for campaign in ledger.campaigns)
-    adjusted_events = sum(
-        _is_adjusted(row)
+    nonstandard_events = sum(
+        _is_nonstandard_contract(row)
         for row in (*executions, *lifecycle_events)
-        if str(row.get("asset_type") or "option") == "option"
+        if _token(row.get("asset_type") or "option") == "option"
     )
     source_net_cash = sum(
         (
@@ -63,22 +63,29 @@ def audit_campaign_ledger(
         inferred_campaigns=confidence["inferred"],
         unknown_campaigns=confidence["unknown"],
         excluded_long_lifecycle_events=len(ledger.exclusions),
-        adjusted_contract_events=adjusted_events,
+        nonstandard_contract_events=nonstandard_events,
         source_net_cash=source_net_cash,
         campaign_net_cash=campaign_net_cash,
         cash_variance=campaign_net_cash - source_net_cash,
     )
 
 
-def _is_adjusted(row: Mapping[str, object]) -> bool:
-    multiplier = row.get("contract_multiplier")
+def _is_nonstandard_contract(row: Mapping[str, object]) -> bool:
     deliverable = row.get("deliverable")
-    deliverable_kind = (
-        str(deliverable.get("kind") or "").lower()
-        if isinstance(deliverable, Mapping)
-        else ""
-    )
-    return bool(
-        (multiplier is not None and Decimal(str(multiplier)) != STANDARD_CONTRACT_MULTIPLIER)
-        or (deliverable and deliverable_kind != "standard")
-    )
+    if isinstance(deliverable, Mapping):
+        deliverable_kind = _token(deliverable.get("kind"))
+        if deliverable_kind:
+            return deliverable_kind != "standard"
+    standardness = _token(row.get("is_non_standard"))
+    if standardness in {"true", "1", "yes"}:
+        return True
+    if standardness in {"false", "0", "no"}:
+        return False
+    multiplier = row.get("contract_multiplier")
+    if multiplier is None:
+        multiplier = row.get("multiplier")
+    return bool(multiplier is not None and Decimal(str(multiplier)) != STANDARD_CONTRACT_MULTIPLIER)
+
+
+def _token(value: object) -> str:
+    return str(value or "").strip().casefold().split(".")[-1]

@@ -71,7 +71,7 @@ class SchwabMarketMapper:
                     bid=bid,
                     ask=ask,
                     last=last,
-                    mark=mark or _midpoint(bid, ask) or last,
+                    mark=_preferred_mark(mark, bid, ask, last),
                     previous_close=_market_decimal(quote.get("closePrice")),
                 )
             )
@@ -144,6 +144,12 @@ class SchwabMarketMapper:
                 continue
             timestamp = _epoch_millis(candle.get("datetime"), fallback=observed_at)
             trade_date = timestamp.date()
+            prices = _history_prices(candle)
+            if asset_type is not AssetType.OPTION and any(price <= ZERO for price in prices):
+                # A zero equity candle is a provider placeholder, not a real
+                # close. Keep it in the immutable raw payload for diagnosis but
+                # do not let it manufacture a 100% loss in return history.
+                continue
             # Schwab can return the same session more than once, including
             # revised OHLC/volume values. The later occurrence is the provider's
             # final value for this response; retaining both would create two
@@ -152,10 +158,10 @@ class SchwabMarketMapper:
             bars_by_date[trade_date] = UnderlyingDailyBar(
                 instrument=InstrumentRef(source="schwab", external_key=external_key),
                 trade_date=trade_date,
-                open=_required_market_decimal(candle.get("open")),
-                high=_required_market_decimal(candle.get("high")),
-                low=_required_market_decimal(candle.get("low")),
-                close=_required_market_decimal(candle.get("close")),
+                open=prices[0],
+                high=prices[1],
+                low=prices[2],
+                close=prices[3],
                 volume=_optional_int(candle.get("volume")) or 0,
             )
         bars = sorted(bars_by_date.values(), key=lambda item: item.trade_date)
@@ -198,6 +204,9 @@ class SchwabMarketMapper:
             if not isinstance(candle, Mapping):
                 continue
             started_at = _epoch_millis(candle.get("datetime"), fallback=observed_at)
+            prices = _history_prices(candle)
+            if asset_type is not AssetType.OPTION and any(price <= ZERO for price in prices):
+                continue
             # Schwab can return the same minute bucket more than once, including
             # revised OHLC/volume values. The later occurrence is the provider's
             # final value for this response; retaining both would create two
@@ -206,18 +215,16 @@ class SchwabMarketMapper:
                 instrument=InstrumentRef(source="schwab", external_key=external_key),
                 started_at=started_at,
                 interval_minutes=interval_minutes,
-                open=_required_market_decimal(candle.get("open")),
-                high=_required_market_decimal(candle.get("high")),
-                low=_required_market_decimal(candle.get("low")),
-                close=_required_market_decimal(candle.get("close")),
+                open=prices[0],
+                high=prices[1],
+                low=prices[2],
+                close=prices[3],
                 volume=_optional_int(candle.get("volume")) or 0,
             )
         bars = sorted(bars_by_time.values(), key=lambda item: item.started_at)
         return MarketObservationBatch(
             source="schwab",
-            external_event_key=(
-                f"intraday:{interval_minutes}m:{symbol}:{observed_at.isoformat()}"
-            ),
+            external_event_key=(f"intraday:{interval_minutes}m:{symbol}:{observed_at.isoformat()}"),
             observed_at=observed_at,
             parser_version=parser_version,
             raw_payload=dict(payload),
@@ -249,7 +256,7 @@ def _map_option_contract(
     if parsed is None:
         return None, None
     external_key = f"market:{symbol}"
-    multiplier = _market_decimal(contract.get("multiplier")) or Decimal("100")
+    multiplier = _option_multiplier(contract)
     bid = _market_decimal(contract.get("bid"))
     ask = _market_decimal(contract.get("ask"))
     last = _market_decimal(contract.get("last"))
@@ -266,19 +273,10 @@ def _map_option_contract(
         expiration_date=parsed.expiration_date,
         strike=_market_decimal(contract.get("strikePrice")) or parsed.strike,
         contract_multiplier=multiplier,
-        deliverable=OptionDeliverable(
-            kind=(
-                DeliverableKind.ADJUSTED
-                if bool(contract.get("nonStandard"))
-                else DeliverableKind.STANDARD
-            ),
-            components=(
-                DeliverableComponent(
-                    asset_type=AssetType.EQUITY,
-                    symbol=underlying_symbol or parsed.underlying_symbol,
-                    quantity=multiplier,
-                ),
-            ),
+        deliverable=_option_deliverable(
+            contract,
+            underlying_symbol=underlying_symbol or parsed.underlying_symbol,
+            multiplier=multiplier,
         ),
     )
     snapshot = OptionMarketSnapshot(
@@ -289,7 +287,7 @@ def _map_option_contract(
         bid=bid,
         ask=ask,
         last=last,
-        mark=mark or _midpoint(bid, ask) or last,
+        mark=_preferred_mark(mark, bid, ask, last),
         underlying_price=underlying_price,
         implied_volatility=_market_decimal(contract.get("volatility")),
         delta=_greek(contract.get("delta")),
@@ -349,6 +347,56 @@ def _mark_method(
     return MarkMethod.UNAVAILABLE
 
 
+def _preferred_mark(
+    mark: Decimal | None,
+    bid: Decimal | None,
+    ask: Decimal | None,
+    last: Decimal | None,
+) -> Decimal | None:
+    """Honor an explicit zero broker mark instead of reviving an old last trade."""
+
+    if mark is not None:
+        return mark
+    midpoint = _midpoint(bid, ask)
+    return midpoint if midpoint is not None else last
+
+
+def _option_multiplier(contract: Mapping[str, Any]) -> Decimal | None:
+    reported = _market_decimal(contract.get("multiplier"))
+    if reported is not None:
+        return reported if reported > ZERO else None
+    # An explicit standard-contract flag is enough to recover the conventional
+    # deliverable. Missing standardness is not: adjusted symbols must not be
+    # silently treated as 100-share contracts.
+    return Decimal("100") if contract.get("nonStandard") is False else None
+
+
+def _option_deliverable(
+    contract: Mapping[str, Any],
+    *,
+    underlying_symbol: str,
+    multiplier: Decimal | None,
+) -> OptionDeliverable:
+    standardness = contract.get("nonStandard")
+    if standardness is True:
+        # Schwab's chain multiplier scales the quoted premium. Adjusted OCC
+        # contracts can deliver a different share quantity, cash, or multiple
+        # securities, so it is not evidence of a stock-only deliverable.
+        return OptionDeliverable(kind=DeliverableKind.ADJUSTED, components=())
+    if standardness is False and multiplier is not None:
+        return OptionDeliverable(
+            kind=DeliverableKind.STANDARD,
+            components=(
+                DeliverableComponent(
+                    asset_type=AssetType.EQUITY,
+                    symbol=underlying_symbol,
+                    quantity=multiplier,
+                ),
+            ),
+        )
+    return OptionDeliverable(kind=DeliverableKind.UNKNOWN, components=())
+
+
 def _midpoint(bid: Decimal | None, ask: Decimal | None) -> Decimal | None:
     if bid is None or ask is None or bid > ask:
         return None
@@ -370,6 +418,15 @@ def _required_market_decimal(value: Any) -> Decimal:
     if parsed is None:
         raise ValueError("Schwab market payload contains a missing or invalid price")
     return parsed
+
+
+def _history_prices(candle: Mapping[str, Any]) -> tuple[Decimal, Decimal, Decimal, Decimal]:
+    return (
+        _required_market_decimal(candle.get("open")),
+        _required_market_decimal(candle.get("high")),
+        _required_market_decimal(candle.get("low")),
+        _required_market_decimal(candle.get("close")),
+    )
 
 
 def _optional_decimal(value: Any) -> Decimal | None:

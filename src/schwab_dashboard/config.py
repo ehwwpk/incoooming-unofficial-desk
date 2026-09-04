@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from ipaddress import ip_address
 from pathlib import Path
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -60,9 +61,9 @@ class Settings(BaseSettings):
     market_data_base_url: str = "https://api.schwabapi.com/marketdata/v1"
     oauth_authorize_url: str = "https://api.schwabapi.com/v1/oauth/authorize"
     oauth_token_url: str = "https://api.schwabapi.com/v1/oauth/token"
-    parser_version: str = "schwab-accounts-v1"
-    transaction_parser_version: str = "schwab-transactions-v1"
-    market_parser_version: str = "schwab-market-v1"
+    parser_version: str = "schwab-accounts-v2"
+    transaction_parser_version: str = "schwab-transactions-v2"
+    market_parser_version: str = "schwab-market-v2"
     transaction_history_days: int = Field(default=365, ge=1, le=730)
     # These are personal defaults, not product capability limits. Radar may inspect
     # any non-negative DTE range returned by the configured market-data source.
@@ -76,13 +77,32 @@ class Settings(BaseSettings):
     radar_maximum_five_day_move_percent: Decimal | None = Field(default=None, ge=0)
     radar_cache_seconds: int = Field(default=60, ge=0, le=3600)
 
+    @field_validator("host")
+    @classmethod
+    def require_local_ipv4_host(cls, value: str) -> str:
+        """Keep the unauthenticated local desk off external interfaces."""
+
+        host = value.strip().casefold()
+        if host == "localhost":
+            return host
+        try:
+            address = ip_address(host)
+        except ValueError as exc:
+            raise ValueError(
+                "SCHWAB_DASHBOARD_HOST must be localhost or a loopback IPv4 address."
+            ) from exc
+        if address.version != 4 or not address.is_loopback:
+            raise ValueError("SCHWAB_DASHBOARD_HOST must be localhost or a loopback IPv4 address.")
+        return str(address)
+
     @property
     def resolved_data_dir(self) -> Path:
         return self.data_dir.expanduser().resolve()
 
     @property
     def database_url(self) -> str:
-        database_path = (self.resolved_data_dir / "schwab-ledger.sqlite3").as_posix()
+        filename = "demo-ledger.sqlite3" if self.demo_mode else "schwab-ledger.sqlite3"
+        database_path = (self.resolved_data_dir / filename).as_posix()
         return f"sqlite+pysqlite:///{database_path}"
 
     @property

@@ -44,6 +44,7 @@ from schwab_dashboard.application.risk.price_time import (
     build_price_time_read,
 )
 from schwab_dashboard.application.rolls.models import RollQuote
+from schwab_dashboard.application.values import sum_if_complete
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,16 +61,16 @@ class AccountDayProfitLoss:
 
 @dataclass(frozen=True, slots=True)
 class PortfolioSummary:
-    total_value: Decimal
-    invested_value: Decimal
-    cash_value: Decimal
-    stock_value: Decimal
-    option_value: Decimal
+    total_value: Decimal | None
+    invested_value: Decimal | None
+    cash_value: Decimal | None
+    stock_value: Decimal | None
+    option_value: Decimal | None
     day_profit_loss: Decimal | None
     day_profit_loss_percent: Decimal | None
     day_external_cash_flow: Decimal = Decimal("0")
-    gross_position_value: Decimal = Decimal("0")
-    net_position_value: Decimal = Decimal("0")
+    gross_position_value: Decimal | None = None
+    net_position_value: Decimal | None = None
     liquidation_value: Decimal | None = None
     equity: Decimal | None = None
     margin_balance: Decimal | None = None
@@ -92,7 +93,7 @@ class IncomeSummary:
     quarter: Decimal
     year_to_date: Decimal
     win_rate: Decimal
-    annualized_yield: Decimal
+    annualized_yield: Decimal | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,17 +120,17 @@ class CampaignSummary:
     fees: Decimal
     net_cash_to_date: Decimal
     realized_cash: Decimal
-    open_credit: Decimal
-    estimated_close_value: Decimal
-    open_mark_profit_loss: Decimal
+    open_credit: Decimal | None
+    estimated_close_value: Decimal | None
+    open_mark_profit_loss: Decimal | None
     initial_strike: Decimal
     current_strike: Decimal
     strike_change: Decimal
     days_extended: int
-    called_away_shares: int
+    called_away_shares: Decimal
     effective_exit_price: Decimal | None
-    collateral: Decimal
-    cash_on_capital_percent: Decimal
+    collateral: Decimal | None
+    cash_on_capital_percent: Decimal | None
     progress_percent: int
     campaign_label: str = ""
     option_side: str = "call"
@@ -156,6 +157,8 @@ class PositionSummary:
     open_profit_loss: Decimal | None = None
     contract_multiplier: Decimal | None = None
     multiplier_source: str | None = None
+    is_non_standard: bool | None = None
+    account_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -190,6 +193,7 @@ class LiveOpenOptionPosition:
     option_type: str = "CALL"
     contract_multiplier: Decimal = Decimal("100")
     multiplier_source: str | None = None
+    deliverable_shares_per_contract: Decimal | None = Decimal("100")
     roll_quote_candidates: tuple[RollQuote, ...] = ()
     session_state: OptionSessionState = OptionSessionState.ACTIVE
     underlying_previous_close: Decimal | None = None
@@ -197,6 +201,7 @@ class LiveOpenOptionPosition:
     opened_on: date | None = None
     original_days_to_expiration: int | None = None
     expiration_assessment: OptionExpirationAssessment | None = None
+    account_id: str | None = None
 
     @property
     def can_close_or_roll(self) -> bool:
@@ -208,9 +213,31 @@ class LiveOpenOptionPosition:
 
     @property
     def position_scale(self) -> Decimal:
-        """Return the Greek scale for this aggregated short position."""
+        """Return the premium/Greek scale for this aggregated short position."""
 
         return abs(self.contract_multiplier) * Decimal(self.contracts)
+
+    @property
+    def obligated_shares(self) -> Decimal | None:
+        """Return stock delivery only when the contract terms establish it."""
+
+        if self.deliverable_shares_per_contract is None:
+            return None
+        return abs(self.deliverable_shares_per_contract) * Decimal(self.contracts)
+
+    @property
+    def entry_credit(self) -> Decimal | None:
+        if self.entry_credit_per_share is None:
+            return None
+        return abs(self.entry_credit_per_share) * self.position_scale
+
+    @property
+    def current_option_value(self) -> Decimal | None:
+        if self.market_value is not None:
+            return abs(self.market_value)
+        if self.estimated_mark_per_share is None:
+            return None
+        return abs(self.estimated_mark_per_share) * self.position_scale
 
     @property
     def position_delta_share_equivalent(self) -> Decimal | None:
@@ -254,7 +281,7 @@ LiveOpenCallPosition = LiveOpenOptionPosition
 class LiveUnderlyingPosition:
     symbol: str
     description: str
-    shares: int
+    shares: Decimal
     average_price: Decimal | None
     current_price: Decimal | None
     market_value: Decimal | None
@@ -264,12 +291,12 @@ class LiveUnderlyingPosition:
     covered_contracts: int
     uncovered_contracts: int
     coverage_percent: Decimal
-    open_mark_profit_loss: Decimal
+    open_mark_profit_loss: Decimal | None
     calls: Sequence[LiveOpenOptionPosition]
     average_open_iv_percent: Decimal | None = None
-    estimated_theta_per_day: Decimal = Decimal("0")
+    estimated_theta_per_day: Decimal | None = Decimal("0")
     puts: Sequence[LiveOpenOptionPosition] = ()
-    estimated_put_theta_per_day: Decimal = Decimal("0")
+    estimated_put_theta_per_day: Decimal | None = Decimal("0")
     previous_close: Decimal | None = None
     current_session_change_percent: Decimal | None = None
     quote_observed_at: datetime | None = None
@@ -310,10 +337,12 @@ class LiveUnderlyingPosition:
         return f"{day} CLOSE"
 
     @property
-    def total_open_mark_profit_loss(self) -> Decimal:
-        return self.open_mark_profit_loss + sum(
-            (put.open_profit_loss or Decimal("0") for put in self.puts),
-            Decimal("0"),
+    def total_open_mark_profit_loss(self) -> Decimal | None:
+        return sum_if_complete(
+            (
+                self.open_mark_profit_loss,
+                *(put.open_profit_loss for put in self.puts),
+            )
         )
 
     @property
@@ -325,22 +354,16 @@ class LiveUnderlyingPosition:
         return tuple(option for option in (*self.calls, *self.puts) if not option.can_close_or_roll)
 
     @property
-    def actionable_open_mark_profit_loss(self) -> Decimal:
-        return sum(
-            (option.open_profit_loss or Decimal("0") for option in self.actionable_options),
-            Decimal("0"),
-        )
+    def actionable_open_mark_profit_loss(self) -> Decimal | None:
+        return sum_if_complete(option.open_profit_loss for option in self.actionable_options)
 
     @property
-    def settling_last_mark_profit_loss(self) -> Decimal:
-        return sum(
-            (option.open_profit_loss or Decimal("0") for option in self.settling_options),
-            Decimal("0"),
-        )
+    def settling_last_mark_profit_loss(self) -> Decimal | None:
+        return sum_if_complete(option.open_profit_loss for option in self.settling_options)
 
     @property
-    def estimated_option_theta_per_day(self) -> Decimal:
-        return self.estimated_theta_per_day + self.estimated_put_theta_per_day
+    def estimated_option_theta_per_day(self) -> Decimal | None:
+        return sum_if_complete((self.estimated_theta_per_day, self.estimated_put_theta_per_day))
 
     @property
     def price_time_read(self) -> PriceTimeRead | None:
@@ -354,26 +377,40 @@ class LiveUnderlyingPosition:
 
 
 @dataclass(frozen=True, slots=True)
+class UnmodeledShortOption:
+    """A broker-reported short option that cannot enter calculated totals safely."""
+
+    option_symbol: str
+    reported_contracts: Decimal
+    reason: str
+    account_mask: str = ""
+    account_id: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class LivePositionBook:
     underlyings: Sequence[LiveUnderlyingPosition]
     calls: Sequence[LiveOpenOptionPosition]
-    total_shares: int
+    total_shares: Decimal
     contract_capacity: int
     open_call_positions: int
     open_call_contracts: int
     covered_contracts: int
     uncovered_contracts: int
     coverage_percent: Decimal
-    open_mark_profit_loss: Decimal
+    open_mark_profit_loss: Decimal | None
     puts: Sequence[LiveOpenOptionPosition] = ()
     open_put_positions: int = 0
     open_put_contracts: int = 0
+    unmodeled_short_options: Sequence[UnmodeledShortOption] = ()
 
     @property
-    def total_open_mark_profit_loss(self) -> Decimal:
-        return self.open_mark_profit_loss + sum(
-            (put.open_profit_loss or Decimal("0") for put in self.puts),
-            Decimal("0"),
+    def total_open_mark_profit_loss(self) -> Decimal | None:
+        return sum_if_complete(
+            (
+                self.open_mark_profit_loss,
+                *(put.open_profit_loss for put in self.puts),
+            )
         )
 
     @property
@@ -397,18 +434,12 @@ class LivePositionBook:
         return sum(option.contracts for option in self.settling_options)
 
     @property
-    def actionable_open_mark_profit_loss(self) -> Decimal:
-        return sum(
-            (option.open_profit_loss or Decimal("0") for option in self.actionable_options),
-            Decimal("0"),
-        )
+    def actionable_open_mark_profit_loss(self) -> Decimal | None:
+        return sum_if_complete(option.open_profit_loss for option in self.actionable_options)
 
     @property
-    def settling_last_mark_profit_loss(self) -> Decimal:
-        return sum(
-            (option.open_profit_loss or Decimal("0") for option in self.settling_options),
-            Decimal("0"),
-        )
+    def settling_last_mark_profit_loss(self) -> Decimal | None:
+        return sum_if_complete(option.open_profit_loss for option in self.settling_options)
 
     @property
     def price_time_read(self) -> PriceTimeRead | None:
@@ -421,16 +452,11 @@ class LivePositionBook:
         )
 
     @property
-    def estimated_put_theta_per_day(self) -> Decimal:
-        return sum(
-            (
-                -(put.theta_per_share or Decimal("0"))
-                * put.contract_multiplier
-                * Decimal(put.contracts)
-                for put in self.puts
-                if put.can_close_or_roll
-            ),
-            Decimal("0"),
+    def estimated_put_theta_per_day(self) -> Decimal | None:
+        return sum_if_complete(
+            (-put.theta_per_share * put.position_scale if put.theta_per_share is not None else None)
+            for put in self.puts
+            if put.can_close_or_roll
         )
 
 
@@ -444,12 +470,12 @@ class AllocationSlice:
 
 @dataclass(frozen=True, slots=True)
 class RiskSummary:
-    buying_power_used_percent: Decimal
+    buying_power_used_percent: Decimal | None
     portfolio_delta: Decimal | None
-    daily_theta: Decimal
+    daily_theta: Decimal | None
     short_contracts: int
     next_expiration: date | None
-    largest_position_percent: Decimal
+    largest_position_percent: Decimal | None
     open_campaigns: int
 
 
@@ -458,7 +484,7 @@ class OpenPremiumPace:
     """Opening credits normalized across each live short lot's original term."""
 
     daily_pace: Decimal | None
-    opening_credit: Decimal
+    opening_credit: Decimal | None
     weighted_term_days: Decimal | None
     timed_contracts: int
     total_contracts: int

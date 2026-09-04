@@ -2,7 +2,7 @@
 
 ## TradingView Lightweight Charts 5.2.0
 
-Copyright (c) 2025 TradingView, Inc.
+Copyright (c) 2026 TradingView, Inc.
 
 Incoooming vendors the standalone production build of Lightweight Charts under
 the Apache License 2.0. The full license is stored at

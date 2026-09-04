@@ -11,7 +11,7 @@ the denominator and time window. It does not grade assignments as failures by de
 For a covered position, keep these components separate:
 
 - underlying price return;
-- dividends and other income;
+- dividends and other cash distributions;
 - realized option P/L;
 - change in open option liability;
 - fees and execution friction;
@@ -124,7 +124,7 @@ more useful than one blended win rate.
 - Assignment tests preserve premium, share proceeds, basis, and counterfactual assumptions.
 - Counterfactuals are reproducible and never overwrite actual records.
 - Annualization is suppressed or warned for short/irregular windows.
-- Tax-lot basis remains separate from the optional income-adjusted analytical basis.
+- Tax-lot basis remains separate from the optional cash-offset analytical basis.
 
 ## Primary references
 

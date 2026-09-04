@@ -6,13 +6,24 @@ from dataclasses import replace
 from datetime import date, datetime
 from decimal import Decimal
 
-from schwab_dashboard.application.campaigns import reconcile_option_campaigns
+from schwab_dashboard.application.campaigns import campaign_record_key, reconcile_option_campaigns
 from schwab_dashboard.application.dashboard.covered_calls import (
     PriceEvent,
     PricePoint,
     ShareTradeEvent,
 )
+from schwab_dashboard.application.dashboard.short_premium import (
+    is_closing_buy,
+    is_opening_sale,
+)
 from schwab_dashboard.application.formatting import compact_decimal
+from schwab_dashboard.application.market_time import ledger_market_date, ledger_market_datetime
+from schwab_dashboard.application.option_lifecycle import (
+    contract_multiplier,
+    delivered_shares,
+    lifecycle_event_type,
+    option_side,
+)
 
 ZERO = Decimal("0")
 HUNDRED = Decimal("100")
@@ -25,7 +36,12 @@ def build_price_points(
     daily_bars: Sequence[Mapping[str, object]],
 ) -> tuple[PricePoint, ...]:
     rows = sorted(
-        (row for row in daily_bars if str(row.get("symbol")) == symbol),
+        (
+            row
+            for row in daily_bars
+            if _option_key(str(row.get("symbol") or "")) == _option_key(symbol)
+            and (_optional_decimal(row.get("close")) or ZERO) > ZERO
+        ),
         key=lambda row: _date(row.get("trade_date")),
     )
     if not rows:
@@ -88,7 +104,10 @@ def build_option_events(
     }
 
     events: list[PriceEvent] = []
-    marks = current_option_marks or {}
+    marks = {
+        _option_key(option_symbol): value
+        for option_symbol, value in (current_option_marks or {}).items()
+    }
     for sequence, row in enumerate(rows, 1):
         row["sequence"] = sequence
     _replace_link_indexes_with_sequences(rows)
@@ -99,7 +118,12 @@ def build_option_events(
         option_symbol = str(row["option_symbol"])
         annotation = campaign_ledger.annotation_for(str(row["stable_key"]))
         outcome = str(row["outcome"])
-        if row["event_type"] in {"sale", "rolled"} and option_symbol in current_option_symbols:
+        if (
+            row["event_type"] in {"sale", "rolled"}
+            and linked_sale_sequence is None
+            and row.get("linked_resolution_sequence") is None
+            and _option_key(option_symbol) in current_option_keys
+        ):
             outcome = "OPEN"
         option_value_per_share, value_percent = _option_value_checkpoint(
             row,
@@ -147,6 +171,8 @@ def build_option_events(
                 campaign_net_cash=(annotation.net_cash_to_date if annotation else ZERO),
                 option_side=str(row["option_side"]),
                 campaign_slot=(campaign_slots.get(annotation.campaign_id, 0) if annotation else 0),
+                contract_multiplier=_decimal(row["contract_multiplier"]),
+                delivered_shares=_optional_decimal(row.get("delivered_shares")),
             )
         )
     return _mark_campaign_endpoints(tuple(events))
@@ -161,27 +187,27 @@ def build_share_trade_events(
     if not points:
         return ()
     start, end = points[0].date, points[-1].date
-    grouped: defaultdict[date, dict[str, tuple[int, Decimal]]] = defaultdict(
-        lambda: {"buy": (0, ZERO), "sell": (0, ZERO)}
+    grouped: defaultdict[date, dict[str, tuple[Decimal, Decimal]]] = defaultdict(
+        lambda: {"buy": (ZERO, ZERO), "sell": (ZERO, ZERO)}
     )
     for row in executions:
         occurred_on = _row_date(row)
         if not (
             start <= occurred_on <= end
-            and str(row.get("asset_type")) != "option"
-            and str(row.get("symbol")) == symbol
-            and str(row.get("side")) in {"buy", "sell"}
+            and _token(row.get("asset_type")) in {"equity", "etf", "stock"}
+            and _option_key(str(row.get("symbol") or "")) == _option_key(symbol)
+            and _token(row.get("side")) in {"buy", "bought", "sell", "sold"}
         ):
             continue
-        action = str(row.get("side"))
-        shares = abs(int(_decimal(row.get("quantity"))))
+        action = "sell" if _token(row.get("side")) in {"sell", "sold"} else "buy"
+        shares = abs(_decimal(row.get("quantity")))
         price = _decimal(row.get("price"))
         if not shares or price <= ZERO:
             continue
         prior_shares, prior_notional = grouped[occurred_on][action]
         grouped[occurred_on][action] = (
             prior_shares + shares,
-            prior_notional + price * Decimal(shares),
+            prior_notional + price * shares,
         )
 
     events: list[ShareTradeEvent] = []
@@ -192,12 +218,12 @@ def build_share_trade_events(
         action = "buy" if net_shares > 0 else "sell" if net_shares < 0 else "flat"
         shares = abs(net_shares)
         if action == "buy":
-            price = buy_notional / Decimal(buys)
+            price = buy_notional / buys
         elif action == "sell":
-            price = sell_notional / Decimal(sells)
+            price = sell_notional / sells
         else:
             gross_shares = buys + sells
-            price = (buy_notional + sell_notional) / Decimal(gross_shares)
+            price = (buy_notional + sell_notional) / gross_shares
         x, y = _coordinates(occurred_on, price, points)
         events.append(
             ShareTradeEvent(
@@ -238,24 +264,29 @@ def _execution_event(
     symbol: str,
     points: Sequence[PricePoint],
 ) -> dict[str, object] | None:
-    opening = str(row.get("side")) == "sell" and str(row.get("position_effect")) == "opening"
-    closing = str(row.get("side")) == "buy" and str(row.get("position_effect")) == "closing"
+    opening = is_opening_sale(row)
+    closing = is_closing_buy(row)
     if not (opening or closing):
         return None
     occurred_at = _row_datetime(row)
-    occurred_on = occurred_at.date()
+    occurred_on = ledger_market_date(occurred_at)
     stock_price = _price_on_or_before(occurred_on, points)
+    if stock_price is None:
+        return None
     strike = _decimal(row.get("strike"))
     expires_on = _date(row.get("expiration_date"))
     x, y = _coordinates(occurred_on, stock_price, points)
     contracts = int(_decimal(row.get("quantity")))
-    option_side = str(row.get("option_side") or "call").lower()
-    side_glyph = "C" if option_side == "call" else "P"
+    normalized_side = option_side(row.get("option_side"))
+    if normalized_side is None:
+        return None
+    side_glyph = "C" if normalized_side == "call" else "P"
     return {
         "stable_key": _record_key(row),
-        "order_key": str(row.get("order_external_key") or ""),
+        "order_key": _chart_order_key(row),
+        "position_key": _chart_position_key(row),
         "option_symbol": str(row.get("symbol")),
-        "option_side": option_side,
+        "option_side": normalized_side,
         "date": occurred_on,
         "occurred_at": occurred_at,
         "time_precision": _time_precision(occurred_at),
@@ -276,7 +307,7 @@ def _execution_event(
         "strike": strike,
         "underlying_at_sale": stock_price,
         "strike_upside_percent": _strike_buffer(
-            strike, stock_price=stock_price, option_side=option_side
+            strike, stock_price=stock_price, option_side=normalized_side
         ),
         "entry_days_to_expiration": max(0, (expires_on - occurred_on).days),
         "premium_per_share": _decimal(row.get("price")),
@@ -285,6 +316,7 @@ def _execution_event(
         "net_cash": _decimal(row.get("net_cash")),
         "outcome": "OPEN" if opening else "CLOSED",
         "vertical_offset": 0,
+        "contract_multiplier": contract_multiplier(row),
     }
 
 
@@ -294,23 +326,28 @@ def _lifecycle_event(
     symbol: str,
     points: Sequence[PricePoint],
 ) -> dict[str, object] | None:
-    event_type = str(row.get("event_type"))
+    event_type = lifecycle_event_type(row.get("event_type"))
     if event_type not in {"expiration", "assignment"}:
         return None
     occurred_at = _row_datetime(row)
-    occurred_on = occurred_at.date()
+    occurred_on = ledger_market_date(occurred_at)
     stock_price = _price_on_or_before(occurred_on, points)
+    if stock_price is None:
+        return None
     strike = _decimal(row.get("strike"))
     expires_on = _date(row.get("expiration_date") or occurred_on)
     x, y = _coordinates(occurred_on, stock_price, points)
     contracts = int(_decimal(row.get("option_quantity")))
-    option_side = str(row.get("option_side") or "call").lower()
-    side_glyph = "C" if option_side == "call" else "P"
+    normalized_side = option_side(row.get("option_side"))
+    if normalized_side is None:
+        return None
+    side_glyph = "C" if normalized_side == "call" else "P"
     return {
         "stable_key": _record_key(row),
         "order_key": "",
+        "position_key": _chart_position_key(row),
         "option_symbol": str(row.get("symbol")),
-        "option_side": option_side,
+        "option_side": normalized_side,
         "date": occurred_on,
         "occurred_at": occurred_at,
         "time_precision": _time_precision(occurred_at),
@@ -330,7 +367,7 @@ def _lifecycle_event(
         "strike": strike,
         "underlying_at_sale": stock_price,
         "strike_upside_percent": _strike_buffer(
-            strike, stock_price=stock_price, option_side=option_side
+            strike, stock_price=stock_price, option_side=normalized_side
         ),
         "entry_days_to_expiration": 0,
         "premium_per_share": ZERO,
@@ -339,6 +376,8 @@ def _lifecycle_event(
         "net_cash": ZERO,
         "outcome": "EXPIRED" if event_type == "expiration" else "ASSIGNED",
         "vertical_offset": 0,
+        "contract_multiplier": contract_multiplier(row),
+        "delivered_shares": (delivered_shares(row) if event_type == "assignment" else None),
     }
 
 
@@ -359,7 +398,7 @@ def _mark_roll_openings(rows: list[dict[str, object]]) -> None:
 def _link_contract_lifecycles(rows: list[dict[str, object]]) -> None:
     open_sales: defaultdict[str, list[int]] = defaultdict(list)
     for index, row in enumerate(rows):
-        option_symbol = str(row["option_symbol"])
+        option_symbol = str(row["position_key"])
         if row["event_type"] in {"sale", "rolled"}:
             open_sales[option_symbol].append(index)
             continue
@@ -381,6 +420,11 @@ def _link_contract_lifecycles(rows: list[dict[str, object]]) -> None:
         row["premium_per_share"] = sale["premium_per_share"]
         row["gross_premium"] = sale["gross_premium"]
         row["underlying_at_resolution"] = row["price"]
+        row["contract_multiplier"] = row.get("contract_multiplier") or sale["contract_multiplier"]
+        if row["event_type"] == "assigned" and row.get("delivered_shares") is None:
+            row["delivered_shares"] = _decimal(row["contracts"]) * _decimal(
+                row["contract_multiplier"]
+            )
 
 
 def _option_value_checkpoint(
@@ -395,13 +439,16 @@ def _option_value_checkpoint(
     normalized_outcome = outcome.upper()
     if normalized_outcome == "ASSIGNED" or premium_per_share <= ZERO:
         return None, None
-    if normalized_outcome == "OPEN" and option_symbol in current_option_marks:
-        value_per_share = current_option_marks[option_symbol]
+    if normalized_outcome == "OPEN" and _option_key(option_symbol) in current_option_marks:
+        value_per_share = current_option_marks[_option_key(option_symbol)]
     elif normalized_outcome == "EXPIRED":
         value_per_share = ZERO
     elif normalized_outcome in {"CLOSED", "ROLLED"}:
         buyback = _decimal(row.get("resolution_buyback_cost", row.get("buyback_cost")))
-        value_per_share = buyback / contracts / Decimal("100")
+        multiplier = _decimal(row.get("contract_multiplier"))
+        if multiplier <= ZERO:
+            return None, None
+        value_per_share = buyback / contracts / multiplier
     else:
         return None, None
     return value_per_share, value_per_share / premium_per_share * HUNDRED
@@ -450,9 +497,9 @@ def _is_chart_option_execution(
     belongs_to_current_contract = _option_key(str(row.get("symbol") or "")) in current_option_keys
     return (
         (start <= occurred_on <= end or belongs_to_current_contract)
-        and str(row.get("asset_type")) == "option"
-        and str(row.get("option_side")) in {"call", "put"}
-        and str(row.get("underlying_symbol")) == symbol
+        and _token(row.get("asset_type")) == "option"
+        and option_side(row.get("option_side")) is not None
+        and str(row.get("underlying_symbol") or "").strip().upper() == symbol.upper()
     )
 
 
@@ -464,8 +511,8 @@ def _is_chart_lifecycle(row: Mapping[str, object], *, symbol: str, start: date, 
     occurred_on = _row_date(row)
     return (
         start <= occurred_on <= end
-        and str(row.get("option_side")) in {"call", "put"}
-        and str(row.get("underlying_symbol")) == symbol
+        and option_side(row.get("option_side")) is not None
+        and str(row.get("underlying_symbol") or "").strip().upper() == symbol.upper()
     )
 
 
@@ -483,9 +530,9 @@ def _coordinates(
     return max(ZERO, min(HUNDRED, x)), _y_percent(price, low=low, high=high)
 
 
-def _price_on_or_before(value: date, points: Sequence[PricePoint]) -> Decimal:
+def _price_on_or_before(value: date, points: Sequence[PricePoint]) -> Decimal | None:
     eligible = [point.price for point in points if point.date <= value]
-    return eligible[-1] if eligible else points[0].price
+    return eligible[-1] if eligible else None
 
 
 def _strike_buffer(
@@ -508,16 +555,17 @@ def _y_percent(price: Decimal, *, low: Decimal, high: Decimal) -> Decimal:
 
 
 def _row_date(row: Mapping[str, object]) -> date:
-    return _date(row.get("occurred_at"))
+    value = row.get("occurred_at")
+    if isinstance(value, (date, datetime)):
+        return ledger_market_date(value)
+    return ledger_market_date(datetime.fromisoformat(str(value).replace("Z", "+00:00")))
 
 
 def _row_datetime(row: Mapping[str, object]) -> datetime:
     value = row.get("occurred_at")
-    if isinstance(value, datetime):
-        return value
-    if isinstance(value, date):
-        return datetime(value.year, value.month, value.day)
-    return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    if isinstance(value, (date, datetime)):
+        return ledger_market_datetime(value)
+    return ledger_market_datetime(datetime.fromisoformat(str(value).replace("Z", "+00:00")))
 
 
 def _time_precision(value: datetime) -> str:
@@ -530,9 +578,26 @@ def _time_precision(value: datetime) -> str:
 
 
 def _record_key(row: Mapping[str, object]) -> str:
-    external_key = str(row.get("external_key"))
-    account_mask = str(row.get("account_mask") or "")
-    return f"{account_mask}:{external_key}" if account_mask else external_key
+    return campaign_record_key(row)
+
+
+def _chart_order_key(row: Mapping[str, object]) -> str:
+    order_key = str(row.get("order_external_key") or "").strip()
+    if not order_key:
+        return ""
+    return f"{_account_scope(row)}:{option_side(row.get('option_side')) or ''}:{order_key}"
+
+
+def _chart_position_key(row: Mapping[str, object]) -> str:
+    return f"{_account_scope(row)}:{_option_key(str(row.get('symbol') or ''))}"
+
+
+def _account_scope(row: Mapping[str, object]) -> str:
+    return str(row.get("account_id") or row.get("account_mask") or "default").strip().casefold()
+
+
+def _token(value: object) -> str:
+    return str(value or "").strip().casefold().split(".")[-1]
 
 
 def _date(value: object) -> date:

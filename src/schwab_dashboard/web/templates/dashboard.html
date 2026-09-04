@@ -8,7 +8,7 @@
     <link rel="icon" href="{{ url_for('static', path='/nibwick-favicon.svg') }}?v=3" type="image/svg+xml">
     <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=112">
     <link rel="stylesheet" href="{{ url_for('static', path='/campaign-chart.css') }}?v=12">
-    <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=13">
+    <link rel="stylesheet" href="{{ url_for('static', path='/workspaces.css') }}?v=14">
   </head>
   <body data-workspace-key="desk" data-demo-mode="{{ 'true' if snapshot.is_demo else 'false' }}" data-snapshot-as-of="{{ snapshot.as_of.isoformat() }}" data-page-built-at="{{ page_built_at.isoformat() }}" data-workspace-context='{"account":"{{ snapshot.accounts[0].account_mask if snapshot.accounts else "---" }}","symbol":"ALL","asOf":"{{ snapshot.as_of.date().isoformat() }}"}'>
     <header class="topbar desk-topbar">
@@ -71,12 +71,15 @@
         <div class="desk-meta">
           {% if snapshot.is_demo %}
           <span>PORTFOLIO <b>{{ snapshot.portfolio.total_value | money }}</b></span>
+          {% elif snapshot.mode == 'csv' %}
+          <span>IMPORTED POS <b>{{ snapshot.portfolio.total_value | money }}</b></span>
+          <span>GROSS POS <b>{{ snapshot.portfolio.gross_position_value | money }}</b></span>
           {% else %}
           <span>NET LIQ <b>{{ snapshot.portfolio.total_value | money }}</b></span>
           <span>GROSS POS <b>{{ snapshot.portfolio.gross_position_value | money }}</b></span>
           {% endif %}
-          <span>{% if snapshot.is_demo %}SIM DAY P/L{% else %}ACCOUNT DAY P/L{% endif %} <b class="{{ snapshot.portfolio.day_profit_loss | pnl_class }}">{% if snapshot.portfolio.day_profit_loss is not none %}{{ snapshot.portfolio.day_profit_loss | money }} / {{ snapshot.portfolio.day_profit_loss_percent | percent(2) }}{% else %}&mdash;{% endif %}</b></span>
-          {% if snapshot.portfolio.day_external_cash_flow %}<span title="Owner deposits and withdrawals are removed from account DAY P/L.">OWNER FLOW EXCL <b>{{ snapshot.portfolio.day_external_cash_flow | money }}</b></span>{% endif %}
+          <span>{% if snapshot.is_demo %}SIM DAY P/L{% elif snapshot.portfolio.day_profit_loss_source == 'multi_session' %}ACCOUNT CHANGE{% elif snapshot.portfolio.day_profit_loss_source == 'reconstructed' %}ESTIMATED SESSION P/L{% elif snapshot.portfolio.day_profit_loss_source == 'provisional' %}PROVISIONAL SESSION P/L{% else %}ACCOUNT DAY P/L{% endif %} <b class="{{ snapshot.portfolio.day_profit_loss | pnl_class }}">{% if snapshot.portfolio.day_profit_loss is not none %}{{ snapshot.portfolio.day_profit_loss | money }} / {{ snapshot.portfolio.day_profit_loss_percent | percent(2) }}{% else %}&mdash;{% endif %}</b>{% if snapshot.portfolio.day_profit_loss_source == 'multi_session' and snapshot.portfolio.day_profit_loss_previous_as_of and snapshot.portfolio.day_profit_loss_as_of %} <small>{{ snapshot.portfolio.day_profit_loss_previous_as_of.strftime('%b %d') | upper }}&ndash;{{ snapshot.portfolio.day_profit_loss_as_of.strftime('%b %d') | upper }}</small>{% endif %}</span>
+          {% if snapshot.portfolio.day_external_cash_flow %}<span title="Owner deposits and withdrawals are removed only from this displayed account return link.">OWNER FLOW EXCL FROM RETURN <b>{{ snapshot.portfolio.day_external_cash_flow | money }}</b></span>{% endif %}
           {% if not snapshot.is_demo and snapshot.portfolio.open_position_day_profit_loss is not none %}<span title="Broker day prints for positions still open; closed intraday positions and account cash items are outside this diagnostic.">OPEN POS P/L{% if snapshot.portfolio.day_profit_loss_reconciliation_status == 'diverged' %} &middot; UNRECONCILED{% endif %} <b class="{{ 'muted' if snapshot.portfolio.day_profit_loss_reconciliation_status == 'diverged' else snapshot.portfolio.open_position_day_profit_loss | pnl_class }}">{{ snapshot.portfolio.open_position_day_profit_loss | money }}</b></span>{% endif %}
           {% if snapshot.portfolio.day_profit_loss_reconciliation_status == 'diverged' %}<span title="Open-position broker prints minus the flow-neutral account result. A gap can come from closed positions, cash items, timing, or broker field quality.">P/L GAP <b class="muted">{{ snapshot.portfolio.day_profit_loss_reconciliation_gap | money }}</b></span>{% endif %}
           {% if snapshot.performance_windows %}<span>RANGE <b data-active-range>{{ snapshot.performance_windows[0].range_label }}</b></span>{% endif %}
@@ -85,7 +88,13 @@
         </div>
       </section>
 
-      {% if snapshot.mode == 'csv' %}
+      {% if snapshot.is_demo %}
+      <aside class="csv-source-note" role="status">
+        <b>SIMULATED DATA</b>
+        <span>Fictional positions and contract quotes, IV, and Greeks fixed to {{ snapshot.as_of | short_date }}. Calculations are real; market observations are not.</span>
+        <a href="/sources">SWITCH BOOK &rarr;</a>
+      </aside>
+      {% elif snapshot.mode == 'csv' %}
       <aside class="csv-source-note" role="status">
         <b>CSV BOOK</b>
         <span>{{ active_source_label }} uses only facts present in the imported files. Portfolio value covers imported positions, not brokerage cash; live quotes, Greeks, IV, and automatic refresh stay unavailable.</span>
@@ -122,7 +131,7 @@
       </footer>
       </main>
     </div>
-    <script src="{{ url_for('static', path='/periods.js') }}?v=21" defer></script>
+    <script src="{{ url_for('static', path='/periods.js') }}?v=22" defer></script>
     <script src="{{ url_for('static', path='/cash-activity.js') }}?v=1" defer></script>
     <script src="{{ url_for('static', path='/workspace-splitter.js') }}?v=3" defer></script>
     <script src="{{ url_for('static', path='/nibwick-alerts.js') }}?v=13" defer></script>

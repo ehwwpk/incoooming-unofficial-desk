@@ -111,11 +111,13 @@ class RadarPolicy:
 
 @dataclass(frozen=True, slots=True)
 class RadarAccountContext:
-    shares: int
+    shares: Decimal
     covered_call_contracts: int
     available_call_lots: int
     reserved_cash: Decimal
     account_mask: str | None = None
+    delivery_terms_resolved: bool = True
+    account_scope_resolved: bool = True
 
     def __post_init__(self) -> None:
         if self.shares < 0 or self.covered_call_contracts < 0 or self.available_call_lots < 0:
@@ -204,6 +206,7 @@ class RadarCandidate:
     gates: tuple[RadarGate, ...]
     reasons: tuple[str, ...]
     theta: Decimal | None = None
+    contract_multiplier: Decimal = Decimal("100")
 
 
 @dataclass(frozen=True, slots=True)

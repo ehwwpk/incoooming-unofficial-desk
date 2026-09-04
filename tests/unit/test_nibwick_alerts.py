@@ -3,6 +3,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from schwab_dashboard.application.alerts import build_desk_alerts
+from schwab_dashboard.application.alerts.rolls import build_call_roll_scenarios
 from schwab_dashboard.application.alerts.rules import (
     evaluate_call_expiration_pressure,
     evaluate_call_expiration_pressures,
@@ -52,7 +53,7 @@ def test_short_put_alert_reports_time_distance_and_assignment_notional() -> None
     assert alert.headline == "XYZ is through your $50 put"
     assert "$10,000" in alert.message
     assert "before premium" not in alert.message
-    assert alert.message.endswith("Keep your paws hot.")
+    assert alert.message.endswith("Review the position and current quote.")
     assert [(fact.label, fact.value) for fact in alert.facts] == [
         ("STOCK / STRIKE", "$48.00 / $50"),
         ("STRIKE DISTANCE", "$2.00 / 4.2%"),
@@ -62,7 +63,44 @@ def test_short_put_alert_reports_time_distance_and_assignment_notional() -> None
     assert "not a claim about cash" in alert.method_note.lower()
 
 
-def test_fast_move_alert_names_the_sale_and_keeps_the_personality_brief() -> None:
+def test_short_put_alert_separates_premium_scale_from_share_delivery() -> None:
+    put = replace(_short_put(), contract_multiplier=D("150"))
+
+    alert = evaluate_short_put_pressure(put)
+
+    assert alert is not None
+    assert "$10,000" in alert.message
+    assert alert.facts[-1].detail == "$10,000 STRIKE NOTIONAL"
+    assert "SHARE DELIVERY IS KNOWN" in alert.method_note
+
+
+def test_call_roll_scenario_separates_premium_cash_from_assignment_room() -> None:
+    snapshot = DemoDashboardReader().execute()
+    underlying = next(item for item in snapshot.underlyings if item.symbol == "KTOS")
+    call = replace(underlying.open_call_clocks[0], contract_multiplier=D("150"))
+
+    scenarios = build_call_roll_scenarios(call, current_price=underlying.current_price)
+
+    assert scenarios
+    first = scenarios[0]
+    assert first.net_roll_cash == first.net_roll_per_share * D(call.contracts) * D("150")
+    assert first.assignment_room_gain == first.strike_lift_per_share * D(call.contracts) * D("100")
+
+
+def test_short_put_alert_names_unresolved_delivery_without_inventing_notional() -> None:
+    put = replace(_short_put(), deliverable_shares_per_contract=None)
+
+    alert = evaluate_short_put_pressure(put)
+
+    assert alert is not None
+    assert "share delivery and strike notional are unavailable" in alert.message
+    assert "$10,000" not in alert.message
+    assert alert.facts[-1].detail == "DELIVERY TERMS UNRESOLVED"
+    assert alert.roll_scenarios == ()
+    assert alert.no_clean_roll_reason is not None
+
+
+def test_fast_move_alert_names_the_sale_and_explains_the_review_trigger() -> None:
     snapshot = DemoDashboardReader().execute()
     ktos = next(item for item in snapshot.underlyings if item.symbol == "KTOS")
     call = replace(
@@ -85,7 +123,6 @@ def test_fast_move_alert_names_the_sale_and_keeps_the_personality_brief() -> Non
     assert alert is not None
     assert alert.headline == "KTOS is running at your $68 call"
     assert "since you sold the $68 call" in alert.message
-    assert "Rude timing." in alert.message
     assert "put back on the desk" in alert.message
     assert "moved fast after the sale" not in alert.message
     assert alert.roll_source_option_symbol == call.record_id
@@ -135,7 +172,7 @@ def test_routine_worthless_expiration_stays_in_register_without_a_nibwick_interr
         session_state=OptionSessionState.SETTLEMENT_PENDING,
         strike=D("65"),
         contracts=1,
-        contract_multiplier=D("100"),
+        deliverable_shares_per_contract=D("100"),
         official_close=D("63"),
         latest_underlying_price=D("63"),
     )
@@ -156,7 +193,7 @@ def test_expected_assignment_note_reports_consequence_without_a_dead_roll_action
         session_state=OptionSessionState.SETTLEMENT_PENDING,
         strike=D("60"),
         contracts=2,
-        contract_multiplier=D("100"),
+        deliverable_shares_per_contract=D("100"),
         official_close=D("58"),
         latest_underlying_price=D("58"),
     )
@@ -181,7 +218,7 @@ def test_missing_official_close_note_names_the_data_gap_plainly() -> None:
         session_state=OptionSessionState.SETTLEMENT_PENDING,
         strike=D("65"),
         contracts=1,
-        contract_multiplier=D("100"),
+        deliverable_shares_per_contract=D("100"),
         official_close=None,
         latest_underlying_price=D("63"),
     )

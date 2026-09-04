@@ -3,12 +3,13 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 from threading import Lock
 
 from schwab_dashboard.application.services.record_market_observations import (
     RecordMarketObservations,
 )
-from schwab_dashboard.domain.instruments import InstrumentRecord
+from schwab_dashboard.domain.instruments import AssetType, DeliverableKind, InstrumentRecord
 from schwab_dashboard.domain.market import MarketObservationBatch
 from schwab_dashboard.domain.opportunity import (
     RadarMarketBundle,
@@ -115,6 +116,12 @@ def _bundle_from_batches(
         )
         is not None
     )
+    unsupported_contracts = sum(
+        1
+        for snapshot in chain.option_snapshots
+        if (instrument := instruments.get(snapshot.instrument.external_key)) is not None
+        and not _supports_radar_contract(instrument)
+    )
     underlying_prices = [
         item.underlying_price
         for item in chain.option_snapshots
@@ -123,6 +130,12 @@ def _bundle_from_batches(
     warnings: list[str] = []
     if not history.daily_bars:
         warnings.append("Daily price history is unavailable; movement context is incomplete.")
+    if unsupported_contracts:
+        warnings.append(
+            f"{unsupported_contracts} non-100-share, adjusted, or unresolved contract"
+            f"{'s were' if unsupported_contracts != 1 else ' was'} excluded because the share "
+            "deliverable is unavailable."
+        )
     return RadarMarketBundle(
         source="schwab",
         symbol=symbol,
@@ -152,6 +165,7 @@ def _contract_from_snapshot(
         or instrument.strike is None
         or instrument.contract_multiplier is None
         or instrument.underlying_symbol is None
+        or not _supports_radar_contract(instrument)
     ):
         return None
     return RadarMarketContract(
@@ -175,4 +189,26 @@ def _contract_from_snapshot(
         vega=snapshot.vega,
         volume=snapshot.volume,
         open_interest=snapshot.open_interest,
+    )
+
+
+def _supports_radar_contract(instrument: InstrumentRecord) -> bool:
+    """Accept only the simple 100-share contracts Radar can size safely."""
+
+    deliverable = instrument.deliverable
+    if (
+        deliverable is None
+        or deliverable.kind is not DeliverableKind.STANDARD
+        or instrument.contract_multiplier != Decimal("100")
+        or len(deliverable.components) != 1
+        or instrument.underlying_symbol is None
+    ):
+        return False
+    component = deliverable.components[0]
+    return (
+        component.asset_type is AssetType.EQUITY
+        and component.quantity == Decimal("100")
+        and component.cash_amount is None
+        and component.symbol is not None
+        and component.symbol.strip().upper() == instrument.underlying_symbol.strip().upper()
     )

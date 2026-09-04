@@ -5,11 +5,23 @@ build-backend = "hatchling.build"
 [project]
 name = "incoooming-unofficial-desk"
 version = "0.1.0"
-description = "Incoooming: a local-first short-premium desk and auditable options-income ledger"
+description = "Local covered-call and cash-secured-put accounting dashboard"
 readme = "README.md"
 requires-python = ">=3.12,<3.15"
-license = { text = "Private personal project" }
-authors = [{ name = "Personal project" }]
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Incoooming contributors" }]
+keywords = ["options", "portfolio", "schwab", "covered-calls", "cash-secured-puts"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Win32 (MS Windows)",
+  "Framework :: FastAPI",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+]
 dependencies = [
   "alembic>=1.18.5,<2",
   "fastapi>=0.139.2,<0.140",
@@ -27,18 +39,30 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+  "bandit>=1.9,<2",
+  "build>=1.2,<2",
   "mypy>=1.16,<2",
+  "pip-audit>=2.10,<3",
   "pytest>=8.4,<10",
   "pytest-cov>=6,<8",
   "respx>=0.22,<1",
   "ruff>=0.12,<1",
 ]
 
+[project.urls]
+Homepage = "https://github.com/ehwwpk/incoooming-unofficial-desk"
+Repository = "https://github.com/ehwwpk/incoooming-unofficial-desk"
+Issues = "https://github.com/ehwwpk/incoooming-unofficial-desk/issues"
+
 [project.scripts]
 schwab-dashboard = "schwab_dashboard.cli:app"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/schwab_dashboard"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"alembic.ini" = "schwab_dashboard/alembic.ini"
+"migrations" = "schwab_dashboard/migrations"
 
 [tool.pytest.ini_options]
 addopts = "-q --strict-markers --disable-warnings"
@@ -59,4 +83,5 @@ indent-style = "space"
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
-packages = ["schwab_dashboard"]
+files = ["src/schwab_dashboard"]
+mypy_path = "src"

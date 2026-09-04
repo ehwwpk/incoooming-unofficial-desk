@@ -12,11 +12,16 @@ from schwab_dashboard.application.campaigns import (
     reconcile_option_campaigns,
 )
 from schwab_dashboard.application.dashboard.covered_calls import CallSaleRecord
+from schwab_dashboard.application.market_time import ledger_market_datetime
+from schwab_dashboard.application.option_lifecycle import (
+    contract_multiplier,
+    lifecycle_event_type,
+)
+from schwab_dashboard.application.option_lifecycle import option_side as normalized_option_side
 
 ZERO = Decimal("0")
 HUNDRED = Decimal("100")
 CENT = Decimal("0.01")
-STANDARD_MULTIPLIER = Decimal("100")
 
 
 @dataclass(slots=True)
@@ -46,7 +51,7 @@ def project_call_sale_records(
     ledger = reconcile_option_campaigns(executions, lifecycle_events)
     excluded = {item.record_key for item in ledger.exclusions}
     lots: defaultdict[str, list[_OpenLot]] = defaultdict(list)
-    roll_parent_by_order: dict[tuple[str, str], str] = {}
+    roll_parent_by_order: dict[tuple[str, str, str, str], str] = {}
     roll_orders = _roll_order_keys(executions)
 
     for kind, row in _timeline(executions, lifecycle_events, excluded):
@@ -60,7 +65,8 @@ def project_call_sale_records(
         consume_qty = (
             _quantity(row, "quantity") if kind == "close" else _quantity(row, "option_quantity")
         )
-        cash = _decimal(row.get("net_cash") if kind == "close" else row.get("cash_amount"))
+        # Stock delivery cash belongs to the assigned shares, not option premium.
+        cash = _decimal(row.get("net_cash")) if kind == "close" else ZERO
         consumed_ids = _consume(
             lots[position_key],
             consume_qty,
@@ -68,10 +74,9 @@ def project_call_sale_records(
             occurred_on=_row_date(row),
             terminal=_terminal_for(kind, row, roll_orders),
         )
-        order_key = str(row.get("order_external_key") or "")
-        account = str(row.get("account_mask") or "")
-        if kind == "close" and order_key and consumed_ids and (account, order_key) in roll_orders:
-            roll_parent_by_order[(account, order_key)] = consumed_ids[0]
+        roll_key = _roll_key(row)
+        if kind == "close" and roll_key[1] and consumed_ids and roll_key in roll_orders:
+            roll_parent_by_order[roll_key] = consumed_ids[0]
 
     records = [
         _ticket(
@@ -92,7 +97,7 @@ def _ticket(
     *,
     ledger: CampaignLedger,
     daily_bars: Sequence[Mapping[str, object]],
-    roll_parent_by_order: Mapping[tuple[str, str], str],
+    roll_parent_by_order: Mapping[tuple[str, str, str, str], str],
 ) -> CallSaleRecord:
     row = lot.row
     record_id = campaign_record_key(row)
@@ -101,19 +106,26 @@ def _ticket(
     expires_on = _date(row.get("expiration_date")) or sold_on
     strike = _decimal(row.get("strike"))
     contracts = int(_quantity(row, "quantity"))
-    multiplier = _decimal(row.get("contract_multiplier")) or STANDARD_MULTIPLIER
+    multiplier = contract_multiplier(row)
     opening_cash = _decimal(row.get("net_cash"))
     symbol = str(row.get("underlying_symbol") or "").strip().upper()
-    option_side = str(row.get("option_side") or "call").strip().upper() or "CALL"
-    if option_side not in {"CALL", "PUT"}:
-        option_side = "CALL"
-    underlying_at_sale = _close_on_or_before(symbol, sold_on, daily_bars) or ZERO
+    normalized_side = normalized_option_side(row.get("option_side"))
+    option_side = normalized_side.upper() if normalized_side is not None else "OPTION"
+    underlying_at_sale = _close_on_or_before(symbol, sold_on, daily_bars)
+    scale = Decimal(contracts) * multiplier
+    execution_price = _optional_decimal(row.get("price"))
+    gross_amount = _optional_decimal(row.get("gross_amount"))
     premium = (
-        abs(opening_cash) / (Decimal(contracts) * multiplier) if contracts and multiplier else ZERO
+        abs(execution_price)
+        if execution_price is not None
+        else abs(gross_amount) / scale
+        if gross_amount is not None and scale
+        else abs(opening_cash) / scale
+        if scale
+        else ZERO
     )
-    account = str(row.get("account_mask") or "")
-    order_key = str(row.get("order_external_key") or "")
-    parent = roll_parent_by_order.get((account, order_key))
+    gross_premium = abs(gross_amount) if gross_amount is not None else premium * scale
+    parent = roll_parent_by_order.get(_roll_key(row))
     if parent == record_id:
         parent = None
     buyback = -lot.close_cash if lot.close_cash < ZERO else ZERO
@@ -132,9 +144,7 @@ def _ticket(
         strike_upside_percent=_gap_percent(underlying_at_sale, strike, option_side),
         days_to_expiration=max(0, (expires_on - sold_on).days),
         premium_per_share=premium.quantize(CENT) if premium else ZERO,
-        gross_premium=opening_cash
-        if opening_cash > ZERO
-        else abs(_decimal(row.get("gross_amount"))),
+        gross_premium=gross_premium,
         buyback_cost=buyback,
         net_cash=opening_cash + lot.close_cash,
         outcome=outcome,
@@ -178,13 +188,21 @@ def _timeline(
     lifecycle_events: Sequence[Mapping[str, object]],
     excluded: set[str],
 ) -> tuple[tuple[str, Mapping[str, object]], ...]:
-    events: list[tuple[date, str, int, datetime, str, str, Mapping[str, object]]] = []
-    for row in executions:
-        if str(row.get("asset_type")) != "option":
+    events: list[tuple[date, str, int, datetime, str, int, str, Mapping[str, object]]] = []
+    for index, row in enumerate(executions):
+        if _token(row.get("asset_type")) != "option":
             continue
-        opening = str(row.get("side")) == "sell" and str(row.get("position_effect")) == "opening"
-        closing = str(row.get("side")) == "buy" and str(row.get("position_effect")) == "closing"
-        if not (opening or closing):
+        opening = _token(row.get("side")) in {"sell", "sold"} and _token(
+            row.get("position_effect")
+        ) in {"open", "opening"}
+        closing = _token(row.get("side")) in {"buy", "bought"} and _token(
+            row.get("position_effect")
+        ) in {"close", "closing"}
+        if (
+            not (opening or closing)
+            or normalized_option_side(row.get("option_side")) is None
+            or campaign_record_key(row) in excluded
+        ):
             continue
         occurred = _datetime(row.get("occurred_at"))
         events.append(
@@ -194,12 +212,13 @@ def _timeline(
                 0 if closing else 1,
                 occurred,
                 campaign_record_key(row),
+                index,
                 "close" if closing else "open",
                 row,
             )
         )
-    for row in lifecycle_events:
-        event_type = str(row.get("event_type") or "")
+    for index, row in enumerate(lifecycle_events, start=len(executions)):
+        event_type = lifecycle_event_type(row.get("event_type"))
         if event_type not in {"expiration", "assignment"}:
             continue
         if campaign_record_key(row) in excluded:
@@ -212,6 +231,7 @@ def _timeline(
                 2,
                 occurred,
                 campaign_record_key(row),
+                index,
                 event_type,
                 row,
             )
@@ -220,21 +240,25 @@ def _timeline(
     return tuple((kind, row) for *_, kind, row in events)
 
 
-def _roll_order_keys(executions: Sequence[Mapping[str, object]]) -> set[tuple[str, str]]:
-    grouped: defaultdict[tuple[str, str], list[Mapping[str, object]]] = defaultdict(list)
+def _roll_order_keys(
+    executions: Sequence[Mapping[str, object]],
+) -> set[tuple[str, str, str, str]]:
+    grouped: defaultdict[tuple[str, str, str, str], list[Mapping[str, object]]] = defaultdict(list)
     for row in executions:
         order_key = str(row.get("order_external_key") or "")
-        if not order_key or str(row.get("asset_type")) != "option":
+        if not order_key or _token(row.get("asset_type")) != "option":
             continue
-        grouped[(str(row.get("account_mask") or ""), order_key)].append(row)
-    keys: set[tuple[str, str]] = set()
+        grouped[_roll_key(row)].append(row)
+    keys: set[tuple[str, str, str, str]] = set()
     for key, rows in grouped.items():
         has_close = any(
-            str(row.get("side")) == "buy" and str(row.get("position_effect")) == "closing"
+            _token(row.get("side")) in {"buy", "bought"}
+            and _token(row.get("position_effect")) in {"close", "closing"}
             for row in rows
         )
         has_open = any(
-            str(row.get("side")) == "sell" and str(row.get("position_effect")) == "opening"
+            _token(row.get("side")) in {"sell", "sold"}
+            and _token(row.get("position_effect")) in {"open", "opening"}
             for row in rows
         )
         if has_close and has_open:
@@ -242,21 +266,27 @@ def _roll_order_keys(executions: Sequence[Mapping[str, object]]) -> set[tuple[st
     return keys
 
 
-def _terminal_for(kind: str, row: Mapping[str, object], roll_orders: set[tuple[str, str]]) -> str:
+def _terminal_for(
+    kind: str,
+    row: Mapping[str, object],
+    roll_orders: set[tuple[str, str, str, str]],
+) -> str:
     if kind == "expiration":
         return "Expired"
     if kind == "assignment":
         return "Assigned"
-    order_key = str(row.get("order_external_key") or "")
-    account = str(row.get("account_mask") or "")
-    if (account, order_key) in roll_orders:
+    if _roll_key(row) in roll_orders:
         return "Rolled"
     return "Closed"
 
 
-def _gap_percent(spot: Decimal, strike: Decimal, option_side: str) -> Decimal:
-    if spot <= ZERO:
-        return ZERO
+def _gap_percent(
+    spot: Decimal | None,
+    strike: Decimal,
+    option_side: str,
+) -> Decimal | None:
+    if spot is None or spot <= ZERO:
+        return None
     raw = (
         (spot - strike) / spot * HUNDRED
         if option_side == "PUT"
@@ -266,15 +296,27 @@ def _gap_percent(spot: Decimal, strike: Decimal, option_side: str) -> Decimal:
 
 
 def _position_key(row: Mapping[str, object]) -> str:
-    account = str(row.get("account_mask") or "default")
-    return f"{account}:{_canonical(str(row.get('symbol') or ''))}"
+    return f"{_account_scope(row)}:{_canonical(str(row.get('symbol') or ''))}"
 
 
 def _scoped_order_key(row: Mapping[str, object]) -> str:
-    order_key = str(row.get("order_external_key") or "")
-    if not order_key:
+    key = _roll_key(row)
+    if not key[1]:
         return ""
-    return f"{row.get('account_mask') or 'default'}:{order_key}"
+    return ":".join(key)
+
+
+def _roll_key(row: Mapping[str, object]) -> tuple[str, str, str, str]:
+    return (
+        _account_scope(row),
+        str(row.get("order_external_key") or "").strip(),
+        _canonical(str(row.get("underlying_symbol") or "")),
+        normalized_option_side(row.get("option_side")) or "",
+    )
+
+
+def _account_scope(row: Mapping[str, object]) -> str:
+    return str(row.get("account_id") or row.get("account_mask") or "default").strip().casefold()
 
 
 def _close_on_or_before(
@@ -284,16 +326,17 @@ def _close_on_or_before(
 ) -> Decimal | None:
     dated: list[tuple[date, Mapping[str, object]]] = []
     for row in daily_bars:
-        if str(row.get("symbol")) != symbol:
+        if _canonical(str(row.get("symbol") or "")) != _canonical(symbol):
             continue
         trade_date = _date(row.get("trade_date"))
-        if trade_date is None or trade_date > value:
+        close = _optional_decimal(row.get("close"))
+        if trade_date is None or trade_date > value or close is None or close <= ZERO:
             continue
         dated.append((trade_date, row))
     if not dated:
         return None
     latest = max(dated, key=lambda item: item[0])[1]
-    return _decimal(latest.get("close"))
+    return _optional_decimal(latest.get("close"))
 
 
 def _quantity(row: Mapping[str, object], field_name: str) -> Decimal:
@@ -320,13 +363,19 @@ def _date(value: object) -> date | None:
 
 def _datetime(value: object) -> datetime:
     if isinstance(value, datetime):
-        occurred = value
+        return ledger_market_datetime(value)
     elif isinstance(value, date):
-        occurred = datetime(value.year, value.month, value.day)
-    else:
-        occurred = datetime.fromisoformat(str(value))
-    return occurred.replace(tzinfo=None)
+        return ledger_market_datetime(value)
+    return _datetime(datetime.fromisoformat(str(value).replace("Z", "+00:00")))
 
 
 def _decimal(value: object) -> Decimal:
     return ZERO if value is None else Decimal(str(value))
+
+
+def _optional_decimal(value: object) -> Decimal | None:
+    return None if value is None else Decimal(str(value))
+
+
+def _token(value: object) -> str:
+    return str(value or "").strip().casefold().split(".")[-1]

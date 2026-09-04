@@ -1,13 +1,13 @@
-# Incoooming Truth Engine
+# Normalized ledger
 
-## Job to be done
+## Purpose
 
-Incoooming's Truth Engine turns broker and import data into an auditable, replayable ledger. It must
-answer "where did this number come from?" before any risk, attribution, or volatility feature is
-allowed to present the number as fact.
+Incoooming turns broker and import data into an auditable ledger. The stored source links make it
+possible to trace a normalized record back to the raw event that produced it.
 
-This is the first dependency for every other approved system. It is not a trade journal UI and it is
-not a pricing engine.
+The ledger is not a trade journal or a pricing engine. It keeps executions, cash activity, option
+lifecycle events, positions, and market observations as separate records for the calculations that
+use them.
 
 ## Non-negotiable truths
 
@@ -79,16 +79,16 @@ remains an explicit break rather than being guessed into a plausible state.
 Every break has a stable code, severity, relevant identifiers, measured difference, and human
 explanation. Structural errors block normalization; timing-dependent value differences may warn.
 
-## Source drill-through contract
+## Source lineage
 
-Every aggregate must be able to expose this chain:
+The stored data supports this chain:
 
 ```text
 displayed value -> calculation result -> normalized record ids -> raw source event -> source payload
 ```
 
-The first implementation stores the normalized ledger and market spine. Calculation-result
-lineage and campaign relationships are separate bounded additions after the atomic records exist.
+Normalized records retain their raw source event. Some aggregate views do not yet expose every
+intermediate calculation record in the interface.
 
 ## Data quality statuses
 
@@ -101,13 +101,11 @@ lineage and campaign relationships are separate bounded additions after the atom
 
 These statuses are metadata, not colors. UI color may reinforce them but never replace the label.
 
-## Release slices
+## Planned extensions
 
-1. Instruments, executions, cash movements, lifecycle events, and market observations.
-2. Broker/CSV normalizers with raw-event preservation and idempotency.
-3. Execution pairing, campaign links, position/cash replay, and reconciliation queue.
-4. Calculation lineage and source drill-through API.
-5. Operator correction annotations that never mutate the source record.
+- Deeper calculation lineage and source drill-through in the interface.
+- More explicit execution pairing and campaign corrections.
+- Operator annotations that do not mutate source records.
 
 ## Verification requirements
 

@@ -12,6 +12,7 @@ from schwab_dashboard.application.dashboard.covered_calls import (
 )
 from schwab_dashboard.application.dashboard.models import CampaignSummary
 from schwab_dashboard.application.policy.models import CallPolicy, UnderlyingPolicy
+from schwab_dashboard.application.values import sum_if_complete
 
 D = Decimal
 ZERO = D("0")
@@ -82,7 +83,8 @@ def _campaign(
     fees = sum((record.fees for record in ordered), ZERO)
     realized_cash = sum((record.net_cash - record.fees for record in completed_records), ZERO)
     open_credit = sum((record.gross_premium for record in open_records), ZERO)
-    estimated_close = sum((clock.current_option_value for clock in clocks), ZERO)
+    estimated_close = sum_if_complete(clock.current_option_value for clock in clocks)
+    assert estimated_close is not None
     collateral = (
         D(max(record.contracts for record in ordered)) * D("100") * underlying.current_price
     )
@@ -118,7 +120,7 @@ def _campaign(
         current_strike=current.strike,
         strike_change=current.strike - first.strike,
         days_extended=max(0, (current.expires_on - first.expires_on).days),
-        called_away_shares=assigned,
+        called_away_shares=D(assigned),
         effective_exit_price=effective_exit,
         collateral=collateral,
         cash_on_capital_percent=(net_cash / collateral * 100).quantize(TENTH)
@@ -132,7 +134,16 @@ def _weighted_progress(clocks: Sequence[OpenCallClock]) -> int:
     contracts = sum(clock.contracts for clock in clocks)
     if not contracts:
         return 100
-    value = sum(clock.elapsed_time_percent * clock.contracts for clock in clocks) / contracts
+    weighted = sum_if_complete(
+        (
+            clock.elapsed_time_percent * clock.contracts
+            if clock.elapsed_time_percent is not None
+            else None
+        )
+        for clock in clocks
+    )
+    assert weighted is not None
+    value = weighted / contracts
     return max(0, min(100, int(value)))
 
 

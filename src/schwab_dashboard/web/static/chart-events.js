@@ -205,7 +205,13 @@
       cashClass = buybackCost > 0 ? "negative" : "positive";
       footer = `CAMPAIGN RESOLUTION · ${trigger.dataset.outcome.toUpperCase()}`;
     } else if (type === "assigned") {
-      cashText = `${money(grossPremium)} kept · ${contracts * 100} shares called away`;
+      const multiplier = number(trigger.dataset.contractMultiplier || 100);
+      const deliveredShares = trigger.dataset.assignmentShares
+        ? number(trigger.dataset.assignmentShares)
+        : contracts * multiplier;
+      cashText = trigger.dataset.optionSide === "put"
+        ? `${money(grossPremium)} kept · ${deliveredShares} shares acquired`
+        : `${money(grossPremium)} kept · ${deliveredShares} shares called away`;
       footer = "CAMPAIGN RESOLUTION · ASSIGNED";
     } else if (isOpenRoll) {
       cashText = `${signedMoney(grossPremium)} received · ${money(trigger.dataset.premiumPerShare)}/sh`;

@@ -33,13 +33,7 @@
           <p>Live Schwab through your approved Developer API. Broker CSV. Demo.</p>
         </div>
 
-        <figure class="gateway-visual" aria-label="Two hand-drawn operators presenting an options lifecycle chart">
-          <div class="gateway-operator gateway-operator-left" aria-hidden="true">
-            <img src="{{ url_for('static', path='/incoooming-operators.png') }}" alt="">
-          </div>
-          <div class="gateway-operator gateway-operator-right" aria-hidden="true">
-            <img src="{{ url_for('static', path='/incoooming-operators.png') }}" alt="">
-          </div>
+        <figure class="gateway-visual" aria-label="Simulated options lifecycle chart">
           <div class="gateway-market-slab" aria-label="Simulated NVIDIA covered-call history">
             <div class="gateway-market-plot">
             <div class="gateway-market-meta" aria-hidden="true">
@@ -143,7 +137,7 @@
                 <span class="gateway-event-mini" aria-hidden="true"><b>#6 CLOSED / AUG 12</b><strong>RESOLVES #4 / $230C</strong><i><span>STOCK AT CLOSE</span><em>$206.84</em></i><i><span>BUYBACK</span><em>-$171</em></i><i><span>STRIKE BUFFER</span><em>11.2%</em></i><small>ROLL CHAIN COMPLETE</small></span>
               </button>
             </div>
-            <p class="gateway-market-hint">HOVER A SQUARE FOR DETAILS</p>
+            <p class="gateway-market-hint">HOVER OR FOCUS A SQUARE FOR DETAILS</p>
           </div>
         </figure>
       </section>
@@ -163,12 +157,12 @@
               <h2>{{ 'Open your live Schwab account.' if schwab_ready else 'Connect your approved Schwab app.' }}</h2>
             </div>
             <strong class="source-status {{ 'ready' if schwab_ready else 'attention' }}">
-              <i></i>{{ 'CONNECTED' if schwab_ready else ('AUTHORIZE' if schwab_credentials_configured else 'SETUP NEEDED') }}
+              <i></i>{{ 'TOKEN STORED' if schwab_ready else ('AUTHORIZE' if schwab_credentials_configured else 'SETUP NEEDED') }}
             </strong>
           </header>
 
           {% if schwab_ready %}
-          <p class="source-card-copy">This computer has a valid Schwab Developer API connection. Open your positions, options, activity, current marks, Greeks, and price history.</p>
+          <p class="source-card-copy">This computer has Schwab app credentials and a stored OAuth token. Open the desk to sync positions, options, activity, current marks, Greeks, and price history.</p>
           {% else %}
           <p class="source-card-copy">This is not a normal Schwab customer login. This early build requires your own approved Schwab Developer app, saved app credentials, and completed authorization.</p>
           {% endif %}
@@ -213,7 +207,7 @@
                     <label><input type="radio" name="broker" value="ibkr"><span><b>IBKR</b><small>STATEMENT</small></span></label>
                     <label><input type="radio" name="broker" value="generic"><span><b>GENERIC</b><small>OUR TEMPLATE</small></span></label>
                   </div>
-                  <p class="source-profile-truth"><b>THE FORMAT IS VERIFIED.</b> The selected adapter reads that broker's known columns. Preview stops mismatches and uncertain rows before they enter your book.</p>
+                  <p class="source-profile-truth"><b>FORMAT CHECKED.</b> The selected adapter checks supported broker columns. Preview stops mismatches and uncertain rows before they enter your book.</p>
                 </fieldset>
                 <label class="csv-file-field">CSV FILES
                   <input name="files" type="file" accept=".csv,text/csv" multiple required data-source-files>
@@ -226,7 +220,7 @@
               <nav class="source-export-help" aria-label="Official broker export help">
                 <span>EXPORT HELP</span>
                 <a href="https://help.streetsmart.schwab.com/edge/printablemanuals/edgemanual.pdf" target="_blank" rel="noopener">SCHWAB</a>
-                <a href="https://www.fidelity.com/webxpress/help/topics/learn_portfolio_positions.shtml" target="_blank" rel="noopener">FIDELITY</a>
+                <a href="https://www.fidelity.com/webcontent/ap002390-mlo-content/20.01/help/learn_open_positions.shtml" target="_blank" rel="noopener">FIDELITY</a>
                 <a href="https://robinhood.com/us/en/support/articles/finding-your-account-documents/" target="_blank" rel="noopener">ROBINHOOD</a>
               </nav>
               <footer class="source-template-links">
@@ -241,8 +235,8 @@
             <div class="source-card-index"><span>03</span><i></i></div>
             <div>
               <p>DEMO</p>
-              <h2>Kick the tires with fake money.</h2>
-              <span>Fictional CVX, KTOS, and URNM. Real dashboard machinery; zero brokerage connection.</span>
+              <h2>Explore a fictional portfolio.</h2>
+              <span>Fictional CVX, KTOS, and URNM data. No brokerage connection required.</span>
             </div>
             <form action="/sources/select" method="post">
               <input type="hidden" name="source_key" value="demo">

@@ -4,6 +4,17 @@
 *.sqlite3
 *.sqlite3-wal
 *.sqlite3-shm
+*.db
+*.db-wal
+*.db-shm
+*.log
+*.pem
+*.key
+*.p12
+*.pfx
+*.csv
+!examples/csv/*.csv
+!tests/fixtures/csv/**/*.csv
 .claude/
 .venv/
 .pytest_cache/

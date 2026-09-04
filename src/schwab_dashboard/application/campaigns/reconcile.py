@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, time
 from decimal import Decimal
 
 from schwab_dashboard.application.campaigns.models import (
@@ -13,6 +13,8 @@ from schwab_dashboard.application.campaigns.models import (
     CampaignLinkConfidence,
     OptionCampaign,
 )
+from schwab_dashboard.application.market_time import market_datetime
+from schwab_dashboard.application.option_lifecycle import lifecycle_event_type, option_side
 from schwab_dashboard.domain.instruments import OptionSide
 
 ZERO = Decimal("0")
@@ -52,7 +54,7 @@ def reconcile_option_campaigns(
     campaigns: dict[str, _WorkingCampaign] = {}
     active: defaultdict[str, list[_ActiveLot]] = defaultdict(list)
     annotations: dict[str, tuple[str, CampaignLinkConfidence, int, Decimal]] = {}
-    closed_by_order: defaultdict[str, list[_ActiveLot]] = defaultdict(list)
+    closed_by_order: defaultdict[tuple[str, str, str], list[_ActiveLot]] = defaultdict(list)
 
     for record in records:
         key = str(record["record_key"])
@@ -61,10 +63,11 @@ def reconcile_option_campaigns(
         action = str(record["action"])
         contracts = _decimal(record["contracts"])
         confidence = CampaignLinkConfidence.EXACT
+        roll_key = _roll_key(record)
 
         if action == "open":
             roll_parent, roll_confidence = _consume_single_campaign(
-                closed_by_order[order_key],
+                closed_by_order[roll_key] if order_key else [],
                 contracts,
             )
             same_contract_parent = _single_active_campaign(active[position_key])
@@ -104,7 +107,7 @@ def reconcile_option_campaigns(
                     campaign.status = str(record["status"])
                     campaign.closed_on = _date(record["occurred_at"])
                 if action == "close" and order_key:
-                    closed_by_order[order_key].append(_ActiveLot(campaign_id, contracts))
+                    closed_by_order[roll_key].append(_ActiveLot(campaign_id, contracts))
             else:
                 campaign_id = f"unlinked:{record['record_key']}"
                 confidence = CampaignLinkConfidence.UNKNOWN
@@ -187,21 +190,46 @@ def _normalized_records(
     exclusions: list[CampaignExclusion] = []
     long_inventory = _long_option_inventory(executions)
     for row in executions:
-        if str(row.get("asset_type")) != "option":
+        if _token(row.get("asset_type")) != "option":
             continue
-        opening = str(row.get("side")) == "sell" and str(row.get("position_effect")) == "opening"
-        closing = str(row.get("side")) == "buy" and str(row.get("position_effect")) == "closing"
+        opening = _token(row.get("side")) in {"sell", "sold"} and _token(
+            row.get("position_effect")
+        ) in {"open", "opening"}
+        closing = _token(row.get("side")) in {"buy", "bought"} and _token(
+            row.get("position_effect")
+        ) in {"close", "closing"}
         if not (opening or closing):
+            continue
+        record_key = _record_key(row)
+        symbol = str(row.get("symbol") or "").strip()
+        underlying = str(row.get("underlying_symbol") or "").strip()
+        contracts = abs(_decimal(row.get("quantity")))
+        if not symbol or not underlying or contracts <= ZERO:
+            exclusions.append(
+                CampaignExclusion(
+                    record_key=record_key,
+                    reason="OPTION IDENTITY OR QUANTITY IS MISSING",
+                )
+            )
+            continue
+        normalized_side = option_side(row.get("option_side"))
+        if normalized_side is None:
+            exclusions.append(
+                CampaignExclusion(
+                    record_key=record_key,
+                    reason="OPTION SIDE IS MISSING OR UNKNOWN",
+                )
+            )
             continue
         records.append(
             {
-                "record_key": _record_key(row),
+                "record_key": record_key,
                 "order_key": _scoped_key(row, "order_external_key"),
                 "position_key": _scoped_key(row, "symbol"),
-                "underlying_symbol": str(row.get("underlying_symbol")),
-                "option_side": str(row.get("option_side") or "call").lower(),
+                "underlying_symbol": underlying,
+                "option_side": normalized_side,
                 "occurred_at": _datetime(row.get("occurred_at")),
-                "contracts": abs(_decimal(row.get("quantity"))),
+                "contracts": contracts,
                 "action": "open" if opening else "close",
                 "status": "CLOSED",
                 "net_cash": _decimal(row.get("net_cash")),
@@ -209,26 +237,52 @@ def _normalized_records(
             }
         )
     for row in lifecycle_events:
-        event_type = str(row.get("event_type"))
-        if event_type not in {"expiration", "assignment"}:
+        event_type = lifecycle_event_type(row.get("event_type"))
+        if event_type not in {"expiration", "assignment", "exercise"}:
             continue
-        if _consume_long_inventory(long_inventory, row):
+        record_key = _record_key(row)
+        symbol = str(row.get("symbol") or "").strip()
+        underlying = str(row.get("underlying_symbol") or "").strip()
+        contracts = abs(_decimal(row.get("option_quantity")))
+        if not symbol or not underlying:
             exclusions.append(
                 CampaignExclusion(
-                    record_key=_record_key(row),
-                    reason="LONG OPTION LIFECYCLE — OUTSIDE SHORT-PREMIUM CAMPAIGNS",
+                    record_key=record_key,
+                    reason="OPTION IDENTITY IS MISSING",
+                )
+            )
+            continue
+        is_long_lifecycle = _consume_long_inventory(long_inventory, row)
+        if event_type == "exercise" or is_long_lifecycle:
+            exclusions.append(
+                CampaignExclusion(
+                    record_key=record_key,
+                    reason=(
+                        "EXERCISE — OUTSIDE SHORT-PREMIUM CAMPAIGNS"
+                        if event_type == "exercise"
+                        else "LONG OPTION LIFECYCLE — OUTSIDE SHORT-PREMIUM CAMPAIGNS"
+                    ),
+                )
+            )
+            continue
+        normalized_side = option_side(row.get("option_side"))
+        if normalized_side is None:
+            exclusions.append(
+                CampaignExclusion(
+                    record_key=record_key,
+                    reason="OPTION SIDE IS MISSING OR UNKNOWN",
                 )
             )
             continue
         records.append(
             {
-                "record_key": _record_key(row),
+                "record_key": record_key,
                 "order_key": "",
                 "position_key": _scoped_key(row, "symbol"),
-                "underlying_symbol": str(row.get("underlying_symbol")),
-                "option_side": str(row.get("option_side") or "call").lower(),
+                "underlying_symbol": underlying,
+                "option_side": normalized_side,
                 "occurred_at": _datetime(row.get("occurred_at")),
-                "contracts": abs(_decimal(row.get("option_quantity"))),
+                "contracts": contracts,
                 "action": event_type,
                 "status": "EXPIRED" if event_type == "expiration" else "ASSIGNED",
                 "net_cash": ZERO,
@@ -252,15 +306,17 @@ def _long_option_inventory(
 ) -> defaultdict[str, list[tuple[datetime, Decimal]]]:
     inventory: defaultdict[str, list[tuple[datetime, Decimal]]] = defaultdict(list)
     for row in sorted(executions, key=lambda item: _datetime(item.get("occurred_at"))):
-        if str(row.get("asset_type")) != "option":
+        if _token(row.get("asset_type")) != "option":
             continue
-        side = str(row.get("side"))
-        effect = str(row.get("position_effect"))
-        if (side, effect) not in {("buy", "opening"), ("sell", "closing")}:
+        side = _token(row.get("side"))
+        effect = _token(row.get("position_effect"))
+        is_long_open = side in {"buy", "bought"} and effect in {"open", "opening"}
+        is_long_close = side in {"sell", "sold"} and effect in {"close", "closing"}
+        if not (is_long_open or is_long_close):
             continue
         key = _scoped_key(row, "symbol")
         quantity = abs(_decimal(row.get("quantity")))
-        if side == "buy":
+        if is_long_open:
             inventory[key].append((_datetime(row.get("occurred_at")), quantity))
             continue
         remaining = quantity
@@ -349,7 +405,7 @@ def _scoped_key(row: Mapping[str, object], field_name: str) -> str:
     value = str(row.get(field_name) or "")
     if not value:
         return ""
-    return f"{row.get('account_mask') or 'default'}:{value}"
+    return f"{_account_scope(row)}:{value}"
 
 
 def campaign_record_key(row: Mapping[str, object]) -> str:
@@ -359,12 +415,26 @@ def campaign_record_key(row: Mapping[str, object]) -> str:
     """
 
     external_key = str(row.get("external_key"))
-    account_mask = str(row.get("account_mask") or "")
-    return f"{account_mask}:{external_key}" if account_mask else external_key
+    scope = _account_scope(row, default="")
+    return f"{scope}:{external_key}" if scope else external_key
+
+
+def _account_scope(row: Mapping[str, object], *, default: str = "default") -> str:
+    return str(row.get("account_id") or row.get("account_mask") or default).strip().casefold()
 
 
 def _record_key(row: Mapping[str, object]) -> str:
     return campaign_record_key(row)
+
+
+def _roll_key(record: Mapping[str, object]) -> tuple[str, str, str]:
+    """A broker order links roll legs only inside one underlying and option side."""
+
+    return (
+        str(record.get("order_key") or ""),
+        str(record.get("underlying_symbol") or "").strip().casefold(),
+        str(record.get("option_side") or "").strip().casefold(),
+    )
 
 
 def _weaker(
@@ -390,11 +460,17 @@ def _date(value: object) -> date:
 
 def _datetime(value: object) -> datetime:
     if isinstance(value, datetime):
-        return value.replace(tzinfo=None)
+        if value.tzinfo is None and value.time() == time.min:
+            return value
+        return market_datetime(value).replace(tzinfo=None)
     if isinstance(value, date):
         return datetime(value.year, value.month, value.day)
-    return datetime.fromisoformat(str(value))
+    return _datetime(datetime.fromisoformat(str(value).replace("Z", "+00:00")))
 
 
 def _decimal(value: object) -> Decimal:
     return ZERO if value is None else Decimal(str(value))
+
+
+def _token(value: object) -> str:
+    return str(value or "").strip().casefold().split(".")[-1]

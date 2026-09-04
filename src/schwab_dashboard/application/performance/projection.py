@@ -24,11 +24,16 @@ from schwab_dashboard.application.performance.models import (
     PerformanceSpine,
 )
 from schwab_dashboard.application.performance.overlay import build_executed_option_overlay
+from schwab_dashboard.application.performance.reconstruction import (
+    build_reconstructed_balance_history,
+)
 from schwab_dashboard.application.performance.returns import build_time_weighted_returns
 from schwab_dashboard.application.performance.risk import calculate_risk_statistics
 from schwab_dashboard.application.performance.sessions import build_market_calendar
 
 ZERO = Decimal("0")
+METHODOLOGY_VERSION = "incoooming-performance-v11"
+_QUALITY_RANK = {"observed": 0, "derived": 1, "estimated": 2, "unresolved": 3}
 
 
 def _last_valued_date(series: ComparisonSeries) -> date | None:
@@ -47,10 +52,63 @@ def _return_on(series: ComparisonSeries, as_of: date) -> Decimal | None:
         (
             point.cumulative_return_percent
             for point in reversed(series.points)
-            if point.date <= as_of and point.cumulative_return_percent is not None
+            if point.date == as_of and point.cumulative_return_percent is not None
         ),
         None,
     )
+
+
+def _quality_through(series: ComparisonSeries, as_of: date) -> str:
+    """Return the weakest provenance in the cumulative path through ``as_of``."""
+
+    points = tuple(point for point in series.points if point.date <= as_of)
+    qualities: list[str] = []
+    if series.status in {
+        "derived",
+        "price_only",
+        "derived_levered",
+        "carried_forward",
+        "estimated",
+    }:
+        qualities.append("derived")
+    if series.status == "estimated":
+        qualities.append("estimated")
+    if any(
+        point.interval_return_percent is not None
+        and point.return_quality in {"unresolved", "multi_session"}
+        for point in points
+    ):
+        qualities.append("unresolved")
+    if any(
+        point.value_quality == "estimated"
+        or (
+            point.interval_return_percent is not None
+            and point.return_quality in {"estimated", "provisional"}
+        )
+        for point in points
+    ):
+        qualities.append("estimated")
+    if any(
+        point.value_quality == "derived"
+        or (point.interval_return_percent is not None and point.return_quality == "derived")
+        for point in points
+    ):
+        qualities.append("derived")
+    for point in points:
+        if point.value_quality != "unresolved":
+            continue
+        legacy = point.quality.casefold()
+        if "estimated" in legacy or "carried" in legacy:
+            qualities.append("estimated")
+        elif "derived" in legacy or "price_only" in legacy:
+            qualities.append("derived")
+        elif legacy not in {"observed", "observed_anchor", "linked"}:
+            qualities.append("unresolved")
+    return _weakest_quality(qualities)
+
+
+def _weakest_quality(qualities: Sequence[str]) -> str:
+    return max(qualities or ("observed",), key=lambda item: _QUALITY_RANK.get(item, 3))
 
 
 def _matched_comparison(
@@ -62,17 +120,13 @@ def _matched_comparison(
 ) -> MatchedComparison:
     """Read every comparable series on the last session all of them reach."""
 
-    ends = [
-        day
-        for day in (
-            _last_valued_date(actual),
-            _last_valued_date(shares),
-            _last_valued_date(market),
-            _last_valued_date(levered_market),
-        )
-        if day is not None
+    required = (actual, shares, market, levered_market)
+    valued_dates = [
+        {point.date for point in series.points if point.cumulative_return_percent is not None}
+        for series in required
     ]
-    if not ends:
+    common_dates = set.intersection(*valued_dates) if all(valued_dates) else set()
+    if not common_dates:
         return MatchedComparison(
             status="not_available",
             as_of=None,
@@ -81,8 +135,11 @@ def _matched_comparison(
             market_return_percent=None,
             levered_market_return_percent=None,
             method_note="No series has a chained return yet, so no shared date exists.",
+            quality="unresolved",
         )
-    as_of = min(ends)
+    as_of = max(common_dates)
+    operand_qualities = tuple(_quality_through(series, as_of) for series in required)
+    quality = _weakest_quality(operand_qualities)
     return MatchedComparison(
         status="matched",
         as_of=as_of,
@@ -93,8 +150,10 @@ def _matched_comparison(
         method_note=(
             f"Every series is read on {as_of:%b %d, %Y}, the last session all of them cover. "
             "Price-derived series cannot extend past the latest published close, so comparing "
-            "each series' own final value would credit management with unmatched market days."
+            "each series' own final value would credit management with unmatched market days. "
+            f"Path quality is the weakest required input ({quality})."
         ),
+        quality=quality,
     )
 
 
@@ -109,8 +168,24 @@ def build_performance_comparison(
     margin_interest_rate_percent: Decimal = Decimal("11"),
 ) -> PerformanceComparison:
     calendar = build_market_calendar(daily_bars)
+    # A bounded-period reader may already have reconstructed the edge gap while
+    # it still had the preceding real anchor. Do not append the same synthetic
+    # account rows a second time after that reader trims the period window.
+    reconstructed_balances = (
+        tuple(balance_history)
+        if any(row.get("synthetic") for row in balance_history)
+        else build_reconstructed_balance_history(
+            balance_history=balance_history,
+            position_history=position_history,
+            daily_bars=daily_bars,
+            executions=executions,
+            cash_movements=cash_movements,
+            lifecycle_events=lifecycle_events,
+            calendar=calendar,
+        )
+    )
     actual_points = build_time_weighted_returns(
-        balance_history,
+        reconstructed_balances,
         cash_movements,
         calendar=calendar,
     )
@@ -169,7 +244,13 @@ def build_performance_comparison(
         else None
     )
     management_edge = ManagementEdge(
-        status="derived" if management_difference is not None else "not_available",
+        status=(
+            matched.quality
+            if management_difference is not None and matched.quality != "observed"
+            else "derived"
+            if management_difference is not None
+            else "not_available"
+        ),
         return_difference_percent=management_difference,
         method_note=(
             "Managed TWR minus starting stock plus your share trades, no overlay, both read on "
@@ -210,10 +291,39 @@ def build_performance_comparison(
         warnings.append(
             "At least two valued market days are needed for a meaningful chained return."
         )
+    unexplained_cash_links = sum(
+        point.quality == "unexplained_cash_movement" for point in actual_points
+    )
+    if unexplained_cash_links:
+        warnings.append(
+            f"{unexplained_cash_links} return link"
+            f"{'s are' if unexplained_cash_links != 1 else ' is'} withheld until unexplained "
+            "cash is classified."
+        )
     if external_flows:
         warnings.append("Deposits and withdrawals are excluded before returns are chained.")
+    reconstructed_sessions = sum(point.value_quality == "derived" for point in actual_points)
+    estimated_sessions = sum(point.value_quality == "estimated" for point in actual_points)
+    if reconstructed_sessions:
+        warnings.append(
+            f"{reconstructed_sessions} missing session"
+            f"{'s were' if reconstructed_sessions != 1 else ' was'} reconstructed from "
+            "positions and closes."
+        )
+    if estimated_sessions:
+        warnings.append(
+            f"{estimated_sessions} session"
+            f"{'s include' if estimated_sessions != 1 else ' includes'} estimated marks or "
+            "anchor reconciliation."
+        )
+    multi_session = sum(point.return_quality == "multi_session" for point in actual_points)
+    if multi_session:
+        warnings.append(
+            f"{multi_session} unresolved multi-session change"
+            f"{'s are' if multi_session != 1 else ' is'} excluded from daily risk."
+        )
     return PerformanceComparison(
-        methodology_version="incoooming-performance-v5",
+        methodology_version=METHODOLOGY_VERSION,
         range_label=(
             f"{actual_points[0].date:%b %d}-{actual_points[-1].date:%b %d, %Y}"
             if actual_points
@@ -227,7 +337,11 @@ def build_performance_comparison(
             label="Managed book",
             status="ready" if actual_return is not None else "waiting",
             return_percent=actual_return,
-            method_note="Daily time-weighted return from broker net-liquidation snapshots.",
+            method_note=(
+                "Time-weighted return from immutable broker anchors plus visibly labelled "
+                "position-replayed sessions. Estimated and multi-session edges are excluded "
+                "from observed daily risk."
+            ),
             points=actual_points,
         ),
         shares_without_options=shares_baseline,
@@ -253,4 +367,6 @@ def build_performance_comparison(
         ),
         warnings=tuple(warnings),
         matched=matched,
+        reconstructed_sessions=reconstructed_sessions,
+        estimated_sessions=estimated_sessions,
     )

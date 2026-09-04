@@ -10,7 +10,7 @@
       </div>
       <div class="campaign-metrics">
         <div><span>NET CASH TO DATE</span><strong class="{{ campaign.net_cash_to_date | pnl_class }}">{{ campaign.net_cash_to_date | money }}</strong></div>
-        <div><span>OPEN MARK P/L</span><strong class="{{ campaign.open_mark_profit_loss | pnl_class }}">{{ campaign.open_mark_profit_loss | money }}</strong></div>
+        <div><span>OPEN MARK P/L</span><strong class="{{ campaign.open_mark_profit_loss | pnl_class }}">{{ campaign.open_mark_profit_loss | money }}</strong><small>{% if campaign.open_mark_profit_loss is none and campaign.status == 'OPEN' %}Live lot or mark unavailable{% endif %}</small></div>
         <div><span>{{ 'CASH / ASSIGN. NOTIONAL' if campaign.option_side == 'put' else 'CASH / COVERED CAPITAL' }}</span><strong>{{ campaign.cash_on_capital_percent | percent }}</strong></div>
       </div>
       <div class="campaign-footer">

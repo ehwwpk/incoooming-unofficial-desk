@@ -86,7 +86,8 @@ ITM proxy only when explicitly labeled; it is not a guaranteed probability.
 
 ## Verification requirements
 
-- Adjusted deliverables and non-100 multipliers produce correct obligation exposure.
+- Standard and explicitly known non-100 deliverables produce exact obligation exposure. Adjusted
+  or unresolved deliverables leave share obligations and assignment notional unavailable.
 - Missing Greeks reduce coverage percentages instead of becoming zeros.
 - Stale or crossed quotes cannot silently drive a trusted mark.
 - Portfolio aggregates equal the sum of visible contract contributions at the same snapshot.

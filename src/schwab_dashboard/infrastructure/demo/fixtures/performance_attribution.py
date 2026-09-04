@@ -12,6 +12,7 @@ from schwab_dashboard.application.dashboard.performance import (
     PerformanceWindowSummary,
     StrategyAttributionSummary,
 )
+from schwab_dashboard.application.values import sum_if_complete
 from schwab_dashboard.infrastructure.demo.fixtures.daily_prices import DAILY_CLOSES
 
 D = Decimal
@@ -61,15 +62,15 @@ def _attribution_row(
         ((item.current_price - starting_prices[item.symbol]) * item.shares for item in underlyings),
         ZERO,
     )
-    open_mark = sum(
+    open_mark = sum_if_complete(
         (
             clock.open_profit_loss
             for item in underlyings
             for clock in item.open_call_clocks
-            if clock.sold_on >= start
+            if clock.sold_on is not None and clock.sold_on >= start
         ),
-        ZERO,
     )
+    assert open_mark is not None
     completed_option_result = sum(
         (
             record.net_cash - record.fees

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
@@ -27,6 +28,7 @@ from schwab_dashboard.domain.ledger import (
     OptionLifecycleType,
     PositionEffect,
 )
+from schwab_dashboard.infrastructure.database.analytics_reader import SqlLiveAnalyticsReader
 from schwab_dashboard.infrastructure.database.tables import (
     CashMovementTable,
     ExecutionTable,
@@ -190,3 +192,131 @@ def test_reused_source_identity_with_changed_economics_is_rejected(
         execution = session.scalar(select(ExecutionTable))
         assert execution is not None
         assert execution.price == Decimal("2.4500000000")
+
+
+def test_lifecycle_row_accepts_one_way_ambiguity_safety_enrichment(
+    database_runtime: tuple[object, object, object],
+) -> None:
+    _, session_factory, existing_uow_factory = database_runtime
+    raw_event_id = _seed_source(existing_uow_factory)
+    service = RecordLedgerActivity(
+        uow_factory=build_truth_uow_factory(session_factory),  # type: ignore[arg-type]
+    )
+    original = _batch(raw_event_id)
+    service.execute(original)
+    old_event = original.lifecycle_events[0]
+    enriched = replace(
+        original,
+        lifecycle_events=(
+            replace(
+                old_event,
+                details={**old_event.details, "delivery_ambiguous": True},
+            ),
+        ),
+    )
+
+    service.execute(enriched)
+
+    with session_factory() as session:  # type: ignore[operator]
+        event = session.scalar(select(OptionLifecycleEventTable))
+        assert event is not None
+        assert event.details["delivery_ambiguous"] is True
+
+
+def test_lifecycle_row_accepts_one_way_source_backed_delivery_enrichment(
+    database_runtime: tuple[object, object, object],
+) -> None:
+    _, session_factory, existing_uow_factory = database_runtime
+    raw_event_id = _seed_source(existing_uow_factory)
+    service = RecordLedgerActivity(
+        uow_factory=build_truth_uow_factory(session_factory),  # type: ignore[arg-type]
+    )
+    complete = _batch(raw_event_id)
+    old_event = replace(
+        complete.lifecycle_events[0],
+        stock_instrument_external_key=None,
+        stock_quantity=None,
+        cash_amount=None,
+        details={},
+    )
+    service.execute(replace(complete, lifecycle_events=(old_event,)))
+
+    service.execute(complete)
+
+    with session_factory() as session:  # type: ignore[operator]
+        event = session.scalar(select(OptionLifecycleEventTable))
+        assert event is not None
+        assert event.stock_instrument_id is not None
+        assert event.stock_quantity == Decimal("200")
+        assert event.cash_amount == Decimal("13000")
+
+
+def test_activity_from_failed_full_sync_publishes_only_after_successful_retry(
+    database_runtime: tuple[object, object, object],
+) -> None:
+    _, session_factory, existing_uow_factory = database_runtime
+    _seed_source(existing_uow_factory)
+    service = RecordLedgerActivity(
+        uow_factory=build_truth_uow_factory(session_factory),  # type: ignore[arg-type]
+    )
+
+    def staged_activity() -> tuple[str, str]:
+        with existing_uow_factory() as uow:  # type: ignore[operator]
+            full_run = uow.sync_runs.start(
+                source="schwab_full",
+                started_at=datetime.now(UTC),
+            )
+            uow.commit()
+        with existing_uow_factory() as uow:  # type: ignore[operator]
+            observed_at = datetime.now(UTC)
+            activity_run = uow.sync_runs.start(
+                source="schwab_activity",
+                started_at=observed_at,
+            )
+            raw_event_id = uow.raw_events.add(
+                sync_run_id=activity_run,
+                item_key="transaction:retryable",
+                event_type="transaction",
+                account_external_key="account-1",
+                observed_at=observed_at,
+                parser_version="test-v1",
+                payload={"activityId": "retryable"},
+            )
+            uow.sync_runs.complete(
+                activity_run,
+                completed_at=datetime.now(UTC),
+                account_count=1,
+                position_count=0,
+            )
+            uow.commit()
+        return full_run, raw_event_id
+
+    failed_full, failed_raw = staged_activity()
+    service.execute(_batch(failed_raw))
+    with existing_uow_factory() as uow:  # type: ignore[operator]
+        uow.sync_runs.fail(
+            failed_full,
+            completed_at=datetime.now(UTC),
+            error_message="market refresh failed",
+        )
+        uow.commit()
+
+    reader = SqlLiveAnalyticsReader(session_factory)  # type: ignore[arg-type]
+    assert reader.list_executions() == ()
+    assert reader.list_cash_movements() == ()
+    assert reader.list_lifecycle_events() == ()
+
+    successful_full, successful_raw = staged_activity()
+    service.execute(_batch(successful_raw))
+    with existing_uow_factory() as uow:  # type: ignore[operator]
+        uow.sync_runs.complete(
+            successful_full,
+            completed_at=datetime.now(UTC),
+            account_count=1,
+            position_count=0,
+        )
+        uow.commit()
+
+    assert len(reader.list_executions()) == 1
+    assert len(reader.list_cash_movements()) == 1
+    assert len(reader.list_lifecycle_events()) == 1

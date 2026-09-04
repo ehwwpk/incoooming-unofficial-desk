@@ -356,9 +356,10 @@
       delete rollRow.dataset.rollTone;
     }
     setText(root, "[data-radar-map-boundary]", `${money(candidate.strike, 2)} · ${isCall ? "ITM ABOVE" : "ITM BELOW"}`);
+    const deliverableShares = Number(candidate.contract_multiplier || 100);
     setText(root, "[data-radar-map-outcome]", isCall
-      ? "Above this strike at expiration, 100 shares per contract may be called away."
-      : "Below this strike at expiration, 100 shares per contract may be assigned to you.");
+      ? `Above this strike at expiration, ${deliverableShares} shares per contract may be called away.`
+      : `Below this strike at expiration, ${deliverableShares} shares per contract may be assigned to you.`);
     setText(root, "[data-radar-map-room]", `${money(candidate.room_dollars, 2)} · ${number(candidate.room_percent, 1)}%`);
     setText(root, "[data-radar-map-room-note]", isCall
       ? "Current stock price to the call strike."

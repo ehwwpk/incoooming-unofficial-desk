@@ -22,6 +22,7 @@ from schwab_dashboard.application.dashboard.option_activity import (
     RecentOptionActivityItem,
 )
 from schwab_dashboard.application.dashboard.premium_pace import build_demo_premium_pace
+from schwab_dashboard.application.values import sum_if_complete
 from schwab_dashboard.infrastructure.demo.fixtures.call_history import build_call_history
 from schwab_dashboard.infrastructure.demo.fixtures.call_stats import (
     build_covered_call_summary,
@@ -124,6 +125,8 @@ class DemoDashboardReader:
         policies = build_policies()
         campaigns = build_campaigns(call_history, underlyings, policies, as_of)
         windows_by_key = {window.key: window for window in performance_windows}
+        daily_theta = sum_if_complete(item.open_call_theta_per_day for item in underlyings)
+        assert daily_theta is not None
         return DashboardSnapshot(
             mode="demo",
             as_of=datetime(as_of.year, as_of.month, as_of.day, 21, 15, tzinfo=UTC),
@@ -184,10 +187,7 @@ class DemoDashboardReader:
             risk=RiskSummary(
                 buying_power_used_percent=D("7.8"),
                 portfolio_delta=D("1624.0"),
-                daily_theta=sum(
-                    (item.open_call_theta_per_day for item in underlyings),
-                    D("0"),
-                ),
+                daily_theta=daily_theta,
                 short_contracts=covered_calls.active_contracts,
                 next_expiration=min(
                     clock.expires_on for item in underlyings for clock in item.open_call_clocks

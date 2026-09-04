@@ -204,7 +204,9 @@
 @media (max-width: 650px) {
   .desk-topbar { grid-template-columns: auto minmax(0, 1fr); }
   .desk-topbar .brand { grid-column: 1; grid-row: 1; }
+  .desk-topbar .brand small { display: none; }
   .desk-topbar .product-nav { grid-column: 2; grid-row: 1; justify-self: stretch; }
+  .desk-topbar .product-nav-desk { min-width: 0; flex: 1 1 0; padding-inline: 5px; }
   .desk-topbar .command-jump { grid-column: 1 / -1; grid-row: 2; min-height: 39px; border-top: 1px solid var(--line); }
   .desk-topbar .session-state { grid-column: 1 / -1; grid-row: 3; width: 100%; max-width: none; min-height: 28px; border-top: 1px solid var(--line); }
   .workspace-topbar .session-state { grid-column: 1 / -1; grid-row: 2; width: 100%; max-width: none; min-height: 28px; border-top: 1px solid var(--line); }

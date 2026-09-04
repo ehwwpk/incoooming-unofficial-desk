@@ -6,8 +6,10 @@ from urllib.parse import parse_qs, urlencode, urlparse
 
 import httpx
 
-from schwab_dashboard.application.errors import AuthenticationRequiredError
+from schwab_dashboard.application.errors import AuthenticationRequiredError, BrokerRequestError
 from schwab_dashboard.application.ports.tokens import OAuthTokenSet, TokenStore
+
+MAX_CALLBACK_URL_LENGTH = 8_192
 
 
 def _nested_oauth_payload(value: object) -> dict[str, object] | None:
@@ -119,19 +121,37 @@ class SchwabOAuthClient:
 
     def exchange_callback_url(self, callback_url: str) -> OAuthTokenSet:
         normalized_callback = callback_url.strip()
-        parsed = urlparse(normalized_callback)
-        if _callback_target(normalized_callback) != _callback_target(self._callback_url):
+        if len(normalized_callback) > MAX_CALLBACK_URL_LENGTH:
+            raise AuthenticationRequiredError("The pasted callback URL is too long.")
+        try:
+            parsed = urlparse(normalized_callback)
+            supplied_target = _callback_target(normalized_callback)
+            configured_target = _callback_target(self._callback_url)
+            query = parse_qs(parsed.query, keep_blank_values=True, max_num_fields=16)
+        except ValueError as exc:
+            raise AuthenticationRequiredError("The pasted callback URL is malformed.") from exc
+        if supplied_target != configured_target:
             raise AuthenticationRequiredError(
                 "The callback URL does not match this app's configured Schwab callback."
             )
-        query = parse_qs(parsed.query)
         if "error" in query:
-            detail = query.get("error_description", query["error"])[0]
-            raise AuthenticationRequiredError(f"Schwab authorization failed: {detail}")
+            callback_payload: dict[str, object] = {"error": query["error"][0]}
+            descriptions = query.get("error_description")
+            if descriptions:
+                callback_payload["error_description"] = descriptions[0]
+            provider_error, safe_detail = _safe_oauth_rejection(callback_payload)
+            detail = f" {safe_detail}" if safe_detail else " Try authorizing again."
+            raise AuthenticationRequiredError(
+                f"Schwab authorization failed ({provider_error}).{detail}"
+            )
         code_values = query.get("code")
-        if not code_values or not code_values[0]:
+        if not code_values:
             raise AuthenticationRequiredError(
                 "The pasted callback URL does not contain an authorization code."
+            )
+        if len(code_values) != 1 or not code_values[0]:
+            raise AuthenticationRequiredError(
+                "The pasted callback URL must contain exactly one authorization code."
             )
         token = self._request_token(
             {
@@ -187,12 +207,15 @@ class SchwabOAuthClient:
         *,
         previous: OAuthTokenSet | None = None,
     ) -> OAuthTokenSet:
-        response = self._http.post(
-            self._token_url,
-            data=form,
-            auth=httpx.BasicAuth(self._app_key, self._app_secret),
-            headers={"Accept": "application/json"},
-        )
+        try:
+            response = self._http.post(
+                self._token_url,
+                data=form,
+                auth=httpx.BasicAuth(self._app_key, self._app_secret),
+                headers={"Accept": "application/json"},
+            )
+        except httpx.HTTPError as exc:
+            raise BrokerRequestError("Schwab's OAuth service could not be reached.") from exc
         if response.status_code in {400, 401}:
             provider_error = "unknown_oauth_error"
             safe_detail: str | None = None
@@ -210,8 +233,21 @@ class SchwabOAuthClient:
                 "Schwab rejected the OAuth token request "
                 f"(HTTP {response.status_code}, {provider_error}).{detail}"
             )
-        response.raise_for_status()
-        payload: Any = response.json()
+        if response.is_error:
+            raise BrokerRequestError(
+                f"Schwab's OAuth service failed (HTTP {response.status_code})."
+            )
+        try:
+            payload: Any = response.json()
+        except ValueError as exc:
+            raise AuthenticationRequiredError(
+                "Schwab returned an unreadable OAuth response."
+            ) from exc
         if not isinstance(payload, dict):
             raise AuthenticationRequiredError("Schwab returned an unexpected OAuth response shape.")
-        return OAuthTokenSet.from_oauth_response(payload, previous=previous)
+        try:
+            return OAuthTokenSet.from_oauth_response(payload, previous=previous)
+        except (TypeError, ValueError) as exc:
+            raise AuthenticationRequiredError(
+                "Schwab returned an invalid OAuth token response."
+            ) from exc

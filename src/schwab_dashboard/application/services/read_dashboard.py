@@ -38,6 +38,7 @@ from schwab_dashboard.application.market_time import market_date
 from schwab_dashboard.application.performance.projection import build_performance_comparison
 from schwab_dashboard.application.ports.analytics import LiveAnalyticsReader
 from schwab_dashboard.application.ports.repositories import UnitOfWorkFactory
+from schwab_dashboard.application.values import sum_if_complete
 
 ZERO = Decimal("0")
 
@@ -98,13 +99,11 @@ class ReadDashboard:
                 {(position.underlying_symbol or position.symbol).upper() for position in positions}
             )
         )
-        historical_stock_symbols = {
-            str(row.get("symbol") or "").strip().upper()
-            for row in position_history
-            if str(row.get("asset_type") or "").upper() != "OPTION"
+        historical_position_symbols = {
+            str(row.get("symbol") or "").strip().upper() for row in position_history
         }
         daily_bar_symbols = tuple(
-            sorted({*underlying_symbols, *historical_stock_symbols, "SPY"} - {""})
+            sorted({*underlying_symbols, *historical_position_symbols, "SPY"} - {""})
         )
 
         evaluated_at = self._clock()
@@ -153,8 +152,10 @@ class ReadDashboard:
             executions=executions,
         )
         open_premium_pace = build_open_premium_pace(live_book, executions)
-        covered_capital = sum(
-            (abs(item.market_value or ZERO) for item in live_book.underlyings), ZERO
+        covered_capital = sum_if_complete(
+            abs(item.market_value) if item.market_value is not None else None
+            for item in live_book.underlyings
+            if item.shares > 0
         )
         performance = build_live_performance(
             executions=executions,
@@ -202,7 +203,7 @@ class ReadDashboard:
             option for option in (*live_book.calls, *live_book.puts) if option.can_close_or_roll
         )
         portfolio_delta = (
-            Decimal(live_book.total_shares)
+            live_book.total_shares
             + sum(
                 (
                     -option.delta * option.contract_multiplier * Decimal(option.contracts)
@@ -216,14 +217,13 @@ class ReadDashboard:
         )
         risk = RiskSummary(
             buying_power_used_percent=(
-                (portfolio.maintenance_requirement or ZERO) / portfolio.total_value * Decimal("100")
-                if portfolio.total_value
-                else ZERO
+                portfolio.maintenance_requirement / portfolio.total_value * Decimal("100")
+                if portfolio.maintenance_requirement is not None and portfolio.total_value
+                else None
             ),
             portfolio_delta=portfolio_delta,
-            daily_theta=sum(
-                (item.estimated_option_theta_per_day for item in live_book.underlyings),
-                ZERO,
+            daily_theta=sum_if_complete(
+                option.price_time_read.theta_per_day for option in active_risk_options
             ),
             short_contracts=live_book.open_call_contracts + live_book.open_put_contracts,
             next_expiration=min(
@@ -297,7 +297,7 @@ class ReadDashboard:
 
 def _empty_covered_calls() -> CoveredCallPortfolioSummary:
     return CoveredCallPortfolioSummary(
-        total_shares=0,
+        total_shares=ZERO,
         contract_capacity=0,
         active_contracts=0,
         coverage_percent=ZERO,
@@ -307,7 +307,7 @@ def _empty_covered_calls() -> CoveredCallPortfolioSummary:
         closed_contracts=0,
         rolled_contracts=0,
         assigned_contracts=0,
-        called_away_shares=0,
+        called_away_shares=ZERO,
         gross_premium=ZERO,
         buyback_cost=ZERO,
         net_option_cash=ZERO,

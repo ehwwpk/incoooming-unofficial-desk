@@ -34,6 +34,15 @@ def number(value: Any, decimals: int = 2) -> str:
     return f"{amount:,.{decimals}f}"
 
 
+def quantity(value: Any) -> str:
+    """Format exact share/deliverable quantities without insignificant zeros."""
+
+    if value is None:
+        return "—"
+    rendered = f"{Decimal(str(value)):,f}"
+    return rendered.rstrip("0").rstrip(".") if "." in rendered else rendered
+
+
 def percent(value: Any, decimals: int = 1) -> str:
     if value is None:
         return "—"
@@ -66,6 +75,7 @@ templates.env.filters.update(
     {
         "money": money,
         "number": number,
+        "quantity": quantity,
         "percent": percent,
         "short_date": short_date,
         "pnl_class": pnl_class,

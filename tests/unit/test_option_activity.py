@@ -190,6 +190,41 @@ def test_orderless_close_and_open_are_not_invented_as_a_roll() -> None:
     assert outcomes.bought_back_contracts == 1
 
 
+def test_outcomes_normalize_assignment_alias_and_multiplier() -> None:
+    opening = _execution(
+        "adjusted-open",
+        "adjusted-open",
+        symbol="CVX  260821C00205000",
+        side="sell",
+        effect="opening",
+        strike="205",
+        expiration=date(2026, 8, 21),
+        net_cash="90",
+    )
+    assignment = {
+        **_lifecycle(
+            "adjusted-assignment",
+            "CVX  260821C00205000",
+            "Assigned",
+            quantity=1,
+        ),
+        "stock_quantity": None,
+        "contract_multiplier": D("150"),
+        "option_side": "CALL",
+    }
+
+    outcomes = build_option_outcomes(
+        (opening,),
+        (assignment,),
+        as_of=AS_OF,
+        open_call_contracts=0,
+        open_put_contracts=0,
+    )
+
+    assert outcomes.assigned_contracts == 1
+    assert outcomes.assignment_shares == 150
+
+
 def _execution(
     external_key: str,
     order_key: str,

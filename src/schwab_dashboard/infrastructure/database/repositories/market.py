@@ -43,9 +43,7 @@ class SqlRawMarketEventRepository:
         payload_hash = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
         if external_event_key.startswith(("history:", "intraday:")):
             event_prefix = (
-                "intraday:%"
-                if external_event_key.startswith("intraday:")
-                else "history:%"
+                "intraday:%" if external_event_key.startswith("intraday:") else "history:%"
             )
             unchanged_history = self._session.scalar(
                 select(RawMarketEventTable)

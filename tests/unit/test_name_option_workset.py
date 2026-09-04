@@ -192,7 +192,7 @@ def test_desk_row_puts_nearer_expiries_in_the_working_set() -> None:
     assert row.overflow_put_count == 0
     assert row.overflow_call_count == 1
     assert row.priority_status_caption == "NEAREST 3 BY EXPIRATION"
-    assert row.open_option_theta_per_day >= row.underlying.open_call_theta_per_day
+    assert row.open_option_theta_per_day is None
 
     rendered = templates.env.get_template("partials/_underlyings.html").render(
         snapshot=snapshot_with_puts,
@@ -204,9 +204,12 @@ def test_desk_row_puts_nearer_expiries_in_the_working_set() -> None:
     assert ktos_card.count("underlying-contract-grid") == 1
     assert "contract-call-lane" not in ktos_card
     assert "contract-put-lane" not in ktos_card
-    assert 'data-option-side="put"' in ktos_card.split("underlying-priority-options", 1)[1].split(
-        "underlying-contract-shelf", 1
-    )[0]
+    assert (
+        'data-option-side="put"'
+        in ktos_card.split("underlying-priority-options", 1)[1].split(
+            "underlying-contract-shelf", 1
+        )[0]
+    )
 
 
 def test_name_iv_and_theta_include_open_puts() -> None:
@@ -286,4 +289,3 @@ def test_name_open_option_value_now_sums_call_and_put_clocks() -> None:
         (clock.current_option_value for clock in overflow_puts),
         D("0"),
     )
-

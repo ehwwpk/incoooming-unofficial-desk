@@ -98,6 +98,16 @@ stale quotes fail the execution gate or appear only as rejected evidence.
 All calculations use decimal arithmetic, the normalized contract multiplier, and an explicit day-count
 convention. Values that require unavailable inputs remain unavailable.
 
+Radar currently compares only simple options that deliver 100 shares of the named underlying. It
+excludes mini, adjusted, cash, and multi-security deliverables instead of treating a premium
+multiplier as proof of share coverage. If any open call has unresolved delivery terms, Radar also
+withholds new covered-call capacity until those terms are known.
+
+Share capacity is account-specific. Radar does not combine partial lots from separate brokerage
+accounts. When the same stock is held in more than one account, a new covered-call scan withholds
+size until one account is selected. A roll can use only the source contract's account and releases
+that contract's known physical share delivery, which may differ from its premium multiplier.
+
 ```text
 call_room_dollars = strike - spot
 call_room_percent = call_room_dollars / spot * 100

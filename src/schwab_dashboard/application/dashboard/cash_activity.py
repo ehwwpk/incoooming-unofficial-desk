@@ -68,6 +68,7 @@ def _activity_window(
         net_option_cash=window.option_cash,
         total_strategy_cash=window.total_cash,
         events=tuple(recent),
+        fees=window.fees,
     )
 
 

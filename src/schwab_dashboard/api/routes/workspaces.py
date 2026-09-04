@@ -90,15 +90,12 @@ def workspace_page(
         context["radar_held_symbols"] = container.premium_radar().held_symbols(snapshot)
         context["radar_saved_symbols"] = container.premium_radar().saved_symbols()
         context["radar_roll_sources"] = build_roll_source_catalog(snapshot)
-        context["radar_book_pulse"] = {
-            row.symbol: row for row in build_volatility_rows(snapshot)
-        }
+        context["radar_book_pulse"] = {row.symbol: row for row in build_volatility_rows(snapshot)}
     elif workspace_key is WorkspaceKey.ATTRIBUTION and snapshot.performance_comparison:
         if source_key == "schwab":
             context["selected_performance_period"] = period.value
             context["performance_period_options"] = tuple(
-                {"value": item.value, "label": item.label}
-                for item in PERFORMANCE_PERIODS
+                {"value": item.value, "label": item.label} for item in PERFORMANCE_PERIODS
             )
         context["performance_comparison_payload"] = jsonable_encoder(
             asdict(snapshot.performance_comparison)

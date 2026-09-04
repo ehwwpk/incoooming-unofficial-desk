@@ -22,7 +22,7 @@
     <div class="risk-grid">
       <div><span>BUYING POWER</span><strong>{{ snapshot.risk.buying_power_used_percent | percent }}</strong></div>
       <div><span>PORT DELTA</span><strong>{% if snapshot.risk.portfolio_delta is not none %}{{ snapshot.risk.portfolio_delta | number(1) }}{% else %}&mdash;{% endif %}</strong><small>{% if snapshot.risk.portfolio_delta is none %}Greek coverage incomplete{% endif %}</small></div>
-      <div title="Theoretical one-day option value decay across open short calls, holding other pricing inputs constant. Not realized income."><span>TIME DECAY EST. / DAY</span><strong>+{{ snapshot.risk.daily_theta | money }}</strong></div>
+      <div title="Theoretical one-day option value decay across open short options, holding other pricing inputs constant. Not realized income."><span>TIME DECAY EST. / DAY</span><strong>{% if snapshot.risk.daily_theta is not none %}+{{ snapshot.risk.daily_theta | money }}{% else %}&mdash;{% endif %}</strong><small>{% if snapshot.risk.daily_theta is none %}Greek coverage incomplete{% endif %}</small></div>
       <div><span>SHORT CONTRACTS</span><strong>{{ snapshot.risk.short_contracts }}</strong></div>
       <div><span>LARGEST NAME</span><strong>{{ snapshot.risk.largest_position_percent | percent }}</strong></div>
       <div><span>NEXT EXPIRY</span><strong>{{ snapshot.risk.next_expiration | short_date }}</strong></div>

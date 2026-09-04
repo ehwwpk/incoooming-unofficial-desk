@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 import pytest
 
 from schwab_dashboard.application.imports import parse_csv_file
+from schwab_dashboard.application.market_time import ledger_market_date
 from schwab_dashboard.domain.data_source import BrokerKind, ImportRecordKind
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "csv"
@@ -87,6 +89,94 @@ def test_adjusted_option_uses_exported_multiplier_and_blocks_unknown_multiplier(
     assert imported["contract_multiplier"] == "150"
     assert imported["multiplier_source"] == "exported"
     assert imported["gross_amount"] == "150.00"
+
+
+def test_numeric_occ_root_without_multiplier_is_treated_as_adjusted() -> None:
+    content = (
+        b"Account,Symbol,Description,Quantity,Last Price,Market Value\n"
+        b"Brokerage 4321,CVX,Chevron Corp,100,195.00,19500.00\n"
+        b"Brokerage 4321,XYZ1  260821C00050000,XYZ option,-1,1.00,-100.00\n"
+    )
+
+    parsed = parse_csv_file(filename="positions.csv", content=content)
+
+    assert parsed.imported_count == 1
+    assert parsed.review_count == 1
+    assert "reliable exported multiplier" in next(
+        row.reason or "" for row in parsed.rows if row.reason and "multiplier" in row.reason
+    )
+
+
+def test_adjusted_execution_uses_net_cash_to_recover_gross_credit() -> None:
+    content = (
+        b"Account,Date,Action,Symbol,Description,Quantity,Price,Fees,Amount\n"
+        b"Brokerage 4321,08/01/2026,Sell to Open,XYZ1  260821C00050000,"
+        b"XYZ option,1,1.00,1.00,149.00\n"
+    )
+
+    parsed = parse_csv_file(filename="activity.csv", content=content)
+    execution = parsed.records[0].normalized
+
+    assert execution["contract_multiplier"] is None
+    assert execution["multiplier_source"] == "unknown_adjusted"
+    assert execution["gross_amount"] == "150.00"
+    assert execution["net_cash"] == "149.00"
+
+
+def test_ambiguous_cash_is_preserved_without_becoming_owner_capital() -> None:
+    content = (
+        b"Account,Date,Action,Symbol,Description,Quantity,Price,Fees,Amount\n"
+        b"Brokerage 4321,08/01/2026,Journal,,Internal adjustment,,,,$25000.00\n"
+    )
+
+    parsed = parse_csv_file(filename="activity.csv", content=content)
+
+    assert parsed.records[0].kind is ImportRecordKind.CASH_MOVEMENT
+    assert parsed.records[0].normalized["movement_type"] == "other"
+    assert parsed.records[0].normalized["amount"] == "25000.00"
+
+
+def test_ibkr_proceeds_are_made_fee_net_and_codes_preserve_position_effect() -> None:
+    content = (
+        b"Trades,Header,Asset Category,Symbol,Description,Date/Time,Quantity,T. Price,"
+        b"Proceeds,Comm/Fee,Mult,Code\n"
+        b"Trades,Data,Options,CVX  260821C00205000,CVX option,"
+        b"2026-08-01 10:30:00,-1,1.25,125,-0.03,100,O\n"
+    )
+
+    parsed = parse_csv_file(filename="statement.csv", content=content, broker=BrokerKind.IBKR)
+    execution = parsed.records[0].normalized
+
+    assert execution["gross_amount"] == "125.00"
+    assert execution["fees"] == "0.03"
+    assert execution["net_cash"] == "124.97"
+    assert execution["position_effect"] == "opening"
+    assert ledger_market_date(
+        datetime.fromisoformat(str(execution["occurred_at"]))
+    ).isoformat() == ("2026-08-01")
+
+
+def test_ibkr_bare_transfer_is_unresolved_cash_not_owner_capital() -> None:
+    content = (
+        b"Cash Transactions,Header,Currency,Date/Time,Description,Amount,Symbol\n"
+        b"Cash Transactions,Data,USD,2026-08-02,Internal transfer,1000,\n"
+    )
+
+    parsed = parse_csv_file(filename="statement.csv", content=content, broker=BrokerKind.IBKR)
+
+    assert parsed.records[0].normalized["movement_type"] == "other"
+
+
+def test_ibkr_unsigned_withdrawal_is_normalized_to_an_owner_cash_outflow() -> None:
+    content = (
+        b"Cash Transactions,Header,Currency,Date/Time,Description,Amount,Symbol\n"
+        b"Cash Transactions,Data,USD,2026-08-02,Withdrawal,250,\n"
+    )
+
+    parsed = parse_csv_file(filename="statement.csv", content=content, broker=BrokerKind.IBKR)
+
+    assert parsed.records[0].normalized["movement_type"] == "transfer"
+    assert parsed.records[0].normalized["amount"] == "-250"
 
 
 def test_fingerprint_is_stable_when_a_broker_preamble_changes() -> None:

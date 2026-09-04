@@ -28,6 +28,7 @@ from schwab_dashboard.application.market_time import (
 )
 from schwab_dashboard.application.risk.models import UnderlyingRiskView
 from schwab_dashboard.application.risk.projection import build_open_risk_summary
+from schwab_dashboard.application.values import sum_if_complete
 
 ZERO = Decimal("0")
 NAME_OPTION_PRIORITY = 3
@@ -53,8 +54,8 @@ class DeskOptionFocus:
     symbol: str
     option_type: str
     strike: Decimal
-    strike_distance_per_share: Decimal
-    strike_distance_percent: Decimal
+    strike_distance_per_share: Decimal | None
+    strike_distance_percent: Decimal | None
     days_to_expiration: int
     expires_on: date
     anchor_id: str
@@ -113,13 +114,13 @@ class NameOptionSlot:
         return clock.expiration_assessment
 
     @property
-    def current_option_value(self) -> Decimal:
+    def current_option_value(self) -> Decimal | None:
         clock = self.call if self.call is not None else self.put
         assert clock is not None
         return clock.current_option_value
 
     @property
-    def open_profit_loss(self) -> Decimal:
+    def open_profit_loss(self) -> Decimal | None:
         clock = self.call if self.call is not None else self.put
         assert clock is not None
         return clock.open_profit_loss
@@ -141,7 +142,7 @@ class DeskPositionRow:
     open_positions: int
     open_call_contracts: int
     open_put_contracts: int
-    open_mark_profit_loss: Decimal
+    open_mark_profit_loss: Decimal | None
     alert_count: int
     live_underlying: LiveUnderlyingPosition | None
     risk: UnderlyingRiskView | None
@@ -149,7 +150,7 @@ class DeskPositionRow:
     evaluated_at: datetime | None = None
     pending_settlement_positions: int = 0
     pending_settlement_contracts: int = 0
-    pending_last_mark_profit_loss: Decimal = ZERO
+    pending_last_mark_profit_loss: Decimal | None = ZERO
     broker_reported_call_contracts: int = 0
     broker_reported_put_contracts: int = 0
 
@@ -200,17 +201,20 @@ class DeskPositionRow:
         return "BY EXPIRATION"
 
     @property
-    def open_option_theta_per_day(self) -> Decimal:
-        return sum(
+    def open_option_theta_per_day(self) -> Decimal | None:
+        return sum_if_complete(
             (
-                clock.short_theta_per_day
-                for clock in self.underlying.open_call_clocks
-                if clock.can_close_or_roll
-            ),
-            ZERO,
-        ) + sum(
-            (clock.short_theta_per_day for clock in self.put_clocks if clock.can_close_or_roll),
-            ZERO,
+                *(
+                    clock.short_theta_per_day
+                    for clock in self.underlying.open_call_clocks
+                    if clock.can_close_or_roll
+                ),
+                *(
+                    clock.short_theta_per_day
+                    for clock in self.put_clocks
+                    if clock.can_close_or_roll
+                ),
+            )
         )
 
     @property
@@ -227,23 +231,24 @@ class DeskPositionRow:
         actionable_puts = tuple(clock for clock in self.put_clocks if clock.can_close_or_roll)
         if not actionable_calls and not actionable_puts:
             return None
-        return sum(
-            (clock.current_option_value for clock in actionable_calls),
-            ZERO,
-        ) + sum((clock.current_option_value for clock in actionable_puts), ZERO)
+        return sum_if_complete(
+            (
+                *(clock.current_option_value for clock in actionable_calls),
+                *(put.current_option_value for put in actionable_puts),
+            )
+        )
 
     @property
-    def open_option_entry_credit(self) -> Decimal:
-        return sum(
+    def open_option_entry_credit(self) -> Decimal | None:
+        return sum_if_complete(
             (
-                clock.entry_credit
-                for clock in self.underlying.open_call_clocks
-                if clock.can_close_or_roll
-            ),
-            ZERO,
-        ) + sum(
-            (clock.entry_credit for clock in self.put_clocks if clock.can_close_or_roll),
-            ZERO,
+                *(
+                    clock.entry_credit
+                    for clock in self.underlying.open_call_clocks
+                    if clock.can_close_or_roll
+                ),
+                *(clock.entry_credit for clock in self.put_clocks if clock.can_close_or_roll),
+            )
         )
 
     @property
@@ -296,7 +301,7 @@ class DeskPositionRow:
         return observed_on < market_date(evaluated)
 
     @property
-    def average_open_option_iv_percent(self) -> Decimal:
+    def average_open_option_iv_percent(self) -> Decimal | None:
         samples = [
             *(
                 (clock.implied_volatility_percent, clock.contracts)
@@ -337,7 +342,7 @@ class DeskOverview:
     open_contracts: int
     contract_capacity: int
     coverage_percent: Decimal
-    open_mark_profit_loss: Decimal
+    open_mark_profit_loss: Decimal | None
     nearest_call: DeskOptionFocus | None
     next_expiring_option: DeskOptionFocus | None
     dividend_overlap_contracts: int
@@ -347,12 +352,12 @@ class DeskOverview:
     open_put_contracts: int
     open_call_positions: int
     open_call_contracts: int
-    daily_theta: Decimal
+    daily_theta: Decimal | None
     broker_reported_positions: int = 0
     broker_reported_contracts: int = 0
     pending_settlement_positions: int = 0
     pending_settlement_contracts: int = 0
-    pending_last_mark_profit_loss: Decimal = ZERO
+    pending_last_mark_profit_loss: Decimal | None = ZERO
     broker_reported_call_contracts: int = 0
     broker_reported_put_contracts: int = 0
 
@@ -418,11 +423,12 @@ def build_desk_overview(snapshot: DashboardSnapshot) -> DeskOverview:
                 open_positions=len(actionable_calls) + len(actionable_puts),
                 open_call_contracts=open_call_contracts,
                 open_put_contracts=open_put_contracts,
-                open_mark_profit_loss=sum(
-                    (call.open_profit_loss for call in actionable_calls),
-                    ZERO,
-                )
-                + sum((put.open_profit_loss or ZERO for put in actionable_puts), ZERO),
+                open_mark_profit_loss=sum_if_complete(
+                    (
+                        *(call.open_profit_loss for call in actionable_calls),
+                        *(put.open_profit_loss for put in actionable_puts),
+                    )
+                ),
                 alert_count=alert_counts[underlying.symbol],
                 live_underlying=live_underlying,
                 risk=risk_by_symbol.get(underlying.symbol),
@@ -434,10 +440,12 @@ def build_desk_overview(snapshot: DashboardSnapshot) -> DeskOverview:
                 pending_settlement_positions=len(settling_calls) + len(settling_puts),
                 pending_settlement_contracts=sum(call.contracts for call in settling_calls)
                 + sum(put.contracts for put in settling_puts),
-                pending_last_mark_profit_loss=sum(
-                    (call.open_profit_loss for call in settling_calls), ZERO
-                )
-                + sum((put.open_profit_loss or ZERO for put in settling_puts), ZERO),
+                pending_last_mark_profit_loss=sum_if_complete(
+                    (
+                        *(call.open_profit_loss for call in settling_calls),
+                        *(put.open_profit_loss for put in settling_puts),
+                    )
+                ),
                 broker_reported_call_contracts=sum(call.contracts for call in calls),
                 broker_reported_put_contracts=sum(put.contracts for put in put_positions),
             )
@@ -470,12 +478,8 @@ def build_desk_overview(snapshot: DashboardSnapshot) -> DeskOverview:
             open_call_contracts=sum(
                 call.contracts for call in live_book.calls if call.can_close_or_roll
             ),
-            daily_theta=sum(
-                (
-                    option.price_time_read.theta_per_day or ZERO
-                    for option in live_book.actionable_options
-                ),
-                ZERO,
+            daily_theta=sum_if_complete(
+                option.price_time_read.theta_per_day for option in live_book.actionable_options
             ),
             broker_reported_positions=len(live_book.options),
             broker_reported_contracts=sum(option.contracts for option in live_book.options),
@@ -505,10 +509,7 @@ def build_desk_overview(snapshot: DashboardSnapshot) -> DeskOverview:
         + open_put_contracts,
         contract_capacity=snapshot.covered_calls.contract_capacity,
         coverage_percent=snapshot.covered_calls.coverage_percent,
-        open_mark_profit_loss=(
-            sum((clock.open_profit_loss for clock in actionable_call_clocks), ZERO)
-            + sum((put.open_profit_loss or ZERO for put in actionable_puts), ZERO)
-        ),
+        open_mark_profit_loss=sum_if_complete(row.open_mark_profit_loss for row in rows),
         nearest_call=_nearest_call(all_calls),
         next_expiring_option=min(
             (option for option in all_options if option.can_close_or_roll),
@@ -524,7 +525,7 @@ def build_desk_overview(snapshot: DashboardSnapshot) -> DeskOverview:
         open_put_contracts=open_put_contracts,
         open_call_positions=len(all_calls),
         open_call_contracts=sum(clock.contracts for clock in actionable_call_clocks),
-        daily_theta=sum((row.open_option_theta_per_day for row in rows), ZERO),
+        daily_theta=sum_if_complete(row.open_option_theta_per_day for row in rows),
         broker_reported_positions=(len(live_book.options) if live_book is not None else 0),
         broker_reported_contracts=(
             sum(option.contracts for option in live_book.options) if live_book is not None else 0
@@ -580,8 +581,8 @@ def _live_option_focus(option: LiveOpenCallPosition) -> DeskOptionFocus:
         symbol=option.underlying_symbol,
         option_type=option.option_type,
         strike=option.strike,
-        strike_distance_per_share=option.strike_distance_per_share or ZERO,
-        strike_distance_percent=option.strike_distance_percent or ZERO,
+        strike_distance_per_share=option.strike_distance_per_share,
+        strike_distance_percent=option.strike_distance_percent,
         days_to_expiration=option.days_to_expiration,
         expires_on=option.expires_on,
         anchor_id=option_contract_anchor(option.option_symbol),
@@ -592,6 +593,12 @@ def _live_option_focus(option: LiveOpenCallPosition) -> DeskOptionFocus:
 def _nearest_call(calls: Sequence[DeskOptionFocus]) -> DeskOptionFocus | None:
     return min(
         (call for call in calls if call.can_close_or_roll),
-        key=lambda call: call.strike_distance_percent,
+        key=lambda call: (
+            call.strike_distance_percent is None,
+            abs(call.strike_distance_percent)
+            if call.strike_distance_percent is not None
+            else _MISSING_DISTANCE,
+            call.expires_on,
+        ),
         default=None,
     )

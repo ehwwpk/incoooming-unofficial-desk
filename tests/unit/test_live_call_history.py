@@ -198,6 +198,48 @@ def test_short_assignment_is_assigned() -> None:
     assert _project(rows, lifecycle=lifecycle)[0].outcome == "Assigned"
 
 
+def test_assignment_alias_does_not_add_stock_delivery_cash_to_option_ticket() -> None:
+    opening = {
+        **_execution(
+            "open-one",
+            "order-1",
+            "KTOS  260814C00065000",
+            "SELL",
+            "OPENING",
+            "198",
+            1,
+            strike="65",
+        ),
+        "asset_type": "AssetType.OPTION",
+        "price": D("2"),
+        "gross_amount": D("200"),
+        "fees": D("2"),
+        "contract_multiplier": D("100"),
+    }
+    lifecycle = (
+        {
+            "external_key": "assigned-alias",
+            "occurred_at": date(2026, 8, 12),
+            "event_type": "Assigned",
+            "option_quantity": D("1"),
+            "stock_quantity": D("100"),
+            "cash_amount": D("6500"),
+            "symbol": "KTOS  260814C00065000",
+            "underlying_symbol": "KTOS",
+            "option_side": "CALL",
+            "strike": D("65"),
+            "expiration_date": date(2026, 8, 14),
+        },
+    )
+
+    ticket = _project((opening,), lifecycle=lifecycle)[0]
+
+    assert ticket.outcome == "Assigned"
+    assert ticket.net_cash == D("198")
+    assert ticket.gross_premium == D("200")
+    assert ticket.premium_per_share == D("2.00")
+
+
 def test_partial_buyback_keeps_original_sale_size() -> None:
     rows = (
         _execution(
@@ -279,8 +321,8 @@ def test_missing_spot_does_not_invent_a_gap() -> None:
             ),
         )
     )
-    assert tickets[0].underlying_at_sale == D("0")
-    assert tickets[0].strike_upside_percent == D("0")
+    assert tickets[0].underlying_at_sale is None
+    assert tickets[0].strike_upside_percent is None
 
 
 def test_call_gap_follows_sign_when_spot_exists() -> None:
@@ -420,6 +462,26 @@ def test_call_ledger_copy_is_honest_for_demo_and_live() -> None:
     assert "-4.2%" in put_html
     assert 'class="numeric negative"' in put_html
     assert ">+4.2%" not in put_html
+
+    no_spot = _project(
+        (
+            _execution(
+                "call-without-price",
+                "call-without-price",
+                "KTOS  260918C00065000",
+                "sell",
+                "opening",
+                "200",
+                1,
+                strike="65",
+            ),
+        )
+    )
+    no_spot_html = templates.env.get_template("partials/_call_ledger.html").render(
+        snapshot=replace(snapshot, mode="live", call_history=no_spot)
+    )
+    assert "$0.00 &rarr;" not in no_spot_html
+    assert "&mdash; &rarr; $65.00" in no_spot_html
     assert ">—</small>" in put_html
 
 

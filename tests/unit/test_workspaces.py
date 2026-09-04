@@ -197,12 +197,12 @@ def test_open_book_exposes_exact_contract_clocks_and_bounded_value_track() -> No
         assert group.realized_volatility_percent is not None
 
 
-def test_open_book_uses_the_exact_contract_multiplier_for_position_greeks() -> None:
+def test_open_book_keeps_premium_scale_separate_from_share_delivery() -> None:
     snapshot = DemoDashboardReader().execute()
     underlying = snapshot.underlyings[0]
     adjusted_clock = replace(
         underlying.open_call_clocks[0],
-        contract_multiplier=Decimal("25"),
+        contract_multiplier=Decimal("25.5"),
     )
     adjusted_snapshot = replace(
         snapshot,
@@ -218,9 +218,9 @@ def test_open_book_uses_the_exact_contract_multiplier_for_position_greeks() -> N
     projection = build_open_book(adjusted_snapshot)
     row = next(item for item in projection.rows if item.record_id == adjusted_clock.record_id)
 
-    assert row.obligated_shares == adjusted_clock.contracts * 25
+    assert row.obligated_shares == Decimal(adjusted_clock.contracts) * Decimal("100")
     assert row.position_delta_share_equivalent == (
-        -adjusted_clock.delta * Decimal(row.obligated_shares)
+        -adjusted_clock.delta * Decimal(adjusted_clock.contracts) * Decimal("25.5")
         if adjusted_clock.delta is not None
         else None
     )
@@ -293,10 +293,8 @@ def test_desk_overview_includes_short_puts_without_corrupting_call_coverage() ->
     assert open_book.call_contracts == snapshot.covered_calls.active_contracts
     assert open_book.total_contracts == snapshot.covered_calls.active_contracts + 1
     assert open_book.total_positions == len(open_book.rows) + 1
-    assert (
-        open_book.same_day_theta_estimate_per_day + open_book.later_theta_estimate_per_day
-        == open_book.theta_estimate_per_day
-    )
+    assert open_book.theta_estimate_per_day is None
+    assert open_book.later_theta_estimate_per_day is None
     assert open_book.put_rows[0].symbol == "URNM"
     assert open_book.put_rows[0].days_to_expiration == 42
     assert open_book.put_rows[0].obligated_shares == 100

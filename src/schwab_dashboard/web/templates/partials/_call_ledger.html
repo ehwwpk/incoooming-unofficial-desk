@@ -19,8 +19,8 @@
           <td>{{ record.expires_on | short_date }}</td>
           <td>{{ record.days_to_expiration }}</td>
           <td class="numeric">{{ record.contracts }}</td>
-          <td class="numeric">{{ record.underlying_at_sale | money }} → {{ record.strike | money }}</td>
-          <td class="numeric {{ record.strike_upside_percent | pnl_class }}">{% if record.strike_upside_percent > 0 %}+{% endif %}{{ record.strike_upside_percent | percent }}</td>
+          <td class="numeric">{% if record.underlying_at_sale is not none %}{{ record.underlying_at_sale | money }} &rarr; {{ record.strike | money }}{% else %}&mdash; &rarr; {{ record.strike | money }}{% endif %}</td>
+          <td class="numeric {{ record.strike_upside_percent | pnl_class }}">{% if record.strike_upside_percent is not none and record.strike_upside_percent > 0 %}+{% endif %}{{ record.strike_upside_percent | percent }}</td>
           <td class="numeric">{{ record.gross_premium | money }}</td>
           <td class="numeric negative">{{ record.buyback_cost | money }}</td>
           <td class="numeric {{ record.net_cash | pnl_class }}">{{ record.net_cash | money }}</td>

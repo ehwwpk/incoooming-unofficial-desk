@@ -64,6 +64,35 @@ def market_date(value: date | datetime) -> date:
     return normalized.astimezone(MARKET_TIME_ZONE).date()
 
 
+def ledger_market_date(value: date | datetime) -> date:
+    """Return the source market date for persisted broker activity.
+
+    SQLite removes timezone offsets. Schwab date-only activity is deliberately
+    stored at midnight Eastern, which comes back as a naive midnight. Preserve
+    that stated date instead of reinterpreting the sentinel as midnight UTC and
+    moving an assignment, expiration, or cash event to the prior session.
+    Other naive datetimes retain the project's normal UTC interpretation.
+    """
+
+    return ledger_market_datetime(value).date()
+
+
+def ledger_market_datetime(value: date | datetime) -> datetime:
+    """Normalize broker activity to an aware Eastern wall-clock timestamp.
+
+    A naive midnight is the persisted form of a broker date-only record and
+    therefore means midnight Eastern on that stated date. Other naive values
+    are SQLite-stripped UTC instants, matching the rest of the persistence
+    layer. Returning one aware timezone makes mixed-source ordering safe.
+    """
+
+    if not isinstance(value, datetime):
+        return datetime.combine(value, time.min, tzinfo=MARKET_TIME_ZONE)
+    if value.tzinfo is None and value.time() == time.min:
+        return value.replace(tzinfo=MARKET_TIME_ZONE)
+    return market_datetime(value)
+
+
 def market_datetime(value: datetime) -> datetime:
     """Normalize an instant into the U.S. equity-market time zone."""
 

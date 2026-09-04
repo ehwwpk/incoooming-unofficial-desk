@@ -20,6 +20,8 @@
   data-lifecycle-slot="{{ event.campaign_slot }}"
   data-event-type="{{ event.event_type }}"
   data-contracts="{{ event.contracts }}"
+  data-contract-multiplier="{{ event.contract_multiplier }}"
+  {% if event.delivered_shares is not none %}data-assignment-shares="{{ event.delivered_shares }}"{% endif %}
   data-strike="{{ '%g' | format(event.strike) }}"
   data-expires-on="{{ event.expires_on.isoformat() }}"
   data-underlying-at-sale="{{ event.underlying_at_sale }}"

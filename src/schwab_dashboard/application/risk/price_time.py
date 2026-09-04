@@ -76,9 +76,7 @@ class PriceTimeRead:
                 f"Across the open book, more five-session stock pressure moved {book_direction} "
                 "the positions' risky sides. Open a name for contract-level context."
             )
-        move_direction = (
-            self.adverse_move_direction.lower()
-        )
+        move_direction = self.adverse_move_direction.lower()
         weekly_path = "that way" if self.delta_pressure_label == "RISING" else "away from it"
         return (
             f"For this position, {move_direction} is the risky direction. The stock moved "
@@ -126,15 +124,11 @@ class PriceTimeRead:
     @property
     def pressure_plain_line(self) -> str | None:
         if self.delta_pressure_label is None:
-            return (
-                "Weekly price-pressure read is partial; missing model inputs stay blank."
-            )
+            return "Weekly price-pressure read is partial; missing model inputs stay blank."
         if self.five_session_move_percent is None:
             return None
         move_direction = (
-            self.adverse_move_direction.lower()
-            if self.adverse_move_direction
-            else "price"
+            self.adverse_move_direction.lower() if self.adverse_move_direction else "price"
         )
         if self.delta_pressure_label == "STEADY":
             return (
@@ -344,9 +338,7 @@ def aggregate_price_time_reads(reads: tuple[PriceTimeRead, ...]) -> PriceTimeRea
         row.delta_pressure_change for row in reads if row.delta_pressure_change is not None
     )
     five_session_moves = {
-        row.five_session_move_percent
-        for row in reads
-        if row.five_session_move_percent is not None
+        row.five_session_move_percent for row in reads if row.five_session_move_percent is not None
     }
     adverse_directions = {
         row.adverse_move_direction for row in reads if row.adverse_move_direction is not None

@@ -89,7 +89,7 @@ def test_split_order_close_and_open_are_two_campaigns() -> None:
     assert all(item.campaign_label.startswith("C") for item in campaigns)
     open_campaign = next(item for item in campaigns if item.status == "OPEN")
     assert open_campaign.progress_percent == 0
-    assert open_campaign.open_mark_profit_loss == D("0")
+    assert open_campaign.open_mark_profit_loss is None
     assert all("OPEN" not in leg for leg in open_campaign.legs)
 
 
@@ -120,7 +120,35 @@ def test_put_campaign_uses_assignment_notional_and_put_intent() -> None:
     assert campaign.collateral == D("5000")
     assert campaign.status == "OPEN"
     assert campaign.progress_percent == 0
-    assert campaign.open_mark_profit_loss == D("0")
+    assert campaign.open_mark_profit_loss is None
+
+
+def test_adjusted_put_campaign_withholds_collateral_when_delivery_is_unknown() -> None:
+    adjusted = _execution(
+        "put-open",
+        "put-1",
+        "URNM1 260918P00050000",
+        "sell",
+        "opening",
+        "180",
+        1,
+        strike="50",
+        expires=date(2026, 9, 18),
+        option_side="put",
+        underlying="URNM",
+    )
+    adjusted["contract_multiplier"] = D("150")
+    adjusted["is_non_standard"] = True
+
+    campaign = project_campaign_summaries(
+        (adjusted,),
+        (),
+        live_book=None,
+        as_of=date(2026, 8, 18),
+    )[0]
+
+    assert campaign.collateral is None
+    assert campaign.cash_on_capital_percent is None
 
 
 def test_overlapping_lots_surface_inferred_confidence() -> None:
@@ -281,7 +309,7 @@ def test_live_lot_spanning_two_campaigns_is_not_marked() -> None:
     open_campaigns = tuple(item for item in campaigns if item.status == "OPEN")
 
     assert len(open_campaigns) == 2
-    assert all(item.open_mark_profit_loss == D("0") for item in open_campaigns)
+    assert all(item.open_mark_profit_loss is None for item in open_campaigns)
     assert all(all("OPEN" not in leg for leg in item.legs) for item in open_campaigns)
 
 
@@ -327,7 +355,7 @@ def test_mark_does_not_mix_accounts_on_the_same_occ() -> None:
     theirs = next(item for item in campaigns if "theirs" in item.campaign_id)
 
     assert ours.open_mark_profit_loss == D("-425")
-    assert theirs.open_mark_profit_loss == D("0")
+    assert theirs.open_mark_profit_loss is None
     assert any("OPEN" in leg for leg in ours.legs)
 
 
@@ -374,8 +402,11 @@ def test_campaign_template_renames_heading_and_has_empty_state() -> None:
     open_count = sum(item.status == "OPEN" for item in snapshot.campaigns)
     closed_count = len(snapshot.campaigns) - open_count
     assert "<b>CAMPAIGNS</b>" in filled
-    assert 'data-campaigns-drawer' in filled
-    assert '<details class="workspace-panel results-disclosure campaigns-drawer" id="campaigns" data-campaigns-drawer>' in filled
+    assert "data-campaigns-drawer" in filled
+    assert (
+        '<details class="workspace-panel results-disclosure campaigns-drawer" '
+        'id="campaigns" data-campaigns-drawer>' in filled
+    )
     assert "Call campaigns" not in filled
     assert "KTOS" in filled
     assert open_count == 6

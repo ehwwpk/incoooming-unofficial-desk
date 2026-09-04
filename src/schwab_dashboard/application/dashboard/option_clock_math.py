@@ -36,9 +36,8 @@ def short_option_term(
     """Return elapsed calendar share of the original sale-to-expiry span.
 
     The opening sale date is enough. When the original span is missing, it is
-    the calendar distance from that sale to expiration. Missing opening date is
-    not treated as today. Call clocks that still default ``sold_on`` to the
-    as-of date live elsewhere and are not used here.
+    the calendar distance from that sale to expiration. A missing opening date
+    is not treated as today.
     """
 
     if opened_on is None:
@@ -85,11 +84,12 @@ def put_intrinsic_value(
     underlying_price: Decimal | None,
     multiplier: Decimal,
     contracts: int,
-) -> Decimal:
-    """Put intrinsic using spot, or zero when the underlying mark is missing."""
+) -> Decimal | None:
+    """Put intrinsic using spot, or unknown when the underlying mark is missing."""
 
-    spot = underlying_price if underlying_price is not None else strike
-    intrinsic_per_share = max(ZERO, strike - spot)
+    if underlying_price is None:
+        return None
+    intrinsic_per_share = max(ZERO, strike - underlying_price)
     return intrinsic_per_share * abs(multiplier) * Decimal(contracts)
 
 

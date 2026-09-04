@@ -16,7 +16,8 @@ to roll.
 - **Keep an eye on this:** within 7% with seven or fewer days remaining.
 
 The board sorts by urgency, expiration, absolute strike distance, symbol, and strike. Assignment
-notional uses the contract's actual multiplier rather than assuming every option controls 100 shares.
+notional uses a known stock deliverable rather than assuming every option controls 100 shares. It
+stays unavailable for adjusted contracts whose full OCC deliverable is not in the source data.
 
 Nibwick's posture summarizes the board:
 
@@ -42,9 +43,9 @@ credit over a debit. Theta is displayed as model context when present; it never 
 A requested Radar target that is eligible but outside the 3×3 grid is appended. If that target is
 already an open short, the row is labeled `ALSO OPEN`.
 
-Candidates may be a net credit, near flat, or a debit paid for more strike room. If the chain has no
-directionally valid contract, no later expiration, no positive replacement bid, or no trustworthy
-source ask, the row states that reason instead of showing an empty card as reassurance.
+Candidates may be a net credit, near flat, or a debit paid for more strike room. The board does not
+mix adjusted and standard contracts in one cash comparison. It also explains when the chain has no
+directionally valid contract, later expiration, positive replacement bid, or trustworthy source ask.
 
 ## Shared engine
 

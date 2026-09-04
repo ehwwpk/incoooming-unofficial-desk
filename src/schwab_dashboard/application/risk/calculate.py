@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
 from decimal import Decimal
 
 from schwab_dashboard.application.risk.models import (
@@ -10,6 +9,7 @@ from schwab_dashboard.application.risk.models import (
     UnderlyingEquityRiskInput,
     UnderlyingRiskView,
 )
+from schwab_dashboard.application.values import sum_if_complete
 from schwab_dashboard.domain.analytics import (
     CalculationContext,
     DataQuality,
@@ -63,41 +63,38 @@ def calculate_open_risk(
         and theta_weight == total_weight
         and gamma_weight == total_weight
         and vega_weight == total_weight
+        and all(item.deliverable_share_quantity is not None for item in items)
         and all(_has_complete_market_context(item) for item in items)
     )
     underlyings = _calculate_underlyings(items, positions, equities)
-    option_delta = _sum_optional(row.delta_share_equivalent for row in positions)
+    option_delta = sum_if_complete(row.delta_share_equivalent for row in positions)
     equity_delta = sum((item.shares for item in equities), Decimal(0))
-    option_one_percent = _sum_optional(
-        row.dollar_delta_for_one_percent_move for row in positions
-    )
+    option_one_percent = sum_if_complete(row.dollar_delta_for_one_percent_move for row in positions)
     equity_one_percent = sum(
         (item.shares * item.underlying_price / ONE_HUNDRED for item in equities),
         Decimal(0),
     )
     observed = tuple(item.observed_at for item in items)
     estimated_one_percent = (
-        equity_one_percent + option_one_percent
-        if option_one_percent is not None
-        else None
+        equity_one_percent + option_one_percent if option_one_percent is not None else None
     )
     return OpenRiskSummary(
         positions=positions,
         underlyings=underlyings,
-        called_away_notional=sum((row.called_away_notional for row in positions), Decimal(0)),
-        obligated_shares=sum((row.obligated_shares for row in positions), Decimal(0)),
-        current_liability=_sum_optional(row.current_liability for row in positions),
-        theta_estimate_per_day=_sum_optional(row.theta_estimate_per_day for row in positions),
+        called_away_notional=sum_if_complete(row.called_away_notional for row in positions),
+        obligated_shares=sum_if_complete(row.obligated_shares for row in positions),
+        current_liability=sum_if_complete(row.current_liability for row in positions),
+        theta_estimate_per_day=sum_if_complete(row.theta_estimate_per_day for row in positions),
         dollar_delta_for_one_percent_move=option_one_percent,
         estimated_value_change_for_one_percent_move=estimated_one_percent,
         option_delta_share_equivalent=option_delta,
         net_delta_share_equivalent=(
             equity_delta + option_delta if option_delta is not None else None
         ),
-        gamma_delta_change_for_one_dollar_move=_sum_optional(
+        gamma_delta_change_for_one_dollar_move=sum_if_complete(
             row.gamma_per_dollar_squared for row in positions
         ),
-        vega_per_volatility_point=_sum_optional(
+        vega_per_volatility_point=sum_if_complete(
             row.vega_per_volatility_point for row in positions
         ),
         delta_coverage_percent=_percent(delta_weight, total_weight),
@@ -111,7 +108,7 @@ def calculate_open_risk(
             as_of=min(observed),
             status=ValueStatus.ESTIMATED,
             method="signed-open-option-greek-aggregation",
-            method_version="2.0.0",
+            method_version="2.1.0",
             source_ids=tuple(item.contract_key for item in items),
             quality=DataQuality.COMPLETE if complete else DataQuality.PARTIAL,
         ),
@@ -119,8 +116,12 @@ def calculate_open_risk(
 
 
 def _calculate_position(item: OpenOptionRiskInput) -> OpenOptionRiskView:
-    obligated_shares = item.contracts_short * item.deliverable_share_quantity
-    called_away_notional = obligated_shares * item.strike
+    obligated_shares = (
+        item.contracts_short * item.deliverable_share_quantity
+        if item.deliverable_share_quantity is not None
+        else None
+    )
+    called_away_notional = obligated_shares * item.strike if obligated_shares is not None else None
     distance = item.strike - item.underlying_price
     distance_percent = None
     if item.underlying_price != 0:
@@ -179,11 +180,6 @@ def _has_complete_market_context(item: OpenOptionRiskInput) -> bool:
     )
 
 
-def _sum_optional(values: Iterable[Decimal | None]) -> Decimal | None:
-    present = [value for value in values if value is not None]
-    return sum(present, Decimal(0)) if present else None
-
-
 def _percent(numerator: Decimal, denominator: Decimal) -> Decimal:
     return numerator / denominator * ONE_HUNDRED if denominator else Decimal(0)
 
@@ -212,46 +208,36 @@ def _calculate_underlyings(
         position_rows = tuple(item for item in positions if item.symbol == symbol)
         equity = equity_by_symbol.get(symbol)
         shares = equity.shares if equity is not None else Decimal(0)
-        price = (
-            equity.underlying_price
-            if equity is not None
-            else source_rows[0].underlying_price
-        )
+        price = equity.underlying_price if equity is not None else source_rows[0].underlying_price
         total_weight = sum(
             (item.contracts_short * item.premium_multiplier for item in source_rows),
             Decimal(0),
         )
-        option_delta = _sum_optional(
-            item.delta_share_equivalent for item in position_rows
-        )
-        option_one_percent = _sum_optional(
+        option_delta = sum_if_complete(item.delta_share_equivalent for item in position_rows)
+        option_one_percent = sum_if_complete(
             item.dollar_delta_for_one_percent_move for item in position_rows
         )
         equity_one_percent = shares * price / ONE_HUNDRED
         estimated_one_percent = (
-            equity_one_percent + option_one_percent
-            if option_one_percent is not None
-            else None
+            equity_one_percent + option_one_percent if option_one_percent is not None else None
         )
         rows.append(
             UnderlyingRiskView(
                 symbol=symbol,
                 shares=shares,
-                option_contracts=sum(
-                    (item.contracts_short for item in source_rows), Decimal(0)
-                ),
+                option_contracts=sum((item.contracts_short for item in source_rows), Decimal(0)),
                 option_delta_share_equivalent=option_delta,
                 net_delta_share_equivalent=(
                     shares + option_delta if option_delta is not None else None
                 ),
                 estimated_value_change_for_one_percent_move=estimated_one_percent,
-                theta_estimate_per_day=_sum_optional(
+                theta_estimate_per_day=sum_if_complete(
                     item.theta_estimate_per_day for item in position_rows
                 ),
-                gamma_delta_change_for_one_dollar_move=_sum_optional(
+                gamma_delta_change_for_one_dollar_move=sum_if_complete(
                     item.gamma_per_dollar_squared for item in position_rows
                 ),
-                vega_per_volatility_point=_sum_optional(
+                vega_per_volatility_point=sum_if_complete(
                     item.vega_per_volatility_point for item in position_rows
                 ),
                 delta_coverage_percent=_percent(
@@ -263,9 +249,7 @@ def _calculate_underlyings(
                 gamma_coverage_percent=_percent(
                     _covered_weight(source_rows, "gamma"), total_weight
                 ),
-                vega_coverage_percent=_percent(
-                    _covered_weight(source_rows, "vega"), total_weight
-                ),
+                vega_coverage_percent=_percent(_covered_weight(source_rows, "vega"), total_weight),
             )
         )
     return tuple(rows)

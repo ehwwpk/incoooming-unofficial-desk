@@ -78,10 +78,18 @@ def contract_multiplier(
 ) -> tuple[Decimal | None, str | None]:
     if not is_option:
         return None, None
-    if explicit is not None and explicit > 0:
-        return explicit, "exported"
+    if explicit is not None:
+        return (explicit, "exported") if explicit > 0 else (None, "invalid_export")
     signal = f"{symbol} {description}".upper()
     if any(token in signal for token in ("ADJUSTED", " ADJ ", "NON-STANDARD", "NONSTANDARD")):
+        return None, "unknown_adjusted"
+    parsed = parse_occ_option_symbol(symbol) or parse_occ_option_symbol(
+        "".join(symbol.upper().split())
+    )
+    # OCC uses a numeric suffix on the root for adjusted contracts (for
+    # example, XYZ1).  Their deliverable is not safely inferable from the
+    # symbol, even when the description omits the word "adjusted".
+    if parsed is not None and any(character.isdigit() for character in parsed.underlying_symbol):
         return None, "unknown_adjusted"
     return Decimal("100"), "assumed_standard"
 

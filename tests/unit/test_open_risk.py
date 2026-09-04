@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -10,8 +11,10 @@ from schwab_dashboard.application.risk.models import (
     OpenCallRiskInput,
     UnderlyingEquityRiskInput,
 )
+from schwab_dashboard.application.risk.projection import build_open_risk_summary
 from schwab_dashboard.domain.analytics import DataQuality, ValueStatus
 from schwab_dashboard.domain.market import QuoteQuality
+from schwab_dashboard.infrastructure.demo.dashboard import DemoDashboardReader
 
 NOW = datetime(2026, 8, 9, 20, 0, tzinfo=UTC)
 
@@ -71,6 +74,10 @@ def test_missing_greek_reduces_coverage_instead_of_becoming_zero() -> None:
 
     assert float(summary.delta_coverage_percent) == pytest.approx(62.5)
     assert float(summary.theta_coverage_percent) == pytest.approx(62.5)
+    assert summary.option_delta_share_equivalent is None
+    assert summary.theta_estimate_per_day is None
+    assert summary.underlyings[0].option_delta_share_equivalent is None
+    assert summary.underlyings[0].theta_estimate_per_day is None
     assert summary.context.quality is DataQuality.PARTIAL
 
 
@@ -79,6 +86,7 @@ def test_missing_mark_keeps_obligations_but_marks_result_partial() -> None:
 
     assert summary.positions[0].called_away_notional == Decimal("32500")
     assert summary.positions[0].current_liability is None
+    assert summary.current_liability is None
     assert summary.context.quality is DataQuality.PARTIAL
 
 
@@ -172,3 +180,37 @@ def test_missing_delta_does_not_publish_a_false_shares_only_price_estimate() -> 
     assert summary.net_delta_share_equivalent is None
     assert summary.underlyings[0].estimated_value_change_for_one_percent_move is None
     assert summary.underlyings[0].net_delta_share_equivalent is None
+
+
+def test_risk_projection_keeps_premium_scale_separate_from_share_delivery() -> None:
+    snapshot = DemoDashboardReader().execute()
+    underlying = snapshot.underlyings[0]
+    clock = replace(underlying.open_call_clocks[0], contracts=2, contract_multiplier=Decimal("150"))
+    adjusted = replace(
+        snapshot,
+        underlyings=(replace(underlying, open_call_clocks=(clock,)),),
+    )
+
+    summary = build_open_risk_summary(adjusted)
+
+    assert summary is not None
+    assert summary.positions[0].obligated_shares == Decimal("200")
+    assert summary.positions[0].delta_share_equivalent == -clock.delta * Decimal("300")
+
+
+def test_unknown_adjusted_delivery_withholds_share_obligation_but_keeps_option_risk() -> None:
+    item = replace(
+        _call(),
+        premium_multiplier=Decimal("150"),
+        deliverable_share_quantity=None,
+    )
+
+    summary = calculate_open_risk((item,))
+
+    assert summary.positions[0].obligated_shares is None
+    assert summary.positions[0].called_away_notional is None
+    assert summary.obligated_shares is None
+    assert summary.called_away_notional is None
+    assert summary.positions[0].current_liability == Decimal("2475.00")
+    assert summary.positions[0].delta_share_equivalent == Decimal("-307.50")
+    assert summary.context.quality is DataQuality.PARTIAL

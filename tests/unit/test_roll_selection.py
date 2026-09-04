@@ -61,7 +61,7 @@ def test_roll_selection_explains_when_chain_has_no_valid_replacement() -> None:
     assert "same or lower" in result.no_clean_reason
 
 
-def test_roll_cash_uses_the_actual_contract_multiplier() -> None:
+def test_roll_cash_and_assignment_room_use_their_own_contract_scales() -> None:
     source = RollSource(
         symbol="ADJUSTED",
         option_symbol="ADJUSTED CALL",
@@ -73,6 +73,7 @@ def test_roll_cash_uses_the_actual_contract_multiplier() -> None:
         current_price=D("48"),
         quote_status="FRESH",
         contract_multiplier=D("10"),
+        deliverable_shares_per_contract=D("25"),
     )
 
     result = select_roll_candidates(
@@ -81,7 +82,7 @@ def test_roll_cash_uses_the_actual_contract_multiplier() -> None:
     )
 
     assert result.candidates[0].net_roll_cash == D("5.00")
-    assert result.candidates[0].assignment_room_gain == D("60")
+    assert result.candidates[0].assignment_room_gain == D("150")
 
 
 def test_roll_selection_rejects_same_strike_call_date_pushes() -> None:

@@ -28,6 +28,8 @@ def evaluate_fast_move(underlying: UnderlyingCallStats) -> DeskAlert | None:
         replace(underlying, open_call_clocks=actionable_calls),
         five_session_move_percent=move,
     )
+    if context is None:
+        return None
     closest = context.call
     strike_gap = context.strike_distance_percent
     if move < D("15") or strike_gap > D("15"):
@@ -52,7 +54,7 @@ def evaluate_fast_move(underlying: UnderlyingCallStats) -> DeskAlert | None:
     if context.sale_to_current_move_percent >= 0:
         sale_move_message = (
             f"{underlying.symbol} is up {context.sale_to_current_move_percent:.1f}% since "
-            f"you sold the ${compact_decimal(closest.strike)} call. Rude timing"
+            f"you sold the ${compact_decimal(closest.strike)} call"
         )
     else:
         sale_move_message = (
@@ -98,8 +100,8 @@ def evaluate_fast_move(underlying: UnderlyingCallStats) -> DeskAlert | None:
             ),
             AlertFact(
                 "MARK / TIME",
-                f"${closest.mark_per_share:.2f} NOW",
-                f"${closest.entry_credit_per_share:.2f} COLLECTED · "
+                f"{_money(closest.mark_per_share)} NOW",
+                f"{_money(closest.entry_credit_per_share)} COLLECTED · "
                 f"{closest.days_to_expiration} DTE",
             ),
             AlertFact(
@@ -125,3 +127,7 @@ def evaluate_fast_move(underlying: UnderlyingCallStats) -> DeskAlert | None:
         roll_source_option_symbol=closest.record_id,
         roll_option_side=OptionSide.CALL,
     )
+
+
+def _money(value: Decimal | None) -> str:
+    return f"${value:.2f}" if value is not None else "UNAVAILABLE"

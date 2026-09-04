@@ -23,10 +23,12 @@
       <strong>-{{ call.contracts }} {{ call.expires_on.strftime('%b %d') | upper }} ${{ '%g' | format(call.strike) }}C</strong>
       {% if call.campaign_label %}<span class="call-campaign-chip" title="This live position belongs to chart campaign {{ call.campaign_label }}">{{ call.campaign_label }}</span>{% endif %}
       <span>{{ call.decay_stage }}</span>
-      {% if call.strike_distance_per_share >= 0 %}
+      {% if call.strike_distance_per_share is not none and call.strike_distance_percent is not none and call.strike_distance_per_share >= 0 %}
       <span class="call-strike-distance positive">{{ call.strike_distance_per_share | money }} / {{ call.strike_distance_percent | percent }} TO STRIKE</span>
-      {% else %}
+      {% elif call.strike_distance_per_share is not none and call.strike_distance_percent is not none %}
       <span class="call-strike-distance negative">{{ (-call.strike_distance_per_share) | money }} / {{ (-call.strike_distance_percent) | percent }} PAST STRIKE</span>
+      {% else %}
+      <span class="call-strike-distance">SPOT MARK UNAVAILABLE</span>
       {% endif %}
     </div>
     <div><b>{{ call.days_to_expiration }}</b><span>DTE</span></div>
@@ -35,11 +37,11 @@
     <div class="call-open-result">
       <span>OPEN P/L AT CURRENT MARK</span>
       <strong class="{{ call.open_profit_loss | pnl_class }}">{{ call.open_profit_loss | money }}</strong>
-      <small>Unrealized &middot; latest Schwab mark</small>
+      <small>{% if call.open_profit_loss is not none %}Unrealized &middot; {% if snapshot.is_demo %}simulated {{ snapshot.as_of | short_date }} mark{% elif snapshot.mode == 'csv' %}imported position mark{% else %}latest Schwab mark{% endif %}{% else %}Broker mark or cost unavailable{% endif %}</small>
     </div>
     <div class="option-mark-metrics">
-      <div><span>PREMIUM RECEIVED</span><strong>{{ call.entry_credit | money(0) }}</strong><small>{{ call.entry_credit_per_share | money }}/share</small></div>
-      <div><span>OPTION VALUE NOW</span><strong title="{% if call.quote_observed_on %}{{ call.quote_status }} {{ call.quote_observed_on }}{% endif %}">{{ call.current_option_value | money(0) }}</strong><small>{{ call.mark_per_share | money }}/share current mark</small></div>
+      <div><span>PREMIUM RECEIVED</span><strong>{{ call.entry_credit | money(0) }}</strong><small>{% if call.entry_credit_per_share is not none %}{{ call.entry_credit_per_share | money }}/share{% else %}Opening credit unavailable{% endif %}</small></div>
+      <div><span>OPTION VALUE NOW</span><strong title="{% if call.quote_observed_on %}{{ call.quote_status }} {{ call.quote_observed_on }}{% endif %}">{{ call.current_option_value | money(0) }}</strong><small>{% if call.mark_per_share is not none %}{{ call.mark_per_share | money }}/share current mark{% else %}Current mark unavailable{% endif %}</small></div>
     </div>
   </div>
   <div class="option-meter-pair">
@@ -51,20 +53,22 @@
       <span>TIME VALUE NOW</span>
       <b>{{ call.remaining_extrinsic_value | money(0) }}</b>
     </span>
-    {% if call.intrinsic_value > 0 %}
+    {% if call.intrinsic_value is not none and call.intrinsic_value > 0 %}
     <span class="negative">
       <span>INTRINSIC</span>
       <b>{{ call.intrinsic_value | money(0) }}</b>
     </span>
-    {% else %}
+    {% elif call.intrinsic_value is not none %}
     <span>
       <span>INTRINSIC</span>
       <b>$0 / OTM</b>
     </span>
+    {% else %}
+    <span><span>INTRINSIC</span><b>&mdash;</b></span>
     {% endif %}
     <span title="Time decay if price and IV hold still">
       <span>THETA / DAY <i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i></span>
-      <b class="positive">+{{ call.short_theta_per_day | money }}</b>
+      <b class="{{ 'positive' if call.short_theta_per_day is not none else 'muted' }}">{% if call.short_theta_per_day is not none %}+{{ call.short_theta_per_day | money }}{% else %}&mdash;{% endif %}</b>
     </span>
     <span title="Gamma-adjusted dollar consequence of this position's delta for the next $1 underlying move. Model sensitivity, not a forecast.">
       <span>DELTA &middot; NEXT $1 MOVE</span>
@@ -101,6 +105,8 @@
       <span class="call-strike-distance positive">{{ put.strike_distance_per_share | money }} / {{ put.strike_distance_percent | percent }} TO STRIKE</span>
       {% elif put.strike_distance_per_share is not none and put.strike_distance_percent is not none %}
       <span class="call-strike-distance negative">{{ (-put.strike_distance_per_share) | money }} / {{ (-put.strike_distance_percent) | percent }} PAST STRIKE</span>
+      {% else %}
+      <span class="call-strike-distance">SPOT MARK UNAVAILABLE</span>
       {% endif %}
       {% if put.effective_entry_per_share is not none %}
       <span class="put-effective-entry" title="Stock purchase price if assigned: strike minus premium received. Not a claim the put is cash secured.">EFF ENTRY {{ put.effective_entry_per_share | money }}/SH</span>
@@ -112,11 +118,11 @@
     <div class="call-open-result">
       <span>OPEN P/L AT CURRENT MARK</span>
       <strong class="{{ put.open_profit_loss | pnl_class }}">{{ put.open_profit_loss | money }}</strong>
-      <small>Unrealized &middot; latest Schwab mark</small>
+      <small>{% if put.open_profit_loss is not none %}Unrealized &middot; {% if snapshot.is_demo %}simulated {{ snapshot.as_of | short_date }} mark{% elif snapshot.mode == 'csv' %}imported position mark{% else %}latest Schwab mark{% endif %}{% else %}Broker mark or cost unavailable{% endif %}</small>
     </div>
     <div class="option-mark-metrics">
-      <div><span>PREMIUM RECEIVED</span><strong>{{ put.entry_credit | money(0) }}</strong><small>{{ put.entry_credit_per_share | money }}/share</small></div>
-      <div><span>OPTION VALUE NOW</span><strong title="{% if put.quote_observed_on %}{{ put.quote_status }} {{ put.quote_observed_on }}{% endif %}">{{ put.current_option_value | money(0) }}</strong><small>{{ put.mark_per_share | money }}/share current mark</small></div>
+      <div><span>PREMIUM RECEIVED</span><strong>{{ put.entry_credit | money(0) }}</strong><small>{% if put.entry_credit_per_share is not none %}{{ put.entry_credit_per_share | money }}/share{% else %}Opening credit unavailable{% endif %}</small></div>
+      <div><span>OPTION VALUE NOW</span><strong title="{% if put.quote_observed_on %}{{ put.quote_status }} {{ put.quote_observed_on }}{% endif %}">{{ put.current_option_value | money(0) }}</strong><small>{% if put.mark_per_share is not none %}{{ put.mark_per_share | money }}/share current mark{% else %}Current mark unavailable{% endif %}</small></div>
     </div>
   </div>
   <div class="option-meter-pair">
@@ -128,20 +134,22 @@
       <span>TIME VALUE NOW</span>
       <b>{{ put.remaining_extrinsic_value | money(0) }}</b>
     </span>
-    {% if put.intrinsic_value > 0 %}
+    {% if put.intrinsic_value is not none and put.intrinsic_value > 0 %}
     <span class="negative">
       <span>INTRINSIC</span>
       <b>{{ put.intrinsic_value | money(0) }}</b>
     </span>
-    {% else %}
+    {% elif put.intrinsic_value is not none %}
     <span>
       <span>INTRINSIC</span>
       <b>$0 / OTM</b>
     </span>
+    {% else %}
+    <span><span>INTRINSIC</span><b>&mdash;</b></span>
     {% endif %}
     <span title="Time decay if price and IV hold still">
       <span>THETA / DAY <i>{{ 'SIM' if snapshot.is_demo else 'LIVE' }}</i></span>
-      <b class="positive">+{{ put.short_theta_per_day | money }}</b>
+      <b class="{{ 'positive' if put.short_theta_per_day is not none else 'muted' }}">{% if put.short_theta_per_day is not none %}+{{ put.short_theta_per_day | money }}{% else %}&mdash;{% endif %}</b>
     </span>
     <span title="Gamma-adjusted dollar consequence of this position's delta for the next $1 underlying move. Model sensitivity, not a forecast.">
       <span>DELTA &middot; NEXT $1 MOVE</span>

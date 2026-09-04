@@ -2,7 +2,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
-from schwab_dashboard.application.dashboard.calculations import summarize_portfolio
+from schwab_dashboard.application.dashboard.calculations import map_positions, summarize_portfolio
 from schwab_dashboard.application.dashboard.live_positions import build_live_position_book
 from schwab_dashboard.application.dashboard.models import (
     LiveUnderlyingPosition,
@@ -65,6 +65,145 @@ def test_live_book_matches_short_calls_to_long_shares() -> None:
     assert book.calls[0].strike_distance_percent == D("25.00")
 
 
+def test_live_book_preserves_fractional_shares_and_floors_call_capacity() -> None:
+    stock = _position(
+        quantity=D("100.75"),
+        market_value=D("6045"),
+    )
+    call = _position(
+        symbol="KTOS  260918C00075000",
+        asset_type="OPTION",
+        quantity=D("-1"),
+        underlying_symbol="KTOS",
+        option_type="CALL",
+        expiration_date=date(2026, 9, 18),
+        strike=D("75"),
+        contract_multiplier=D("100"),
+        is_non_standard=False,
+    )
+
+    book = build_live_position_book((stock, call), as_of=date(2026, 8, 10))
+
+    assert book.total_shares == D("100.75")
+    assert book.underlyings[0].shares == D("100.75")
+    assert book.contract_capacity == 1
+    assert book.covered_contracts == 1
+    assert book.coverage_percent == D("100") / D("100.75") * D("100")
+
+
+def test_live_book_does_not_truncate_a_fractional_option_contract() -> None:
+    stock = _position(quantity=D("200"))
+    malformed_call = _position(
+        symbol="KTOS  260918C00075000",
+        asset_type="OPTION",
+        quantity=D("-1.5"),
+        underlying_symbol="KTOS",
+        option_type="CALL",
+        expiration_date=date(2026, 9, 18),
+        strike=D("75"),
+        contract_multiplier=D("100"),
+        is_non_standard=False,
+    )
+
+    book = build_live_position_book((stock, malformed_call), as_of=date(2026, 8, 10))
+
+    assert book.calls == ()
+    assert book.open_call_contracts == 0
+    assert book.unmodeled_short_options[0].option_symbol == malformed_call.symbol
+    assert "whole number" in book.unmodeled_short_options[0].reason
+
+
+def test_live_book_aggregates_same_symbol_holdings_across_accounts() -> None:
+    first_stock = _position(
+        account_mask="...1111",
+        quantity=D("100"),
+        average_price=D("40"),
+        mark=D("60"),
+        market_value=D("6000"),
+        day_profit_loss=D("100"),
+    )
+    second_stock = _position(
+        account_mask="...2222",
+        quantity=D("200"),
+        average_price=D("50"),
+        mark=D("60"),
+        market_value=D("12000"),
+        day_profit_loss=D("200"),
+    )
+    call = _position(
+        account_mask="...1111",
+        symbol="KTOS  260918C00075000",
+        asset_type="OPTION",
+        quantity=D("-1"),
+        underlying_symbol="KTOS",
+        option_type="CALL",
+        expiration_date=date(2026, 9, 18),
+        strike=D("75"),
+    )
+
+    book = build_live_position_book(
+        (first_stock, second_stock, call),
+        as_of=date(2026, 8, 10),
+    )
+
+    underlying = book.underlyings[0]
+    assert underlying.shares == 300
+    assert underlying.average_price == D("14000") / D("300")
+    assert underlying.current_price == D("60")
+    assert underlying.market_value == D("18000")
+    assert underlying.day_profit_loss == D("300")
+    assert underlying.covered_contracts == 1
+    assert underlying.contract_capacity == 3
+    assert underlying.coverage_percent == D("100") / D("300") * D("100")
+
+
+def test_live_book_never_covers_a_call_with_shares_from_another_account() -> None:
+    stock = _position(account_mask="...1111", quantity=D("100"))
+    call = _position(
+        account_mask="...2222",
+        symbol="KTOS  260918C00075000",
+        asset_type="OPTION",
+        quantity=D("-1"),
+        underlying_symbol="KTOS",
+        option_type="CALL",
+        expiration_date=date(2026, 9, 18),
+        strike=D("75"),
+    )
+
+    book = build_live_position_book((stock, call), as_of=date(2026, 8, 10))
+
+    assert book.total_shares == 100
+    assert book.contract_capacity == 1
+    assert book.covered_contracts == 0
+    assert book.uncovered_contracts == 1
+    assert book.coverage_percent == D("0")
+
+
+def test_live_book_uses_stable_account_id_when_masks_collide() -> None:
+    stock = _position(
+        account_id="account-a",
+        account_mask="...1234",
+        quantity=D("100"),
+    )
+    call = _position(
+        account_id="account-b",
+        account_mask="...1234",
+        symbol="KTOS  260918C00075000",
+        asset_type="OPTION",
+        quantity=D("-1"),
+        underlying_symbol="KTOS",
+        option_type="CALL",
+        expiration_date=date(2026, 9, 18),
+        strike=D("75"),
+    )
+
+    book = build_live_position_book((stock, call), as_of=date(2026, 8, 10))
+
+    assert book.covered_contracts == 0
+    assert book.uncovered_contracts == 1
+    assert book.calls[0].account_id == "account-b"
+
+
 def test_live_book_prefers_market_quote_over_stale_account_position_mark() -> None:
     stock = _position(
         symbol="CVX",
@@ -111,6 +250,84 @@ def test_live_book_prefers_market_quote_over_stale_account_position_mark() -> No
     assert underlying.quote_quality == "complete"
     assert book.calls[0].underlying_price == D("200.80")
     assert book.calls[0].strike_distance_per_share == D("4.20")
+
+
+def test_live_book_preserves_a_zero_option_quote_instead_of_using_a_stale_mark() -> None:
+    stock = _position()
+    call = _position(
+        symbol="KTOS  260918C00075000",
+        asset_type="OPTION",
+        quantity=D("-1"),
+        mark=D("1.25"),
+        underlying_symbol="KTOS",
+        option_type="CALL",
+        expiration_date=date(2026, 9, 18),
+        strike=D("75"),
+        contract_multiplier=D("100"),
+        is_non_standard=False,
+    )
+
+    book = build_live_position_book(
+        (stock, call),
+        as_of=date(2026, 8, 10),
+        option_market=({"symbol": call.symbol, "mark": D("0")},),
+    )
+
+    assert book.calls[0].estimated_mark_per_share == D("0")
+
+
+def test_position_mark_uses_adjusted_multiplier_and_withholds_unknown_multiplier() -> None:
+    base = {
+        "account_mask": "...1234",
+        "symbol": "KTOS1 260918C00075000",
+        "asset_type": "OPTION",
+        "net_quantity": D("-2"),
+        "market_value": D("-300"),
+    }
+
+    adjusted = map_positions(({**base, "contract_multiplier": D("150"), "is_non_standard": True},))[
+        0
+    ]
+    unknown = map_positions(({**base, "contract_multiplier": None, "is_non_standard": None},))[0]
+
+    assert adjusted.mark == D("1")
+    assert adjusted.contract_multiplier == D("150")
+    assert adjusted.is_non_standard is True
+    assert unknown.mark is None
+
+
+def test_live_book_assumes_only_conventional_legacy_contracts_are_standard() -> None:
+    stock = _position()
+    standard = _position(
+        symbol="KTOS  260918C00075000",
+        asset_type="OPTION",
+        quantity=D("-1"),
+        underlying_symbol="KTOS",
+        option_type="CALL",
+        expiration_date=date(2026, 9, 18),
+        strike=D("75"),
+    )
+    unknown_adjusted = _position(
+        symbol="KTOS1 260918C00075000",
+        asset_type="OPTION",
+        quantity=D("-1"),
+        underlying_symbol="KTOS",
+        option_type="CALL",
+        expiration_date=date(2026, 9, 18),
+        strike=D("75"),
+    )
+
+    book = build_live_position_book(
+        (stock, standard, unknown_adjusted),
+        as_of=date(2026, 8, 10),
+    )
+
+    assert len(book.calls) == 1
+    assert book.calls[0].option_symbol == standard.symbol
+    assert book.calls[0].contract_multiplier == D("100")
+    assert book.calls[0].multiplier_source == "assumed_standard"
+    assert book.unmodeled_short_options[0].option_symbol == unknown_adjusted.symbol
+    assert book.unmodeled_short_options[0].reason == "Premium multiplier is unavailable."
 
 
 def _quoted_book(
@@ -202,6 +419,25 @@ def test_portfolio_uses_liquidation_value_not_gross_positions() -> None:
     assert summary.margin_balance == D("-45000")
     assert summary.day_profit_loss == D("7000")
     assert summary.day_profit_loss_percent == D("7000") / D("168000") * D("100")
+
+
+def test_portfolio_does_not_publish_partial_multi_account_balances() -> None:
+    summary = summarize_portfolio(
+        (
+            _position(day_profit_loss=D("100")),
+            _position(symbol="CVX", day_profit_loss=D("50")),
+        ),
+        (
+            {"liquidation_value": D("100000"), "cash_balance": D("10000")},
+            {"liquidation_value": None, "cash_balance": None},
+        ),
+    )
+
+    assert summary.total_value is None
+    assert summary.liquidation_value is None
+    assert summary.cash_value is None
+    assert summary.day_profit_loss == D("150")
+    assert summary.day_profit_loss_percent is None
 
 
 def test_portfolio_uses_position_tape_when_account_nl_change_disagrees() -> None:
@@ -378,8 +614,36 @@ def test_short_puts_share_the_existing_underlying_group() -> None:
     assert book.open_put_contracts == 1
     assert book.underlyings[0].open_put_contracts == 1
     assert book.puts[0].strike_distance_per_share == D("10")
-    assert book.total_open_mark_profit_loss == D("0")
-    assert book.estimated_put_theta_per_day == D("0")
+    assert book.total_open_mark_profit_loss is None
+    assert book.estimated_put_theta_per_day is None
+
+
+def test_live_book_does_not_replace_missing_option_values_with_zero() -> None:
+    stock = _position()
+    call = _position(
+        symbol="KTOS  260918C00075000",
+        asset_type="OPTION",
+        quantity=D("-1"),
+        average_price=None,
+        mark=None,
+        market_value=None,
+        open_profit_loss=None,
+        day_profit_loss=None,
+        underlying_symbol="KTOS",
+        option_type="CALL",
+        expiration_date=date(2026, 9, 18),
+        strike=D("75"),
+    )
+
+    book = build_live_position_book((stock, call), as_of=date(2026, 8, 10))
+    open_call = book.calls[0]
+
+    assert open_call.entry_credit is None
+    assert open_call.current_option_value is None
+    assert open_call.open_profit_loss is None
+    assert book.open_mark_profit_loss is None
+    assert book.total_open_mark_profit_loss is None
+    assert book.underlyings[0].estimated_theta_per_day is None
 
 
 def test_short_put_clock_uses_the_oldest_remaining_open_lot_after_partial_close() -> None:
@@ -430,7 +694,7 @@ def test_short_put_clock_uses_the_oldest_remaining_open_lot_after_partial_close(
     assert book.puts[0].original_days_to_expiration == 44
 
 
-def test_option_theta_uses_exported_contract_multiplier() -> None:
+def test_option_theta_uses_exported_premium_multiplier_without_inventing_delivery() -> None:
     stock = _position(quantity=D("450"))
     call = _position(
         symbol="KTOS1 260918C00075000",
@@ -450,9 +714,48 @@ def test_option_theta_uses_exported_contract_multiplier() -> None:
     )
 
     assert book.calls[0].contract_multiplier == D("150")
-    assert book.contract_capacity == 3
-    assert book.covered_contracts == 2
+    assert book.calls[0].deliverable_shares_per_contract is None
+    assert book.calls[0].roll_quote_candidates == ()
+    assert book.calls[0].expiration_assessment is None
+    assert book.contract_capacity == 4
+    assert book.covered_contracts == 0
+    assert book.uncovered_contracts == 2
     assert book.underlyings[0].estimated_theta_per_day == D("15.00")
+
+
+def test_mixed_deliverables_do_not_hide_an_uncovered_call() -> None:
+    stock = _position(quantity=D("200"))
+    adjusted = _position(
+        symbol="KTOS1 260918C00075000",
+        asset_type="OPTION",
+        quantity=D("-1"),
+        underlying_symbol="KTOS",
+        option_type="CALL",
+        expiration_date=date(2026, 9, 18),
+        strike=D("75"),
+        contract_multiplier=D("150"),
+        is_non_standard=True,
+    )
+    standard = _position(
+        symbol="KTOS  260925C00080000",
+        asset_type="OPTION",
+        quantity=D("-1"),
+        underlying_symbol="KTOS",
+        option_type="CALL",
+        expiration_date=date(2026, 9, 25),
+        strike=D("80"),
+        contract_multiplier=D("100"),
+        is_non_standard=False,
+    )
+
+    book = build_live_position_book((stock, adjusted, standard), as_of=date(2026, 8, 10))
+
+    assert book.open_call_contracts == 2
+    assert book.covered_contracts == 1
+    assert book.uncovered_contracts == 1
+    assert book.coverage_percent == D("50")
+    assert book.calls[0].deliverable_shares_per_contract is None
+    assert book.calls[1].deliverable_shares_per_contract == D("100")
 
 
 def test_expired_friday_inventory_stays_visible_but_loses_trading_actions() -> None:

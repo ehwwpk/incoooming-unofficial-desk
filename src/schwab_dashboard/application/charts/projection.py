@@ -64,6 +64,8 @@ def build_campaign_chart(
                 detail=event.detail,
                 confidence=event.campaign_confidence,
                 is_open=event.outcome.upper() == "OPEN",
+                contract_multiplier=event.contract_multiplier,
+                delivered_shares=event.delivered_shares,
             )
         )
 

@@ -23,6 +23,10 @@ function Get-QueryValue {
 }
 
 $dashboard = (Resolve-Path -LiteralPath ".\.venv\Scripts\schwab-dashboard.exe").Path
+$null = & $dashboard db-upgrade
+if ($LASTEXITCODE -ne 0) {
+    throw "Incoooming could not prepare the local database."
+}
 $originalClipboard = Get-Clipboard -Raw -ErrorAction SilentlyContinue
 $authorizationUrl = (& $dashboard auth-url).Trim()
 if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($authorizationUrl)) {
@@ -74,6 +78,7 @@ try {
         throw "No Schwab callback was captured within ${TimeoutSeconds} seconds. Nothing was changed."
     }
 
+    Set-Clipboard -Value " "
     $callback | & $dashboard auth-complete --from-stdin
     if ($LASTEXITCODE -ne 0) {
         throw "Schwab rejected the freshly captured callback. The local token was not replaced."

@@ -4,23 +4,28 @@ import hashlib
 import json
 from collections import Counter, defaultdict
 from collections.abc import Mapping, Sequence
-from datetime import date, datetime
+from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from typing import Any
 
-from schwab_dashboard.application.market_time import market_date
+from schwab_dashboard.application.market_time import ledger_market_date, market_date
+from schwab_dashboard.application.option_lifecycle import (
+    delivered_share_quantity,
+    lifecycle_event_type,
+    option_side,
+)
 
 ZERO = Decimal("0")
-STANDARD_MULTIPLIER = Decimal("100")
 STRIKE_TICK = Decimal("0.05")
 
 EquityScope = tuple[str, str, date]
 KeyedExecution = tuple[str, Mapping[str, Any]]
+KeyedLifecycleEvent = tuple[str, Mapping[str, Any]]
 
 
 def is_equity_execution(row: Mapping[str, Any]) -> bool:
-    asset = str(row.get("asset_type") or "").lower()
-    return asset in {"equity", "stock"} and asset != "option"
+    asset = _normalized_token(row.get("asset_type"))
+    return asset in {"equity", "etf", "stock"}
 
 
 def execution_keys(executions: Sequence[Mapping[str, Any]]) -> tuple[KeyedExecution, ...]:
@@ -44,6 +49,14 @@ def execution_keys(executions: Sequence[Mapping[str, Any]]) -> tuple[KeyedExecut
     return tuple(keyed)
 
 
+def lifecycle_event_keys(
+    events: Sequence[Mapping[str, Any]],
+) -> tuple[KeyedLifecycleEvent, ...]:
+    """Give lifecycle events the same stable duplicate-aware identity policy."""
+
+    return _stable_row_keys(events, prefix="lifecycle")
+
+
 def classify_forced_equity(
     *,
     executions: Sequence[Mapping[str, Any]],
@@ -51,13 +64,28 @@ def classify_forced_equity(
 ) -> tuple[frozenset[str], frozenset[EquityScope]]:
     """Pair assignment/exercise stock legs. Uncertain account-symbol-days are omitted."""
 
+    forced, uncertain, _matched_events = classify_forced_equity_matches(
+        executions=executions,
+        lifecycle_events=lifecycle_events,
+    )
+    return forced, uncertain
+
+
+def classify_forced_equity_matches(
+    *,
+    executions: Sequence[Mapping[str, Any]],
+    lifecycle_events: Sequence[Mapping[str, Any]],
+) -> tuple[frozenset[str], frozenset[EquityScope], frozenset[str]]:
+    """Return forced fills, uncertain scopes, and events with matched stock delivery."""
+
     equity = [item for item in execution_keys(executions) if is_equity_execution(item[1])]
     forced: set[str] = set()
     uncertain: set[EquityScope] = set()
+    matched_events: set[str] = set()
     used: set[str] = set()
-    for event in lifecycle_events:
-        event_type = _forced_event_type(event.get("event_type"))
-        if event_type is None:
+    for event_key, event in lifecycle_event_keys(lifecycle_events):
+        event_type = lifecycle_event_type(event.get("event_type"))
+        if event_type not in {"assignment", "exercise"}:
             continue
         day = _row_day(event)
         symbol = _symbol(event.get("underlying_symbol") or event.get("symbol"))
@@ -70,15 +98,16 @@ def classify_forced_equity(
             for item in same_scope
             if item[0] not in used and _matches_forced_leg(event_type, event, item[1])
         ]
-        match = _unique_quantity_subset(candidates, _event_shares(event))
+        match = _unique_quantity_subset(candidates, delivered_share_quantity(event))
         if match is not None:
             keys = {item[0] for item in match}
             forced.update(keys)
             used.update(keys)
+            matched_events.add(event_key)
             continue
         if same_scope:
             uncertain.add(scope)
-    return frozenset(forced), frozenset(uncertain)
+    return frozenset(forced), frozenset(uncertain), frozenset(matched_events)
 
 
 def apply_discretionary_equity(
@@ -91,13 +120,21 @@ def apply_discretionary_equity(
     forced_keys: frozenset[str],
     uncertain_symbol_days: frozenset[EquityScope],
     include_anchor: bool = False,
+    account: str | None = None,
 ) -> tuple[dict[str, Decimal], Decimal, bool]:
-    """Copy manual share trades into freeze lots and cash. Skip forced legs."""
+    """Copy supported manual share trades into freeze lots and cash.
+
+    Each account-symbol-day is atomic. If its side or cash cannot be interpreted,
+    or its known ordering would require a short stock position, the whole scope is
+    omitted instead of retaining only the favorable half of a round trip.
+    """
 
     next_qty = dict(quantities)
     next_cash = cash
     omitted = False
-    for key, row in execution_keys(executions):
+    selected_account = account.strip().casefold() if account else None
+    scopes: defaultdict[EquityScope, list[tuple[int, Mapping[str, Any]]]] = defaultdict(list)
+    for index, (key, row) in enumerate(execution_keys(executions)):
         if not is_equity_execution(row):
             continue
         day = _row_day(row)
@@ -111,16 +148,65 @@ def apply_discretionary_equity(
         symbol = _symbol(row.get("symbol"))
         if not symbol:
             continue
-        if (_account(row), symbol, day) in uncertain_symbol_days:
+        row_account = _account(row)
+        if selected_account is not None and row_account not in {"", selected_account}:
+            continue
+        scope = (row_account, symbol, day)
+        if scope in uncertain_symbol_days:
             omitted = True
             continue
         if key in forced_keys:
             continue
-        shares = _signed_shares(row)
-        price = _decimal(row.get("price"))
-        next_cash -= shares * price
-        next_qty[symbol] = next_qty.get(symbol, ZERO) + shares
-        if next_qty[symbol] <= ZERO:
+        scopes[scope].append((index, row))
+
+    ordered_scopes = sorted(
+        scopes.items(),
+        key=lambda item: (item[0][2], min(_execution_timestamp(row) for _, row in item[1])),
+    )
+    for (_row_account, symbol, _day), rows in ordered_scopes:
+        trial_quantity = next_qty.get(symbol, ZERO)
+        trial_cash = next_cash
+        valid = True
+        by_instant: defaultdict[datetime, list[tuple[int, Mapping[str, Any]]]] = defaultdict(list)
+        for index, row in rows:
+            by_instant[_execution_timestamp(row)].append((index, row))
+        for _instant, batch in sorted(by_instant.items()):
+            parsed: list[tuple[Decimal, Decimal]] = []
+            total_sells = ZERO
+            for _index, row in sorted(batch):
+                side = _execution_side(row.get("side"))
+                quantity = abs(_decimal(row.get("quantity")))
+                if side not in {"buy", "sell"} or quantity <= ZERO:
+                    valid = False
+                    break
+                shares = -quantity if side == "sell" else quantity
+                if shares < ZERO:
+                    total_sells += -shares
+                net_cash = row.get("net_cash")
+                if net_cash is None:
+                    price = _optional(row.get("price"))
+                    if price is None or price < ZERO:
+                        valid = False
+                        break
+                    cash_change = -shares * price - abs(_decimal(row.get("fees")))
+                else:
+                    cash_change = _decimal(net_cash)
+                parsed.append((shares, cash_change))
+            # Equal timestamps do not prove that a purchase preceded a sale. The
+            # scope is safe only if the opening quantity covers every sale in the
+            # batch under the conservative sell-first ordering.
+            if not valid or trial_quantity - total_sells < ZERO:
+                valid = False
+                break
+            for shares, cash_change in parsed:
+                trial_quantity += shares
+                trial_cash += cash_change
+        if not valid:
+            omitted = True
+            continue
+        next_cash = trial_cash
+        next_qty[symbol] = trial_quantity
+        if trial_quantity == ZERO:
             del next_qty[symbol]
     return next_qty, next_cash, omitted
 
@@ -162,7 +248,7 @@ def live_long_quantity(
         # non-zero quantity should be carried forever.
         snapshots[snapshot_key] += ZERO
         if (
-            str(row.get("asset_type") or "").upper() != "OPTION"
+            _normalized_token(row.get("asset_type")) in {"equity", "etf", "stock"}
             and str(row.get("symbol") or "").upper() == symbol
         ):
             snapshots[snapshot_key] += _decimal(row.get("net_quantity"))
@@ -226,23 +312,17 @@ def _unique_quantity_subset(
     return tuple(candidates[index] for index in matches[0])
 
 
-def _event_shares(event: Mapping[str, Any]) -> Decimal:
-    stock = abs(_decimal(event.get("stock_quantity")))
-    if stock:
-        return stock
-    raw_multiplier = event.get("contract_multiplier")
-    if raw_multiplier is None:
-        raw_multiplier = event.get("multiplier")
-    multiplier = STANDARD_MULTIPLIER if raw_multiplier is None else _decimal(raw_multiplier)
-    return abs(_decimal(event.get("option_quantity"))) * multiplier
+def forced_event_shares(event: Mapping[str, Any]) -> Decimal:
+    return delivered_share_quantity(event)
 
 
-def _signed_shares(row: Mapping[str, Any]) -> Decimal:
-    quantity = abs(_decimal(row.get("quantity")))
-    side = _execution_side(row.get("side"))
-    if side == "sell":
-        return -quantity
-    return quantity
+def _execution_timestamp(row: Mapping[str, Any]) -> datetime:
+    value = row.get("occurred_at")
+    if isinstance(value, datetime):
+        return value.astimezone(UTC) if value.tzinfo is not None else value.replace(tzinfo=UTC)
+    if isinstance(value, date):
+        return datetime.combine(value, time.min, tzinfo=UTC)
+    return datetime.min.replace(tzinfo=UTC)
 
 
 def _execution_key_base(row: Mapping[str, Any]) -> str:
@@ -257,6 +337,33 @@ def _execution_key_base(row: Mapping[str, Any]) -> str:
     )
     digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
     return f"replay:{digest}"
+
+
+def _stable_row_keys(
+    rows: Sequence[Mapping[str, Any]], *, prefix: str
+) -> tuple[tuple[str, Mapping[str, Any]], ...]:
+    bases: list[str] = []
+    for row in rows:
+        external_key = str(row.get("external_key") or "").strip()
+        if external_key:
+            bases.append(external_key)
+            continue
+        payload = json.dumps(
+            _canonical_value(row),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+        )
+        digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+        bases.append(f"{prefix}:{digest}")
+    totals = Counter(bases)
+    occurrences: defaultdict[str, int] = defaultdict(int)
+    keyed: list[tuple[str, Mapping[str, Any]]] = []
+    for base, row in zip(bases, rows, strict=True):
+        occurrences[base] += 1
+        key = f"{base}:{occurrences[base]}" if totals[base] > 1 else base
+        keyed.append((key, row))
+    return tuple(keyed)
 
 
 def _canonical_value(value: object) -> object:
@@ -275,17 +382,8 @@ def _canonical_value(value: object) -> object:
     return str(value)
 
 
-def _forced_event_type(value: object) -> str | None:
-    normalized = _normalized_token(value)
-    if normalized in {"assignment", "assigned"}:
-        return "assignment"
-    if normalized in {"exercise", "exercised"}:
-        return "exercise"
-    return None
-
-
-def _delivery_side(event_type: str, option_side: object) -> str | None:
-    normalized_side = _option_side(option_side)
+def _delivery_side(event_type: str, option_side_value: object) -> str | None:
+    normalized_side = option_side(option_side_value)
     if normalized_side is None:
         return None
     deliveries: dict[tuple[str, str], str] = {
@@ -295,15 +393,6 @@ def _delivery_side(event_type: str, option_side: object) -> str | None:
         ("exercise", "put"): "sell",
     }
     return deliveries.get((event_type, normalized_side))
-
-
-def _option_side(value: object) -> str | None:
-    normalized = _normalized_token(value)
-    if normalized in {"call", "c"}:
-        return "call"
-    if normalized in {"put", "p"}:
-        return "put"
-    return None
 
 
 def _execution_side(value: object) -> str:
@@ -320,7 +409,7 @@ def _normalized_token(value: object) -> str:
 
 
 def _account(row: Mapping[str, Any]) -> str:
-    return str(row.get("account_mask") or "").strip().casefold()
+    return str(row.get("account_id") or row.get("account_mask") or "").strip().casefold()
 
 
 def _symbol(value: object) -> str:
@@ -337,10 +426,8 @@ def _execution_scope(row: Mapping[str, Any]) -> EquityScope | None:
 
 def _row_day(row: Mapping[str, Any]) -> date | None:
     value = row.get("occurred_at")
-    if isinstance(value, datetime):
-        return market_date(value)
-    if isinstance(value, date):
-        return value
+    if isinstance(value, (date, datetime)):
+        return ledger_market_date(value)
     return None
 
 

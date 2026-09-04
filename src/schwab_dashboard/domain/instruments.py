@@ -60,8 +60,8 @@ class OptionDeliverable:
     def __post_init__(self) -> None:
         if self.description is not None:
             require_text(self.description, "description")
-        if self.kind is not DeliverableKind.UNKNOWN and not self.components:
-            raise ValueError("a known option deliverable must have at least one component")
+        if self.kind is DeliverableKind.STANDARD and not self.components:
+            raise ValueError("a standard option deliverable must have at least one component")
 
 
 @dataclass(frozen=True, slots=True)

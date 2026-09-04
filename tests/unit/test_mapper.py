@@ -47,6 +47,17 @@ def test_refuses_account_without_hash_match() -> None:
         )
 
 
+def test_refuses_an_incomplete_account_detail_cohort() -> None:
+    with pytest.raises(BrokerPayloadError, match="complete account set"):
+        SchwabAccountMapper().map_records(
+            [
+                {"accountNumber": "1111", "hashValue": "hash-one"},
+                {"accountNumber": "2222", "hashValue": "hash-two"},
+            ],
+            [{"securitiesAccount": {"accountNumber": "1111", "positions": []}}],
+        )
+
+
 def test_maps_balances_and_short_call_identity() -> None:
     records = SchwabAccountMapper().map_records(
         [{"accountNumber": "12345678", "hashValue": "hash-abc"}],

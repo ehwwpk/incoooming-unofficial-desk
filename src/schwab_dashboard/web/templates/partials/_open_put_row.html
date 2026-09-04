@@ -5,7 +5,7 @@
   <summary aria-label="{{ row.symbol }} {{ row.contracts }} contract {{ row.strike | number(2) }} short put, {{ row.days_to_expiration }} days to expiration">
     <span class="option-contract put-contract">
       <b>{{ row.contracts }}x ${{ row.strike | number(2) }}P</b>
-      <small>{% if row.can_close_or_roll %}{{ row.symbol }} CASH-SECURED PUT{% else %}{{ row.session_label }}{% endif %}</small>
+      <small>{% if row.can_close_or_roll %}{{ row.symbol }} SHORT PUT{% else %}{{ row.session_label }}{% endif %}{% if row.obligated_shares is none %} &middot; DELIVERY UNRESOLVED{% endif %}</small>
     </span>
     <span class="option-term put-term">
       <small>TIME LEFT</small>
@@ -23,16 +23,16 @@
     </span>
     <span>
       <small>PREMIUM / BUYBACK</small>
-      <b class="put-cash-pair"><i class="positive">+{{ row.entry_credit | money }}</i><i class="negative">&minus;{{ row.estimated_close_cost | money }}</i></b>
-      <em>Received / {{ row.close_cost_basis | lower }}</em>
+      <b class="put-cash-pair"><i class="{{ 'positive' if row.entry_credit is not none else 'muted' }}">{% if row.entry_credit is not none %}+{{ row.entry_credit | money }}{% else %}&mdash;{% endif %}</i><i class="{{ 'negative' if row.estimated_close_cost is not none else 'muted' }}">{% if row.estimated_close_cost is not none %}&minus;{{ row.estimated_close_cost | money }}{% else %}&mdash;{% endif %}</i></b>
+      <em>{% if row.entry_credit is not none and row.estimated_close_cost is not none %}Received / {{ row.close_cost_basis | lower }}{% else %}Mark or entry unavailable{% endif %}</em>
     </span>
     <span class="option-row-pl">
       <small>OPEN P/L</small>
       <div class="open-book-pl-line">
         <b class="{{ row.open_profit_loss | pnl_class }}">{{ row.open_profit_loss | money }}</b>
-        <small class="{{ row.credit_capture_percent | pnl_class }}">{{ row.credit_capture_percent | percent }} CAPTURED</small>
+        <small class="{{ row.credit_capture_percent | pnl_class }}">{% if row.credit_capture_percent is not none %}{{ row.credit_capture_percent | percent }} CAPTURED{% else %}MARK OR ENTRY UNAVAILABLE{% endif %}</small>
       </div>
-      <em>{% if row.can_close_or_roll %}{{ row.theta_estimate_per_day | money }}/day model decay{% else %}No live theta after trading close{% endif %}</em>
+      <em>{% if not row.can_close_or_roll %}No live theta after trading close{% elif row.theta_estimate_per_day is not none %}{{ row.theta_estimate_per_day | money }}/day model decay{% else %}Theta unavailable{% endif %}</em>
     </span>
     <i class="option-row-toggle put-row-toggle" aria-hidden="true"></i>
   </summary>
@@ -59,6 +59,7 @@
         {% endif %}
       </section>
 
+      {% if row.option_value_vs_credit_percent is not none and row.option_value_track_percent is not none and row.option_value_overrun_percent is not none and row.credit_capture_percent is not none %}
       <section class="contract-clock value-clock {{ 'value-overrun' if row.option_value_overrun_percent > 0 else 'value-contained' }}">
         <header>
           <span>OPTION VALUE / PREMIUM</span>
@@ -78,6 +79,13 @@
           <span>{{ row.entry_credit | money }} RECEIVED</span>
         </footer>
       </section>
+      {% else %}
+      <section class="contract-clock value-clock clock-unavailable">
+        <header><span>OPTION VALUE / PREMIUM</span><b>&mdash;</b></header>
+        <div class="clock-track" role="img" aria-label="Option value comparison unavailable"><span></span></div>
+        <footer><span>MARK OR ENTRY UNAVAILABLE</span><strong>NOT GUESSED</strong><span>BROKER DATA</span></footer>
+      </section>
+      {% endif %}
     </div>
 
     <div class="option-fact-strip put-fact-strip">
@@ -102,7 +110,7 @@
     </div>
 
     <details class="contract-model-disclosure">
-      <summary>MODEL INPUTS <span>PER SHARE / RAW CONTRACT QUOTE</span></summary>
+      <summary>MODEL INPUTS <span>PER SHARE / {{ row.quote_status }}{% if row.quote_observed_on %} {{ row.quote_observed_on | short_date }}{% endif %}</span></summary>
       <div>
         <span>IV <b>{% if row.implied_volatility_percent is not none %}{{ row.implied_volatility_percent | percent }}{% else %}&mdash;{% endif %}</b></span>
         <span>DELTA <b>{% if row.delta is not none %}{{ row.delta | number(3) }}{% else %}&mdash;{% endif %}</b></span>

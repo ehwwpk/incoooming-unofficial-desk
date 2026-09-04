@@ -63,6 +63,8 @@ class PriceEvent:
     campaign_slot: int = 0
     campaign_is_first_visible: bool = False
     campaign_is_latest_visible: bool = False
+    contract_multiplier: Decimal = Decimal("100")
+    delivered_shares: Decimal | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,12 +73,12 @@ class ShareTradeEvent:
     label: str
     action: str
     glyph: str
-    shares: int
+    shares: Decimal
     price: Decimal
     x_percent: Decimal
     y_percent: Decimal
-    gross_buys: int = 0
-    gross_sells: int = 0
+    gross_buys: Decimal = Decimal("0")
+    gross_sells: Decimal = Decimal("0")
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,15 +116,15 @@ class OpenCallClock:
     campaign_id: str
     campaign_label: str
     policy_id: str
-    sold_on: Date
+    sold_on: Date | None
     expires_on: Date
     strike: Decimal
     contracts: int
-    underlying_at_sale: Decimal
-    close_ask_per_share: Decimal
-    bid_per_share: Decimal
-    spread_per_share: Decimal
-    spread_percent_of_mark: Decimal
+    underlying_at_sale: Decimal | None
+    close_ask_per_share: Decimal | None
+    bid_per_share: Decimal | None
+    spread_per_share: Decimal | None
+    spread_percent_of_mark: Decimal | None
     quote_observed_on: Date | None
     quote_status: str
     implied_volatility_percent: Decimal | None
@@ -132,32 +134,35 @@ class OpenCallClock:
     volume: int | None
     open_interest: int | None
     roll_quote_candidates: tuple[RollQuoteCandidate, ...]
-    original_days_to_expiration: int
-    elapsed_days: int
-    elapsed_time_percent: Decimal
+    original_days_to_expiration: int | None
+    elapsed_days: int | None
+    elapsed_time_percent: Decimal | None
     days_to_expiration: int
-    strike_distance_per_share: Decimal
-    strike_distance_percent: Decimal
-    mark_per_share: Decimal
-    entry_credit_per_share: Decimal
-    entry_credit: Decimal
-    current_option_value: Decimal
-    open_profit_loss: Decimal
-    credit_capture_percent: Decimal
-    option_value_vs_credit_percent: Decimal
-    intrinsic_value: Decimal
-    remaining_extrinsic_value: Decimal
-    theta_per_share: Decimal
-    short_theta_per_day: Decimal
-    theta_decay_percent_of_extrinsic: Decimal
-    theta_days_of_time_value: Decimal
-    time_remaining_percent: Decimal
+    strike_distance_per_share: Decimal | None
+    strike_distance_percent: Decimal | None
+    mark_per_share: Decimal | None
+    entry_credit_per_share: Decimal | None
+    entry_credit: Decimal | None
+    current_option_value: Decimal | None
+    open_profit_loss: Decimal | None
+    credit_capture_percent: Decimal | None
+    option_value_vs_credit_percent: Decimal | None
+    intrinsic_value: Decimal | None
+    remaining_extrinsic_value: Decimal | None
+    theta_per_share: Decimal | None
+    short_theta_per_day: Decimal | None
+    theta_decay_percent_of_extrinsic: Decimal | None
+    theta_days_of_time_value: Decimal | None
+    time_remaining_percent: Decimal | None
     decay_stage: str
     session_state: OptionSessionState = OptionSessionState.ACTIVE
     contract_multiplier: Decimal = Decimal("100")
+    deliverable_shares_per_contract: Decimal | None = Decimal("100")
     price_time_read: PriceTimeRead | None = None
     quote_observed_at: datetime | None = None
     expiration_assessment: OptionExpirationAssessment | None = None
+    account_mask: str = ""
+    account_id: str | None = None
 
     @property
     def can_close_or_roll(self) -> bool:
@@ -172,8 +177,10 @@ class OpenCallClock:
         return abs(self.contract_multiplier) * Decimal(self.contracts)
 
     @property
-    def obligated_shares(self) -> int:
-        return int(self.position_scale)
+    def obligated_shares(self) -> Decimal | None:
+        if self.deliverable_shares_per_contract is None:
+            return None
+        return abs(self.deliverable_shares_per_contract) * Decimal(self.contracts)
 
     @property
     def position_delta_share_equivalent(self) -> Decimal | None:
@@ -200,9 +207,9 @@ class CallSaleRecord:
     sold_on: Date
     expires_on: Date
     contracts: int
-    underlying_at_sale: Decimal
+    underlying_at_sale: Decimal | None
     strike: Decimal
-    strike_upside_percent: Decimal
+    strike_upside_percent: Decimal | None
     days_to_expiration: int
     premium_per_share: Decimal
     gross_premium: Decimal
@@ -219,7 +226,7 @@ class CallSaleRecord:
 class UnderlyingCallStats:
     symbol: str
     company_name: str
-    shares: int
+    shares: Decimal
     average_cost: Decimal
     current_price: Decimal
     market_value: Decimal
@@ -233,19 +240,19 @@ class UnderlyingCallStats:
     closed_contracts: int
     rolled_contracts: int
     assigned_contracts: int
-    called_away_shares: int
+    called_away_shares: Decimal
     gross_premium: Decimal
     buyback_cost: Decimal
     net_option_cash: Decimal
     realized_option_income: Decimal
-    open_call_credit: Decimal
+    open_call_credit: Decimal | None
     quarter_dividends: Decimal
     quarter_total_cash: Decimal
     quarter_option_apr: Decimal
     quarter_total_cash_apr: Decimal
-    average_open_call_iv_percent: Decimal
-    average_open_call_delta: Decimal
-    current_strike_buffer_percent: Decimal
+    average_open_call_iv_percent: Decimal | None
+    average_open_call_delta: Decimal | None
+    current_strike_buffer_percent: Decimal | None
     next_ex_dividend_date: Date | None
     dividend_per_share: Decimal
     dividend_overlap_contracts: int
@@ -272,15 +279,17 @@ class UnderlyingCallStats:
     tone: str
     current_session_change_percent: Decimal | None = None
     current_week_change_percent: Decimal | None = None
-    acquired_shares: int = 0
+    acquired_shares: Decimal = Decimal("0")
 
     @property
-    def open_call_theta_per_day(self) -> Decimal:
+    def open_call_theta_per_day(self) -> Decimal | None:
         """Current theoretical daily decay across this name's open short calls."""
-        return sum(
-            (call.short_theta_per_day for call in self.open_call_clocks),
-            Decimal("0"),
-        )
+        total = Decimal("0")
+        for call in self.open_call_clocks:
+            if call.short_theta_per_day is None:
+                return None
+            total += call.short_theta_per_day
+        return total
 
     @property
     def daily_price_change_percent(self) -> Decimal | None:
@@ -314,7 +323,7 @@ def _session_price_change(
 
 @dataclass(frozen=True, slots=True)
 class CoveredCallPortfolioSummary:
-    total_shares: int
+    total_shares: Decimal
     contract_capacity: int
     active_contracts: int
     coverage_percent: Decimal
@@ -324,17 +333,17 @@ class CoveredCallPortfolioSummary:
     closed_contracts: int
     rolled_contracts: int
     assigned_contracts: int
-    called_away_shares: int
+    called_away_shares: Decimal
     gross_premium: Decimal
     buyback_cost: Decimal
     net_option_cash: Decimal
     realized_option_income: Decimal
-    open_call_credit: Decimal
-    open_call_mark_value: Decimal
-    open_mark_profit_loss: Decimal
+    open_call_credit: Decimal | None
+    open_call_mark_value: Decimal | None
+    open_mark_profit_loss: Decimal | None
     dividends: Decimal
     total_cash_income: Decimal
     win_rate: Decimal
-    annualized_option_yield: Decimal
-    annualized_total_cash_yield: Decimal
+    annualized_option_yield: Decimal | None
+    annualized_total_cash_yield: Decimal | None
     premium_capture_percent: Decimal

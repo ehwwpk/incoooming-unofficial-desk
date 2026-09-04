@@ -34,7 +34,7 @@ def test_unhandled_exception_renders_recoverable_html_without_exception_details(
 
     body = response.body.decode("utf-8")
     assert response.status_code == 500
-    assert "This page tripped over a wire" in body
+    assert "This page could not load" in body
     assert "restart-local.cmd" in body
     assert "secret diagnostic detail" not in body
 

@@ -28,15 +28,24 @@ def current_build_id() -> str:
     """Hash executable application assets so a launcher can spot a stale server."""
 
     digest = hashlib.sha256()
-    for path in sorted(
-        item
-        for item in PACKAGE_ROOT.rglob("*")
-        if item.is_file()
-        and item.suffix.lower() in FINGERPRINT_SUFFIXES
-        and "__pycache__" not in item.parts
-    ):
-        digest.update(path.relative_to(PACKAGE_ROOT).as_posix().encode("utf-8"))
-        digest.update(path.read_bytes())
+    source_migrations = PACKAGE_ROOT.parents[1] / "migrations"
+    packaged_migrations = PACKAGE_ROOT / "migrations"
+    roots = (
+        PACKAGE_ROOT,
+        source_migrations if source_migrations.is_dir() else packaged_migrations,
+    )
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for path in sorted(
+            item
+            for item in root.rglob("*")
+            if item.is_file()
+            and item.suffix.lower() in FINGERPRINT_SUFFIXES
+            and "__pycache__" not in item.parts
+        ):
+            digest.update(f"{root.name}/{path.relative_to(root).as_posix()}".encode())
+            digest.update(path.read_bytes())
     return digest.hexdigest()[:16]
 
 

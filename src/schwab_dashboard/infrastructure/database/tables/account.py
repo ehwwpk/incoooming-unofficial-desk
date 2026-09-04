@@ -57,6 +57,8 @@ class PositionSnapshotTable(Base):
     strike: Mapped[Decimal | None] = mapped_column(Numeric(28, 10))
     long_open_profit_loss: Mapped[Decimal | None] = mapped_column(Numeric(28, 10))
     short_open_profit_loss: Mapped[Decimal | None] = mapped_column(Numeric(28, 10))
+    contract_multiplier: Mapped[Decimal | None] = mapped_column(Numeric(28, 10))
+    is_non_standard: Mapped[bool | None] = mapped_column(Boolean())
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utc_now
     )

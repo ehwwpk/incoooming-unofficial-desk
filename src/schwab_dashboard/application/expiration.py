@@ -32,8 +32,8 @@ class OptionExpirationAssessment:
     distance_per_share: Decimal | None
     distance_percent: Decimal | None
     contracts: int
-    contract_multiplier: Decimal
-    assignment_shares: int
+    deliverable_shares_per_contract: Decimal
+    assignment_shares: Decimal
     assignment_notional: Decimal
     intrinsic_value_at_reference: Decimal | None
     crossed_after_close: bool
@@ -67,7 +67,7 @@ def assess_option_expiration(
     session_state: OptionSessionState,
     strike: Decimal,
     contracts: int,
-    contract_multiplier: Decimal,
+    deliverable_shares_per_contract: Decimal,
     official_close: Decimal | None,
     latest_underlying_price: Decimal | None,
 ) -> OptionExpirationAssessment | None:
@@ -75,12 +75,18 @@ def assess_option_expiration(
 
     if session_state.can_close_or_roll:
         return None
+    side = option_side.strip().upper()
+    if side not in {"CALL", "PUT"}:
+        raise ValueError("option_side must be CALL or PUT")
+    if contracts <= 0:
+        raise ValueError("contracts must be positive")
+    delivery = abs(deliverable_shares_per_contract)
+    if delivery <= ZERO:
+        raise ValueError("deliverable_shares_per_contract must be positive")
     reference = official_close if official_close is not None else latest_underlying_price
     reference_label = "EXPIRATION-DAY CLOSE" if official_close is not None else "LATEST UNDERLYING"
-    multiplier = abs(contract_multiplier or HUNDRED)
-    assignment_shares = int(multiplier * Decimal(contracts))
-    assignment_notional = strike * multiplier * Decimal(contracts)
-    side = option_side.upper()
+    assignment_shares = delivery * Decimal(contracts)
+    assignment_notional = strike * assignment_shares
 
     if reference is None:
         expectation = ExpirationExpectation.UNKNOWN
@@ -98,7 +104,7 @@ def assess_option_expiration(
             expectation = ExpirationExpectation.EXPECTED_ASSIGNMENT
         else:
             expectation = ExpirationExpectation.EXPECTED_WORTHLESS
-        intrinsic = max(ZERO, signed_distance) * multiplier * Decimal(contracts)
+        intrinsic = max(ZERO, signed_distance) * assignment_shares
 
     crossed = False
     if official_close is not None and latest_underlying_price is not None:
@@ -120,7 +126,7 @@ def assess_option_expiration(
         distance_per_share=distance,
         distance_percent=distance_percent,
         contracts=contracts,
-        contract_multiplier=multiplier,
+        deliverable_shares_per_contract=delivery,
         assignment_shares=assignment_shares,
         assignment_notional=assignment_notional,
         intrinsic_value_at_reference=intrinsic,

@@ -189,9 +189,10 @@ campaign path.
 4. **Done:** hostile fixtures cover partial closes, partial assignment, overlapping identical
    contracts, long-option exclusion, and non-100 multipliers.
 5. **Done:** removed the legacy numbered renderer after the reconciliation gate passed.
-6. **Still an explicit coverage gap:** the current live ledger contains no observed adjusted-contract
-   event. The multiplier-aware path is tested, but a real OCC-adjusted contract has not yet been
-   reconciled from this account and must not be described as live-proven.
+6. **Still a coverage gap:** the current live ledger contains no observed OCC-adjusted contract.
+   Tests cover non-100 premium multipliers and fractional delivered-share quantities. Open-position
+   share obligations remain unavailable when an adjusted contract's physical delivery is not known.
+   That path is tested, but has not been verified against a live adjusted contract from this account.
 
 ## Research basis
 
@@ -205,11 +206,9 @@ campaign path.
 - DefiLlama's strongest transferable pattern is metric-first progressive disclosure: a small default
   surface with deeper custom views, not every metric on one plot.
 
-## Locked recommendation for the next implementation turn
+## Implemented design
 
-Do not replace `1, 2, 3 ... 20` with a prettier set of global numbers. Replace the global sequence with
-persistent `C1`, `C2`, `C3` campaign identity, action-specific shapes, and a separate inventory rail.
-The first implementation slice should be data-only: persist and test campaign lineage, partial
-quantities, roll pairs, and unresolved links. Only then prototype the new renderer behind a feature
-flag beside the current chart. That order prevents the interface from confidently drawing a campaign
-the ledger cannot actually prove.
+The chart uses persistent `C1`, `C2`, `C3` campaign identities, action-specific shapes, and a
+separate inventory rail. Campaign lineage, partial quantities, roll pairs, and unresolved links are
+normalized and tested before rendering. The interface leaves an unproved relationship unlinked
+instead of drawing a confident campaign path.

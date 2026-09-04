@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
+
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Check Python
+        run: |
+          python -m ruff check .
+          python -m mypy
+
+      - name: Check dependencies
+        run: python -m pip_audit --local --skip-editable --progress-spinner off
+
+      - name: Check common security mistakes
+        # Assertions narrow internal invariants; "pass" is also a Radar status value.
+        run: python -m bandit -r src -q -s B101,B105
+
+      - name: Test
+        run: python -m pytest --cov=schwab_dashboard --cov-fail-under=80
+
+      - name: Check JavaScript syntax
+        shell: pwsh
+        run: |
+          Get-ChildItem src/schwab_dashboard/web/static -Filter *.js -Recurse |
+            ForEach-Object { node --check $_.FullName }
+
+      - name: Build wheel
+        run: python -m build --wheel
+
+      - name: Test installed database migration
+        shell: pwsh
+        run: |
+          $wheel = Get-ChildItem dist -Filter *.whl | Select-Object -First 1
+          python -m pip uninstall --yes incoooming-unofficial-desk
+          python -m pip install --no-deps $wheel.FullName
+          $env:SCHWAB_DASHBOARD_DATA_DIR = Join-Path $env:RUNNER_TEMP "wheel-smoke"
+          schwab-dashboard db-upgrade
+          schwab-dashboard doctor

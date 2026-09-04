@@ -35,8 +35,17 @@ def build_executed_option_overlay(
     capital = actual_points[0].value
     cumulative = ZERO
     points: list[ReturnPoint] = []
+    previous_day: date | None = None
     for point in actual_points:
-        day_cash = cash_by_day[point.date]
+        day_cash = sum(
+            (
+                cash
+                for day, cash in cash_by_day.items()
+                if (previous_day is None and day <= point.date)
+                or (previous_day is not None and previous_day < day <= point.date)
+            ),
+            ZERO,
+        )
         cumulative += day_cash
         points.append(
             ReturnPoint(
@@ -48,6 +57,7 @@ def build_executed_option_overlay(
                 quality="executed_cash_only",
             )
         )
+        previous_day = point.date
     return ComparisonSeries(
         key="option_overlay",
         label="Executed option cash",

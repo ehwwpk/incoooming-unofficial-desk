@@ -7,8 +7,12 @@ from decimal import Decimal
 
 import httpx
 
-from schwab_dashboard.application.dashboard.models import DashboardSnapshot
+from schwab_dashboard.application.dashboard.models import (
+    DashboardSnapshot,
+    LiveOpenOptionPosition,
+)
 from schwab_dashboard.application.errors import AuthenticationRequiredError
+from schwab_dashboard.application.market_time import market_date
 from schwab_dashboard.application.opportunities import evaluate_radar
 from schwab_dashboard.application.opportunities.symbol import normalize_symbol
 from schwab_dashboard.application.ports.dashboard import DashboardReader
@@ -27,6 +31,8 @@ from schwab_dashboard.domain.opportunity import (
     RadarRollReview,
     RadarRollSelectionContext,
 )
+
+ZERO = Decimal("0")
 
 
 class AuthorizationRequiredOpportunityMarketGateway:
@@ -121,16 +127,11 @@ class RunPremiumRadar:
                 account_snapshot,
                 symbol=canonical,
                 policy=policy,
-                released_call_contracts=(
-                    roll_source.contracts
-                    if roll_source is not None and roll_source.option_side is OptionSide.CALL
-                    else 0
-                ),
+                roll_source=roll_source,
             )
-            scan_from = _expiration_date(
-                requested_at.date(), policy.minimum_dte, field="minimum_dte"
-            )
-            scan_to = _expiration_date(requested_at.date(), policy.maximum_dte, field="maximum_dte")
+            requested_on = market_date(requested_at)
+            scan_from = _expiration_date(requested_on, policy.minimum_dte, field="minimum_dte")
+            scan_to = _expiration_date(requested_on, policy.maximum_dte, field="maximum_dte")
             if (
                 roll_source is not None
                 and roll_request is not None
@@ -138,13 +139,13 @@ class RunPremiumRadar:
             ):
                 scan_from = min(
                     scan_from,
-                    max(requested_at.date(), roll_source.expires_on),
+                    max(requested_on, roll_source.expires_on),
                 )
                 scan_to = max(scan_to, roll_request.target_expiration)
             elif roll_source is not None:
                 scan_from = min(
                     scan_from,
-                    max(requested_at.date(), roll_source.expires_on),
+                    max(requested_on, roll_source.expires_on),
                 )
                 scan_to = max(
                     scan_to,
@@ -274,7 +275,7 @@ def _account_context(
     *,
     symbol: str,
     policy: RadarPolicy,
-    released_call_contracts: int = 0,
+    roll_source: RollSource | None = None,
 ) -> RadarAccountContext:
     live_underlying = None
     if snapshot.live_position_book is not None:
@@ -291,14 +292,7 @@ def _account_context(
         if live_underlying is not None
         else summary_underlying.shares
         if summary_underlying is not None
-        else 0
-    )
-    capacity = (
-        live_underlying.contract_capacity
-        if live_underlying is not None
-        else summary_underlying.contract_capacity
-        if summary_underlying is not None
-        else max(0, shares // 100)
+        else ZERO
     )
     open_calls = (
         live_underlying.open_call_contracts
@@ -307,12 +301,107 @@ def _account_context(
         if summary_underlying is not None
         else 0
     )
+    context_open_calls = open_calls
+    account_mask = str(snapshot.accounts[0].get("account_mask")) if snapshot.accounts else None
+    account_scope_resolved = True
+    delivery_terms_resolved = True
+    if policy.mode is RadarMode.COVERED_CALL and live_underlying is not None:
+        relevant_positions = tuple(
+            position
+            for position in snapshot.positions
+            if position.quantity > ZERO
+            and position.symbol.strip().upper() == symbol.strip().upper()
+            and position.asset_type.strip().lower() in {"equity", "etf", "stock"}
+        )
+        shares_by_account: dict[str, Decimal] = {}
+        masks_by_account: dict[str, str] = {}
+        for position in relevant_positions:
+            scope = _account_scope(position.account_id, position.account_mask)
+            shares_by_account[scope] = shares_by_account.get(scope, ZERO) + position.quantity
+            masks_by_account[scope] = position.account_mask
+        calls_by_account: dict[str, list[LiveOpenOptionPosition]] = {}
+        for call in live_underlying.calls:
+            scope = _account_scope(call.account_id, call.account_mask)
+            calls_by_account.setdefault(scope, []).append(call)
+
+        released_scope = (
+            _account_scope(roll_source.account_id, roll_source.account_mask)
+            if roll_source is not None
+            and roll_source.option_side is OptionSide.CALL
+            and (roll_source.account_id or roll_source.account_mask)
+            else None
+        )
+        selected_scopes: tuple[str, ...]
+        if released_scope is not None:
+            selected_scopes = (released_scope,)
+        elif len(shares_by_account) == 1:
+            selected_scopes = tuple(shares_by_account)
+        elif len(shares_by_account) > 1:
+            selected_scopes = ()
+            account_scope_resolved = False
+        else:
+            selected_scopes = ()
+
+        if selected_scopes:
+            scope = selected_scopes[0]
+            selected_calls = calls_by_account.get(scope, [])
+            context_open_calls = sum(call.contracts for call in selected_calls)
+            delivery_terms_resolved = all(
+                call.deliverable_shares_per_contract is not None for call in selected_calls
+            )
+            committed = (
+                sum((call.obligated_shares or ZERO for call in selected_calls), ZERO)
+                if delivery_terms_resolved
+                else ZERO
+            )
+            released = (
+                Decimal(roll_source.contracts) * roll_source.deliverable_shares_per_contract
+                if roll_source is not None
+                and roll_source.option_side is OptionSide.CALL
+                and roll_source.deliverable_shares_per_contract is not None
+                and scope == released_scope
+                else ZERO
+            )
+            shares = shares_by_account.get(scope, ZERO)
+            capacity = int(max(ZERO, shares - committed + released) // Decimal("100"))
+            account_mask = masks_by_account.get(scope) or account_mask
+        else:
+            released_lots = (
+                int(
+                    Decimal(roll_source.contracts)
+                    * roll_source.deliverable_shares_per_contract
+                    // Decimal("100")
+                )
+                if roll_source is not None
+                and roll_source.option_side is OptionSide.CALL
+                and roll_source.deliverable_shares_per_contract is not None
+                else 0
+            )
+            capacity = (
+                0
+                if not account_scope_resolved
+                else max(0, live_underlying.contract_capacity - open_calls + released_lots)
+            )
+            delivery_terms_resolved = not any(
+                call.deliverable_shares_per_contract is None for call in live_underlying.calls
+            )
+    else:
+        capacity = (
+            live_underlying.contract_capacity
+            if live_underlying is not None
+            else summary_underlying.contract_capacity
+            if summary_underlying is not None
+            else int(max(ZERO, shares) // Decimal("100"))
+        )
+        capacity = max(0, capacity - open_calls)
     return RadarAccountContext(
         shares=shares,
-        covered_call_contracts=open_calls,
-        available_call_lots=max(0, capacity - open_calls + released_call_contracts),
+        covered_call_contracts=context_open_calls,
+        available_call_lots=capacity if delivery_terms_resolved else 0,
         reserved_cash=policy.reserved_cash,
-        account_mask=(str(snapshot.accounts[0].get("account_mask")) if snapshot.accounts else None),
+        account_mask=account_mask,
+        delivery_terms_resolved=delivery_terms_resolved,
+        account_scope_resolved=account_scope_resolved,
     )
 
 
@@ -329,6 +418,11 @@ def _resolve_roll_source(
     if source is None:
         raise RadarRollRequestError(
             "That source option is no longer open. Refresh the desk before reviewing a roll."
+        )
+    if source.deliverable_shares_per_contract is None:
+        raise RadarRollRequestError(
+            "That source option has adjusted or unresolved delivery terms. "
+            "Review the OCC contract memo before comparing a roll."
         )
     if (request.target_expiration is None) != (request.target_strike is None):
         raise RadarRollRequestError(
@@ -376,9 +470,13 @@ def _find_open_roll_source(
             expires_on=call.expires_on,
             strike=call.strike,
             contracts=call.contracts,
-            close_ask_per_share=call.close_ask_per_share,
+            close_ask_per_share=call.close_ask_per_share or Decimal("0"),
             current_price=current_price,
             quote_status=call.quote_status,
+            contract_multiplier=call.contract_multiplier,
+            deliverable_shares_per_contract=call.deliverable_shares_per_contract,
+            account_mask=call.account_mask,
+            account_id=call.account_id,
         )
     if snapshot.live_position_book is None:
         return None
@@ -404,7 +502,14 @@ def _find_open_roll_source(
         current_price=put.underlying_price or Decimal("0"),
         quote_status=(put.quote_quality or "unavailable").upper(),
         contract_multiplier=put.contract_multiplier,
+        deliverable_shares_per_contract=put.deliverable_shares_per_contract,
+        account_mask=put.account_mask,
+        account_id=put.account_id,
     )
+
+
+def _account_scope(account_id: str | None, account_mask: str) -> str:
+    return str(account_id or account_mask or "default").strip().casefold()
 
 
 def _build_roll_review(
@@ -439,7 +544,7 @@ def _build_roll_review(
     )
     target_bid = target.bid if target is not None else None
     net_per_share = target_bid - source_ask if target_bid is not None else None
-    contract_shares = Decimal(source.contracts) * source.contract_multiplier
+    premium_units = Decimal(source.contracts) * source.contract_multiplier
     comparisons = tuple(
         RadarRollComparison(
             option_symbol=candidate.option_symbol,
@@ -447,7 +552,7 @@ def _build_roll_review(
             strike=candidate.strike,
             bid_per_share=candidate.bid,
             net_roll_per_share=candidate.bid - source_ask,
-            net_roll_cash=(candidate.bid - source_ask) * contract_shares,
+            net_roll_cash=(candidate.bid - source_ask) * premium_units,
             strike_change_per_share=candidate.strike - source.strike,
             added_days=(candidate.expiration_date - source.expires_on).days,
         )
@@ -470,7 +575,7 @@ def _build_roll_review(
         target_strike=(target.strike if target is not None else None),
         target_bid_per_share=target_bid,
         net_roll_per_share=net_per_share,
-        net_roll_cash=(net_per_share * contract_shares if net_per_share is not None else None),
+        net_roll_cash=(net_per_share * premium_units if net_per_share is not None else None),
         strike_lift_per_share=(target.strike - source.strike if target is not None else None),
         added_days=(
             (target.expiration_date - source.expires_on).days if target is not None else None

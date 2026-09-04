@@ -164,8 +164,8 @@ def build_price_events(
                 expires_on=action.record.expires_on,
                 contracts=action.record.contracts,
                 strike=action.record.strike,
-                underlying_at_sale=action.record.underlying_at_sale,
-                strike_upside_percent=action.record.strike_upside_percent,
+                underlying_at_sale=_required_decimal(action.record.underlying_at_sale),
+                strike_upside_percent=_required_decimal(action.record.strike_upside_percent),
                 entry_days_to_expiration=action.record.days_to_expiration,
                 premium_per_share=action.record.premium_per_share,
                 gross_premium=action.record.gross_premium,
@@ -231,7 +231,7 @@ def build_share_trade_events(
                 label=trade.traded_on.strftime("%m/%d"),
                 action=trade.action,
                 glyph="+" if trade.action == "buy" else "-",
-                shares=trade.shares,
+                shares=D(trade.shares),
                 price=trade.price,
                 x_percent=point.x_percent,
                 y_percent=point.y_percent,
@@ -243,3 +243,11 @@ def build_share_trade_events(
 def _parse_label(label: str, year: int) -> date:
     month, day = (int(part) for part in label.split("/"))
     return date(year, month, day)
+
+
+def _required_decimal(value: Decimal | None) -> Decimal:
+    """Narrow price context guaranteed by the fictional demo fixtures."""
+
+    if value is None:
+        raise ValueError("demo call history requires complete price context")
+    return value

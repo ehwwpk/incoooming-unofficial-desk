@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Resp
 from schwab_dashboard.api.dependencies import get_container
 from schwab_dashboard.api.source_context import SOURCE_COOKIE, selected_source_key
 from schwab_dashboard.application.imports import CsvImportError
+from schwab_dashboard.application.imports.csv_text import MAX_CSV_BYTES
 from schwab_dashboard.container import Container
 from schwab_dashboard.domain.data_source import BrokerKind
 from schwab_dashboard.web.rendering import templates
@@ -57,9 +58,7 @@ async def import_csv_source(
     preview_fingerprint: Annotated[str, Form()],
 ) -> Response:
     try:
-        payloads: list[tuple[str, bytes]] = []
-        for file in files:
-            payloads.append((file.filename or "import.csv", await file.read()))
+        payloads = await _read_csv_uploads(files)
         dataset = container.import_csv_dataset().execute(
             name=dataset_name,
             broker=broker,
@@ -87,9 +86,7 @@ async def preview_csv_source(
     files: Annotated[list[UploadFile], File()],
 ) -> JSONResponse:
     try:
-        payloads: list[tuple[str, bytes]] = []
-        for file in files:
-            payloads.append((file.filename or "import.csv", await file.read()))
+        payloads = await _read_csv_uploads(files)
         preview = container.import_csv_dataset().preview(
             name=dataset_name,
             broker=broker,
@@ -130,6 +127,22 @@ async def preview_csv_source(
             ],
         }
     )
+
+
+async def _read_csv_uploads(files: list[UploadFile]) -> list[tuple[str, bytes]]:
+    if len(files) > 8:
+        raise CsvImportError("Import no more than eight CSV files at once.")
+    payloads: list[tuple[str, bytes]] = []
+    for file in files:
+        raw_name = (file.filename or "import.csv").strip()
+        filename = raw_name.replace("\\", "/").rsplit("/", 1)[-1]
+        if not filename or len(filename) > 255 or any(ord(char) < 32 for char in filename):
+            raise CsvImportError("Each CSV needs a plain file name of 255 characters or fewer.")
+        content = await file.read(MAX_CSV_BYTES + 1)
+        if len(content) > MAX_CSV_BYTES:
+            raise CsvImportError("CSV files are limited to 10 MB each.")
+        payloads.append((filename, content))
+    return payloads
 
 
 @router.get("/sources/templates/{template_kind}.csv")

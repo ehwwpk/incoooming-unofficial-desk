@@ -22,7 +22,19 @@ A position snapshot is not a trade ledger. It records what Schwab reported at on
 - day P/L fields when supplied
 - pointer to the raw event
 
-Future transaction replay must reconcile to these snapshots; snapshots do not create synthetic transactions by themselves.
+Transaction replay must reconcile to these snapshots; snapshots do not create synthetic
+transactions by themselves.
+
+## Transactions and lifecycle events
+
+Executions retain asset type, quantity, price, gross cash, net cash, fees, position effect, and
+contract metadata when the source supplies them. Cash movements keep dividends, interest,
+financing, fees, withholding, owner transfers, and unknown activity separate. Lifecycle records
+keep assignment, exercise, expiration, and adjustment events separate from executions.
+
+Assignments and exercises may be matched to broker stock-delivery executions. Matching uses stable
+source fields and duplicate occurrence numbers; it never uses process memory addresses. Ambiguous
+matches remain unresolved and are excluded from affected comparison paths.
 
 ## Reconciliation issue
 

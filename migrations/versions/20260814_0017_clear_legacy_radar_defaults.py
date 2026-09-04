@@ -35,4 +35,3 @@ def downgrade() -> None:
     # A no-limit value may have been an explicit post-upgrade choice. Restoring
     # the retired automatic limits would overwrite that intent, so leave it null.
     pass
-

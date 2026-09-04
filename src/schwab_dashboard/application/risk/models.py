@@ -20,7 +20,7 @@ class OpenOptionRiskInput:
     symbol: str
     contracts_short: Decimal
     premium_multiplier: Decimal
-    deliverable_share_quantity: Decimal
+    deliverable_share_quantity: Decimal | None
     strike: Decimal
     underlying_price: Decimal
     observed_at: datetime
@@ -45,7 +45,10 @@ class OpenOptionRiskInput:
             raise ValueError("contracts_short must be positive")
         if self.premium_multiplier <= 0:
             raise ValueError("premium_multiplier must be positive")
-        require_non_negative(self.deliverable_share_quantity, "deliverable_share_quantity")
+        require_optional_non_negative(
+            self.deliverable_share_quantity,
+            "deliverable_share_quantity",
+        )
         require_non_negative(self.strike, "strike")
         require_non_negative(self.underlying_price, "underlying_price")
         for name in ("entry_credit", "option_mark", "bid", "ask"):
@@ -69,8 +72,8 @@ class OpenOptionRiskView:
     symbol: str
     option_type: str
     contracts_short: Decimal
-    obligated_shares: Decimal
-    called_away_notional: Decimal
+    obligated_shares: Decimal | None
+    called_away_notional: Decimal | None
     distance_to_strike: Decimal
     distance_to_strike_percent: Decimal | None
     current_liability: Decimal | None
@@ -131,8 +134,8 @@ class UnderlyingRiskView:
 class OpenRiskSummary:
     positions: tuple[OpenOptionRiskView, ...]
     underlyings: tuple[UnderlyingRiskView, ...]
-    called_away_notional: Decimal
-    obligated_shares: Decimal
+    called_away_notional: Decimal | None
+    obligated_shares: Decimal | None
     current_liability: Decimal | None
     theta_estimate_per_day: Decimal | None
     dollar_delta_for_one_percent_move: Decimal | None

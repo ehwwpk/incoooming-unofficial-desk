@@ -20,12 +20,13 @@ from schwab_dashboard.application.dashboard.option_clock_math import (
     short_option_value_vs_credit,
 )
 from schwab_dashboard.application.expiration import OptionExpirationAssessment
-from schwab_dashboard.application.market_time import OptionSessionState
+from schwab_dashboard.application.market_time import OptionSessionState, market_date
 from schwab_dashboard.application.policy.evaluate import evaluate_policy_fit
 from schwab_dashboard.application.policy.models import CallPolicy
 from schwab_dashboard.application.risk.models import OpenRiskSummary
 from schwab_dashboard.application.risk.price_time import PriceTimeRead, build_price_time_read
 from schwab_dashboard.application.risk.projection import build_open_risk_summary
+from schwab_dashboard.application.values import sum_if_complete
 from schwab_dashboard.application.volatility.calculate import analyze_volatility_history
 from schwab_dashboard.application.volatility.models import DailyVolatilityObservation
 
@@ -37,33 +38,33 @@ class OpenCallRow:
     symbol: str
     contracts: int
     strike: Decimal
-    sold_on: date
+    sold_on: date | None
     expires_on: date
-    original_days_to_expiration: int
+    original_days_to_expiration: int | None
     days_to_expiration: int
-    obligated_shares: int
-    strike_distance_per_share: Decimal
-    strike_distance_percent: Decimal
-    entry_credit: Decimal
-    current_liability: Decimal
-    open_profit_loss: Decimal
-    theta_estimate_per_day: Decimal
-    elapsed_time_percent: Decimal
-    time_remaining_percent: Decimal
-    credit_capture_percent: Decimal
-    option_value_vs_credit_percent: Decimal
-    option_value_track_percent: Decimal
-    option_value_overrun_percent: Decimal
+    obligated_shares: Decimal | None
+    strike_distance_per_share: Decimal | None
+    strike_distance_percent: Decimal | None
+    entry_credit: Decimal | None
+    current_liability: Decimal | None
+    open_profit_loss: Decimal | None
+    theta_estimate_per_day: Decimal | None
+    elapsed_time_percent: Decimal | None
+    time_remaining_percent: Decimal | None
+    credit_capture_percent: Decimal | None
+    option_value_vs_credit_percent: Decimal | None
+    option_value_track_percent: Decimal | None
+    option_value_overrun_percent: Decimal | None
     decay_stage: str
     policy_label: str
     intent_label: str
     policy_fit_summary: str
     policy_fits: bool
-    entry_credit_per_share: Decimal
-    bid_per_share: Decimal
-    mark_per_share: Decimal
-    close_ask_per_share: Decimal
-    spread_per_share: Decimal
+    entry_credit_per_share: Decimal | None
+    bid_per_share: Decimal | None
+    mark_per_share: Decimal | None
+    close_ask_per_share: Decimal | None
+    spread_per_share: Decimal | None
     quote_status: str
     quote_observed_on: date | None
     implied_volatility_percent: Decimal | None
@@ -77,8 +78,8 @@ class OpenCallRow:
     price_time_read: PriceTimeRead
     volume: int | None
     open_interest: int | None
-    intrinsic_value: Decimal
-    remaining_extrinsic_value: Decimal
+    intrinsic_value: Decimal | None
+    remaining_extrinsic_value: Decimal | None
     next_event_label: str
     session_state: OptionSessionState
     session_label: str
@@ -92,13 +93,13 @@ class OpenCallGroup:
     rows: tuple[OpenCallRow, ...]
     position_count: int
     contract_count: int
-    nearest_buffer_percent: Decimal
+    nearest_buffer_percent: Decimal | None
     next_expiration: date
     next_expiration_dte: int
     realized_volatility_percent: Decimal | None
-    open_profit_loss: Decimal
-    premium_capture_percent: Decimal
-    theta_estimate_per_day: Decimal
+    open_profit_loss: Decimal | None
+    premium_capture_percent: Decimal | None
+    theta_estimate_per_day: Decimal | None
     actionable_position_count: int = 0
     actionable_contract_count: int = 0
     pending_settlement_position_count: int = 0
@@ -115,33 +116,33 @@ class OpenPutRow:
     expires_on: date
     original_days_to_expiration: int | None
     days_to_expiration: int
-    obligated_shares: int
-    assignment_notional: Decimal
+    obligated_shares: Decimal | None
+    assignment_notional: Decimal | None
     strike_distance_per_share: Decimal
     strike_distance_percent: Decimal
     strike_distance_display: Decimal
     strike_distance_percent_display: Decimal
     strike_state_label: str
     strike_distance_available: bool
-    entry_credit_per_share: Decimal
+    entry_credit_per_share: Decimal | None
     effective_entry_per_share: Decimal | None
-    entry_credit: Decimal
-    current_liability: Decimal
-    estimated_close_cost: Decimal
+    entry_credit: Decimal | None
+    current_liability: Decimal | None
+    estimated_close_cost: Decimal | None
     close_cost_basis: str
-    open_profit_loss: Decimal
-    theta_estimate_per_day: Decimal
+    open_profit_loss: Decimal | None
+    theta_estimate_per_day: Decimal | None
     elapsed_time_percent: Decimal | None
     time_remaining_percent: Decimal | None
-    credit_capture_percent: Decimal
-    option_value_vs_credit_percent: Decimal
-    option_value_track_percent: Decimal
-    option_value_overrun_percent: Decimal
+    credit_capture_percent: Decimal | None
+    option_value_vs_credit_percent: Decimal | None
+    option_value_track_percent: Decimal | None
+    option_value_overrun_percent: Decimal | None
     decay_stage: str
-    bid_per_share: Decimal
-    mark_per_share: Decimal
-    close_ask_per_share: Decimal
-    spread_per_share: Decimal
+    bid_per_share: Decimal | None
+    mark_per_share: Decimal | None
+    close_ask_per_share: Decimal | None
+    spread_per_share: Decimal | None
     implied_volatility_percent: Decimal | None
     delta: Decimal | None
     gamma: Decimal | None
@@ -153,8 +154,8 @@ class OpenPutRow:
     price_time_read: PriceTimeRead
     volume: int | None
     open_interest: int | None
-    intrinsic_value: Decimal
-    remaining_extrinsic_value: Decimal
+    intrinsic_value: Decimal | None
+    remaining_extrinsic_value: Decimal | None
     quote_status: str
     quote_observed_at: datetime | None
     quote_observed_on: date | None
@@ -173,21 +174,21 @@ class OpenBookProjection:
     total_contracts: int
     call_contracts: int
     put_contracts: int
-    obligated_shares: int
-    entry_credit: Decimal
-    current_liability: Decimal
-    open_profit_loss: Decimal
-    theta_estimate_per_day: Decimal
-    same_day_theta_estimate_per_day: Decimal
-    later_theta_estimate_per_day: Decimal
+    obligated_shares: Decimal | None
+    entry_credit: Decimal | None
+    current_liability: Decimal | None
+    open_profit_loss: Decimal | None
+    theta_estimate_per_day: Decimal | None
+    same_day_theta_estimate_per_day: Decimal | None
+    later_theta_estimate_per_day: Decimal | None
     pending_settlement_positions: int
     pending_settlement_contracts: int
     actionable_positions: int
     actionable_contracts: int
-    actionable_current_liability: Decimal
-    actionable_open_profit_loss: Decimal
-    pending_last_mark_liability: Decimal
-    pending_last_mark_profit_loss: Decimal
+    actionable_current_liability: Decimal | None
+    actionable_open_profit_loss: Decimal | None
+    pending_last_mark_liability: Decimal | None
+    pending_last_mark_profit_loss: Decimal | None
     risk: OpenRiskSummary | None
 
     @property
@@ -220,12 +221,12 @@ class VolatilityRow:
     symbol: str
     sessions: int
     realized_volatility_percent: Decimal | None
-    open_call_iv_percent: Decimal
+    open_call_iv_percent: Decimal | None
     implied_minus_realized_points: Decimal | None
     iv_rank_percent: Decimal | None
     range_position_percent: Decimal
     thirteen_week_change_percent: Decimal
-    strike_buffer_percent: Decimal
+    strike_buffer_percent: Decimal | None
     quality: str
 
 
@@ -255,28 +256,37 @@ def build_open_book(snapshot: DashboardSnapshot) -> OpenBookProjection:
         actionable_rows = tuple(row for row in underlying_rows if row.can_close_or_roll)
         pending_rows = tuple(row for row in underlying_rows if not row.can_close_or_roll)
         summary_rows = actionable_rows or underlying_rows
-        nearest = min(summary_rows, key=lambda row: abs(row.strike_distance_percent))
+        known_buffers = tuple(
+            row for row in summary_rows if row.strike_distance_percent is not None
+        )
+        nearest = (
+            min(known_buffers, key=lambda row: abs(row.strike_distance_percent or Decimal(0)))
+            if known_buffers
+            else None
+        )
         next_expiring = min(summary_rows, key=lambda row: row.expires_on)
-        entry_credit = sum((row.entry_credit for row in actionable_rows), Decimal(0))
-        current_liability = sum((row.current_liability for row in actionable_rows), Decimal(0))
+        entry_credit = sum_if_complete(row.entry_credit for row in actionable_rows)
+        current_liability = sum_if_complete(row.current_liability for row in actionable_rows)
         groups.append(
             OpenCallGroup(
                 symbol=underlying.symbol,
                 rows=underlying_rows,
                 position_count=len(underlying_rows),
                 contract_count=sum((row.contracts for row in underlying_rows), 0),
-                nearest_buffer_percent=nearest.strike_distance_percent,
+                nearest_buffer_percent=(
+                    nearest.strike_distance_percent if nearest is not None else None
+                ),
                 next_expiration=next_expiring.expires_on,
                 next_expiration_dte=next_expiring.days_to_expiration,
                 realized_volatility_percent=_realized_volatility_percent(underlying, snapshot),
-                open_profit_loss=sum((row.open_profit_loss for row in actionable_rows), Decimal(0)),
+                open_profit_loss=sum_if_complete(row.open_profit_loss for row in actionable_rows),
                 premium_capture_percent=(
                     (entry_credit - current_liability) / entry_credit * Decimal("100")
-                    if entry_credit
-                    else Decimal(0)
+                    if entry_credit and current_liability is not None
+                    else None
                 ),
-                theta_estimate_per_day=sum(
-                    (row.theta_estimate_per_day for row in actionable_rows), Decimal(0)
+                theta_estimate_per_day=sum_if_complete(
+                    row.theta_estimate_per_day for row in actionable_rows
                 ),
                 actionable_position_count=len(actionable_rows),
                 actionable_contract_count=sum((row.contracts for row in actionable_rows), 0),
@@ -300,12 +310,14 @@ def build_open_book(snapshot: DashboardSnapshot) -> OpenBookProjection:
         (actionable_row_list if row.can_close_or_roll else pending_row_list).append(row)
     book_actionable_rows = tuple(actionable_row_list)
     book_pending_rows = tuple(pending_row_list)
-    theta_estimate_per_day = sum(
-        (row.theta_estimate_per_day for row in book_actionable_rows), Decimal(0)
+    theta_estimate_per_day = sum_if_complete(
+        row.theta_estimate_per_day for row in book_actionable_rows
     )
-    same_day_theta_estimate_per_day = sum(
-        (row.theta_estimate_per_day for row in book_actionable_rows if row.days_to_expiration == 0),
-        Decimal(0),
+    same_day_theta_estimate_per_day = sum_if_complete(
+        row.theta_estimate_per_day for row in book_actionable_rows if row.days_to_expiration == 0
+    )
+    later_theta_estimate_per_day = sum_if_complete(
+        row.theta_estimate_per_day for row in book_actionable_rows if row.days_to_expiration != 0
     )
     return OpenBookProjection(
         rows=grouped_rows,
@@ -315,43 +327,40 @@ def build_open_book(snapshot: DashboardSnapshot) -> OpenBookProjection:
         total_contracts=call_contracts + put_contracts,
         call_contracts=call_contracts,
         put_contracts=put_contracts,
-        obligated_shares=sum((row.obligated_shares for row in grouped_rows), 0)
-        + sum((row.obligated_shares for row in put_rows), 0),
-        entry_credit=sum((row.entry_credit for row in grouped_rows), Decimal(0))
-        + sum((row.entry_credit for row in put_rows), Decimal(0)),
-        current_liability=sum((row.current_liability for row in grouped_rows), Decimal(0))
-        + sum((row.current_liability for row in put_rows), Decimal(0)),
-        open_profit_loss=sum((row.open_profit_loss for row in grouped_rows), Decimal(0))
-        + sum((row.open_profit_loss for row in put_rows), Decimal(0)),
+        obligated_shares=sum_if_complete(row.obligated_shares for row in all_rows),
+        entry_credit=sum_if_complete(row.entry_credit for row in all_rows),
+        current_liability=sum_if_complete(row.current_liability for row in all_rows),
+        open_profit_loss=sum_if_complete(row.open_profit_loss for row in all_rows),
         theta_estimate_per_day=theta_estimate_per_day,
         same_day_theta_estimate_per_day=same_day_theta_estimate_per_day,
-        later_theta_estimate_per_day=(theta_estimate_per_day - same_day_theta_estimate_per_day),
+        later_theta_estimate_per_day=later_theta_estimate_per_day,
         pending_settlement_positions=len(book_pending_rows),
         pending_settlement_contracts=sum((row.contracts for row in book_pending_rows), 0),
         actionable_positions=len(book_actionable_rows),
         actionable_contracts=sum((row.contracts for row in book_actionable_rows), 0),
-        actionable_current_liability=sum(
-            (row.current_liability for row in book_actionable_rows), Decimal(0)
+        actionable_current_liability=sum_if_complete(
+            row.current_liability for row in book_actionable_rows
         ),
-        actionable_open_profit_loss=sum(
-            (row.open_profit_loss for row in book_actionable_rows), Decimal(0)
+        actionable_open_profit_loss=sum_if_complete(
+            row.open_profit_loss for row in book_actionable_rows
         ),
-        pending_last_mark_liability=sum(
-            (row.current_liability for row in book_pending_rows), Decimal(0)
+        pending_last_mark_liability=sum_if_complete(
+            row.current_liability for row in book_pending_rows
         ),
-        pending_last_mark_profit_loss=sum(
-            (row.open_profit_loss for row in book_pending_rows), Decimal(0)
+        pending_last_mark_profit_loss=sum_if_complete(
+            row.open_profit_loss for row in book_pending_rows
         ),
         risk=build_open_risk_summary(snapshot),
     )
 
 
 def _open_put_row(option: LiveOpenOptionPosition) -> OpenPutRow:
-    multiplier = abs(option.contract_multiplier or Decimal("100"))
-    entry_credit_per_share = abs(option.entry_credit_per_share or Decimal(0))
-    entry_credit_available = option.entry_credit_per_share is not None
-    entry_credit = entry_credit_per_share * multiplier * Decimal(option.contracts)
-    obligated_shares = int(multiplier * Decimal(option.contracts))
+    multiplier = abs(option.contract_multiplier)
+    entry_credit_per_share = (
+        abs(option.entry_credit_per_share) if option.entry_credit_per_share is not None else None
+    )
+    entry_credit = option.entry_credit
+    obligated_shares = option.obligated_shares
     strike_distance_available = (
         option.strike_distance_per_share is not None and option.strike_distance_percent is not None
     )
@@ -365,33 +374,43 @@ def _open_put_row(option: LiveOpenOptionPosition) -> OpenPutRow:
         strike_state_label = "ITM BY"
     else:
         strike_state_label = "AT STRIKE"
-    current_liability = abs(
-        option.market_value
-        if option.market_value is not None
-        else (option.estimated_mark_per_share or Decimal(0))
-        * multiplier
-        * Decimal(option.contracts)
-    )
+    current_liability = option.current_option_value
     close_basis_value = (
         option.ask_per_share
         if option.ask_per_share is not None
         else option.estimated_mark_per_share
     )
-    estimated_close_cost = abs(
-        (close_basis_value or Decimal(0)) * multiplier * Decimal(option.contracts)
+    estimated_close_cost = (
+        abs(close_basis_value) * multiplier * Decimal(option.contracts)
+        if close_basis_value is not None
+        else None
     )
-    mark_per_share = abs(option.estimated_mark_per_share or Decimal(0))
-    bid_per_share = abs(option.bid_per_share or mark_per_share)
-    close_ask_per_share = abs(option.ask_per_share or mark_per_share)
-    spread_per_share = max(Decimal(0), close_ask_per_share - bid_per_share)
+    mark_per_share = (
+        abs(option.estimated_mark_per_share)
+        if option.estimated_mark_per_share is not None
+        else None
+    )
+    bid_per_share = abs(option.bid_per_share) if option.bid_per_share is not None else None
+    close_ask_per_share = abs(option.ask_per_share) if option.ask_per_share is not None else None
+    spread_per_share = (
+        max(Decimal(0), close_ask_per_share - bid_per_share)
+        if close_ask_per_share is not None and bid_per_share is not None
+        else None
+    )
     theta_estimate_per_day = (
-        -(option.theta_per_share or Decimal(0)) * multiplier * Decimal(option.contracts)
-        if option.can_close_or_roll
+        -option.theta_per_share * multiplier * Decimal(option.contracts)
+        if option.theta_per_share is not None and option.can_close_or_roll
         else Decimal(0)
+        if not option.can_close_or_roll
+        else None
     )
-    value = short_option_value_vs_credit(
-        entry_credit=entry_credit,
-        current_liability=current_liability,
+    value = (
+        short_option_value_vs_credit(
+            entry_credit=entry_credit,
+            current_liability=current_liability,
+        )
+        if entry_credit is not None and current_liability is not None
+        else None
     )
     original_days_to_expiration = option.original_days_to_expiration
     term = short_option_term(
@@ -400,13 +419,29 @@ def _open_put_row(option: LiveOpenOptionPosition) -> OpenPutRow:
         original_days_to_expiration=original_days_to_expiration,
         days_to_expiration=option.days_to_expiration,
     )
-    intrinsic_value = put_intrinsic_value(
-        strike=option.strike,
-        underlying_price=option.underlying_price,
-        multiplier=multiplier,
-        contracts=option.contracts,
+    deliverable_shares = option.deliverable_shares_per_contract
+    intrinsic_value = (
+        put_intrinsic_value(
+            strike=option.strike,
+            underlying_price=option.underlying_price,
+            multiplier=deliverable_shares,
+            contracts=option.contracts,
+        )
+        if deliverable_shares is not None
+        else None
     )
-    remaining_extrinsic_value = max(Decimal(0), current_liability - intrinsic_value)
+    remaining_extrinsic_value = (
+        max(Decimal(0), current_liability - intrinsic_value)
+        if current_liability is not None and intrinsic_value is not None
+        else None
+    )
+    open_profit_loss = (
+        option.open_profit_loss
+        if option.open_profit_loss is not None
+        else entry_credit - current_liability
+        if entry_credit is not None and current_liability is not None
+        else None
+    )
     return OpenPutRow(
         option_symbol=option.option_symbol,
         symbol=option.underlying_symbol,
@@ -417,7 +452,9 @@ def _open_put_row(option: LiveOpenOptionPosition) -> OpenPutRow:
         original_days_to_expiration=original_days_to_expiration,
         days_to_expiration=option.days_to_expiration,
         obligated_shares=obligated_shares,
-        assignment_notional=option.strike * multiplier * Decimal(option.contracts),
+        assignment_notional=(
+            option.strike * obligated_shares if obligated_shares is not None else None
+        ),
         strike_distance_per_share=strike_distance_per_share,
         strike_distance_percent=strike_distance_percent,
         strike_distance_display=abs(strike_distance_per_share),
@@ -425,24 +462,38 @@ def _open_put_row(option: LiveOpenOptionPosition) -> OpenPutRow:
         strike_state_label=strike_state_label,
         strike_distance_available=strike_distance_available,
         entry_credit_per_share=entry_credit_per_share,
-        effective_entry_per_share=put_effective_entry_per_share(
-            strike=option.strike,
-            entry_credit_per_share=(
-                option.entry_credit_per_share if entry_credit_available else None
-            ),
+        effective_entry_per_share=(
+            put_effective_entry_per_share(
+                strike=option.strike,
+                entry_credit_per_share=option.entry_credit_per_share,
+            )
+            if obligated_shares is not None
+            else None
         ),
         entry_credit=entry_credit,
         current_liability=current_liability,
         estimated_close_cost=estimated_close_cost,
-        close_cost_basis="ASK" if option.ask_per_share is not None else "MARK ESTIMATE",
-        open_profit_loss=option.open_profit_loss or Decimal(0),
+        close_cost_basis=(
+            "ASK"
+            if option.ask_per_share is not None
+            else "MARK ESTIMATE"
+            if option.estimated_mark_per_share is not None
+            else "UNAVAILABLE"
+        ),
+        open_profit_loss=open_profit_loss,
         theta_estimate_per_day=theta_estimate_per_day,
         elapsed_time_percent=term.elapsed_time_percent,
         time_remaining_percent=term.time_remaining_percent,
-        credit_capture_percent=value.credit_capture_percent,
-        option_value_vs_credit_percent=value.option_value_vs_credit_percent,
-        option_value_track_percent=value.option_value_track_percent,
-        option_value_overrun_percent=value.option_value_overrun_percent,
+        credit_capture_percent=value.credit_capture_percent if value is not None else None,
+        option_value_vs_credit_percent=(
+            value.option_value_vs_credit_percent if value is not None else None
+        ),
+        option_value_track_percent=(
+            value.option_value_track_percent if value is not None else None
+        ),
+        option_value_overrun_percent=(
+            value.option_value_overrun_percent if value is not None else None
+        ),
         decay_stage=put_decay_stage(
             option.days_to_expiration,
             term.elapsed_time_percent,
@@ -469,7 +520,7 @@ def _open_put_row(option: LiveOpenOptionPosition) -> OpenPutRow:
         quote_status=option.quote_quality or "UNKNOWN",
         quote_observed_at=option.quote_observed_at,
         quote_observed_on=(
-            option.quote_observed_at.date() if option.quote_observed_at is not None else None
+            market_date(option.quote_observed_at) if option.quote_observed_at is not None else None
         ),
         session_state=option.session_state,
         session_label=option.session_label,
@@ -489,6 +540,15 @@ def _open_call_row(
         intent_label = "NO SAVED PLAN"
         fit_summary = "Not evaluated"
         policy_fits = True
+    elif (
+        clock.underlying_at_sale is None
+        or clock.original_days_to_expiration is None
+        or clock.entry_credit_per_share is None
+    ):
+        policy_label = policy.label
+        intent_label = policy.intent.label
+        fit_summary = "Inputs unavailable"
+        policy_fits = False
     else:
         entry_buffer = (
             (clock.strike / clock.underlying_at_sale - 1) * Decimal("100")
@@ -505,12 +565,6 @@ def _open_call_row(
         intent_label = policy.intent.label
         fit_summary = fit.summary
         policy_fits = fit.fits
-    option_value_track_percent = min(
-        Decimal("100"), max(Decimal(0), clock.option_value_vs_credit_percent)
-    )
-    option_value_overrun_percent = max(
-        Decimal(0), clock.option_value_vs_credit_percent - Decimal("100")
-    )
     return OpenCallRow(
         record_id=clock.record_id,
         campaign_id=clock.campaign_id,
@@ -532,8 +586,16 @@ def _open_call_row(
         time_remaining_percent=clock.time_remaining_percent,
         credit_capture_percent=clock.credit_capture_percent,
         option_value_vs_credit_percent=clock.option_value_vs_credit_percent,
-        option_value_track_percent=option_value_track_percent,
-        option_value_overrun_percent=option_value_overrun_percent,
+        option_value_track_percent=(
+            min(Decimal("100"), max(Decimal(0), clock.option_value_vs_credit_percent))
+            if clock.option_value_vs_credit_percent is not None
+            else None
+        ),
+        option_value_overrun_percent=(
+            max(Decimal(0), clock.option_value_vs_credit_percent - Decimal("100"))
+            if clock.option_value_vs_credit_percent is not None
+            else None
+        ),
         decay_stage=clock.decay_stage,
         policy_label=policy_label,
         intent_label=intent_label,
@@ -641,7 +703,7 @@ def build_volatility_rows(snapshot: DashboardSnapshot) -> tuple[VolatilityRow, .
         )
         iv_spread = (
             underlying.average_open_call_iv_percent - realized_percent
-            if realized_percent is not None
+            if realized_percent is not None and underlying.average_open_call_iv_percent is not None
             else None
         )
         rows.append(

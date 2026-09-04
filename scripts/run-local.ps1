@@ -4,7 +4,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$runtimeConfig = (& .\.venv\Scripts\schwab-dashboard.exe runtime-config | ConvertFrom-Json)
+$dashboard = (Resolve-Path -LiteralPath ".\.venv\Scripts\schwab-dashboard.exe").Path
+$runtimeConfig = (& $dashboard runtime-config | ConvertFrom-Json)
 $settingsHost = [string]$runtimeConfig.host
 $settingsPort = [int]$runtimeConfig.port
 $baseUrl = "http://${settingsHost}:${settingsPort}"
@@ -56,6 +57,11 @@ $listener = Get-NetTCPConnection -LocalPort $settingsPort -State Listen -ErrorAc
 if ($listener) {
     $owners = ($listener | Select-Object -ExpandProperty OwningProcess -Unique) -join ", "
     Write-Error "Port ${settingsPort} is held by unverified process PID ${owners}. Incoooming left it alone."
+}
+
+& $dashboard db-upgrade
+if ($LASTEXITCODE -ne 0) {
+    throw "Incoooming could not prepare the local database."
 }
 
 if ($Background) {

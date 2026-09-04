@@ -5,11 +5,16 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
-from schwab_dashboard.application.market_time import market_date
+from schwab_dashboard.application.market_time import ledger_market_date
+from schwab_dashboard.application.option_lifecycle import (
+    delivered_share_quantity,
+    lifecycle_event_type,
+    option_contracts,
+    option_side,
+)
 from schwab_dashboard.application.performance.models import AssignmentImpact
 
 ZERO = Decimal("0")
-STANDARD_SHARES = Decimal("100")
 
 
 def calculate_assignment_impact(
@@ -22,43 +27,85 @@ def calculate_assignment_impact(
     assignments = tuple(
         row
         for row in lifecycle_events
-        if _assignment_event(row.get("event_type"))
+        if lifecycle_event_type(row.get("event_type")) == "assignment"
         and _inside(_date(row.get("occurred_at")), coverage_start, coverage_end)
     )
-    calls = tuple(row for row in assignments if _option_side(row.get("option_side")) == "call")
-    puts = tuple(row for row in assignments if _option_side(row.get("option_side")) == "put")
-    call_contracts = sum((int(abs(_decimal(row.get("option_quantity")))) for row in calls), 0)
-    put_contracts = sum((int(abs(_decimal(row.get("option_quantity")))) for row in puts), 0)
-    called_away = sum((_shares(row) for row in calls), 0)
-    acquired = sum((_shares(row) for row in puts), 0)
+    calls = tuple(row for row in assignments if option_side(row.get("option_side")) == "call")
+    puts = tuple(row for row in assignments if option_side(row.get("option_side")) == "put")
+    unknown = tuple(row for row in assignments if option_side(row.get("option_side")) is None)
+    call_contracts = sum((option_contracts(row) for row in calls), 0)
+    put_contracts = sum((option_contracts(row) for row in puts), 0)
+    unknown_contracts = sum((option_contracts(row) for row in unknown), 0)
+    called_away = sum((delivered_share_quantity(row) for row in calls), ZERO)
+    acquired = sum((delivered_share_quantity(row) for row in puts), ZERO)
 
     references: list[Decimal] = []
+    reference_dates: list[date] = []
     missing_reference = False
     if coverage_end is not None:
         latest_closes = _latest_closes(daily_bars, coverage_end)
         for row in calls:
             symbol = str(row.get("underlying_symbol") or "").upper()
             strike = row.get("strike")
-            close = latest_closes.get(symbol)
-            if strike is None or close is None:
+            close_record = latest_closes.get(symbol)
+            if strike is None or close_record is None:
                 missing_reference = True
                 continue
-            references.append(max(ZERO, close - _decimal(strike)) * Decimal(_shares(row)))
+            close_date, close = close_record
+            references.append(max(ZERO, close - _decimal(strike)) * delivered_share_quantity(row))
+            reference_dates.append(close_date)
+    elif calls:
+        missing_reference = True
+
+    reference_as_of = min(reference_dates) if reference_dates else None
+    reference_age_days = (
+        (coverage_end - reference_as_of).days
+        if coverage_end is not None and reference_as_of is not None
+        else None
+    )
+    if not calls:
+        reference_quality = "not_applicable"
+    elif not references:
+        reference_quality = "unavailable"
+    elif missing_reference:
+        reference_quality = "partial"
+    elif reference_age_days:
+        reference_quality = "stale"
+    else:
+        reference_quality = "exact"
+
     if not assignments:
         status = "no_assignments"
         note = "No short-option assignments fall inside the valued return window."
-    elif missing_reference:
+    elif unknown or reference_quality in {"unavailable", "partial", "stale"}:
         status = "partial"
-        note = (
-            "Assignment counts are broker events. The period-end upside reference is partial "
-            "because not every called-away symbol has a matching end close."
-        )
+        notes = ["Assignment counts are broker events."]
+        if unknown:
+            notes.append(
+                f"{len(unknown)} assignment event(s) have no recognized call/put side and are "
+                "excluded from directional share totals."
+            )
+        if reference_quality == "unavailable":
+            notes.append("No complete strike/close input is available for assigned calls.")
+        elif reference_quality == "partial":
+            notes.append("The upside reference omits assigned calls missing a strike or close.")
+        elif reference_quality == "stale":
+            notes.append(
+                f"The oldest close used is from {reference_as_of:%b %d, %Y}, "
+                f"{reference_age_days} calendar day(s) before the return-window end."
+            )
+        note = " ".join(notes)
     else:
         status = "ready"
-        note = (
-            "Called-away upside reference is strike-to-period-end close on assigned shares. "
-            "It is opportunity context, not a realized loss, and ignores reinvestment."
-        )
+        note = "Assignment counts are broker events."
+        if calls:
+            note = (
+                f"{note} Called-away upside reference is strike-to-{reference_as_of:%b %d, %Y} "
+                "close on assigned shares. It is opportunity context, not a realized loss, "
+                "and ignores reinvestment."
+            )
+        else:
+            note = f"{note} Upside reference does not apply because no calls were assigned."
     return AssignmentImpact(
         status=status,
         assigned_call_contracts=call_contracts,
@@ -67,48 +114,26 @@ def calculate_assignment_impact(
         acquired_shares=acquired,
         period_end_upside_reference=(sum(references, ZERO) if references else None),
         method_note=note,
+        unknown_side_assignments=len(unknown),
+        unknown_side_contracts=unknown_contracts,
+        reference_as_of=reference_as_of,
+        reference_age_days=reference_age_days,
+        reference_quality=reference_quality,
     )
 
 
-def _latest_closes(rows: Sequence[dict[str, Any]], end: date) -> dict[str, Decimal]:
+def _latest_closes(rows: Sequence[dict[str, Any]], end: date) -> dict[str, tuple[date, Decimal]]:
     latest: dict[str, tuple[date, Decimal]] = {}
     for row in rows:
         symbol = str(row.get("symbol") or "").upper()
         day = row.get("trade_date")
-        if not symbol or not isinstance(day, date) or day > end or row.get("close") is None:
+        close = _optional_positive_decimal(row.get("close"))
+        if not symbol or not isinstance(day, date) or day > end or close is None:
             continue
         previous = latest.get(symbol)
         if previous is None or day > previous[0]:
-            latest[symbol] = (day, _decimal(row["close"]))
-    return {symbol: value for symbol, (_, value) in latest.items()}
-
-
-def _shares(row: dict[str, Any]) -> int:
-    stock_quantity = abs(_decimal(row.get("stock_quantity")))
-    if stock_quantity:
-        return int(stock_quantity)
-    raw_multiplier = row.get("contract_multiplier")
-    if raw_multiplier is None:
-        raw_multiplier = row.get("multiplier")
-    multiplier = STANDARD_SHARES if raw_multiplier is None else _decimal(raw_multiplier)
-    return int(abs(_decimal(row.get("option_quantity"))) * multiplier)
-
-
-def _assignment_event(value: object) -> bool:
-    return _normalized_token(value) in {"assignment", "assigned"}
-
-
-def _option_side(value: object) -> str | None:
-    normalized = _normalized_token(value)
-    if normalized in {"call", "c"}:
-        return "call"
-    if normalized in {"put", "p"}:
-        return "put"
-    return None
-
-
-def _normalized_token(value: object) -> str:
-    return str(value or "").strip().casefold().split(".")[-1]
+            latest[symbol] = (day, close)
+    return latest
 
 
 def _inside(value: date | None, start: date | None, end: date | None) -> bool:
@@ -116,12 +141,17 @@ def _inside(value: date | None, start: date | None, end: date | None) -> bool:
 
 
 def _date(value: object) -> date | None:
-    if isinstance(value, datetime):
-        return market_date(value)
-    if isinstance(value, date):
-        return value
+    if isinstance(value, (date, datetime)):
+        return ledger_market_date(value)
     return date.fromisoformat(str(value)) if value else None
 
 
 def _decimal(value: object) -> Decimal:
     return ZERO if value is None else Decimal(str(value))
+
+
+def _optional_positive_decimal(value: object) -> Decimal | None:
+    if value is None:
+        return None
+    parsed = Decimal(str(value))
+    return parsed if parsed > ZERO else None

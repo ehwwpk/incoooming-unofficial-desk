@@ -32,6 +32,8 @@ class PositionSnapshotWrite:
     strike: Decimal | None = None
     long_open_profit_loss: Decimal | None = None
     short_open_profit_loss: Decimal | None = None
+    contract_multiplier: Decimal | None = None
+    is_non_standard: bool | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,7 +117,7 @@ class AccountRepository(Protocol):
 class PositionSnapshotRepository(Protocol):
     def add(self, snapshot: PositionSnapshotWrite) -> str: ...
 
-    def list_latest(self) -> Sequence[dict[str, Any]]: ...
+    def list_latest(self, *, include_staged: bool = False) -> Sequence[dict[str, Any]]: ...
 
     def list_recent_market_symbols(self, *, since: datetime) -> Sequence[str]: ...
 
@@ -123,7 +125,7 @@ class PositionSnapshotRepository(Protocol):
 class AccountBalanceSnapshotRepository(Protocol):
     def add(self, snapshot: AccountBalanceSnapshotWrite) -> str: ...
 
-    def list_latest(self) -> Sequence[dict[str, Any]]: ...
+    def list_latest(self, *, include_staged: bool = False) -> Sequence[dict[str, Any]]: ...
 
 
 class ReconciliationRepository(Protocol):

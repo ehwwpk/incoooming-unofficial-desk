@@ -79,15 +79,21 @@ def _call_gates(
     spot: Decimal,
 ) -> tuple[RadarGate, ...]:
     room_percent = (contract.strike - spot) / spot * Decimal("100") if spot else Decimal("0")
+    if not account.account_scope_resolved:
+        lot_detail = "Available lots withheld because this symbol is held in more than one account"
+    elif not account.delivery_terms_resolved:
+        lot_detail = "Available lots withheld because an open call has unresolved share delivery"
+    else:
+        lot_detail = (
+            f"{account.available_call_lots} available covered lot(s); "
+            f"policy allows {policy.allowed_contracts}"
+        )
     return (
         _gate(
             "covered_lots",
             "Available shares",
             min(account.available_call_lots, policy.allowed_contracts) > 0,
-            (
-                f"{account.available_call_lots} available covered lot(s); "
-                f"policy allows {policy.allowed_contracts}"
-            ),
+            lot_detail,
         ),
         _gate(
             "otm_call",

@@ -39,6 +39,8 @@ def evaluate_call_expiration_pressures(
         _build_call_expiration_alert(underlying, call=call, level=level)
         for call in underlying.open_call_clocks
         if call.can_close_or_roll
+        and call.strike_distance_percent is not None
+        and call.strike_distance_per_share is not None
         and (
             level := _proximity_level(
                 distance_percent=call.strike_distance_percent,
@@ -56,6 +58,8 @@ def _build_call_expiration_alert(
     call: OpenCallClock,
     level: AlertLevel,
 ) -> DeskAlert:
+    assert call.strike_distance_per_share is not None
+    assert call.strike_distance_percent is not None
     is_itm = call.strike_distance_per_share <= 0
     priority = _priority(level)
     distance = abs(call.strike_distance_per_share)
@@ -78,8 +82,7 @@ def _build_call_expiration_alert(
         headline=(
             f"{underlying.symbol} is through your ${compact_decimal(call.strike)} call"
             if is_itm
-            else f"Only {distance_percent:.1f}% below your "
-            f"${compact_decimal(call.strike)} call"
+            else f"Only {distance_percent:.1f}% below your ${compact_decimal(call.strike)} call"
         ),
         message=(
             f"{underlying.symbol} is ${distance:.2f}/share through your "
@@ -108,7 +111,7 @@ def _build_call_expiration_alert(
             ),
             AlertFact(
                 "MARK / CREDIT",
-                f"${mark:.2f} / ${call.entry_credit_per_share:.2f}",
+                f"{_money(mark)} / {_money(call.entry_credit_per_share)}",
                 "CURRENT MARK / COLLECTED",
             ),
         ),
@@ -121,9 +124,7 @@ def _build_call_expiration_alert(
             call,
             current_price=underlying.current_price,
             open_option_symbols=tuple(
-                clock.record_id
-                for clock in underlying.open_call_clocks
-                if clock.can_close_or_roll
+                clock.record_id for clock in underlying.open_call_clocks if clock.can_close_or_roll
             ),
         ),
         no_clean_roll_reason=no_clean_call_roll_reason(
@@ -153,7 +154,9 @@ def evaluate_short_put_pressure(put: LiveOpenOptionPosition) -> DeskAlert | None
     is_itm = put.strike_distance_per_share <= 0
     distance = abs(put.strike_distance_per_share)
     distance_percent = abs(put.strike_distance_percent)
-    assignment_notional = put.strike * D("100") * D(put.contracts)
+    assignment_notional = (
+        put.strike * put.obligated_shares if put.obligated_shares is not None else None
+    )
     mark = put.estimated_mark_per_share
     credit = put.entry_credit_per_share
     relation = "below" if is_itm else "above"
@@ -179,8 +182,13 @@ def evaluate_short_put_pressure(put: LiveOpenOptionPosition) -> DeskAlert | None
         message=(
             f"{put.underlying_symbol} is ${distance:.2f}/share {relation} your "
             f"${compact_decimal(put.strike)} put, with {put.days_to_expiration} days "
-            f"left. Assignment would mean ${assignment_notional:,.0f} of stock at the "
-            "strike. Keep your paws hot."
+            + (
+                f"left. Assignment would mean ${assignment_notional:,.0f} of stock at the "
+                "strike. Review the position and current quote."
+                if assignment_notional is not None
+                else "left. The share delivery and strike notional are unavailable because "
+                "the contract terms are unresolved. Review the position and current quote."
+            )
         ),
         facts=(
             AlertFact(
@@ -200,14 +208,18 @@ def evaluate_short_put_pressure(put: LiveOpenOptionPosition) -> DeskAlert | None
             AlertFact(
                 "MARK / CREDIT",
                 f"{_money(mark)} / {_money(credit)}",
-                f"${assignment_notional:,.0f} STRIKE NOTIONAL",
+                (
+                    f"${assignment_notional:,.0f} STRIKE NOTIONAL"
+                    if assignment_notional is not None
+                    else "DELIVERY TERMS UNRESOLVED"
+                ),
             ),
         ),
         priority=_priority(level),
         method_note=(
             "TRIGGER USES STRIKE DISTANCE AND CALENDAR DAYS TO EXPIRATION. STRIKE "
-            "NOTIONAL IS CONTRACTS x 100 x STRIKE; IT IS NOT A CLAIM ABOUT CASH "
-            "RESERVATION, MARGIN TREATMENT, OR ASSIGNMENT ODDS."
+            "NOTIONAL IS SHOWN ONLY WHEN SHARE DELIVERY IS KNOWN; IT IS NOT A CLAIM "
+            "ABOUT CASH RESERVATION, MARGIN TREATMENT, OR ASSIGNMENT ODDS."
         ),
         roll_scenarios=build_put_roll_scenarios(put),
         no_clean_roll_reason=no_clean_put_roll_reason(put),

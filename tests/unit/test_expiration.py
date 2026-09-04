@@ -1,5 +1,7 @@
 from decimal import Decimal
 
+import pytest
+
 from schwab_dashboard.application.expiration import (
     ExpirationExpectation,
     assess_option_expiration,
@@ -23,7 +25,7 @@ def _assessment(
         session_state=OptionSessionState.SETTLEMENT_PENDING,
         strike=D(strike),
         contracts=contracts,
-        contract_multiplier=D(multiplier),
+        deliverable_shares_per_contract=D(multiplier),
         official_close=D(close) if close is not None else None,
         latest_underlying_price=D(latest) if latest is not None else None,
     )
@@ -36,7 +38,7 @@ def test_open_session_has_no_expiration_assessment() -> None:
             session_state=OptionSessionState.EXPIRING_TODAY,
             strike=D("100"),
             contracts=1,
-            contract_multiplier=D("100"),
+            deliverable_shares_per_contract=D("100"),
             official_close=D("99"),
             latest_underlying_price=D("99"),
         )
@@ -65,6 +67,13 @@ def test_in_the_money_call_reports_possible_called_away_shares_and_notional() ->
     assert assessment.assignment_notional == D("45000")
     assert assessment.intrinsic_value_at_reference == D("900")
     assert assessment.needs_attention is True
+
+
+def test_adjusted_multiplier_does_not_truncate_expected_delivery() -> None:
+    assessment = _assessment(close="102", latest="102", contracts=1, multiplier="12.5")
+
+    assert assessment is not None
+    assert assessment.assignment_shares == D("12.5")
 
 
 def test_put_assignment_direction_is_opposite_the_call_direction() -> None:
@@ -103,3 +112,16 @@ def test_after_hours_strike_cross_is_called_out_as_provisional() -> None:
     assert assessment.expectation is ExpirationExpectation.EXPECTED_WORTHLESS
     assert assessment.crossed_after_close is True
     assert assessment.needs_attention is True
+
+
+@pytest.mark.parametrize(
+    ("side", "contracts", "multiplier"),
+    (("UNKNOWN", 1, "100"), ("CALL", 0, "100"), ("PUT", 1, "0")),
+)
+def test_invalid_expiration_inputs_are_not_guessed(
+    side: str,
+    contracts: int,
+    multiplier: str,
+) -> None:
+    with pytest.raises(ValueError):
+        _assessment(side=side, contracts=contracts, multiplier=multiplier)

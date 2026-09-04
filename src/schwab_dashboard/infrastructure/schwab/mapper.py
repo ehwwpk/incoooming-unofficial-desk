@@ -22,6 +22,7 @@ class SchwabAccountMapper:
     ) -> tuple[BrokerAccountRecord, ...]:
         account_hashes = self._account_hashes(account_numbers_payload)
         records: list[BrokerAccountRecord] = []
+        returned_numbers: set[str] = set()
 
         for wrapper in accounts_payload:
             securities_account = wrapper.get("securitiesAccount")
@@ -29,6 +30,9 @@ class SchwabAccountMapper:
                 raise BrokerPayloadError("Schwab account payload is missing securitiesAccount.")
 
             visible_number = self._required_text(securities_account, "accountNumber")
+            if visible_number in returned_numbers:
+                raise BrokerPayloadError("Schwab returned a duplicate account payload.")
+            returned_numbers.add(visible_number)
             external_key = account_hashes.get(visible_number)
             if external_key is None:
                 raise BrokerPayloadError(
@@ -53,6 +57,11 @@ class SchwabAccountMapper:
                     raw_payload=dict(wrapper),
                     balances=self._map_balances(securities_account),
                 )
+            )
+
+        if returned_numbers != set(account_hashes):
+            raise BrokerPayloadError(
+                "Schwab's account detail response did not cover the complete account set."
             )
 
         return tuple(records)
@@ -103,6 +112,14 @@ class SchwabAccountMapper:
             strike=parsed_option.strike if parsed_option else None,
             long_open_profit_loss=self._optional_decimal(payload.get("longOpenProfitLoss")),
             short_open_profit_loss=self._optional_decimal(payload.get("shortOpenProfitLoss")),
+            contract_multiplier=(
+                self._optional_decimal(instrument.get("optionPremiumMultiplier"))
+                if asset_type.upper() == "OPTION"
+                else None
+            ),
+            is_non_standard=(
+                bool(instrument["nonStandard"]) if "nonStandard" in instrument else None
+            ),
         )
 
     @classmethod
@@ -122,9 +139,7 @@ class SchwabAccountMapper:
         """
 
         reported = cls._optional_decimal(payload.get("currentDayProfitLoss"))
-        reported_percent = cls._optional_decimal(
-            payload.get("currentDayProfitLossPercentage")
-        )
+        reported_percent = cls._optional_decimal(payload.get("currentDayProfitLossPercentage"))
         if reported is None:
             return None, reported_percent
 
@@ -194,7 +209,10 @@ class SchwabAccountMapper:
                 raise BrokerPayloadError(
                     "Schwab account-number response is missing accountNumber or hashValue."
                 )
-            result[str(account_number)] = str(hash_value)
+            normalized_number = str(account_number)
+            if normalized_number in result:
+                raise BrokerPayloadError("Schwab returned a duplicate account-number mapping.")
+            result[normalized_number] = str(hash_value)
         return result
 
     @staticmethod

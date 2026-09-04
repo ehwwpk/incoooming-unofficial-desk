@@ -42,14 +42,20 @@ def build_operator_metrics(
     compliant = sum(
         evaluate_policy_fit(
             policy_by_id[record.policy_id],
-            strike_buffer_percent=record.strike_upside_percent,
+            strike_buffer_percent=_required_decimal(record.strike_upside_percent),
             days_to_expiration=record.days_to_expiration,
             effective_exit_price=record.strike + record.premium_per_share,
         ).fits
         for record in records
     )
     weighted_gap = (
-        sum((record.strike_upside_percent * record.contracts for record in records), ZERO)
+        sum(
+            (
+                _required_decimal(record.strike_upside_percent) * record.contracts
+                for record in records
+            ),
+            ZERO,
+        )
         / total_contracts
     )
     weighted_dte = (
@@ -130,3 +136,11 @@ def _basis_item(underlying: UnderlyingCallStats) -> BasisLensSummary:
         recovery_surplus=recovery.recovery_surplus,
         fully_recovered=recovery.fully_recovered,
     )
+
+
+def _required_decimal(value: Decimal | None) -> Decimal:
+    """Narrow price context guaranteed by the fictional demo fixtures."""
+
+    if value is None:
+        raise ValueError("demo call history requires complete price context")
+    return value

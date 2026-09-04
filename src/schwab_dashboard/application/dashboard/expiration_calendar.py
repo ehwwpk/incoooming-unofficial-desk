@@ -11,6 +11,7 @@ from schwab_dashboard.application.dashboard.covered_calls import (
 )
 from schwab_dashboard.application.dashboard.models import LiveOpenOptionPosition
 from schwab_dashboard.application.dashboard.performance import ExpirationBucket
+from schwab_dashboard.application.values import sum_if_complete
 
 ZERO = Decimal("0")
 
@@ -65,34 +66,39 @@ def _bucket(
         days_to_expiration=max(0, (expires_on - as_of).days),
         positions=len(rows) + len(puts),
         contracts=contracts,
-        committed_shares=contracts * 100,
-        opening_credit=sum((clock.entry_credit for _, clock in rows), ZERO)
-        + sum(
+        committed_shares=sum_if_complete(
             (
-                (put.entry_credit_per_share or ZERO) * Decimal("100") * Decimal(put.contracts)
-                for put in puts
-            ),
-            ZERO,
+                *(clock.obligated_shares for _, clock in rows),
+                *(put.obligated_shares for put in puts),
+            )
         ),
-        estimated_close_value=sum((clock.current_option_value for _, clock in rows), ZERO)
-        + sum(
+        opening_credit=sum_if_complete(
             (
-                abs(put.market_value)
-                if put.market_value is not None
-                else (put.estimated_mark_per_share or ZERO)
-                * Decimal("100")
-                * Decimal(put.contracts)
-                for put in puts
-            ),
-            ZERO,
+                *(clock.entry_credit for _, clock in rows),
+                *(put.entry_credit for put in puts),
+            )
+        ),
+        estimated_close_value=sum_if_complete(
+            (
+                *(clock.current_option_value for _, clock in rows),
+                *(put.current_option_value for put in puts),
+            )
         ),
         nearest_strike_buffer_percent=min(
             (
-                *(clock.strike_distance_percent for _, clock in rows),
-                *(put.strike_distance_percent or ZERO for put in puts),
+                *(
+                    clock.strike_distance_percent
+                    for _, clock in rows
+                    if clock.strike_distance_percent is not None
+                ),
+                *(
+                    put.strike_distance_percent
+                    for put in puts
+                    if put.strike_distance_percent is not None
+                ),
             ),
             key=abs,
-            default=ZERO,
+            default=None,
         ),
         event_labels=tuple(sorted(events)),
         call_contracts=call_contracts,

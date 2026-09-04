@@ -71,6 +71,72 @@ def test_open_event_compares_current_mark_with_original_credit() -> None:
     assert events[0].option_value_vs_credit_percent == D("150.0")
 
 
+def test_adjusted_contract_uses_its_multiplier_for_close_value() -> None:
+    points = build_price_points("KTOS", _bars())
+    sale = {
+        **_option_execution(
+            key="adjusted-sale",
+            occurred_at=datetime(2026, 8, 5, 15, tzinfo=UTC),
+            side="sell",
+            position_effect="opening",
+            net_cash=D("300"),
+        ),
+        "contract_multiplier": D("150"),
+    }
+    close = {
+        **_option_execution(
+            key="adjusted-close",
+            occurred_at=datetime(2026, 8, 8, 15, tzinfo=UTC),
+            side="buy",
+            position_effect="closing",
+            net_cash=D("-75"),
+        ),
+        "contract_multiplier": D("150"),
+    }
+
+    events = build_option_events(
+        "KTOS",
+        executions=(sale, close),
+        lifecycle_events=(),
+        points=points,
+        current_option_symbols=(),
+    )
+
+    assert events[0].contract_multiplier == D("150")
+    assert events[0].option_value_per_share == D("0.5")
+    assert events[1].option_value_per_share == D("0.5")
+
+
+def test_assignment_chart_event_prefers_reported_delivery_quantity() -> None:
+    points = build_price_points("KTOS", _bars())
+    event = {
+        "external_key": "adjusted-assignment",
+        "occurred_at": datetime(2026, 8, 8, 20, tzinfo=UTC),
+        "event_type": "Assigned",
+        "option_quantity": D("1"),
+        "stock_quantity": D("125.5"),
+        "contract_multiplier": D("150"),
+        "symbol": "KTOS  260918C00065000",
+        "underlying_symbol": "ktos",
+        "option_side": "CALL",
+        "expiration_date": date(2026, 9, 18),
+        "strike": D("65"),
+    }
+
+    events = build_option_events(
+        "KTOS",
+        executions=(),
+        lifecycle_events=(event,),
+        points=points,
+        current_option_symbols=(),
+    )
+
+    assert len(events) == 1
+    assert events[0].event_type == "assigned"
+    assert events[0].delivered_shares == D("125.5")
+    assert events[0].contract_multiplier == D("150")
+
+
 def test_current_contract_remains_in_chart_outside_price_archive() -> None:
     points = build_price_points("KTOS", _bars())
     current_sale = _option_execution(
@@ -102,6 +168,27 @@ def test_current_contract_remains_in_chart_outside_price_archive() -> None:
     assert events[0].x_percent == D("100")
 
 
+def test_event_before_price_archive_is_not_pinned_to_a_later_price() -> None:
+    points = build_price_points("KTOS", _bars())
+    sale = _option_execution(
+        key="sale-before-bars",
+        occurred_at=datetime(2026, 8, 1, 15, tzinfo=UTC),
+        side="sell",
+        position_effect="opening",
+        net_cash=D("200"),
+    )
+
+    events = build_option_events(
+        "KTOS",
+        executions=(sale,),
+        lifecycle_events=(),
+        points=points,
+        current_option_symbols={"KTOS 260918C00065000"},
+    )
+
+    assert events == ()
+
+
 def test_share_fills_net_to_one_marker_per_day() -> None:
     points = build_price_points("KTOS", _bars())
     occurred_at = datetime(2026, 8, 6, 15, tzinfo=UTC)
@@ -117,6 +204,38 @@ def test_share_fills_net_to_one_marker_per_day() -> None:
     assert events[0].price == D("61.5")
     assert events[0].gross_buys == 100
     assert events[0].gross_sells == 10
+
+
+def test_share_markers_preserve_fractional_equity_and_reject_unknown_assets() -> None:
+    points = build_price_points("KTOS", _bars())
+    occurred_at = datetime(2026, 8, 6, 15, tzinfo=UTC)
+    fractional = _share_execution("fractional", occurred_at, "buy", D("1.25"), D("60"))
+    unknown = {
+        **_share_execution("unknown", occurred_at, "buy", D("99"), D("60")),
+        "asset_type": "mutual_fund",
+    }
+
+    events = build_share_trade_events("KTOS", executions=(fractional, unknown), points=points)
+
+    assert len(events) == 1
+    assert events[0].shares == D("1.25")
+    assert events[0].gross_buys == D("1.25")
+
+
+def test_nonpositive_stock_close_is_not_plotted_as_a_real_price() -> None:
+    bars = (
+        *_bars(),
+        {
+            "symbol": "KTOS",
+            "trade_date": date(2026, 8, 11),
+            "close": D("0"),
+        },
+    )
+
+    points = build_price_points("KTOS", bars)
+
+    assert all(point.price > 0 for point in points)
+    assert date(2026, 8, 11) not in {point.date for point in points}
 
 
 def _bars() -> tuple[dict[str, object], ...]:

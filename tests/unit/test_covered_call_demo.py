@@ -10,6 +10,7 @@ from schwab_dashboard.application.dashboard.covered_calls import RollQuoteCandid
 from schwab_dashboard.application.dashboard.performance import calculate_capital_recovery
 from schwab_dashboard.application.policy.evaluate import evaluate_policy_fit
 from schwab_dashboard.infrastructure.demo.dashboard import DemoDashboardReader
+from schwab_dashboard.infrastructure.demo.fixtures.open_call_metrics import OPEN_CALL_METRICS
 
 D = Decimal
 
@@ -295,7 +296,37 @@ def test_open_call_clocks_expose_per_contract_dte_and_reconcile_theta() -> None:
     assert sum((clock.short_theta_per_day for clock in clocks), D("0")) == (
         snapshot.risk.daily_theta
     )
+    clocks_by_contract = {
+        (item.symbol, clock.expires_on, clock.strike): clock
+        for item in snapshot.underlyings
+        for clock in item.open_call_clocks
+    }
+    assert clocks_by_contract.keys() == OPEN_CALL_METRICS.keys()
+    for key, metric in OPEN_CALL_METRICS.items():
+        clock = clocks_by_contract[key]
+        assert clock.bid_per_share == metric.bid_per_share
+        assert clock.mark_per_share == metric.mark_per_share
+        assert clock.close_ask_per_share == metric.ask_per_share
+        assert clock.implied_volatility_percent == metric.implied_volatility_percent
+        assert clock.delta == metric.delta
+        assert clock.gamma == metric.gamma
+        assert clock.theta_per_share == metric.theta_per_share
+        assert clock.vega == metric.vega
+        assert clock.volume == metric.volume
+        assert clock.open_interest == metric.open_interest
     for clock in clocks:
+        assert clock.quote_status == "SIMULATED"
+        assert clock.quote_observed_on == snapshot.as_of.date()
+        assert clock.bid_per_share is not None
+        assert clock.mark_per_share is not None
+        assert clock.close_ask_per_share is not None
+        assert clock.implied_volatility_percent is not None
+        assert clock.delta is not None
+        assert clock.gamma is not None
+        assert clock.theta_per_share is not None
+        assert clock.vega is not None
+        assert clock.volume is not None
+        assert clock.open_interest is not None
         assert clock.days_to_expiration == (clock.expires_on - snapshot.as_of.date()).days
         assert clock.original_days_to_expiration == (clock.expires_on - clock.sold_on).days
         assert clock.elapsed_days == (snapshot.as_of.date() - clock.sold_on).days
@@ -316,6 +347,39 @@ def test_open_call_clocks_expose_per_contract_dte_and_reconcile_theta() -> None:
         assert clock.theta_days_of_time_value > D("0")
         assert D("0") <= clock.elapsed_time_percent <= D("100")
         assert D("0") <= clock.time_remaining_percent <= D("100")
+
+    for item in snapshot.underlyings:
+        contract_count = sum(clock.contracts for clock in item.open_call_clocks)
+        weighted_iv = D("0")
+        weighted_delta = D("0")
+        for clock in item.open_call_clocks:
+            assert clock.implied_volatility_percent is not None
+            assert clock.delta is not None
+            weighted_iv += clock.implied_volatility_percent * clock.contracts
+            weighted_delta += abs(clock.delta) * clock.contracts
+        assert item.average_open_call_iv_percent == weighted_iv / D(contract_count)
+        assert item.average_open_call_delta == weighted_delta / D(contract_count)
+
+    option_liability = D("0")
+    for position in snapshot.positions:
+        if position.asset_type != "OPTION":
+            continue
+        assert position.underlying_symbol is not None
+        assert position.expiration_date is not None
+        assert position.strike is not None
+        assert position.contract_multiplier == D("100")
+        metric = OPEN_CALL_METRICS[
+            (position.underlying_symbol, position.expiration_date, position.strike)
+        ]
+        assert position.mark == metric.mark_per_share
+        assert position.market_value is not None
+        assert position.market_value == position.quantity * metric.mark_per_share * D("100")
+        option_liability -= position.market_value
+    clock_liability = D("0")
+    for clock in clocks:
+        assert clock.current_option_value is not None
+        clock_liability += clock.current_option_value
+    assert option_liability == clock_liability
 
     cvx_clock = next(
         clock

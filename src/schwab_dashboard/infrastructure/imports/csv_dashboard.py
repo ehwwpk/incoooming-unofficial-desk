@@ -33,7 +33,9 @@ from schwab_dashboard.application.dashboard.option_activity import (
     build_recent_option_activity,
 )
 from schwab_dashboard.application.dashboard.premium_pace import build_open_premium_pace
+from schwab_dashboard.application.market_time import market_date
 from schwab_dashboard.application.ports.source_store import SourceDatasetStore
+from schwab_dashboard.application.values import optional_bool, sum_if_complete
 
 ZERO = Decimal("0")
 
@@ -71,19 +73,22 @@ class CsvDashboardReader:
         )
         evaluated_at = self._clock()
         as_of = dataset.created_at
+        as_of_day = market_date(as_of)
         portfolio = summarize_portfolio(
             positions,
             account_day=account_day_profit_loss(()),
         )
         live_book = build_live_position_book(
             positions,
-            as_of=as_of.date(),
+            as_of=as_of_day,
             evaluated_at=evaluated_at,
             executions=executions,
         )
         open_premium_pace = build_open_premium_pace(live_book, executions)
-        covered_capital = sum(
-            (abs(item.market_value or ZERO) for item in live_book.underlyings), ZERO
+        covered_capital = sum_if_complete(
+            abs(item.market_value) if item.market_value is not None else None
+            for item in live_book.underlyings
+            if item.shares > 0
         )
         performance = build_live_performance(
             executions=executions,
@@ -91,7 +96,7 @@ class CsvDashboardReader:
             lifecycle_events=lifecycle_events,
             live_book=live_book,
             covered_capital=covered_capital,
-            as_of=as_of.date(),
+            as_of=as_of_day,
         )
         underlyings = build_live_underlying_stats(
             live_book=live_book,
@@ -101,20 +106,22 @@ class CsvDashboardReader:
             lifecycle_events=lifecycle_events,
             daily_bars=(),
             option_market=(),
-            as_of=as_of.date(),
+            as_of=as_of_day,
         )
         campaigns = project_campaign_summaries(
             executions,
             lifecycle_events,
             live_book=live_book,
-            as_of=as_of.date(),
+            as_of=as_of_day,
         )
         has_activity = bool(executions or cash_movements or lifecycle_events)
         base_risk = summarize_risk(positions)
         risk = RiskSummary(
-            buying_power_used_percent=ZERO,
+            buying_power_used_percent=None,
             portfolio_delta=None,
-            daily_theta=ZERO,
+            daily_theta=(
+                None if live_book.open_call_contracts + live_book.open_put_contracts else ZERO
+            ),
             short_contracts=live_book.open_call_contracts + live_book.open_put_contracts,
             next_expiration=min(
                 (item.expires_on for item in (*live_book.calls, *live_book.puts)),
@@ -161,20 +168,20 @@ class CsvDashboardReader:
             underlyings=underlyings,
             alerts=build_desk_alerts(
                 underlyings,
-                as_of=as_of.date(),
+                as_of=as_of_day,
                 put_positions=live_book.puts,
             ),
             call_history=project_call_sale_records(
                 executions,
                 lifecycle_events,
                 daily_bars=(),
-                as_of=as_of.date(),
+                as_of=as_of_day,
             ),
             performance_windows=performance.performance_windows if has_activity else (),
             monthly_performance=performance.monthly_performance if has_activity else (),
             strategy_attribution=(),
             expiration_calendar=build_expiration_calendar(
-                underlyings, as_of.date(), put_positions=live_book.puts
+                underlyings, as_of_day, put_positions=live_book.puts
             ),
             policies=(),
             quarter_history=(),
@@ -186,12 +193,12 @@ class CsvDashboardReader:
             live_position_book=live_book,
             recent_option_activity=build_recent_option_activity(
                 executions,
-                as_of=as_of.date(),
+                as_of=as_of_day,
             ),
             option_outcomes=build_option_outcomes(
                 executions,
                 lifecycle_events,
-                as_of=as_of.date(),
+                as_of=as_of_day,
                 open_call_contracts=live_book.open_call_contracts,
                 open_put_contracts=live_book.open_put_contracts,
             ),
@@ -225,6 +232,8 @@ def _position(value: object) -> PositionSummary:
         multiplier_source=(
             str(value["multiplier_source"]) if value.get("multiplier_source") else None
         ),
+        is_non_standard=optional_bool(value.get("is_non_standard")),
+        account_id=str(value["account_id"]) if value.get("account_id") else None,
     )
 
 

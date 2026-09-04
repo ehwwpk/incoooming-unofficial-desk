@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
@@ -6,6 +7,8 @@ from schwab_dashboard.application.dashboard.models import (
     LivePositionBook,
 )
 from schwab_dashboard.application.dashboard.premium_pace import build_open_premium_pace
+from schwab_dashboard.domain.instruments import AssetType
+from schwab_dashboard.domain.ledger import ExecutionSide, PositionEffect
 
 D = Decimal
 
@@ -95,9 +98,7 @@ def test_open_premium_pace_counts_zero_dte_as_one_earning_session() -> None:
         expires_on=date(2026, 1, 30),
         entry_credit=D("0.10"),
     )
-    executions = (
-        _execution(put.option_symbol, date(2026, 1, 30), quantity="3", price="0.10"),
-    )
+    executions = (_execution(put.option_symbol, date(2026, 1, 30), quantity="3", price="0.10"),)
 
     pace = build_open_premium_pace(_book(puts=(put,)), executions)
 
@@ -105,6 +106,53 @@ def test_open_premium_pace_counts_zero_dte_as_one_earning_session() -> None:
     assert pace.daily_pace == D("30")
     assert pace.weighted_term_days == D("1")
     assert pace.is_complete
+
+
+def test_open_premium_pace_accepts_domain_enums_in_execution_rows() -> None:
+    call = _option(
+        symbol="CVX  260220C00200000",
+        option_type="CALL",
+        contracts=1,
+        expires_on=date(2026, 2, 20),
+        entry_credit=D("2"),
+    )
+    execution = {
+        **_execution(call.option_symbol, date(2026, 1, 11), quantity="1", price="2"),
+        "asset_type": AssetType.OPTION,
+        "side": ExecutionSide.SELL,
+        "position_effect": PositionEffect.OPENING,
+    }
+
+    pace = build_open_premium_pace(_book(calls=(call,)), (execution,))
+
+    assert pace.daily_pace == D("5")
+    assert pace.timed_contracts == 1
+
+
+def test_open_premium_pace_uses_account_id_when_masks_collide() -> None:
+    call = replace(
+        _option(
+            symbol="CVX  260220C00200000",
+            option_type="CALL",
+            contracts=1,
+            expires_on=date(2026, 2, 20),
+            entry_credit=D("2"),
+        ),
+        account_id="account-a",
+    )
+    own = {
+        **_execution(call.option_symbol, date(2026, 1, 11), quantity="1", price="2"),
+        "account_id": "account-a",
+    }
+    other = {
+        **_execution(call.option_symbol, date(2026, 1, 12), quantity="1", price="2"),
+        "account_id": "account-b",
+    }
+
+    pace = build_open_premium_pace(_book(calls=(call,)), (own, other))
+
+    assert pace.daily_pace == D("5")
+    assert pace.timed_contracts == 1
 
 
 def _option(

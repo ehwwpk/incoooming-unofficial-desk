@@ -35,13 +35,26 @@ orders are ignored. IBKR Flex/custom statements vary; only recognized sections a
 ## Truth rules
 
 - Exported P/L is accepted only from an explicit P/L column.
-- Transfers and deposits are external cash flow, never option or dividend income.
-- Dividends, interest, fees, withholding, and transfers remain separate movement types.
+- A broker date without a time-zone offset keeps the displayed U.S. market date. It is not treated
+  as midnight UTC and shifted to the prior session.
+- Explicit deposits and withdrawals are external cash flow, never option or dividend income.
+  Direction words normalize unsigned deposits to inflows and unsigned withdrawals to outflows.
+- A bare journal or transfer label is ambiguous. It is retained as `other` cash and blocks the
+  affected return link instead of being guessed as owner funding or investment performance.
+- Dividends, interest, fees, withholding, and transfers remain separate movement types. Unsigned
+  fees and withholding are normalized to cash outflows.
 - Standard options may use an explicit exported multiplier or a visible `assumed_standard` 100x
   multiplier.
-- An adjusted/non-standard option without an explicit multiplier is held for review. It is never
-  silently forced to 100x.
-- Unknown cash actions and unsafe option rows stay out of the ledger.
+- When a standard option export omits total market value or per-share mark, the importer derives the
+  missing side using quantity and the contract multiplier. The same rule applies when deriving a
+  per-share average from total cost basis.
+- Buy executions are cash outflows and sell executions are cash inflows even when a broker prints
+  its Amount column as an unsigned number. The raw amount remains preserved for audit.
+- An adjusted/non-standard position without an explicit multiplier is held for review. An execution
+  may still enter when the export supplies authoritative proceeds, but its multiplier remains
+  unknown. Neither path silently forces the contract to 100x.
+- Unknown nonzero cash is retained as unresolved evidence; unsafe option rows stay out of the
+  ledger.
 - Positions-only books cannot manufacture historical income. Activity-only books cannot establish
   current coverage.
 - CSV capabilities are evidence-based. Balances, lots, Greeks, IV, price history, and live marks
@@ -64,6 +77,9 @@ separate. Missing or weak market data must never alter imported cash or executio
   documents downloading the displayed positions as CSV.
 - [Robinhood account documents](https://robinhood.com/us/en/support/articles/finding-your-account-documents/)
   documents custom account-activity reports.
+- [IBKR Trades](https://www.ibkrguides.com/reportingreference/reportguide/transactions_costs_charges.htm)
+  defines signed proceeds separately from commissions and documents its Activity Statement trade
+  fields.
 
 Those sources establish export paths and semantics, not permanent schemas. The importer verifies
 columns and keeps mismatches visible.

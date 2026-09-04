@@ -26,14 +26,14 @@ const setupPeriodConsole = () => {
     const key = sheet.dataset.periodSheet;
     setText("[data-active-window]", windowCodes[key] || sheet.dataset.windowLabel);
     setText("[data-active-range]", sheet.dataset.rangeLabel);
-    setText("[data-active-option-label]", `NET OPTION CASH / ${sheet.dataset.windowLabel}`);
+    setText("[data-active-option-label]", `NET EXECUTED OPTION CASH / ${sheet.dataset.windowLabel}`);
     setText("[data-active-option-cash]", sheet.dataset.optionCash);
-    setText("[data-active-option-meta]", `${sheet.dataset.optionApr} annualized · after executed closing debits`);
+    setText("[data-active-option-meta]", `${sheet.dataset.premium} credits − ${sheet.dataset.buyback} buybacks − ${sheet.dataset.fees} fees; open positions remain`);
     setText("[data-active-window-label]", sheet.dataset.windowLabel);
     setText("[data-active-dividend-cash]", sheet.dataset.dividends);
-    setText("[data-active-total-label]", `TOTAL STRATEGY CASH / ${sheet.dataset.windowLabel}`);
+    setText("[data-active-total-label]", `TOTAL EXECUTED STRATEGY CASH / ${sheet.dataset.windowLabel}`);
     setText("[data-active-total-cash]", sheet.dataset.totalCash);
-    setText("[data-active-total-meta]", `Option income plus dividends · ${sheet.dataset.totalApr} APR`);
+    setText("[data-active-total-meta]", "Net executed option cash plus dividends; not completed profit");
     setText("[data-active-monthly-pace]", sheet.dataset.monthlyTotalAverage);
     const showMonthlyAverage = key === "r365";
     setOptionalText(
@@ -65,9 +65,9 @@ const setupPeriodConsole = () => {
       const windowData = card.querySelector(`[data-name-window="${activeSheetKey}"]`);
       if (!windowData) return;
       const windowCode = windowCodes[activeSheetKey] || windowLabel;
-      card.querySelector("[data-name-option-label]").textContent = `NET OPTION INCOME / ${windowLabel}`;
+      card.querySelector("[data-name-option-label]").textContent = `NET EXECUTED OPTION CASH / ${windowLabel}`;
       card.querySelector("[data-name-option-cash]").textContent = windowData.dataset.optionCash;
-      card.querySelector("[data-name-option-apr-label]").textContent = `OPTION INCOME APR / ${windowCode}`;
+      card.querySelector("[data-name-option-apr-label]").textContent = `OPTION CASH APR / ${windowCode}`;
       card.querySelector("[data-name-option-apr]").textContent = windowData.dataset.optionApr;
       const dividendLabel = card.querySelector("[data-name-dividend-label]");
       if (dividendLabel) {

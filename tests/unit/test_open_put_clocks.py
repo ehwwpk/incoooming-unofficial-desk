@@ -152,9 +152,33 @@ def test_put_clock_attaches_a_campaign_chip_only_for_a_single_open_match() -> No
 
 def test_open_put_clock_threads_quote_age() -> None:
     observed = datetime(2026, 8, 6, 20, tzinfo=UTC)
-    clock = build_open_put_clocks(
-        (_put(quote_observed_at=observed, quote_quality="complete"),)
-    )[0]
+    clock = build_open_put_clocks((_put(quote_observed_at=observed, quote_quality="complete"),))[0]
     assert clock.quote_observed_on == date(2026, 8, 6)
     assert clock.quote_status == "COMPLETE"
     assert clock.quote_observed_at == observed
+
+
+def test_open_put_clock_leaves_missing_market_inputs_unknown() -> None:
+    clock = build_open_put_clocks(
+        (
+            _put(
+                entry_credit_per_share=None,
+                estimated_mark_per_share=None,
+                market_value=None,
+                open_profit_loss=None,
+                underlying_price=None,
+                strike_distance_per_share=None,
+                strike_distance_percent=None,
+                theta_per_share=None,
+            ),
+        )
+    )[0]
+
+    assert clock.entry_credit is None
+    assert clock.current_option_value is None
+    assert clock.open_profit_loss is None
+    assert clock.option_value_vs_credit_percent is None
+    assert clock.credit_capture_percent is None
+    assert clock.intrinsic_value is None
+    assert clock.remaining_extrinsic_value is None
+    assert clock.short_theta_per_day is None

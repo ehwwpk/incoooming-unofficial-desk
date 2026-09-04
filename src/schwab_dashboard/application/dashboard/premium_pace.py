@@ -11,6 +11,13 @@ from schwab_dashboard.application.dashboard.models import (
     LivePositionBook,
     OpenPremiumPace,
 )
+from schwab_dashboard.application.dashboard.short_premium import (
+    is_closing_buy,
+    is_opening_sale,
+    is_option_execution,
+)
+from schwab_dashboard.application.market_time import ledger_market_date
+from schwab_dashboard.application.values import sum_if_complete
 
 ZERO = Decimal("0")
 ONE = Decimal("1")
@@ -37,16 +44,17 @@ def build_open_premium_pace(
 
     options = tuple(option for option in (*book.calls, *book.puts) if option.can_close_or_roll)
     total_contracts = sum(option.contracts for option in options)
-    opening_credit = ZERO
+    opening_credits: list[Decimal | None] = []
     daily_pace = ZERO
     timed_contracts = 0
 
     for option in options:
         entry = option.entry_credit_per_share
         if entry is None:
+            opening_credits.append(None)
             continue
         line_credit = abs(entry) * option.contract_multiplier * Decimal(option.contracts)
-        opening_credit += line_credit
+        opening_credits.append(line_credit)
         lots = _remaining_open_lots(option, executions)
         if sum((lot.contracts for lot in lots), ZERO) != Decimal(option.contracts):
             continue
@@ -62,8 +70,13 @@ def build_open_premium_pace(
         timed_contracts += option.contracts
 
     complete = total_contracts > 0 and timed_contracts == total_contracts
+    opening_credit = sum_if_complete(opening_credits)
     verified_pace = daily_pace if complete else None
-    weighted_term = opening_credit / daily_pace if complete and daily_pace > ZERO else None
+    weighted_term = (
+        opening_credit / daily_pace
+        if complete and opening_credit is not None and daily_pace > ZERO
+        else None
+    )
     return OpenPremiumPace(
         daily_pace=verified_pace,
         opening_credit=opening_credit,
@@ -81,20 +94,21 @@ def build_demo_premium_pace(
     clocks = tuple(
         clock for item in underlyings for clock in item.open_call_clocks if clock.can_close_or_roll
     )
-    opening_credit = sum((clock.entry_credit for clock in clocks), ZERO)
-    daily_pace = sum(
-        (
-            clock.entry_credit / Decimal(max(1, clock.original_days_to_expiration))
-            for clock in clocks
-        ),
-        ZERO,
+    opening_credit = sum_if_complete(clock.entry_credit for clock in clocks)
+    daily_pace = sum_if_complete(
+        clock.entry_credit / Decimal(max(1, clock.original_days_to_expiration))
+        if clock.entry_credit is not None and clock.original_days_to_expiration is not None
+        else None
+        for clock in clocks
     )
     contracts = sum(clock.contracts for clock in clocks)
     return OpenPremiumPace(
         daily_pace=daily_pace if contracts else ZERO,
         opening_credit=opening_credit,
-        weighted_term_days=(opening_credit / daily_pace if daily_pace else None),
-        timed_contracts=contracts,
+        weighted_term_days=(
+            opening_credit / daily_pace if opening_credit is not None and daily_pace else None
+        ),
+        timed_contracts=(contracts if daily_pace is not None else 0),
         total_contracts=contracts,
     )
 
@@ -104,12 +118,7 @@ def _remaining_open_lots(
     executions: Sequence[Mapping[str, object]],
 ) -> tuple[_OpenLot, ...]:
     rows = sorted(
-        (
-            row
-            for row in executions
-            if _matches_option(row, option)
-            and str(row.get("asset_type") or "").strip().lower() == "option"
-        ),
+        (row for row in executions if _matches_option(row, option) and is_option_execution(row)),
         key=_row_date,
     )
     lots: list[_OpenLot] = []
@@ -117,11 +126,7 @@ def _remaining_open_lots(
         quantity = abs(_decimal(row.get("quantity")))
         if quantity <= ZERO:
             continue
-        action = (
-            str(row.get("side") or "").strip().lower(),
-            str(row.get("position_effect") or "").strip().lower(),
-        )
-        if action == ("sell", "opening"):
+        if is_opening_sale(row):
             lots.append(
                 _OpenLot(
                     opened_on=_row_date(row),
@@ -129,7 +134,7 @@ def _remaining_open_lots(
                     credit_per_share=abs(_decimal(row.get("price"))),
                 )
             )
-        elif action == ("buy", "closing"):
+        elif is_closing_buy(row):
             _consume_fifo(lots, quantity)
     return tuple(lot for lot in lots if lot.contracts > ZERO)
 
@@ -182,16 +187,17 @@ def _consume_fifo(lots: list[_OpenLot], quantity: Decimal) -> None:
 def _matches_option(row: Mapping[str, object], option: LiveOpenOptionPosition) -> bool:
     if _canonical(str(row.get("symbol") or "")) != _canonical(option.option_symbol):
         return False
+    account_id = str(row.get("account_id") or "").strip()
+    if option.account_id and account_id:
+        return account_id == option.account_id
     account = str(row.get("account_mask") or "").strip()
     return not account or account == option.account_mask
 
 
 def _row_date(row: Mapping[str, object]) -> date:
     value = row.get("occurred_at")
-    if isinstance(value, datetime):
-        return value.date()
-    if isinstance(value, date):
-        return value
+    if isinstance(value, (date, datetime)):
+        return ledger_market_date(value)
     raise ValueError("Option execution is missing its source date")
 
 

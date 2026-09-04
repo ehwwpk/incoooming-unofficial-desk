@@ -137,6 +137,115 @@ def test_balance_history_excludes_snapshots_from_noncompleted_runs(
     assert reader.list_balance_history() == ()
 
 
+def test_first_failed_full_sync_does_not_publish_completed_child_snapshots(
+    database_runtime: tuple[object, object, object],
+) -> None:
+    _, session_factory, uow_factory = database_runtime
+    record = replace(
+        _record(_position()),
+        balances=BrokerAccountBalances(liquidation_value=Decimal("100000")),
+    )
+    with uow_factory() as uow:  # type: ignore[operator]
+        started_at = datetime.now(UTC)
+        full_run = uow.sync_runs.start(source="schwab_full", started_at=started_at)
+        uow.commit()
+    SyncAccountsAndPositions(
+        broker=FakeBrokerGateway([record]),  # type: ignore[arg-type]
+        uow_factory=uow_factory,  # type: ignore[arg-type]
+        parser_version="test-v1",
+    ).execute()
+    with uow_factory() as uow:  # type: ignore[operator]
+        uow.sync_runs.fail(
+            full_run,
+            completed_at=datetime.now(UTC),
+            error_message="activity failed after accounts completed",
+        )
+        uow.commit()
+
+    reader = SqlLiveAnalyticsReader(session_factory)  # type: ignore[arg-type]
+    assert reader.list_balance_history() == ()
+    assert reader.list_position_history() == ()
+
+
+def test_failed_full_sync_child_never_enters_current_or_historical_book(
+    database_runtime: tuple[object, object, object],
+) -> None:
+    _, session_factory, uow_factory = database_runtime
+
+    def coordinated_sync(symbol: str, *, succeeds: bool) -> None:
+        with uow_factory() as uow:  # type: ignore[operator]
+            full_run = uow.sync_runs.start(source="schwab_full", started_at=datetime.now(UTC))
+            uow.commit()
+        result = SyncAccountsAndPositions(
+            broker=FakeBrokerGateway([_record(_position(symbol))]),  # type: ignore[arg-type]
+            uow_factory=uow_factory,  # type: ignore[arg-type]
+            parser_version="test-v1",
+        ).execute()
+        with uow_factory() as uow:  # type: ignore[operator]
+            completed_at = datetime.now(UTC)
+            if succeeds:
+                uow.sync_runs.complete(
+                    full_run,
+                    completed_at=completed_at,
+                    account_count=result.account_count,
+                    position_count=result.position_count,
+                )
+            else:
+                uow.sync_runs.fail(
+                    full_run,
+                    completed_at=completed_at,
+                    error_message="market refresh failed",
+                )
+            uow.commit()
+
+    coordinated_sync("PUBLISHED", succeeds=True)
+    coordinated_sync("ABANDONED", succeeds=False)
+
+    with uow_factory() as uow:  # type: ignore[operator]
+        current = uow.positions.list_latest()
+        staged = uow.positions.list_latest(include_staged=True)
+    history = SqlLiveAnalyticsReader(session_factory).list_position_history()  # type: ignore[arg-type]
+
+    assert [row["symbol"] for row in current] == ["PUBLISHED"]
+    assert [row["symbol"] for row in staged] == ["ABANDONED"]
+    assert [row["symbol"] for row in history] == ["PUBLISHED"]
+
+    coordinated_sync("NEW", succeeds=True)
+    history = SqlLiveAnalyticsReader(session_factory).list_position_history()  # type: ignore[arg-type]
+
+    assert [row["symbol"] for row in history] == ["PUBLISHED", "NEW"]
+
+
+def test_successful_empty_full_sync_clears_the_current_position_book(
+    database_runtime: tuple[object, object, object],
+) -> None:
+    _, _, uow_factory = database_runtime
+
+    def coordinated_sync(record: BrokerAccountRecord) -> None:
+        with uow_factory() as uow:  # type: ignore[operator]
+            full_run = uow.sync_runs.start(source="schwab_full", started_at=datetime.now(UTC))
+            uow.commit()
+        result = SyncAccountsAndPositions(
+            broker=FakeBrokerGateway([record]),  # type: ignore[arg-type]
+            uow_factory=uow_factory,  # type: ignore[arg-type]
+            parser_version="test-v1",
+        ).execute()
+        with uow_factory() as uow:  # type: ignore[operator]
+            uow.sync_runs.complete(
+                full_run,
+                completed_at=datetime.now(UTC),
+                account_count=result.account_count,
+                position_count=result.position_count,
+            )
+            uow.commit()
+
+    coordinated_sync(_record(_position("HELD")))
+    coordinated_sync(_record())
+
+    with uow_factory() as uow:  # type: ignore[operator]
+        assert uow.positions.list_latest() == []
+
+
 def test_activity_run_does_not_hide_latest_position_snapshot(
     database_runtime: tuple[object, object, object],
 ) -> None:

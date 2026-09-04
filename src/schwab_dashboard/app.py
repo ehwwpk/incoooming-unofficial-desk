@@ -6,6 +6,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from schwab_dashboard.api.errors import unhandled_exception
 from schwab_dashboard.api.routes.charts import router as charts_router
@@ -17,6 +18,7 @@ from schwab_dashboard.api.routes.workspaces import router as workspaces_router
 from schwab_dashboard.container import Container
 from schwab_dashboard.infrastructure.runtime.auto_sync import AutoSyncWorker
 from schwab_dashboard.infrastructure.runtime.identity import new_runtime_identity
+from schwab_dashboard.web.security import LocalRequestSecurityMiddleware
 
 
 def create_app(container: Container | None = None) -> FastAPI:
@@ -57,6 +59,12 @@ def create_app(container: Container | None = None) -> FastAPI:
     app.state.container = app_container
     app.state.runtime_identity = new_runtime_identity()
     app.add_exception_handler(Exception, unhandled_exception)
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=[app_container.settings.host, "127.0.0.1", "localhost"],
+        www_redirect=False,
+    )
+    app.add_middleware(LocalRequestSecurityMiddleware)
     static_dir = Path(__file__).resolve().parent / "web" / "static"
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
     app.include_router(health_router)

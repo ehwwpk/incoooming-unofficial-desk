@@ -1,6 +1,28 @@
 {% from "partials/_price_time_fact.html" import price_pressure_read %}
+{% if snapshot is defined and snapshot.is_demo %}
+  {% set position_average_source = 'Simulated fixture average' %}
+  {% set position_profit_source = 'Simulated open-position P/L' %}
+{% elif snapshot is defined and snapshot.mode == 'csv' %}
+  {% set position_average_source = 'Imported position average' %}
+  {% set position_profit_source = 'Imported open-position P/L' %}
+{% else %}
+  {% set position_average_source = 'Schwab position average' %}
+  {% set position_profit_source = 'Schwab open-position P/L' %}
+{% endif %}
 
-<div class="live-position-grid" aria-label="Live Schwab short-option positions">
+{% if live_book.unmodeled_short_options %}
+<aside class="option-data-warning" role="status">
+  <strong>MODELED OPTION TOTALS INCOMPLETE</strong>
+  <span>{{ live_book.unmodeled_short_options | length }} source-reported short option position{{ '' if live_book.unmodeled_short_options | length == 1 else 's' }} could not be calculated safely.</span>
+  <ul>
+    {% for option in live_book.unmodeled_short_options %}
+    <li><b>{{ option.option_symbol }}</b> &middot; {{ option.reported_contracts | quantity }} reported &middot; {{ option.reason }}</li>
+    {% endfor %}
+  </ul>
+</aside>
+{% endif %}
+
+<div class="live-position-grid" aria-label="Open short-option positions">
   {% for item in live_book.underlyings %}
   <article class="live-position-card">
     <header>
@@ -8,38 +30,38 @@
       <div><b>{{ item.current_price | money if item.current_price is not none else '—' }}</b><small>{{ item.market_value | money(0) if item.market_value is not none else 'No share value' }}</small></div>
     </header>
     <div class="live-position-facts">
-      <div><span>SHARES</span><b>{{ item.shares }}</b><small>{{ item.contract_capacity }} lots · {{ item.coverage_percent | percent }} covered by short calls</small></div>
-      <div><span>AVG SHARE COST</span><b>{{ item.average_price | money if item.average_price is not none else '—' }}</b><small>Schwab position average</small></div>
+      <div><span>SHARES</span><b>{{ item.shares | quantity }}</b><small>{{ item.contract_capacity }} lots · {{ item.coverage_percent | percent }} covered by short calls</small></div>
+      <div><span>AVG SHARE COST</span><b>{{ item.average_price | money if item.average_price is not none else '—' }}</b><small>{{ position_average_source }}</small></div>
       <div><span>OPEN CONTRACTS</span><b>{{ item.open_call_contracts + item.open_put_contracts }}</b><small>{{ item.open_call_contracts | contract_sides(item.open_put_contracts) }}</small></div>
-      <div><span>OPEN OPTION P/L</span><b class="{{ item.total_open_mark_profit_loss | pnl_class }}">{{ item.total_open_mark_profit_loss | money }}</b><small>All short options on {{ item.symbol }}</small></div>
+      <div><span>OPEN OPTION P/L</span><b class="{{ item.total_open_mark_profit_loss | pnl_class }}">{{ item.total_open_mark_profit_loss | money }}</b><small>{% if item.total_open_mark_profit_loss is not none %}All short options on {{ item.symbol }}{% else %}Position marks incomplete{% endif %}</small></div>
       {% if item.is_prior_session_quote %}
       <div title="{{ item.symbol }} has no print in the current session. Last trade {{ item.quote_stamp }}."><span>STOCK {{ item.session_move_label }}</span><b class="muted">&mdash;</b><small>Prior session · {{ item.quote_stamp }}</small></div>
       {% else %}
       <div><span>STOCK DAY P/L</span><b class="{{ item.day_profit_loss | pnl_class }}">{{ item.day_profit_loss | money if item.day_profit_loss is not none else '—' }}</b><small>Current session</small></div>
       {% endif %}
-      <div><span>THETA / DAY</span><b class="positive">{{ item.estimated_option_theta_per_day | money }}</b><small>Calls{% if item.open_put_contracts %} + puts{% endif %} · model estimate</small></div>
+      <div><span>THETA / DAY</span><b class="{{ 'positive' if item.estimated_option_theta_per_day is not none else 'muted' }}">{{ item.estimated_option_theta_per_day | money }}</b><small>{% if item.estimated_option_theta_per_day is not none %}Calls{% if item.open_put_contracts %} + puts{% endif %} · model estimate{% else %}Greek coverage incomplete{% endif %}</small></div>
     </div>
     <div class="live-call-rows">
       {% for call in item.calls %}
       {% set price_time = call.price_time_read %}
       <div id="{{ call.option_symbol | option_anchor }}" class="live-call-row" tabindex="-1" data-option-contract="{{ call.option_symbol }}">
-        <div><strong>-{{ call.contracts }} &nbsp;{{ call.expires_on | short_date }} &nbsp;${{ '%g' | format(call.strike) }}C</strong><small>{{ call.days_to_expiration }} DTE</small></div>
+        <div><strong>-{{ call.contracts }} &nbsp;{{ call.expires_on | short_date }} &nbsp;${{ '%g' | format(call.strike) }}C</strong><small>{{ call.days_to_expiration }} DTE{% if call.obligated_shares is none %} &middot; DELIVERY UNRESOLVED{% endif %}</small></div>
         <div><span>TO STRIKE</span>{% if call.strike_distance_per_share is not none %}<b class="{{ call.strike_distance_per_share | pnl_class }}">{{ call.strike_distance_per_share | money }} / {{ call.strike_distance_percent | percent }}</b>{% else %}<b>—</b>{% endif %}<small>From current underlying mark</small></div>
-        <div><span>AVG CREDIT</span><b>{{ call.entry_credit_per_share | money if call.entry_credit_per_share is not none else '—' }}</b><small>Per share · Schwab average</small></div>
+        <div><span>AVG CREDIT</span><b>{{ call.entry_credit_per_share | money if call.entry_credit_per_share is not none else '—' }}</b><small>Per share · {{ position_average_source }}</small></div>
         <div><span>MARK / MARKET</span><b>{{ call.estimated_mark_per_share | money if call.estimated_mark_per_share is not none else '—' }}</b><small>{% if call.bid_per_share is not none and call.ask_per_share is not none %}{{ call.bid_per_share | money }} bid · {{ call.ask_per_share | money }} ask{% else %}Position-derived mark{% endif %}</small></div>
         <div title="Gamma-adjusted dollar consequence of this position's delta for the next $1 underlying move. Model sensitivity, not a forecast."><span>DELTA &middot; NEXT $1</span><b class="price-time-pair">{% if price_time.up_one_dollar_effect is not none %}<em>UP</em> <em class="{{ price_time.up_one_dollar_effect | pnl_class }}">{{ '+' if price_time.up_one_dollar_effect > 0 else '' }}{{ price_time.up_one_dollar_effect | money }}</em> <em>&middot; DOWN</em> <em class="{{ price_time.down_one_dollar_effect | pnl_class }}">{{ '+' if price_time.down_one_dollar_effect > 0 else '' }}{{ price_time.down_one_dollar_effect | money }}</em>{% else %}<em>&mdash;</em>{% endif %}</b><small>TIME {% if price_time.theta_per_day is not none %}+{{ price_time.theta_per_day | money }}/DAY{% else %}UNAVAILABLE{% endif %}</small>{{ price_pressure_read(price_time, show_session=true, show_plain=false) }}</div>
-        <div><span>OPEN P/L</span><b class="{{ call.open_profit_loss | pnl_class }}">{{ call.open_profit_loss | money if call.open_profit_loss is not none else '—' }}</b><small>Schwab open-position P/L</small></div>
+        <div><span>OPEN P/L</span><b class="{{ call.open_profit_loss | pnl_class }}">{{ call.open_profit_loss | money if call.open_profit_loss is not none else '—' }}</b><small>{{ position_profit_source }}</small></div>
       </div>
       {% endfor %}
       {% for put in item.puts %}
       {% set price_time = put.price_time_read %}
       <div id="{{ put.option_symbol | option_anchor }}" class="live-call-row live-put-row" tabindex="-1" data-option-contract="{{ put.option_symbol }}">
-        <div><strong>-{{ put.contracts }} &nbsp;{{ put.expires_on | short_date }} &nbsp;${{ '%g' | format(put.strike) }}P</strong><small>{{ put.days_to_expiration }} DTE · SHORT PUT</small></div>
+        <div><strong>-{{ put.contracts }} &nbsp;{{ put.expires_on | short_date }} &nbsp;${{ '%g' | format(put.strike) }}P</strong><small>{{ put.days_to_expiration }} DTE &middot; SHORT PUT{% if put.obligated_shares is none %} &middot; DELIVERY UNRESOLVED{% endif %}</small></div>
         <div><span>TO STRIKE</span>{% if put.strike_distance_per_share is not none %}<b class="{{ put.strike_distance_per_share | pnl_class }}">{{ put.strike_distance_per_share | money }} / {{ put.strike_distance_percent | percent }}</b>{% else %}<b>—</b>{% endif %}<small>Downside cushion from spot</small></div>
-        <div><span>AVG CREDIT</span><b>{{ put.entry_credit_per_share | money if put.entry_credit_per_share is not none else '—' }}</b><small>Per share · Schwab average</small></div>
+        <div><span>AVG CREDIT</span><b>{{ put.entry_credit_per_share | money if put.entry_credit_per_share is not none else '—' }}</b><small>Per share · {{ position_average_source }}</small></div>
         <div><span>MARK / MARKET</span><b>{{ put.estimated_mark_per_share | money if put.estimated_mark_per_share is not none else '—' }}</b><small>{% if put.bid_per_share is not none and put.ask_per_share is not none %}{{ put.bid_per_share | money }} bid · {{ put.ask_per_share | money }} ask{% else %}Position-derived mark{% endif %}</small></div>
         <div title="Gamma-adjusted dollar consequence of this position's delta for the next $1 underlying move. Model sensitivity, not a forecast."><span>DELTA &middot; NEXT $1</span><b class="price-time-pair">{% if price_time.up_one_dollar_effect is not none %}<em>UP</em> <em class="{{ price_time.up_one_dollar_effect | pnl_class }}">{{ '+' if price_time.up_one_dollar_effect > 0 else '' }}{{ price_time.up_one_dollar_effect | money }}</em> <em>&middot; DOWN</em> <em class="{{ price_time.down_one_dollar_effect | pnl_class }}">{{ '+' if price_time.down_one_dollar_effect > 0 else '' }}{{ price_time.down_one_dollar_effect | money }}</em>{% else %}<em>&mdash;</em>{% endif %}</b><small>TIME {% if price_time.theta_per_day is not none %}+{{ price_time.theta_per_day | money }}/DAY{% else %}UNAVAILABLE{% endif %}</small>{{ price_pressure_read(price_time, show_session=true, show_plain=false) }}</div>
-        <div><span>OPEN P/L</span><b class="{{ put.open_profit_loss | pnl_class }}">{{ put.open_profit_loss | money if put.open_profit_loss is not none else '—' }}</b><small>Schwab open-position P/L</small></div>
+        <div><span>OPEN P/L</span><b class="{{ put.open_profit_loss | pnl_class }}">{{ put.open_profit_loss | money if put.open_profit_loss is not none else '—' }}</b><small>{{ position_profit_source }}</small></div>
       </div>
       {% endfor %}
     </div>

@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from types import SimpleNamespace
 
+from schwab_dashboard.application.errors import BrokerRequestError
 from schwab_dashboard.application.services.sync_market import (
     SyncSchwabMarketData,
     _held_market_assets,
@@ -96,6 +97,80 @@ def test_sync_refreshes_short_calls_puts_all_holdings_and_spy() -> None:
     assert client.intraday_calls == ["CVX", "NEE"]
 
 
+def test_optional_intraday_request_failure_does_not_fail_full_market_sync() -> None:
+    positions = (
+        {"symbol": "CVX", "asset_type": "EQUITY"},
+        {"symbol": "NEE", "asset_type": "EQUITY"},
+    )
+    service = SyncSchwabMarketData(
+        client=_OptionalFailureClient(),  # type: ignore[arg-type]
+        mapper=SchwabMarketMapper(),
+        recorder=_Recorder(),  # type: ignore[arg-type]
+        uow_factory=lambda: _Uow(positions),  # type: ignore[arg-type]
+        parser_version="test",
+    )
+
+    result = service.execute()
+
+    assert result.daily_bar_count == 0
+    assert result.intraday_bar_count == 0
+
+
+def test_gap_option_discovery_includes_the_current_unpublished_right_anchor() -> None:
+    option = {
+        "account_id": "account-a",
+        "account_mask": "...1234",
+        "sync_run_id": "left",
+        "observed_at": datetime.fromisoformat("2026-08-27T20:30:00+00:00"),
+        "symbol": "KTOS  260918P00070000",
+        "asset_type": "OPTION",
+        "expiration_date": date(2026, 9, 18),
+    }
+    service = SyncSchwabMarketData(
+        client=_MarketClient(),  # type: ignore[arg-type]
+        mapper=SchwabMarketMapper(),
+        recorder=_Recorder(),  # type: ignore[arg-type]
+        uow_factory=lambda: _Uow(()),  # type: ignore[arg-type]
+        parser_version="test",
+        analytics_reader=_Analytics(option),  # type: ignore[arg-type]
+    )
+
+    required = service._required_gap_option_symbols(
+        current_positions=(),
+        current_balances=({"observed_at": datetime.fromisoformat("2026-09-03T20:30:00+00:00")},),
+    )
+
+    assert required == ("KTOS  260918P00070000",)
+
+
+class _Analytics:
+    def __init__(self, option: dict[str, object]) -> None:
+        self._option = option
+
+    def list_balance_history(self) -> tuple[dict[str, object], ...]:
+        return ({"observed_at": datetime.fromisoformat("2026-08-27T20:30:00+00:00")},)
+
+    def list_position_history(self) -> tuple[dict[str, object], ...]:
+        return (self._option,)
+
+    def list_executions(self) -> tuple[dict[str, object], ...]:
+        return ()
+
+    def list_daily_bars(self, *, symbols: object = None) -> tuple[dict[str, object], ...]:
+        del symbols
+        return tuple(
+            {"symbol": "SPY", "trade_date": date.fromisoformat(day), "close": 100}
+            for day in (
+                "2026-08-27",
+                "2026-08-28",
+                "2026-08-31",
+                "2026-09-01",
+                "2026-09-02",
+                "2026-09-03",
+            )
+        )
+
+
 class _Uow:
     def __init__(
         self,
@@ -103,9 +178,10 @@ class _Uow:
         recently_held: tuple[str, ...] = (),
     ) -> None:
         self.positions = SimpleNamespace(
-            list_latest=lambda: positions,
+            list_latest=lambda **_kwargs: positions,
             list_recent_market_symbols=lambda *, since: recently_held,
         )
+        self.balances = SimpleNamespace(list_latest=lambda **_kwargs: ())
 
     def __enter__(self) -> _Uow:
         return self
@@ -152,3 +228,16 @@ class _MarketClient:
         assert frequency_minutes == 30
         self.intraday_calls.append(symbol)
         return {"symbol": symbol, "candles": []}
+
+
+class _OptionalFailureClient(_MarketClient):
+    def get_intraday_price_history(
+        self,
+        symbol: str,
+        *,
+        start_at: datetime,
+        end_at: datetime,
+        frequency_minutes: int,
+    ) -> dict[str, object]:
+        del symbol, start_at, end_at, frequency_minutes
+        raise BrokerRequestError("Schwab intraday price history failed (HTTP 400).")

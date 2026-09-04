@@ -17,7 +17,7 @@ from schwab_dashboard.application.dashboard.option_clock_math import (
     short_option_value_vs_credit,
 )
 from schwab_dashboard.application.expiration import OptionExpirationAssessment
-from schwab_dashboard.application.market_time import OptionSessionState
+from schwab_dashboard.application.market_time import OptionSessionState, market_date
 from schwab_dashboard.application.risk.price_time import PriceTimeRead
 
 ZERO = Decimal("0")
@@ -38,22 +38,22 @@ class OpenPutClock:
     strike: Decimal
     strike_distance_per_share: Decimal | None
     strike_distance_percent: Decimal | None
-    entry_credit_per_share: Decimal
-    entry_credit: Decimal
+    entry_credit_per_share: Decimal | None
+    entry_credit: Decimal | None
     effective_entry_per_share: Decimal | None
-    mark_per_share: Decimal
-    current_option_value: Decimal
-    open_profit_loss: Decimal
+    mark_per_share: Decimal | None
+    current_option_value: Decimal | None
+    open_profit_loss: Decimal | None
     elapsed_time_percent: Decimal | None
     time_remaining_percent: Decimal | None
-    option_value_vs_credit_percent: Decimal
-    option_value_track_percent: Decimal
-    option_value_overrun_percent: Decimal
-    credit_capture_percent: Decimal
-    intrinsic_value: Decimal
-    remaining_extrinsic_value: Decimal
+    option_value_vs_credit_percent: Decimal | None
+    option_value_track_percent: Decimal | None
+    option_value_overrun_percent: Decimal | None
+    credit_capture_percent: Decimal | None
+    intrinsic_value: Decimal | None
+    remaining_extrinsic_value: Decimal | None
     decay_stage: str
-    short_theta_per_day: Decimal
+    short_theta_per_day: Decimal | None
     implied_volatility_percent: Decimal | None
     price_time_read: PriceTimeRead
     quote_observed_at: datetime | None = None
@@ -78,35 +78,46 @@ def _clock(
     *,
     campaigns: Sequence[CampaignSummary],
 ) -> OpenPutClock:
-    multiplier = abs(put.contract_multiplier or Decimal("100"))
+    multiplier = abs(put.contract_multiplier)
     contracts = Decimal(put.contracts)
-    entry_available = put.entry_credit_per_share is not None
-    entry_credit_per_share = abs(put.entry_credit_per_share or ZERO)
-    entry_credit = entry_credit_per_share * multiplier * contracts
-    mark_per_share = abs(put.estimated_mark_per_share or ZERO)
-    current_value = abs(
-        put.market_value
-        if put.market_value is not None
-        else mark_per_share * multiplier * contracts
+    entry_credit_per_share = (
+        abs(put.entry_credit_per_share) if put.entry_credit_per_share is not None else None
     )
+    entry_credit = put.entry_credit
+    mark_per_share = (
+        abs(put.estimated_mark_per_share) if put.estimated_mark_per_share is not None else None
+    )
+    current_value = put.current_option_value
     term = short_option_term(
         opened_on=put.opened_on,
         expires_on=put.expires_on,
         original_days_to_expiration=put.original_days_to_expiration,
         days_to_expiration=put.days_to_expiration,
     )
-    value = short_option_value_vs_credit(
-        entry_credit=entry_credit,
-        current_liability=current_value,
+    value = (
+        short_option_value_vs_credit(
+            entry_credit=entry_credit,
+            current_liability=current_value,
+        )
+        if entry_credit is not None and current_value is not None
+        else None
     )
-    intrinsic_value = put_intrinsic_value(
-        strike=put.strike,
-        underlying_price=put.underlying_price,
-        multiplier=multiplier,
-        contracts=put.contracts,
+    intrinsic_value = (
+        put_intrinsic_value(
+            strike=put.strike,
+            underlying_price=put.underlying_price,
+            multiplier=put.deliverable_shares_per_contract,
+            contracts=put.contracts,
+        )
+        if put.deliverable_shares_per_contract is not None
+        else None
     )
     short_theta = (
-        -(put.theta_per_share or ZERO) * multiplier * contracts if put.can_close_or_roll else ZERO
+        -put.theta_per_share * multiplier * contracts
+        if put.theta_per_share is not None and put.can_close_or_roll
+        else ZERO
+        if not put.can_close_or_roll
+        else None
     )
     campaign_id, campaign_label = _resolve_put_campaign(put, campaigns)
     return OpenPutClock(
@@ -125,19 +136,29 @@ def _clock(
         entry_credit=entry_credit,
         effective_entry_per_share=put_effective_entry_per_share(
             strike=put.strike,
-            entry_credit_per_share=put.entry_credit_per_share if entry_available else None,
+            entry_credit_per_share=put.entry_credit_per_share,
         ),
         mark_per_share=mark_per_share,
         current_option_value=current_value,
-        open_profit_loss=put.open_profit_loss or ZERO,
+        open_profit_loss=put.open_profit_loss,
         elapsed_time_percent=term.elapsed_time_percent,
         time_remaining_percent=term.time_remaining_percent,
-        option_value_vs_credit_percent=value.option_value_vs_credit_percent,
-        option_value_track_percent=value.option_value_track_percent,
-        option_value_overrun_percent=value.option_value_overrun_percent,
-        credit_capture_percent=value.credit_capture_percent,
+        option_value_vs_credit_percent=(
+            value.option_value_vs_credit_percent if value is not None else None
+        ),
+        option_value_track_percent=(
+            value.option_value_track_percent if value is not None else None
+        ),
+        option_value_overrun_percent=(
+            value.option_value_overrun_percent if value is not None else None
+        ),
+        credit_capture_percent=value.credit_capture_percent if value is not None else None,
         intrinsic_value=intrinsic_value,
-        remaining_extrinsic_value=max(ZERO, current_value - intrinsic_value),
+        remaining_extrinsic_value=(
+            max(ZERO, current_value - intrinsic_value)
+            if current_value is not None and intrinsic_value is not None
+            else None
+        ),
         decay_stage=put_decay_stage(
             put.days_to_expiration,
             term.elapsed_time_percent,
@@ -149,7 +170,7 @@ def _clock(
         price_time_read=put.price_time_read,
         quote_observed_at=put.quote_observed_at,
         quote_observed_on=(
-            put.quote_observed_at.date() if put.quote_observed_at is not None else None
+            market_date(put.quote_observed_at) if put.quote_observed_at is not None else None
         ),
         quote_status=(put.quote_quality or "unavailable").upper(),
         session_state=put.session_state,

@@ -8,6 +8,7 @@ from schwab_dashboard.application.dashboard.covered_calls import OpenCallClock
 from schwab_dashboard.application.dashboard.models import DashboardSnapshot, LiveOpenOptionPosition
 from schwab_dashboard.application.rolls import RollQuote, RollSource, select_roll_candidates
 from schwab_dashboard.application.rolls.models import RollCandidate
+from schwab_dashboard.application.values import sum_if_complete
 from schwab_dashboard.domain.instruments import OptionSide
 
 ZERO = Decimal("0")
@@ -23,7 +24,7 @@ class RollBoardRow:
     urgency_rank: int
     strike_distance_per_share: Decimal
     strike_distance_percent: Decimal
-    assignment_notional: Decimal
+    assignment_notional: Decimal | None
     candidates: tuple[RollCandidate, ...]
     no_clean_reason: str | None
 
@@ -35,7 +36,7 @@ class RollBoardProjection:
     attention_count: int
     clean_roll_count: int
     no_clean_count: int
-    total_assignment_notional: Decimal
+    total_assignment_notional: Decimal | None
     posture: str
 
 
@@ -83,10 +84,7 @@ def build_roll_board(snapshot: DashboardSnapshot) -> RollBoardProjection:
         attention_count=attention_count,
         clean_roll_count=len(rows) - no_clean_count,
         no_clean_count=no_clean_count,
-        total_assignment_notional=sum(
-            (row.assignment_notional for row in rows),
-            ZERO,
-        ),
+        total_assignment_notional=sum_if_complete(row.assignment_notional for row in rows),
         posture=posture,
     )
 
@@ -98,7 +96,11 @@ def _call_row(
     *,
     open_symbols: frozenset[str],
 ) -> RollBoardRow | None:
-    if not call.can_close_or_roll:
+    if (
+        not call.can_close_or_roll
+        or call.strike_distance_percent is None
+        or call.strike_distance_per_share is None
+    ):
         return None
     urgency = _urgency(call.strike_distance_percent, call.days_to_expiration)
     if urgency is None:
@@ -110,9 +112,13 @@ def _call_row(
         expires_on=call.expires_on,
         strike=call.strike,
         contracts=call.contracts,
-        close_ask_per_share=call.close_ask_per_share,
+        close_ask_per_share=call.close_ask_per_share or ZERO,
         current_price=current_price,
         quote_status=call.quote_status,
+        contract_multiplier=call.contract_multiplier,
+        deliverable_shares_per_contract=call.deliverable_shares_per_contract,
+        account_mask=call.account_mask,
+        account_id=call.account_id,
     )
     result = select_roll_candidates(
         source,
@@ -140,7 +146,9 @@ def _call_row(
         urgency_rank=urgency[1],
         strike_distance_per_share=call.strike_distance_per_share,
         strike_distance_percent=call.strike_distance_percent,
-        assignment_notional=call.strike * Decimal(call.contracts * 100),
+        assignment_notional=(
+            call.strike * call.obligated_shares if call.obligated_shares is not None else None
+        ),
         candidates=_mark_also_open(result.candidates, open_symbols),
         no_clean_reason=result.no_clean_reason,
     )
@@ -171,6 +179,9 @@ def _put_row(
         current_price=put.underlying_price or ZERO,
         quote_status=(put.quote_quality or "unavailable").upper(),
         contract_multiplier=put.contract_multiplier,
+        deliverable_shares_per_contract=put.deliverable_shares_per_contract,
+        account_mask=put.account_mask,
+        account_id=put.account_id,
     )
     result = select_roll_candidates(source, put.roll_quote_candidates)
     return RollBoardRow(
@@ -182,7 +193,9 @@ def _put_row(
         urgency_rank=urgency[1],
         strike_distance_per_share=put.strike_distance_per_share,
         strike_distance_percent=put.strike_distance_percent,
-        assignment_notional=put.strike * put.contract_multiplier * Decimal(put.contracts),
+        assignment_notional=(
+            put.strike * put.obligated_shares if put.obligated_shares is not None else None
+        ),
         candidates=_mark_also_open(result.candidates, open_symbols),
         no_clean_reason=result.no_clean_reason,
     )

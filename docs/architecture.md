@@ -49,7 +49,7 @@ registered with the recurring account sync coordinator.
 | `api` | Local JSON/HTML routes and dependency access | Direct database queries or broker parsing |
 | `web` | Templates, chart coordinate projection, interaction, and static assets | Alert thresholds, accounting, broker rules |
 
-## Initial data flow
+## Live data flow
 
 1. Create a `schwab_full` sync run in `running` state and acquire the in-process sync lock.
 2. Request the account-number/hash mapping and accounts with positions from Schwab.
@@ -64,11 +64,12 @@ registered with the recurring account sync coordinator.
 Dashboard and workspace GET routes reread that stored ledger. They do not call Schwab. Roll math
 walks the stored chain for those short-option underlyings, not only the open OCC symbols.
 
-## Near-term extension points
+## Extension points
 
-- Transactions become another raw event type and normalization service.
-- CSV imports can graduate from the isolated staging contract into the canonical ledger only after
-  broker-specific fixtures and reconciliation checks are verified.
+- Transactions are stored as raw events and normalized into executions, cash movements, and
+  lifecycle events.
+- CSV imports remain isolated books. Moving them into the canonical live ledger would require
+  broker-specific reconciliation against account snapshots.
 - Campaigns consume normalized executions; they never parse Schwab payloads.
 - Quotes and chains use a separate market-data port and storage policy.
 - A replacement UI consumes the same local API; it does not require ledger changes.

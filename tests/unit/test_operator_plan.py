@@ -44,10 +44,11 @@ def test_cash_activity_omits_zero_days_and_preserves_window_math() -> None:
     assert tuple(activity) == ("month", "quarter", "ytd", "r365")
     for key, view in activity.items():
         window = windows[key]
-        assert view.premium_received - view.executed_debits == view.net_option_cash
+        assert view.premium_received - view.executed_debits - view.fees == view.net_option_cash
         assert view.net_option_cash + view.dividends == view.total_strategy_cash
         assert view.premium_received == window.gross_premium
         assert view.executed_debits == window.buyback_cost
+        assert view.fees == window.fees
         assert all(event.amount for event in view.events)
         assert len(view.events) <= 3
         assert tuple(event.occurred_on for event in view.events) == tuple(
@@ -114,6 +115,29 @@ def test_expiration_calendar_names_post_close_inventory_without_calling_it_trada
 
     assert not bucket.can_close_or_roll
     assert bucket.session_label == "TRADING CLOSED · SETTLEMENT PENDING"
+
+
+def test_expiration_calendar_uses_known_fractional_share_deliverable() -> None:
+    snapshot = DemoDashboardReader().execute()
+    underlying = snapshot.underlyings[0]
+    call = replace(
+        underlying.open_call_clocks[0],
+        contracts=2,
+        contract_multiplier=D("150.5"),
+        deliverable_shares_per_contract=D("150.5"),
+        entry_credit_per_share=D("2"),
+        entry_credit=D("600"),
+        current_option_value=D("225"),
+    )
+
+    bucket = build_expiration_calendar(
+        (replace(underlying, open_call_clocks=(call,)),),
+        snapshot.as_of.date(),
+    )[0]
+
+    assert bucket.committed_shares == D("301")
+    assert bucket.opening_credit == D("600")
+    assert bucket.estimated_close_value == D("225")
 
 
 def test_attribution_refuses_unsupported_long_history() -> None:

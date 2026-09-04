@@ -101,6 +101,9 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "from=nibwick" in desk.text
         assert "returnAnchor=roll-option-cvx-0724-195" in desk.text
         assert "OPEN THIS CONTRACT" in desk.text
+        assert "SIMULATED DATA" in desk.text
+        assert "contract quotes, IV, and Greeks fixed to Aug 07, 2026" in desk.text
+        assert "latest Schwab mark" not in desk.text
 
         assert risk.status_code == 200
         assert "Next expirations" in risk.text
@@ -122,6 +125,14 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "price-pressure-plain" in risk.text
         assert "IV +1" in risk.text
         assert "MODEL INPUTS" in risk.text
+        assert risk.text.count("PER SHARE / SIMULATED Aug 07, 2026") == 6
+        assert "24.5%" in risk.text
+        assert "0.310" in risk.text
+        assert "0.0520" in risk.text
+        assert "-0.0800" in risk.text
+        assert "0.0610" in risk.text
+        assert "POSITION OPENING CREDIT" in risk.text
+        assert "waiting on Schwab" not in risk.text
         assert 'data-open-book-section="calendar" open' in risk.text
         assert "CURRENT MODEL THETA / DAY" in risk.text
         assert "later expiries" in risk.text
@@ -152,9 +163,18 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert review.text.count("data-results-window-math") == 1
         assert review.text.count("data-monthly-performance") == 1
         assert review.text.count("data-campaigns-drawer") == 1
-        assert '<details class="workspace-panel results-disclosure results-window-math" data-results-window-math>' in review.text
-        assert '<details class="workspace-panel monthly-performance results-disclosure" data-monthly-performance>' in review.text
-        assert '<details class="workspace-panel results-disclosure campaigns-drawer" id="campaigns" data-campaigns-drawer>' in review.text
+        assert (
+            '<details class="workspace-panel results-disclosure results-window-math" '
+            "data-results-window-math>" in review.text
+        )
+        assert (
+            '<details class="workspace-panel monthly-performance results-disclosure" '
+            "data-monthly-performance>" in review.text
+        )
+        assert (
+            '<details class="workspace-panel results-disclosure campaigns-drawer" '
+            'id="campaigns" data-campaigns-drawer>' in review.text
+        )
         campaigns_start = review.text.index('id="campaigns"')
         campaigns_html = review.text[campaigns_start : review.text.index("recorded-outcomes-title")]
         assert 'id="campaigns-open"' in campaigns_html
@@ -165,8 +185,14 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "MONTH BY MONTH" in review.text
         assert "THROUGH AUG 07" in review.text
         assert "Cash cadence" in review.text
-        assert '<details class="workspace-panel results-disclosure results-cash-panel" data-results-cash>' in review.text
-        assert '<details class="workspace-panel results-disclosure results-cash-panel" data-results-cash open>' not in review.text
+        assert (
+            '<details class="workspace-panel results-disclosure results-cash-panel" '
+            "data-results-cash>" in review.text
+        )
+        assert (
+            '<details class="workspace-panel results-disclosure results-cash-panel" '
+            "data-results-cash open>" not in review.text
+        )
         assert review.text.count("data-results-cash-series") == 3
         assert 'data-results-cash-period="quarter"' in review.text
         assert 'data-results-cash-period="ytd"' in review.text
@@ -384,7 +410,7 @@ def test_radar_policy_endpoint_accepts_a_leaps_window(tmp_path: Path) -> None:
         transport = httpx.ASGITransport(app=create_app(container))
         async with httpx.AsyncClient(
             transport=transport,
-            base_url="http://test",
+            base_url="http://127.0.0.1:8182",
             cookies={"incoooming_source": "demo"},
         ) as client:
             return await client.put(
@@ -456,7 +482,7 @@ async def _request_workspaces(
     transport = httpx.ASGITransport(app=create_app(container))
     async with httpx.AsyncClient(
         transport=transport,
-        base_url="http://test",
+        base_url="http://127.0.0.1:8182",
         cookies={"incoooming_source": "demo"},
     ) as client:
         responses = await asyncio.gather(
@@ -485,7 +511,7 @@ async def _post_radar_roll(
     transport = httpx.ASGITransport(app=create_app(container))
     async with httpx.AsyncClient(
         transport=transport,
-        base_url="http://test",
+        base_url="http://127.0.0.1:8182",
         cookies={"incoooming_source": "demo"},
     ) as client:
         roll = {"source_option_symbol": source}
@@ -510,7 +536,7 @@ async def _request_pre_auth_workspaces(
     transport = httpx.ASGITransport(app=create_app(container))
     async with httpx.AsyncClient(
         transport=transport,
-        base_url="http://test",
+        base_url="http://127.0.0.1:8182",
         cookies={"incoooming_source": "schwab"},
     ) as client:
         risk, results, volatility, records = await asyncio.gather(

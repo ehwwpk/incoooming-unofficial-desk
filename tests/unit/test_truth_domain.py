@@ -59,6 +59,12 @@ def test_adjusted_option_deliverable_is_not_forced_to_one_hundred_shares() -> No
     assert instrument.deliverable.components[0].quantity == Decimal("50")
 
 
+def test_adjusted_status_can_be_known_before_the_exact_deliverable_is_known() -> None:
+    deliverable = OptionDeliverable(kind=DeliverableKind.ADJUSTED, components=())
+
+    assert deliverable.components == ()
+
+
 def test_non_option_rejects_option_metadata() -> None:
     with pytest.raises(ValueError, match="only valid for option"):
         InstrumentRecord(

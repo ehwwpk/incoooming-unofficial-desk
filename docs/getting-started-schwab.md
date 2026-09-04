@@ -1,97 +1,52 @@
 # Connect Schwab to Incoooming on Windows
 
-This is the current self-hosted route for a Schwab user. You create a personal Schwab developer
-app, keep its credentials on your own computer, and authorize only the accounts you want
-Incoooming to read.
+This guide connects a local copy of Incoooming to Schwab's Individual Trader API. Schwab handles
+the login and account consent on its website. Incoooming never asks for your Schwab password.
 
-You do **not** give Incoooming your Schwab username or password. Schwab handles that login on its
-own website.
+Schwab controls developer access, portal labels, and approval time. Check its portal if the steps
+below differ from the current site.
 
-Already have a Schwab app marked **Ready For Use**? Skip to [step 4](#4-put-the-three-app-values-in-incoooming).
-Already filled in `.env`? Skip to [step 5](#5-authorize-schwab-and-build-the-first-book).
+## Requirements
 
-> **Time:** about 20 minutes of setup, plus Schwab's approval wait. Schwab says most product-access
-> requests are reviewed within one to two business days.
+- A Schwab brokerage account
+- Windows 10 or 11
+- [Python 3.12, 3.13, or 3.14](https://www.python.org/downloads/windows/)
+- An extracted copy of this repository
+- A browser
 
-## Before you start
+Keep the Python Launcher enabled when installing Python from python.org. The setup script uses the
+`py` command. If you downloaded a ZIP from GitHub, extract it before running the commands.
 
-You need:
+## 1. Request Individual Trader API access
 
-- a Schwab brokerage account;
-- Windows 10 or 11;
-- [Python 3.12, 3.13, or 3.14](https://www.python.org/downloads/windows/);
-- this repository downloaded and extracted to a normal folder; and
-- a browser for the Schwab authorization step.
+1. Register or sign in at the [Schwab Developer Portal](https://developer.schwab.com/).
+2. Add the **Individual Developer** role if the portal asks for it.
+3. Open **API Products**, choose **Individual Developers**, and request
+   **Trader API - Individual** access.
+4. Wait until Schwab approves the request.
 
-If you installed Python from python.org, leave the Python Launcher option enabled. Incoooming's
-setup script uses the `py` command.
+## 2. Create an app
 
-On this repository's GitHub page, select **Code**, then **Download ZIP**. Open the downloaded ZIP,
-select **Extract all**, and work from the extracted folder—not from inside the ZIP.
-
-Run one command block at a time and wait for the PowerShell prompt to return. Nibwick is sturdy;
-two setup commands fighting in one terminal are not.
-
-## 1. Become an Individual Developer
-
-1. Open the [Schwab Developer Portal](https://developer.schwab.com/).
-2. Select **Register**. Verify your email and sign in.
-3. On the welcome page, find **Individual Developer** and select **Continue**.
-4. If you already had a portal account, open **Profile** and select
-   **Add Individual Developer Role** instead.
-
-Schwab requires this role for the personal Trader API. It also requires an existing Schwab
-brokerage account.
-
-## 2. Request Trader API access
-
-1. Open [API Products](https://developer.schwab.com/products).
-2. Choose **Individual Developers**.
-3. Open **Trader API - Individual**.
-4. Select **Request Access** and submit the form.
-5. Wait until the request is approved.
-
-This is Schwab's personal-use product. Do not choose **Trader API - Commercial** for a local copy
-connected only to your own account.
-
-Nibwick's useful contribution here: the waiting screen is not broken. Schwab reviews the request.
-
-## 3. Create the Schwab app
-
-After the product-access request is approved:
+After access is approved:
 
 1. Open the [Apps dashboard](https://developer.schwab.com/dashboard/apps).
-2. Select **Create App**.
-3. Select both products shown under Trader API - Individual:
-   - **Accounts and Trading Production**
-   - **Market Data Production**
-4. Enter `0` for **Order Limit**. Incoooming does not place trades.
-5. Give the app a recognizable name, such as `Incoooming`.
-6. You may use this description:
+2. Create an app with the account/trading and market-data products available under the Individual
+   Trader API.
+3. Set the order limit to `0`. Incoooming does not place orders.
+4. Register this callback URL exactly:
 
-   ```text
-   Private, local, read-only analytics for my Schwab portfolio, positions, options, transactions, dividends, and market data.
-   ```
+```text
+https://127.0.0.1:8182/
+```
 
-7. Enter this callback URL **exactly**:
+5. Wait until the app is ready for use.
+6. Copy the app's client ID and client secret to a private location for the next step.
 
-   ```text
-   https://127.0.0.1:8182/
-   ```
+The scheme, address, port, and final slash in the callback URL must match.
 
-8. Create the app. Do not continue until its status is **Ready For Use** or **Active**.
-9. Open **App Details** and copy the **Client ID** and **Client Secret** somewhere private for the
-   next step.
+## 3. Configure Incoooming
 
-The callback must match character for character later. `https`, port `8182`, and the final `/` all
-matter.
-
-## 4. Put the three app values in Incoooming
-
-Open the extracted project folder in File Explorer. Click the address bar, type `powershell`, and
-press Enter. The PowerShell prompt should end with the name of the project folder.
-
-Run:
+Open PowerShell in the extracted project directory and run:
 
 ```powershell
 .\scripts\bootstrap.cmd
@@ -99,15 +54,7 @@ Copy-Item .env.example .env
 notepad .env
 ```
 
-Notepad will open the local settings file. Nibwick's translation table:
-
-| Schwab calls it | Incoooming calls it |
-| --- | --- |
-| Client ID | `SCHWAB_APP_KEY` |
-| Client Secret | `SCHWAB_APP_SECRET` |
-| Callback URL | `SCHWAB_CALLBACK_URL` |
-
-The first three lines should look like this after you paste your values:
+Set these three values in `.env`:
 
 ```text
 SCHWAB_APP_KEY=paste-your-client-id-here
@@ -115,133 +62,114 @@ SCHWAB_APP_SECRET=paste-your-client-secret-here
 SCHWAB_CALLBACK_URL=https://127.0.0.1:8182/
 ```
 
-Do not add quotation marks or spaces around the values. Save the file and close Notepad.
-
-Check the setup without printing either secret:
+Do not add quotation marks. Save the file, close Notepad, and check the setup:
 
 ```powershell
 .\.venv\Scripts\schwab-dashboard.exe doctor
 ```
 
-You should see `Schwab credentials configured: True`. A missing token is normal at this point.
+`Schwab credentials configured: True` should appear. A missing token is expected before the next
+step. The command does not print the key or secret.
 
-## 5. Authorize Schwab and build the first book
+## 4. Authorize the app
 
-First, prepare the local database and ask Incoooming for a Schwab authorization link:
+Run the guided connector:
 
 ```powershell
-.\.venv\Scripts\schwab-dashboard.exe db-upgrade
-.\.venv\Scripts\schwab-dashboard.exe auth-url
+.\scripts\connect-schwab.cmd
 ```
 
-Copy the long URL printed by `auth-url` and open it in your browser. Sign in on Schwab's page,
-choose the accounts you want to share, and approve the connection.
-
-Schwab will send the browser to an address beginning with:
+It prepares the database and opens Schwab. Sign in, choose the accounts to share, and approve
+access. Schwab then redirects the browser to a URL beginning with:
 
 ```text
 https://127.0.0.1:8182/?code=...
 ```
 
-The browser may show `This site can't provide a secure connection`. That is expected during this
-manual local setup. **Do not reload the page.** Copy the entire URL from the browser's address bar.
+The page may show a connection or certificate error because no HTTPS server is listening there.
+Do not reload it. Press `Ctrl+L`, then `Ctrl+C` once. The connector recognizes the exact callback,
+clears the copied URL, exchanges the one-time code, syncs the ledger, and starts Incoooming in the
+background. Do not paste the URL into a public issue, screenshot, or chat.
 
-Back in PowerShell, run:
+If clipboard capture is unavailable, press `Ctrl+C` to stop the connector and use the manual flow:
 
 ```powershell
+.\.venv\Scripts\schwab-dashboard.exe db-upgrade
+.\.venv\Scripts\schwab-dashboard.exe auth-url
 .\.venv\Scripts\schwab-dashboard.exe auth-complete
-```
-
-When it asks for the callback URL, paste **once** and press Enter. The pasted text stays invisible
-because it contains a one-time authorization code.
-
-After PowerShell says `Authorization stored`, check the connection and run the first sync:
-
-```powershell
-.\.venv\Scripts\schwab-dashboard.exe doctor
 .\.venv\Scripts\schwab-dashboard.exe sync
 .\scripts\run-local.cmd
 ```
 
-Leave that PowerShell window open. Visit [http://127.0.0.1:8182/](http://127.0.0.1:8182/), choose
-**Schwab live**, and select **Get Incoooming**.
+Open the printed link, approve access, then paste the complete callback URL into `auth-complete` and
+press Enter. The prompt is hidden because the URL contains a short-lived, one-time authorization
+code.
 
-You are connected when `doctor` reports a stored token, `sync` finishes successfully, and the desk
-shows **SCHWAB LIVE** with a recent sync time.
+## 5. Sync and open the desk
 
-## Next time you use it
+The guided connector has already synced and started the desk. Visit
+[http://127.0.0.1:8182](http://127.0.0.1:8182), choose **Schwab live**, and open the desk. If you
+used the manual flow, leave its server window open.
 
-After restarting the computer, open PowerShell in the project folder and run only:
+A stored token only means authorization data is available. The connection is confirmed when a sync
+finishes and the desk shows a recent successful sync time.
+
+## Later use
+
+After restarting Windows, open PowerShell in the project directory and run:
 
 ```powershell
 .\scripts\run-local.cmd
 ```
 
-You do not recreate the Schwab app or rewrite `.env`. Incoooming keeps the OAuth token in Windows
-Credential Manager and refreshes normal access tokens automatically. If the desk specifically says
-**Reconnect Schwab**, repeat the `auth-url` and `auth-complete` steps with a fresh authorization.
+The local server requests a refresh after startup and every 15 minutes while it is open. It does
+not install a background service. Use `SYNC NOW` for a manual refresh or run
+`.\scripts\restart-local.cmd` to replace a verified stale copy. Press `Ctrl+C` in the server window
+to stop it.
 
-Press `Ctrl+C` in the server window when you want to stop Incoooming.
+If the desk asks you to reconnect Schwab, run `connect-schwab.cmd` again. It always creates a new
+authorization request.
 
-## If something goes wrong
+## Troubleshooting
 
-### `Schwab credentials configured: False`
+### Credentials are not configured
 
-Make sure the file is named `.env`, lives in the project folder, and contains nonblank values for
+Confirm that `.env` is in the project directory and contains nonblank values for
 `SCHWAB_APP_KEY` and `SCHWAB_APP_SECRET`.
 
-### Schwab rejects the callback or token request
+### Schwab rejects the callback or code
 
-Compare the app's registered callback with `.env`. They must both be exactly:
+Confirm that the callback in the Schwab app and `.env` is exactly
+`https://127.0.0.1:8182/`. An authorization code is short-lived and works once. Generate a new URL
+and repeat the approval if the code was already used or expired.
 
-```text
-https://127.0.0.1:8182/
-```
+### The callback page does not load
 
-An authorization code is short-lived and can be used only once. Run `auth-url` again, finish the
-Schwab approval again, copy the new callback URL, and paste it once into `auth-complete`.
+This is expected. In the guided flow, copy the complete address once. In the manual flow, paste it
+into `auth-complete`.
 
-### The callback page is white or shows an SSL error
+### Port 8182 is already in use
 
-That page does not need to load. Copy its entire address and give it to `auth-complete`.
+Check [http://127.0.0.1:8182](http://127.0.0.1:8182). If Incoooming is already open, use that server
+or run `.\scripts\restart-local.cmd`. The launcher will not stop an unrelated process.
 
-### PowerShell shows `WinError 10048`
+### The desk has no current positions
 
-Port `8182` is already in use, usually because Incoooming is already running. Check
-[http://127.0.0.1:8182/](http://127.0.0.1:8182/) before starting a second server. If the page works,
-use the existing server window.
+Use `SYNC NOW` or stop the server and run `sync` followed by `run-local.cmd`. Check the server output
+and Data Health if the refresh fails.
 
-### The desk opens but has no current positions
+## Protect private data
 
-Keep the server open and select **SYNC NOW**, or stop the server with `Ctrl+C` and run:
+- Never commit or share `.env`, `var/`, a database, a broker export, an OAuth callback URL, or a
+  token.
+- OAuth tokens are stored through Windows Credential Manager.
+- The local server is restricted to IPv4 loopback. Do not expose it through a reverse proxy,
+  tunnel, or router port.
+- The Schwab integration reads data and has no order endpoints.
 
-```powershell
-.\.venv\Scripts\schwab-dashboard.exe sync
-.\scripts\run-local.cmd
-```
-
-### You changed the Schwab password, two-factor setup, or authorized accounts
-
-Schwab may require a fresh consent flow. Run `auth-url`, approve the connection, and complete it
-with the new callback URL.
-
-## Keep the keys inside the house
-
-- Never post the Client ID, Client Secret, callback code, `.env`, or brokerage exports in a GitHub
-  issue, screenshot, or chat.
-- Never commit `.env` or the `var` directory. This repository already ignores both.
-- Incoooming stores OAuth tokens in Windows Credential Manager, not in the repository.
-- Incoooming does not ask for a Schwab username or password and does not implement trading
-  endpoints.
-
-## Official Schwab links
+## Official Schwab pages
 
 - [Developer Portal](https://developer.schwab.com/)
-- [Register](https://developer.schwab.com/register)
 - [API Products](https://developer.schwab.com/products)
 - [Apps dashboard](https://developer.schwab.com/dashboard/apps)
 - [User Guides](https://developer.schwab.com/user-guides)
-- [Trader API - Individual](https://developer.schwab.com/products/trader-api--individual)
-
-Last checked against Schwab's portal on August 12, 2026. Portal labels and approval timing can
-change; Schwab's pages are the authority when they differ from this guide.

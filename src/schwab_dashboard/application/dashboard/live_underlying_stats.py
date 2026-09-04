@@ -33,6 +33,14 @@ from schwab_dashboard.application.dashboard.short_premium import (
 from schwab_dashboard.application.dashboard.short_premium import (
     is_short_premium_execution,
 )
+from schwab_dashboard.application.market_time import ledger_market_date
+from schwab_dashboard.application.option_lifecycle import (
+    delivered_shares,
+    lifecycle_event_type,
+    option_contracts,
+    option_side,
+)
+from schwab_dashboard.application.values import sum_if_complete
 
 ZERO = Decimal("0")
 HUNDRED = Decimal("100")
@@ -65,16 +73,16 @@ def build_live_underlying_stats(
     option_market: Sequence[Mapping[str, object]] = (),
     as_of: date,
 ) -> tuple[UnderlyingCallStats, ...]:
+    if any(not _has_price_context(item, daily_bars=daily_bars) for item in live_book.underlyings):
+        # The rich desk assumes every displayed name has a real price spine.
+        # Degrade the whole section to the raw live-position view instead of
+        # mixing detailed cards with a silently invented $0 price.
+        return ()
     dividends = _attribute_dividends(cash_movements, live_book.underlyings)
-    equity_positions = {
-        position.symbol: position
-        for position in positions
-        if position.asset_type.upper() != "OPTION" and position.quantity > ZERO
-    }
+    _ = positions
     return tuple(
         _underlying_stats(
             item,
-            holding=equity_positions.get(item.symbol),
             executions=executions,
             dividends=dividends.get(item.symbol, ()),
             lifecycle_events=lifecycle_events,
@@ -90,7 +98,6 @@ def build_live_underlying_stats(
 def _underlying_stats(
     item: LiveUnderlyingPosition,
     *,
-    holding: PositionSummary | None,
     executions: Sequence[Mapping[str, object]],
     dividends: Sequence[Mapping[str, object]],
     lifecycle_events: Sequence[Mapping[str, object]],
@@ -104,25 +111,31 @@ def _underlying_stats(
         row
         for row in executions
         if is_short_premium_execution(row)
-        and str(row.get("option_side")) == "call"
-        and str(row.get("underlying_symbol")) == symbol
+        and option_side(row.get("option_side")) == "call"
+        and _canonical(str(row.get("underlying_symbol") or "")) == _canonical(symbol)
     )
     premium_executions = tuple(
         row
         for row in executions
-        if is_short_premium_execution(row) and str(row.get("underlying_symbol")) == symbol
+        if is_short_premium_execution(row)
+        and _canonical(str(row.get("underlying_symbol") or "")) == _canonical(symbol)
     )
     option_executions = tuple(
         row
         for row in executions
-        if str(row.get("asset_type")) == "option" and str(row.get("underlying_symbol")) == symbol
+        if str(row.get("asset_type") or "").strip().casefold().split(".")[-1] == "option"
+        and _canonical(str(row.get("underlying_symbol") or "")) == _canonical(symbol)
     )
     symbol_lifecycle = tuple(
-        row for row in lifecycle_events if str(row.get("underlying_symbol")) == symbol
+        row
+        for row in lifecycle_events
+        if _canonical(str(row.get("underlying_symbol") or "")) == _canonical(symbol)
     )
     price_points = _ensure_price_points(
         build_price_points(symbol, daily_bars),
-        current_price=item.current_price or _first_underlying_price(item),
+        current_price=(
+            item.current_price if item.current_price is not None else _first_underlying_price(item)
+        ),
         as_of=as_of,
     )
     clocks = build_open_call_clocks(
@@ -133,14 +146,18 @@ def _underlying_stats(
         option_market=option_market,
         as_of=as_of,
     )
-    current_price = item.current_price or _first_underlying_price(item) or price_points[-1].price
-    market_value = item.market_value or current_price * Decimal(item.shares)
-    average_cost = item.average_price or current_price
+    current_price = (
+        item.current_price
+        if item.current_price is not None
+        else _first_underlying_price(item) or price_points[-1].price
+    )
+    market_value = (
+        item.market_value if item.market_value is not None else current_price * item.shares
+    )
+    average_cost = item.average_price if item.average_price is not None else current_price
     current_session_change = (
         item.current_session_change_percent
         if item.current_session_change_percent is not None
-        else holding.day_profit_loss_percent
-        if holding is not None and holding.day_profit_loss_percent is not None
         else _current_price_change(
             price_points,
             current_price=current_price,
@@ -174,17 +191,27 @@ def _underlying_stats(
     buyback = sum((_closing_debit(row) for row in premium_executions), ZERO)
     net_option_cash = sum((_decimal(row.get("net_cash")) for row in premium_executions), ZERO)
     dividend_cash = sum((_decimal(row.get("amount")) for row in dividends), ZERO)
-    assigned_contracts = _lifecycle_contracts(quarter_lifecycle, "assignment")
-    call_assigned = _lifecycle_contracts(
-        tuple(row for row in quarter_lifecycle if str(row.get("option_side")) == "call"),
-        "assignment",
+    assignments = tuple(
+        row
+        for row in quarter_lifecycle
+        if lifecycle_event_type(row.get("event_type")) == "assignment"
     )
-    put_assigned = _lifecycle_contracts(
-        tuple(row for row in quarter_lifecycle if str(row.get("option_side")) == "put"),
-        "assignment",
+    call_assignments = tuple(
+        row for row in assignments if option_side(row.get("option_side")) == "call"
     )
-    expired_contracts = _lifecycle_contracts(quarter_lifecycle, "expiration")
-    open_credit = sum((clock.entry_credit for clock in clocks), ZERO)
+    put_assignments = tuple(
+        row for row in assignments if option_side(row.get("option_side")) == "put"
+    )
+    assigned_contracts = sum((option_contracts(row) for row in assignments), 0)
+    expired_contracts = sum(
+        (
+            option_contracts(row)
+            for row in quarter_lifecycle
+            if lifecycle_event_type(row.get("event_type")) == "expiration"
+        ),
+        0,
+    )
+    open_credit = sum_if_complete(clock.entry_credit for clock in clocks)
     low = min(point.price for point in price_points)
     high = max(point.price for point in price_points)
     midpoint = (low + high) / Decimal("2")
@@ -197,7 +224,7 @@ def _underlying_stats(
         for option in (*item.calls, *item.puts)
         if option.estimated_mark_per_share is not None
     }
-    basis_total = average_cost * Decimal(item.shares)
+    basis_total = average_cost * item.shares
     total_attributed_income = net_option_cash + dividend_cash
     return UnderlyingCallStats(
         symbol=symbol,
@@ -218,8 +245,8 @@ def _underlying_stats(
         closed_contracts=sum((int(_decimal(row.get("quantity"))) for row in quarter_closings), 0),
         rolled_contracts=_rolled_contracts(quarter_executions),
         assigned_contracts=assigned_contracts,
-        called_away_shares=call_assigned * 100,
-        acquired_shares=put_assigned * 100,
+        called_away_shares=sum((delivered_shares(row) for row in call_assignments), ZERO),
+        acquired_shares=sum((delivered_shares(row) for row in put_assignments), ZERO),
         gross_premium=gross,
         buyback_cost=buyback,
         net_option_cash=net_option_cash,
@@ -238,18 +265,22 @@ def _underlying_stats(
             (abs(clock.delta), clock.contracts) for clock in clocks if clock.delta is not None
         ),
         current_strike_buffer_percent=min(
-            (clock.strike_distance_percent for clock in clocks),
-            default=ZERO,
+            (
+                clock.strike_distance_percent
+                for clock in clocks
+                if clock.strike_distance_percent is not None
+            ),
+            default=None,
         ),
         next_ex_dividend_date=None,
         dividend_per_share=ZERO,
         dividend_overlap_contracts=0,
-        premium_capture_percent=((gross - buyback) / gross * HUNDRED if gross else ZERO),
+        premium_capture_percent=(net_option_cash / gross * HUNDRED if gross else ZERO),
         lifetime_option_income=net_option_cash,
         lifetime_dividends=dividend_cash,
         income_adjusted_basis=basis_total - total_attributed_income,
         income_adjusted_basis_per_share=(
-            (basis_total - total_attributed_income) / Decimal(item.shares) if item.shares else ZERO
+            (basis_total - total_attributed_income) / item.shares if item.shares else ZERO
         ),
         basis_offset_percent=(
             total_attributed_income / basis_total * HUNDRED if basis_total else ZERO
@@ -354,7 +385,7 @@ def _performance_windows(
                     if capital
                     else ZERO
                 ),
-                premium_capture_percent=((gross - buyback) / gross * HUNDRED if gross else ZERO),
+                premium_capture_percent=(option_cash / gross * HUNDRED if gross else ZERO),
             )
         )
     return tuple(windows)
@@ -367,11 +398,15 @@ def _attribute_dividends(
     descriptions = {item.symbol: _distinctive_words(item.description) for item in underlyings}
     result: defaultdict[str, list[Mapping[str, object]]] = defaultdict(list)
     for row in cash_movements:
-        if str(row.get("movement_type")) != "dividend":
+        if str(row.get("movement_type") or "").strip().casefold().split(".")[-1] != "dividend":
             continue
-        direct = str(row.get("symbol") or row.get("underlying_symbol") or "")
-        if direct in descriptions:
-            result[direct].append(row)
+        direct = _canonical(str(row.get("symbol") or row.get("underlying_symbol") or ""))
+        matching_symbol = next(
+            (symbol for symbol in descriptions if _canonical(symbol) == direct),
+            None,
+        )
+        if matching_symbol is not None:
+            result[matching_symbol].append(row)
             continue
         words = _distinctive_words(str(row.get("description") or ""))
         candidates = [
@@ -398,7 +433,9 @@ def _ensure_price_points(
 ) -> tuple[PricePoint, ...]:
     if points:
         return tuple(points)
-    price = current_price or ZERO
+    if current_price is None or current_price <= ZERO:
+        raise ValueError("a positive current price is required when daily history is empty")
+    price = current_price
     return (
         PricePoint(
             date=as_of,
@@ -416,13 +453,27 @@ def _first_underlying_price(item: LiveUnderlyingPosition) -> Decimal | None:
     return options[0].underlying_price if options else None
 
 
-def _weighted_average(values: Iterable[tuple[Decimal, int]]) -> Decimal:
+def _has_price_context(
+    item: LiveUnderlyingPosition,
+    *,
+    daily_bars: Sequence[Mapping[str, object]],
+) -> bool:
+    if item.current_price is not None and item.current_price > ZERO:
+        return True
+    return any(
+        _canonical(str(row.get("symbol") or "")) == _canonical(item.symbol)
+        and _decimal(row.get("close")) > ZERO
+        for row in daily_bars
+    )
+
+
+def _weighted_average(values: Iterable[tuple[Decimal, int]]) -> Decimal | None:
     rows = tuple(values)
     weight = sum((contracts for _, contracts in rows), 0)
     return (
         sum((value * Decimal(contracts) for value, contracts in rows), ZERO) / Decimal(weight)
         if weight
-        else ZERO
+        else None
     )
 
 
@@ -455,23 +506,30 @@ def _close_on_or_before(
     value: date,
     daily_bars: Sequence[Mapping[str, object]],
 ) -> Decimal | None:
-    rows = [
-        row
-        for row in daily_bars
-        if str(row.get("symbol")) == symbol and _date(row.get("trade_date")) <= value
-    ]
+    rows = []
+    for row in daily_bars:
+        close = _optional_decimal(row.get("close"))
+        if (
+            _canonical(str(row.get("symbol") or "")) == _canonical(symbol)
+            and _date(row.get("trade_date")) <= value
+            and close is not None
+            and close > ZERO
+        ):
+            rows.append(row)
     if not rows:
         return None
     latest = max(rows, key=lambda row: _date(row.get("trade_date")))
-    return _decimal(latest.get("close"))
+    return _optional_decimal(latest.get("close"))
 
 
 def _rolled_contracts(rows: Sequence[Mapping[str, object]]) -> int:
-    orders: defaultdict[str, list[Mapping[str, object]]] = defaultdict(list)
+    orders: defaultdict[tuple[str, str, str], list[Mapping[str, object]]] = defaultdict(list)
     for row in rows:
         key = str(row.get("order_external_key") or "")
         if key:
-            orders[key].append(row)
+            orders[(_account_scope(row), key, option_side(row.get("option_side")) or "")].append(
+                row
+            )
     total = 0
     for order_rows in orders.values():
         has_close = any(_is_closing_buy(row) for row in order_rows)
@@ -482,12 +540,8 @@ def _rolled_contracts(rows: Sequence[Mapping[str, object]]) -> int:
     return total
 
 
-def _lifecycle_contracts(rows: Sequence[Mapping[str, object]], event_type: str) -> int:
-    return sum(
-        int(_decimal(row.get("option_quantity")))
-        for row in rows
-        if str(row.get("event_type")) == event_type
-    )
+def _account_scope(row: Mapping[str, object]) -> str:
+    return str(row.get("account_id") or row.get("account_mask") or "default").strip().casefold()
 
 
 def _gross_opening(row: Mapping[str, object]) -> Decimal:
@@ -499,7 +553,10 @@ def _closing_debit(row: Mapping[str, object]) -> Decimal:
 
 
 def _row_date(row: Mapping[str, object]) -> date:
-    return _date(row.get("occurred_at"))
+    value = row.get("occurred_at")
+    if isinstance(value, (date, datetime)):
+        return ledger_market_date(value)
+    return _date(value)
 
 
 def _date(value: object) -> date:
@@ -512,3 +569,11 @@ def _date(value: object) -> date:
 
 def _decimal(value: object) -> Decimal:
     return ZERO if value is None else Decimal(str(value))
+
+
+def _optional_decimal(value: object) -> Decimal | None:
+    return None if value is None else Decimal(str(value))
+
+
+def _canonical(value: str) -> str:
+    return "".join(value.upper().split())

@@ -69,11 +69,12 @@
     if (event.includes("SALE") || event.includes("SELL")) {
       return `Sold ${contractPhrase(leg)} expiring ${expiry(leg)}.`;
     }
-    if (outcome === "EXPIRED") return `The $${strike(leg.strike)} ${side} expired. Premium stayed home.`;
+    if (outcome === "EXPIRED") return `The $${strike(leg.strike)} ${side} expired without a closing debit.`;
     if (outcome === "ASSIGNED") {
+      const shares = Number(leg.delivered_shares ?? qty * Number(leg.contract_multiplier || 100));
       return side === "call"
-        ? `${plural(qty * 100, "share")} got called away at $${strike(leg.strike)}.`
-        : `${plural(qty * 100, "share")} were assigned at $${strike(leg.strike)}.`;
+        ? `${plural(shares, "share")} got called away at $${strike(leg.strike)}.`
+        : `${plural(shares, "share")} were assigned at $${strike(leg.strike)}.`;
     }
     if (isClose(leg)) return `Bought back ${contractPhrase(leg)} early.`;
     if (isRoll(leg)) return `Rolled into ${contractPhrase(leg)} expiring ${expiry(leg)}.`;

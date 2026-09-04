@@ -10,6 +10,10 @@ class BrokerPayloadError(RuntimeError):
     """Raised when a required Schwab response shape cannot be mapped safely."""
 
 
+class BrokerRequestError(RuntimeError):
+    """Raised when a Schwab request fails without exposing its URL or identifiers."""
+
+
 class SyncValidationError(RuntimeError):
     """Raised when a broker observation cannot produce an unambiguous snapshot."""
 

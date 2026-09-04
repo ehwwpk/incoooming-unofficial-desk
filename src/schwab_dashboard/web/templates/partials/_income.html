@@ -9,12 +9,12 @@
 
   {% for window in snapshot.cash_activity_windows %}
   <div class="cash-activity-window" data-cash-activity-window="{{ window.key }}"{% if window.key != 'month' %} hidden{% endif %}>
-    <div class="cash-activity-equation" aria-label="{{ window.premium_received | money }} premium received minus {{ window.executed_debits | money }} executed close and roll debits equals {{ window.net_option_cash | money }} net option cash, plus {{ window.dividends | money }} dividends">
+    <div class="cash-activity-equation" aria-label="{{ window.premium_received | money }} premium received minus {{ window.executed_debits | money }} executed close and roll debits minus {{ window.fees | money }} fees equals {{ window.net_option_cash | money }} net executed option cash, plus {{ window.dividends | money }} dividends">
       <span><small>PREMIUM RECEIVED</small><b>{{ window.premium_received | money }}</b></span>
       <i aria-hidden="true">−</i>
-      <span><small>EXECUTED CLOSE / ROLL DEBITS</small><b class="negative">{{ window.executed_debits | money }}</b></span>
+      <span><small>CLOSE / ROLL DEBITS + FEES</small><b class="negative">{{ (window.executed_debits + window.fees) | money }}</b></span>
       <i aria-hidden="true">=</i>
-      <span class="cash-activity-net"><small>NET OPTION CASH</small><b class="{{ window.net_option_cash | pnl_class }}">{{ window.net_option_cash | money }}</b></span>
+      <span class="cash-activity-net"><small>NET EXECUTED OPTION CASH</small><b class="{{ window.net_option_cash | pnl_class }}">{{ window.net_option_cash | money }}</b></span>
       <span class="cash-activity-dividend"><small>DIVIDENDS RECEIVED</small><b>{{ window.dividends | money }}</b></span>
     </div>
 

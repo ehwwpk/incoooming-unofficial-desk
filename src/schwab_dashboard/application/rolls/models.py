@@ -19,6 +19,9 @@ class RollSource:
     current_price: Decimal
     quote_status: str
     contract_multiplier: Decimal = Decimal("100")
+    deliverable_shares_per_contract: Decimal | None = Decimal("100")
+    account_mask: str = ""
+    account_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

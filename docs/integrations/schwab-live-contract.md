@@ -50,7 +50,7 @@ Normalization rules:
 - `RECEIVE_AND_DELIVER` remains a lifecycle record and is classified as assignment, expiration,
   exercise, or adjustment from the broker description;
 - SMA adjustments are not treated as cash income;
-- transfers and journals never become strategy income.
+- transfers and journals never become strategy P/L or executed strategy cash.
 
 ## Observed market contract
 
@@ -59,6 +59,10 @@ contracts expose bid/ask/mark, implied volatility, delta, gamma, theta, vega, rh
 interest, multiplier, strike, expiry, and source quote time. Daily history exposes real OHLCV
 candles. Performance comparisons use these persisted candles; they never fabricate missing held
 symbols or a partial SPY reference.
+
+Missing quote fields remain null through the live book. Totals that require complete option marks,
+Greeks, or covered stock values remain unavailable if one open position is incomplete. Roll cash
+uses the current contract ask and replacement bid; a mark does not stand in for a missing ask.
 
 Exchange timestamps and retrieval timestamps remain separate. Repeated after-hours quotes with an
 unchanged exchange timestamp are versioned by retrieval event; the latest projection returns one

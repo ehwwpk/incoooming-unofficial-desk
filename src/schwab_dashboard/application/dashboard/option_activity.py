@@ -6,6 +6,22 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
+from schwab_dashboard.application.dashboard.short_premium import (
+    is_closing_buy,
+    is_opening_sale,
+    is_option_execution,
+)
+from schwab_dashboard.application.market_time import (
+    ledger_market_date,
+    ledger_market_datetime,
+)
+from schwab_dashboard.application.option_lifecycle import (
+    delivered_shares,
+    lifecycle_event_type,
+    option_contracts,
+    option_side,
+)
+
 ZERO = Decimal("0")
 
 
@@ -34,7 +50,7 @@ class OptionOutcomeSummary:
     rolled_contracts: int
     roll_orders: int
     assigned_contracts: int
-    assignment_shares: int
+    assignment_shares: Decimal
     open_call_contracts: int
     open_put_contracts: int
 
@@ -53,16 +69,24 @@ def build_recent_option_activity(
     if limit < 1:
         return ()
     rows = tuple(row for row in executions if _is_option(row))
-    groups: defaultdict[tuple[str, str], list[Mapping[str, object]]] = defaultdict(list)
+    groups: defaultdict[tuple[str, str, str, str], list[Mapping[str, object]]] = defaultdict(list)
     for row in rows:
         order_key = str(row.get("order_external_key") or "").strip()
         external_key = str(row.get("external_key") or "unkeyed")
         symbol = _underlying(row)
-        groups[(symbol, order_key or f"fill:{external_key}")].append(row)
+        groups[
+            (
+                _account_scope(row),
+                symbol,
+                _side(row),
+                order_key or f"fill:{external_key}",
+            )
+        ].append(row)
 
     events: list[RecentOptionActivityItem] = []
-    for (symbol, group_key), order_rows in groups.items():
-        events.extend(_activity_for_group(symbol, group_key, order_rows, as_of=as_of))
+    for (account, symbol, side, group_key), order_rows in groups.items():
+        stable_group_key = f"{account}:{symbol}:{side}:{group_key}"
+        events.extend(_activity_for_group(symbol, stable_group_key, order_rows, as_of=as_of))
     return tuple(
         sorted(events, key=lambda item: (item.occurred_at, item.event_id), reverse=True)[:limit]
     )
@@ -83,22 +107,32 @@ def build_option_outcomes(
     rolled_contracts, roll_orders = _roll_totals(rows)
     closing_contracts = sum((_quantity(row) for row in closing_rows), 0)
 
-    short_symbols = {str(row.get("symbol") or "").strip().upper() for row in opening_rows} - {""}
+    short_positions = {
+        (_account_scope(row), str(row.get("symbol") or "").strip().upper())
+        for row in opening_rows
+        if str(row.get("symbol") or "").strip()
+    }
     resolved_rows = tuple(
-        row
-        for row in lifecycle_events
-        if str(row.get("symbol") or "").strip().upper() in short_symbols
+        row for row in lifecycle_events if _matches_short_position(row, short_positions)
     )
     expired = sum(
-        (_lifecycle_quantity(row) for row in resolved_rows if _event_type(row) == "expiration"),
+        (
+            option_contracts(row)
+            for row in resolved_rows
+            if lifecycle_event_type(row.get("event_type")) == "expiration"
+        ),
         0,
     )
-    assignments = tuple(row for row in resolved_rows if _event_type(row) == "assignment")
-    assigned = sum((_lifecycle_quantity(row) for row in assignments), 0)
-    assignment_shares = sum((abs(_integer(row.get("stock_quantity"))) for row in assignments), 0)
+    assignments = tuple(
+        row for row in resolved_rows if lifecycle_event_type(row.get("event_type")) == "assignment"
+    )
+    assigned = sum((option_contracts(row) for row in assignments), 0)
+    assignment_shares = sum((delivered_shares(row) for row in assignments), ZERO)
 
     dated_rows = (*rows, *resolved_rows)
-    recorded_from = min((_row_datetime(row).date() for row in dated_rows), default=None)
+    recorded_from = min(
+        (ledger_market_date(_row_datetime(row)) for row in dated_rows), default=None
+    )
     return OptionOutcomeSummary(
         recorded_from=recorded_from,
         recorded_through=as_of,
@@ -128,14 +162,15 @@ def _activity_for_group(
     opens = tuple(row for row in rows if _is_opening_sale(row))
     if closes and opens and _roll_contracts(rows):
         latest = max(_row_datetime(row) for row in rows)
+        occurred_on = ledger_market_date(latest)
         side = _common_side(rows)
         contracts = _roll_contracts(rows)
         return (
             RecentOptionActivityItem(
                 event_id=f"roll:{group_key}",
                 occurred_at=latest,
-                occurred_on=latest.date(),
-                date_label=_date_label(latest.date(), as_of),
+                occurred_on=occurred_on,
+                date_label=_date_label(occurred_on, as_of),
                 symbol=symbol,
                 action_label=f"ROLLED {side.upper()}",
                 detail=f"{_leg_summary(closes)}  ->  {_leg_summary(opens)}",
@@ -149,13 +184,14 @@ def _activity_for_group(
 
     fills: defaultdict[tuple[object, ...], list[Mapping[str, object]]] = defaultdict(list)
     for row in rows:
-        fills[(*_leg_identity(row), str(row.get("side")), str(row.get("position_effect")))].append(
-            row
-        )
+        fills[
+            (*_leg_identity(row), _token(row.get("side")), _token(row.get("position_effect")))
+        ].append(row)
     result: list[RecentOptionActivityItem] = []
     for index, fill_rows in enumerate(fills.values(), start=1):
         row = max(fill_rows, key=_row_datetime)
         occurred_at = _row_datetime(row)
+        occurred_on = ledger_market_date(occurred_at)
         action = _action_label(row)
         amount = sum((_decimal(item.get("net_cash")) for item in fill_rows), ZERO)
         contracts = sum((_quantity(item) for item in fill_rows), 0)
@@ -163,8 +199,8 @@ def _activity_for_group(
             RecentOptionActivityItem(
                 event_id=f"{group_key}:{index}",
                 occurred_at=occurred_at,
-                occurred_on=occurred_at.date(),
-                date_label=_date_label(occurred_at.date(), as_of),
+                occurred_on=occurred_on,
+                date_label=_date_label(occurred_on, as_of),
                 symbol=symbol,
                 action_label=action,
                 detail=f"{_contract_label(row)}  /  {contracts} {_contract_word(contracts)}",
@@ -185,7 +221,7 @@ def _roll_totals(rows: Sequence[Mapping[str, object]]) -> tuple[int, int]:
         if not order_key:
             continue
         group_key = (
-            str(row.get("account_mask") or ""),
+            _account_scope(row),
             order_key,
             _underlying(row),
             _side(row),
@@ -229,12 +265,16 @@ def _contract_label(row: Mapping[str, object]) -> str:
 
 def _action_label(row: Mapping[str, object]) -> str:
     side = _side(row).upper() or "OPTION"
-    action = (str(row.get("side")), str(row.get("position_effect")))
+    action = (_token(row.get("side")), _token(row.get("position_effect")))
     return {
         ("sell", "opening"): f"SOLD {side}",
+        ("sold", "opening"): f"SOLD {side}",
         ("buy", "closing"): f"CLOSED {side}",
+        ("bought", "closing"): f"CLOSED {side}",
         ("buy", "opening"): f"BOUGHT {side}",
+        ("bought", "opening"): f"BOUGHT {side}",
         ("sell", "closing"): f"SOLD TO CLOSE {side}",
+        ("sold", "closing"): f"SOLD TO CLOSE {side}",
     }.get(action, f"OPTION {str(row.get('side') or 'MOVE').upper()}")
 
 
@@ -256,40 +296,45 @@ def _underlying(row: Mapping[str, object]) -> str:
 
 
 def _side(row: Mapping[str, object]) -> str:
-    return str(row.get("option_side") or "").strip().lower()
-
-
-def _event_type(row: Mapping[str, object]) -> str:
-    return str(row.get("event_type") or "").strip().lower()
+    return option_side(row.get("option_side")) or ""
 
 
 def _is_option(row: Mapping[str, object]) -> bool:
-    return str(row.get("asset_type") or "").strip().lower() == "option"
+    return is_option_execution(row)
 
 
 def _is_opening_sale(row: Mapping[str, object]) -> bool:
-    return str(row.get("side")) == "sell" and str(row.get("position_effect")) == "opening"
+    return is_opening_sale(row)
 
 
 def _is_closing_buy(row: Mapping[str, object]) -> bool:
-    return str(row.get("side")) == "buy" and str(row.get("position_effect")) == "closing"
+    return is_closing_buy(row)
 
 
 def _row_datetime(row: Mapping[str, object]) -> datetime:
     value = row.get("occurred_at")
-    if isinstance(value, datetime):
-        return value
-    if isinstance(value, date):
-        return datetime.combine(value, datetime.min.time())
+    if isinstance(value, (date, datetime)):
+        return ledger_market_datetime(value)
     raise ValueError("Option activity is missing its source timestamp")
+
+
+def _account_scope(row: Mapping[str, object]) -> str:
+    return str(row.get("account_id") or row.get("account_mask") or "default").strip().casefold()
+
+
+def _matches_short_position(
+    row: Mapping[str, object],
+    short_positions: set[tuple[str, str]],
+) -> bool:
+    symbol = str(row.get("symbol") or "").strip().upper()
+    explicit_account = row.get("account_id") or row.get("account_mask")
+    if explicit_account is None:
+        return any(position_symbol == symbol for _account, position_symbol in short_positions)
+    return (str(explicit_account).strip().casefold(), symbol) in short_positions
 
 
 def _quantity(row: Mapping[str, object]) -> int:
     return abs(_integer(row.get("quantity")))
-
-
-def _lifecycle_quantity(row: Mapping[str, object]) -> int:
-    return abs(_integer(row.get("option_quantity")))
 
 
 def _integer(value: object) -> int:
@@ -307,3 +352,7 @@ def _compact_decimal(value: Decimal) -> str:
 
 def _contract_word(value: int) -> str:
     return "CONTRACT" if value == 1 else "CONTRACTS"
+
+
+def _token(value: object) -> str:
+    return str(value or "").strip().casefold().split(".")[-1]

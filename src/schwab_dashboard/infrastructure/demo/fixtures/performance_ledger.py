@@ -63,7 +63,7 @@ def _monthly_summary(row: tuple[object, ...]) -> MonthlyPerformanceSummary:
         closing_debits=closing_debits,
         fees=fees,
         assigned_contracts=int(str(row[6])),
-        called_away_shares=int(str(row[7])),
+        called_away_shares=D(str(row[7])),
         average_covered_capital=D(str(row[8])),
         is_partial=bool(row[9]),
     )

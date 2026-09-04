@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 
 import httpx
 from alembic import command
-from sqlalchemy import inspect
+from sqlalchemy import create_engine, inspect, text
 
 from schwab_dashboard.app import create_app
 from schwab_dashboard.cli import _alembic_config
@@ -61,6 +62,116 @@ def test_initial_migration_supports_local_api(tmp_path: Path) -> None:
         container.close()
 
 
+def test_cash_classification_repairs_existing_rows(tmp_path: Path) -> None:
+    settings = Settings(_env_file=None, data_dir=tmp_path)
+    config = _alembic_config(settings)
+    command.upgrade(config, "20260903_0018")
+    engine = create_engine(settings.database_url)
+    timestamp = "2026-09-03 12:00:00"
+    cases = (
+        ("journal", "JOURNAL", "other cash journal", "transfer"),
+        ("borrow", "JOURNAL", "Stock Borrow Fee/ABC", "transfer"),
+        ("internal", "JOURNAL", "TRF FUNDS FRM TYPE 1 TO TYPE 2", "transfer"),
+        ("receipt", "CASH_RECEIPT", "ACH receipt", "other"),
+        ("disbursement", "CASH_DISBURSEMENT", "Cash disbursement", "other"),
+        ("interest", "DIVIDEND_OR_INTEREST", "Schwab1 Int 08/26", "dividend"),
+        ("dividend", "DIVIDEND_OR_INTEREST", "ABC dividend", "dividend"),
+    )
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                """
+                INSERT INTO sync_runs (
+                    id, source, status, started_at, completed_at, account_count,
+                    position_count, error_message, created_at
+                ) VALUES (
+                    'sync', 'schwab', 'success', :timestamp, :timestamp, 1, 0, NULL, :timestamp
+                )
+                """
+            ),
+            {"timestamp": timestamp},
+        )
+        connection.execute(
+            text(
+                """
+                INSERT INTO accounts (
+                    id, source, external_account_key, account_mask, account_type,
+                    first_observed_at, last_observed_at, created_at
+                ) VALUES (
+                    'account', 'schwab', 'account-key', '...0001', 'MARGIN',
+                    :timestamp, :timestamp, :timestamp
+                )
+                """
+            ),
+            {"timestamp": timestamp},
+        )
+        for key, event_type, description, movement_type in cases:
+            connection.execute(
+                text(
+                    """
+                    INSERT INTO raw_broker_events (
+                        id, sync_run_id, item_key, event_type, account_external_key,
+                        observed_at, parser_version, payload_hash, payload, created_at
+                    ) VALUES (
+                        :raw_id, 'sync', :item_key, 'transaction', 'account-key',
+                        :timestamp, 'test', :payload_hash, :payload, :timestamp
+                    )
+                    """
+                ),
+                {
+                    "raw_id": f"raw-{key}",
+                    "item_key": key,
+                    "timestamp": timestamp,
+                    "payload_hash": f"hash-{key}",
+                    "payload": json.dumps({"type": event_type}),
+                },
+            )
+            connection.execute(
+                text(
+                    """
+                    INSERT INTO cash_movements (
+                        id, source, account_id, instrument_id, raw_event_id, external_key,
+                        occurred_at, movement_type, amount, description, created_at
+                    ) VALUES (
+                        :cash_id, 'schwab', 'account', NULL, :raw_id, :external_key,
+                        :timestamp, :movement_type, 1, :description, :timestamp
+                    )
+                    """
+                ),
+                {
+                    "cash_id": f"cash-{key}",
+                    "raw_id": f"raw-{key}",
+                    "external_key": key,
+                    "timestamp": timestamp,
+                    "movement_type": movement_type,
+                    "description": description,
+                },
+            )
+    engine.dispose()
+
+    command.upgrade(config, "head")
+    verify_engine = create_engine(settings.database_url)
+    try:
+        with verify_engine.connect() as connection:
+            actual: dict[str, str] = {
+                str(row.external_key): str(row.movement_type)
+                for row in connection.execute(
+                    text("SELECT external_key, movement_type FROM cash_movements")
+                )
+            }
+        assert actual == {
+            "journal": "other",
+            "borrow": "fee",
+            "internal": "trade_settlement",
+            "receipt": "transfer",
+            "disbursement": "transfer",
+            "interest": "interest",
+            "dividend": "dividend",
+        }
+    finally:
+        verify_engine.dispose()
+
+
 def test_demo_mode_renders_operator_plan_without_credentials(tmp_path: Path) -> None:
     settings = Settings(_env_file=None, data_dir=tmp_path, demo_mode=True)
     command.upgrade(_alembic_config(settings), "head")
@@ -74,7 +185,7 @@ def test_demo_mode_renders_operator_plan_without_credentials(tmp_path: Path) -> 
         assert payload["mode"] == "demo"
         assert payload["portfolio"]["total_value"] == "223485.00"
         assert payload["income"]["month"] == "1805.000"
-        assert payload["covered_calls"]["total_shares"] == 2000
+        assert payload["covered_calls"]["total_shares"] == "2000"
         assert payload["covered_calls"]["open_call_credit"] == "3390.000"
         assert payload["covered_calls"]["open_call_mark_value"] == "1738.00"
         assert payload["covered_calls"]["open_mark_profit_loss"] == "1652.000"
@@ -142,7 +253,8 @@ def test_demo_mode_renders_operator_plan_without_credentials(tmp_path: Path) -> 
         assert 'data-period="r365"' in page.text
         assert "Cash &amp; recent moves" in page.text
         assert "Cash timeline" not in page.text
-        assert "EXECUTED CLOSE / ROLL DEBITS" in page.text
+        assert "CLOSE / ROLL DEBITS + FEES" in page.text
+        assert "NET EXECUTED OPTION CASH" in page.text
         assert "Transaction records" not in page.text
         assert "Open options" in page.text
         assert "Results" in page.text
@@ -167,7 +279,7 @@ async def _request_initial_routes(container: Container) -> tuple[httpx.Response,
     source = "demo" if container.settings.demo_mode else "schwab"
     async with httpx.AsyncClient(
         transport=transport,
-        base_url="http://test",
+        base_url="http://127.0.0.1:8182",
         cookies={"incoooming_source": source},
     ) as client:
         return (

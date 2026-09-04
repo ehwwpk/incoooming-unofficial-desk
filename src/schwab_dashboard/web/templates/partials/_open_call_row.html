@@ -5,7 +5,7 @@
   <summary aria-label="{{ row.symbol }} {{ row.contracts }} contract {{ row.strike | number(2) }} call, {{ row.days_to_expiration }} days to expiration">
     <span class="option-contract call-contract">
       <b>{{ row.contracts }}x ${{ row.strike | number(2) }}C</b>
-      <small>{% if row.can_close_or_roll %}{{ row.symbol }} SHORT CALL{% else %}{{ row.session_label }}{% endif %}</small>
+      <small>{% if row.can_close_or_roll %}{{ row.symbol }} SHORT CALL{% else %}{{ row.session_label }}{% endif %}{% if row.obligated_shares is none %} &middot; DELIVERY UNRESOLVED{% endif %}</small>
     </span>
     <span class="option-term call-term">
       <small>TIME LEFT</small>
@@ -15,31 +15,32 @@
     <span>
       <small>TO STRIKE</small>
       <b class="{{ row.strike_distance_per_share | pnl_class }}">{{ row.strike_distance_per_share | money }}</b>
-      <em>{{ row.strike_distance_percent | percent }}</em>
+      <em>{% if row.strike_distance_percent is not none %}{{ row.strike_distance_percent | percent }}{% else %}Spot unavailable{% endif %}</em>
     </span>
     <span>
       <small>VALUE / PREMIUM</small>
       <b class="{{ row.credit_capture_percent | pnl_class }}">{{ row.option_value_vs_credit_percent | percent }}</b>
-      <em>{{ row.current_liability | money }} now / {{ row.entry_credit | money }} received</em>
+      <em>{% if row.current_liability is not none and row.entry_credit is not none %}{{ row.current_liability | money }} now / {{ row.entry_credit | money }} received{% else %}Mark or entry unavailable{% endif %}</em>
     </span>
     <span class="option-row-pl">
       <small>OPEN P/L</small>
       <div class="open-book-pl-line">
         <b class="{{ row.open_profit_loss | pnl_class }}">{{ row.open_profit_loss | money }}</b>
-        <small class="{{ row.credit_capture_percent | pnl_class }}">{{ row.credit_capture_percent | percent }} CAPTURED</small>
+        <small class="{{ row.credit_capture_percent | pnl_class }}">{% if row.credit_capture_percent is not none %}{{ row.credit_capture_percent | percent }} CAPTURED{% else %}MARK OR ENTRY UNAVAILABLE{% endif %}</small>
       </div>
-      <em>{% if row.can_close_or_roll %}{{ row.theta_estimate_per_day | money }}/day model decay{% else %}No live theta after trading close{% endif %}</em>
+      <em>{% if not row.can_close_or_roll %}No live theta after trading close{% elif row.theta_estimate_per_day is not none %}{{ row.theta_estimate_per_day | money }}/day model decay{% else %}Theta unavailable{% endif %}</em>
     </span>
     <i class="option-row-toggle call-row-toggle" aria-hidden="true"></i>
   </summary>
 
   <div class="open-option-detail open-call-detail">
     <div class="contract-clocks" role="group" aria-label="Contract time and value clocks">
-      <section class="contract-clock calendar-clock">
+      <section class="contract-clock calendar-clock {{ 'clock-unavailable' if row.elapsed_time_percent is none }}">
         <header>
           <span>CALENDAR CLOCK</span>
           <b>{{ row.days_to_expiration }} DTE</b>
         </header>
+        {% if row.elapsed_time_percent is not none %}
         <div class="clock-track" role="img" aria-label="{{ row.elapsed_time_percent | percent }} of the original contract term has elapsed">
           <span style="--clock-fill: {{ row.elapsed_time_percent | number(1) }}%"></span>
         </div>
@@ -48,8 +49,13 @@
           <strong>{{ row.elapsed_time_percent | percent }} USED</strong>
           <span>EXPIRES {{ row.expires_on | short_date }}</span>
         </footer>
+        {% else %}
+        <div class="clock-track" role="img" aria-label="Opening date unavailable; elapsed contract time is not estimated"><span></span></div>
+        <footer><span>OPENING DATE UNAVAILABLE</span><strong>TERM NOT GUESSED</strong><span>EXPIRES {{ row.expires_on | short_date }}</span></footer>
+        {% endif %}
       </section>
 
+      {% if row.option_value_vs_credit_percent is not none and row.option_value_track_percent is not none and row.option_value_overrun_percent is not none and row.credit_capture_percent is not none %}
       <section class="contract-clock value-clock {{ 'value-overrun' if row.option_value_overrun_percent > 0 else 'value-contained' }}">
         <header>
           <span>OPTION VALUE / PREMIUM</span>
@@ -69,6 +75,13 @@
           <span>{{ row.entry_credit | money }} RECEIVED</span>
         </footer>
       </section>
+      {% else %}
+      <section class="contract-clock value-clock clock-unavailable">
+        <header><span>OPTION VALUE / PREMIUM</span><b>&mdash;</b></header>
+        <div class="clock-track" role="img" aria-label="Option value comparison unavailable"><span></span></div>
+        <footer><span>MARK OR ENTRY UNAVAILABLE</span><strong>NOT GUESSED</strong><span>BROKER DATA</span></footer>
+      </section>
+      {% endif %}
     </div>
 
     <div class="option-fact-strip call-fact-strip">
@@ -83,7 +96,7 @@
       <div>
         <span>VALUE MIX</span>
         <b>{{ row.intrinsic_value | money }} intrinsic · {{ row.remaining_extrinsic_value | money }} time</b>
-        <small>{{ row.entry_credit_per_share | money }}/share originally received</small>
+        <small>{% if row.entry_credit_per_share is not none %}{{ row.entry_credit_per_share | money }}/share originally received{% else %}Opening credit unavailable{% endif %}</small>
       </div>
       <div>
         <span>LIQUIDITY</span>
@@ -93,7 +106,7 @@
     </div>
 
     <details class="contract-model-disclosure">
-      <summary>MODEL INPUTS <span>PER SHARE / RAW CONTRACT QUOTE</span></summary>
+      <summary>MODEL INPUTS <span>PER SHARE / {{ row.quote_status }}{% if row.quote_observed_on %} {{ row.quote_observed_on | short_date }}{% endif %}</span></summary>
       <div>
         <span>IV <b>{% if row.implied_volatility_percent is not none %}{{ row.implied_volatility_percent | percent }}{% else %}&mdash;{% endif %}</b></span>
         <span>DELTA <b>{% if row.delta is not none %}{{ row.delta | number(3) }}{% else %}&mdash;{% endif %}</b></span>
@@ -105,7 +118,7 @@
     </details>
 
     <footer class="option-context-line call-context-line">
-      <span><b>{{ row.decay_stage }}</b> · {{ row.original_days_to_expiration }} original days</span>
+      <span><b>{{ row.decay_stage }}</b>{% if row.original_days_to_expiration is not none %} · {{ row.original_days_to_expiration }} original days{% endif %}</span>
       <span>{{ row.next_event_label }}</span>
       <span>{{ row.intent_label }} · {{ row.policy_label }}{% if row.policy_label != 'Observed position' %} · {{ row.policy_fit_summary }}{% endif %}</span>
     </footer>

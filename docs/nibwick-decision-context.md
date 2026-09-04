@@ -29,7 +29,10 @@ Open calls and short puts receive a low-noise proximity check:
 - A contract within 7% of its strike is surfaced inside 7 DTE.
 - Every open short contract is checked before ranking. Only the highest-priority directional call note and highest-priority short-put note per symbol are shown, so one name cannot flood the desk. A dividend note may coexist because it represents a different event risk.
 
-Short-put notes report strike distance, DTE, current mark versus entry credit, and assignment notional (`contracts x 100 x strike`). Assignment notional is not a claim that the trade is cash secured or a representation of broker margin treatment.
+Short-put notes report strike distance, DTE, current mark versus entry credit, and assignment
+notional (`known delivered shares × strike`). If stock delivery is not known, the notional stays
+unavailable. Assignment notional does not claim that the trade is cash secured or describe broker
+margin treatment.
 
 ## Fast move and roll review pressure
 
@@ -48,10 +51,11 @@ The note also reports exact strike distance per share, strike distance percent, 
 A displayed roll comparison is one analysis action, not a generic Radar search. Choosing `CHECK FRESH CHAIN` carries only the verified open-call identifier and the displayed later/higher strike and expiration into Premium Radar. Radar then:
 
 1. verifies that the source call is still open in the selected book;
-2. releases only that call's covered lots for the comparison;
+2. releases only that call's known share delivery, in its brokerage account, for sizing the
+   replacement;
 3. requests a current chain wide enough to include the source expiration and exact replacement;
 4. keeps the exact replacement visible even when it misses the operator's ordinary new-sale policy, while preserving its failed gates;
-5. calculates buy-to-close ask minus sell-to-open bid and labels the quote timing honestly;
+5. calculates buy-to-close ask minus sell-to-open bid and shows the quote timestamp;
 6. highlights the requested replacement without selecting a different contract silently.
 
 Radar treats this handoff as a nearby listed ladder, not an ordinary covered-call scan. It considers

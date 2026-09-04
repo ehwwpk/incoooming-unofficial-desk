@@ -13,7 +13,7 @@ from alembic.config import Config
 from schwab_dashboard.app import create_app
 from schwab_dashboard.application.campaigns import reconcile_option_campaigns
 from schwab_dashboard.application.campaigns.audit import audit_campaign_ledger
-from schwab_dashboard.application.errors import AuthenticationRequiredError
+from schwab_dashboard.application.errors import AuthenticationRequiredError, BrokerRequestError
 from schwab_dashboard.config import Settings
 from schwab_dashboard.container import Container
 from schwab_dashboard.infrastructure.database.analytics_reader import SqlLiveAnalyticsReader
@@ -21,16 +21,26 @@ from schwab_dashboard.infrastructure.runtime.identity import current_build_id
 
 app = typer.Typer(no_args_is_help=True, help="Incoooming local commands.")
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PACKAGE_ROOT = Path(__file__).resolve().parent
 
 
 def _alembic_config(settings: Settings) -> Config:
-    config = Config(str(PROJECT_ROOT / "alembic.ini"))
-    config.set_main_option("script_location", str(PROJECT_ROOT / "migrations"))
+    source_migrations = PROJECT_ROOT / "migrations"
+    runtime_root = PROJECT_ROOT if source_migrations.is_dir() else PACKAGE_ROOT
+    config = Config(str(runtime_root / "alembic.ini"))
+    config.set_main_option("script_location", str(runtime_root / "migrations"))
     config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
     return config
 
 
-def _not_ready(exc: AuthenticationRequiredError) -> NoReturn:
+def _upgrade_database(settings: Settings, *, announce: bool) -> None:
+    settings.resolved_data_dir.mkdir(parents=True, exist_ok=True)
+    command.upgrade(_alembic_config(settings), "head")
+    if announce:
+        typer.echo(f"Database is current: {settings.resolved_data_dir}")
+
+
+def _not_ready(exc: AuthenticationRequiredError | BrokerRequestError) -> NoReturn:
     typer.echo(f"Not ready: {exc}", err=True)
     raise typer.Exit(code=1)
 
@@ -39,9 +49,7 @@ def _not_ready(exc: AuthenticationRequiredError) -> NoReturn:
 def db_upgrade() -> None:
     """Apply all database migrations."""
     settings = Settings()
-    settings.resolved_data_dir.mkdir(parents=True, exist_ok=True)
-    command.upgrade(_alembic_config(settings), "head")
-    typer.echo(f"Database is current: {settings.resolved_data_dir}")
+    _upgrade_database(settings, announce=True)
 
 
 @app.command("auth-url")
@@ -51,7 +59,7 @@ def auth_url() -> None:
     try:
         try:
             typer.echo(container.require_oauth().authorization_url())
-        except AuthenticationRequiredError as exc:
+        except (AuthenticationRequiredError, BrokerRequestError) as exc:
             _not_ready(exc)
     finally:
         container.close()
@@ -83,7 +91,7 @@ def auth_complete(
             typer.echo(
                 f"Authorization stored. Access token expires at {token.expires_at.isoformat()}."
             )
-        except AuthenticationRequiredError as exc:
+        except (AuthenticationRequiredError, BrokerRequestError) as exc:
             _not_ready(exc)
     finally:
         container.close()
@@ -97,7 +105,7 @@ def auth_clear() -> None:
         try:
             container.require_oauth().clear_token()
             typer.echo("Stored Schwab OAuth token removed.")
-        except AuthenticationRequiredError as exc:
+        except (AuthenticationRequiredError, BrokerRequestError) as exc:
             _not_ready(exc)
     finally:
         container.close()
@@ -122,7 +130,7 @@ def sync() -> None:
                 f"{market.intraday_bar_count} intraday price bar(s), "
                 f"{result.warning_count} warning(s)."
             )
-        except AuthenticationRequiredError as exc:
+        except (AuthenticationRequiredError, BrokerRequestError) as exc:
             _not_ready(exc)
     finally:
         container.close()
@@ -190,7 +198,7 @@ def campaign_audit() -> None:
             f"{audit.unknown_campaigns} unknown"
         )
         typer.echo(f"Excluded long-option lifecycle events: {audit.excluded_long_lifecycle_events}")
-        typer.echo(f"Adjusted-contract events observed: {audit.adjusted_contract_events}")
+        typer.echo(f"Nonstandard-contract events observed: {audit.nonstandard_contract_events}")
         typer.echo(
             "Campaign cash: "
             f"{audit.campaign_net_cash} / source cash {audit.source_net_cash} / "
@@ -207,6 +215,7 @@ def campaign_audit() -> None:
 def serve() -> None:
     """Run Incoooming locally."""
     settings = Settings()
+    _upgrade_database(settings, announce=False)
     uvicorn.run(
         create_app(),
         host=settings.host,
@@ -219,6 +228,7 @@ def serve() -> None:
 def demo() -> None:
     """Run Incoooming with fictional data; the real ledger is never modified."""
     settings = Settings(demo_mode=True)
+    _upgrade_database(settings, announce=False)
     container = Container(settings)
     try:
         uvicorn.run(

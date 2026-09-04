@@ -4,6 +4,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from schwab_dashboard.application.performance.projection import build_performance_comparison
+from schwab_dashboard.application.performance.returns import build_time_weighted_returns
 
 D = Decimal
 
@@ -31,8 +32,178 @@ def test_time_weighted_return_excludes_deposit_before_chaining() -> None:
         D("1.00"),
     ]
     assert comparison.actual.return_percent == D("2.0100")
+    assert comparison.actual.points[1].return_quality == "estimated"
+    assert comparison.spine.risk.observations == 1
     assert comparison.shares_without_options.status == "not_available"
     assert comparison.market_reference.return_percent is None
+
+
+def test_owner_flow_already_inside_the_first_anchor_is_not_counted_as_excluded() -> None:
+    comparison = build_performance_comparison(
+        balance_history=(
+            _balance("2026-08-11T20:00:00+00:00", "125000", "100000"),
+            _balance("2026-08-12T20:00:00+00:00", "126250", "125000"),
+        ),
+        cash_movements=(
+            {
+                "occurred_at": datetime(2026, 8, 11, 18, tzinfo=UTC),
+                "movement_type": "transfer",
+                "amount": D("25000"),
+            },
+        ),
+    )
+
+    assert comparison.actual.points[0].external_flow == D("0")
+    assert comparison.external_flows_excluded == D("0")
+    assert comparison.actual.return_percent == D("1.00")
+
+
+def test_owner_flow_is_unitized_across_complete_intraday_sync_cohorts() -> None:
+    points = build_time_weighted_returns(
+        balance_history=(
+            _run_balance("close-1", "2026-08-11T20:00:00+00:00", "100"),
+            _run_balance("before-flow", "2026-08-12T16:00:00+00:00", "110"),
+            _run_balance("after-flow", "2026-08-12T18:01:00+00:00", "160"),
+            _run_balance("close-2", "2026-08-12T20:00:00+00:00", "176"),
+        ),
+        cash_movements=(
+            {
+                "account_id": "account-a",
+                "occurred_at": datetime(2026, 8, 12, 18, tzinfo=UTC),
+                "movement_type": "transfer",
+                "amount": D("50"),
+            },
+        ),
+    )
+
+    # 10% before funding, no change across the receipt, then 10% after it.
+    # The old endpoint convention reported (176 - 100 - 50) / 100 = 26%.
+    assert points[-1].daily_return_percent == D("21.00")
+    assert points[-1].external_flow == D("50")
+    assert points[-1].return_quality == "estimated"
+
+
+def test_partial_intraday_account_cohort_is_not_used_for_unitization() -> None:
+    points = build_time_weighted_returns(
+        balance_history=(
+            _run_balance("close-1", "2026-08-11T20:00:00+00:00", "100", "account-a"),
+            _run_balance("close-1", "2026-08-11T20:00:00+00:00", "100", "account-b"),
+            _run_balance("partial", "2026-08-12T18:01:00+00:00", "75", "account-a"),
+            _run_balance("close-2", "2026-08-12T20:00:00+00:00", "130", "account-a"),
+            _run_balance("close-2", "2026-08-12T20:00:00+00:00", "120", "account-b"),
+        ),
+        cash_movements=(
+            {
+                "account_id": "account-a",
+                "occurred_at": datetime(2026, 8, 12, 18, tzinfo=UTC),
+                "movement_type": "transfer",
+                "amount": D("50"),
+            },
+        ),
+    )
+
+    assert points[-1].daily_return_percent == D("0")
+    assert points[-1].return_quality == "estimated"
+
+
+def test_unexplained_nonzero_cash_fails_the_return_link_closed() -> None:
+    balances = (
+        _run_balance("close-1", "2026-08-11T20:00:00+00:00", "100"),
+        _run_balance("close-2", "2026-08-12T20:00:00+00:00", "110"),
+        _run_balance("close-3", "2026-08-13T20:00:00+00:00", "111"),
+    )
+    cash = (
+        {
+            "account_id": "account-a",
+            "occurred_at": datetime(2026, 8, 12, 18, tzinfo=UTC),
+            "movement_type": "other",
+            "amount": D("10"),
+        },
+    )
+    points = build_time_weighted_returns(balance_history=balances, cash_movements=cash)
+
+    assert points[1].daily_return_percent is None
+    assert points[1].interval_return_percent is None
+    assert points[1].quality == "unexplained_cash_movement"
+    assert points[1].cumulative_return_percent is None
+    assert points[2].daily_return_percent == D("100") / D("110")
+    assert points[2].cumulative_return_percent is None
+
+    comparison = build_performance_comparison(
+        balance_history=balances,
+        cash_movements=cash,
+    )
+    assert any(
+        warning == "1 return link is withheld until unexplained cash is classified."
+        for warning in comparison.warnings
+    )
+
+
+def test_zero_net_same_instant_other_cash_is_harmless() -> None:
+    occurred_at = datetime(2026, 8, 12, 18, tzinfo=UTC)
+    points = build_time_weighted_returns(
+        balance_history=(
+            _run_balance("close-1", "2026-08-11T20:00:00+00:00", "100"),
+            _run_balance("close-2", "2026-08-12T20:00:00+00:00", "101"),
+        ),
+        cash_movements=(
+            {
+                "account_id": "account-a",
+                "occurred_at": occurred_at,
+                "movement_type": "other",
+                "amount": D("10"),
+            },
+            {
+                "account_id": "account-a",
+                "occurred_at": occurred_at,
+                "movement_type": "other",
+                "amount": D("-10"),
+            },
+        ),
+    )
+
+    assert points[-1].daily_return_percent == D("1.00")
+    assert points[-1].quality == "linked"
+
+
+def test_internal_dividend_remains_in_investment_return() -> None:
+    points = build_time_weighted_returns(
+        balance_history=(
+            _run_balance("close-1", "2026-08-11T20:00:00+00:00", "100"),
+            _run_balance("close-2", "2026-08-12T20:00:00+00:00", "101"),
+        ),
+        cash_movements=(
+            {
+                "account_id": "account-a",
+                "occurred_at": datetime(2026, 8, 12, 18, tzinfo=UTC),
+                "movement_type": "dividend",
+                "amount": D("1"),
+            },
+        ),
+    )
+
+    assert points[-1].daily_return_percent == D("1.00")
+    assert points[-1].external_flow == D("0")
+
+
+def test_recognized_fee_cash_remains_in_investment_return() -> None:
+    points = build_time_weighted_returns(
+        balance_history=(
+            _run_balance("close-1", "2026-08-11T20:00:00+00:00", "100"),
+            _run_balance("close-2", "2026-08-12T20:00:00+00:00", "99"),
+        ),
+        cash_movements=(
+            {
+                "account_id": "account-a",
+                "occurred_at": datetime(2026, 8, 12, 18, tzinfo=UTC),
+                "movement_type": "fee",
+                "amount": D("-1"),
+            },
+        ),
+    )
+
+    assert points[-1].daily_return_percent == D("-1.00")
+    assert points[-1].quality == "linked"
 
 
 def test_utc_after_hours_snapshots_stay_on_the_same_market_day() -> None:
@@ -179,6 +350,56 @@ def test_market_reference_rejects_materially_partial_history() -> None:
     assert comparison.market_reference.return_percent is None
 
 
+def test_market_reference_rejects_a_zero_price_placeholder() -> None:
+    comparison = build_performance_comparison(
+        balance_history=(
+            _balance("2026-08-11T20:00:00+00:00", "100000", "100000"),
+            _balance("2026-08-12T20:00:00+00:00", "101000", "100000"),
+        ),
+        cash_movements=(),
+        daily_bars=(
+            {"symbol": "SPY", "trade_date": date(2026, 8, 11), "close": D("640")},
+            {"symbol": "SPY", "trade_date": date(2026, 8, 12), "close": D("0")},
+        ),
+    )
+
+    assert comparison.market_reference.status == "not_available"
+    assert comparison.market_reference.return_percent is None
+
+
+def test_market_references_show_a_short_missing_close_as_an_estimated_carry() -> None:
+    comparison = build_performance_comparison(
+        balance_history=(
+            _balance("2026-08-11T20:00:00+00:00", "100000", "100000"),
+            _balance("2026-08-12T20:00:00+00:00", "100000", "100000"),
+            _balance("2026-08-13T20:00:00+00:00", "101000", "100000"),
+        ),
+        cash_movements=(),
+        position_history=(_lot("KTOS", "100", "2026-08-11T20:00:00+00:00"),),
+        daily_bars=(
+            *_bars(
+                "KTOS",
+                ("2026-08-11", "100"),
+                ("2026-08-12", "100"),
+                ("2026-08-13", "101"),
+            ),
+            *_bars("SPY", ("2026-08-11", "100"), ("2026-08-13", "102")),
+        ),
+        margin_interest_rate_percent=D("0"),
+    )
+
+    assert comparison.market_reference.status == "carried_forward"
+    assert comparison.levered_market_reference.status == "carried_forward"
+    assert [point.date for point in comparison.market_reference.points] == [
+        date(2026, 8, 11),
+        date(2026, 8, 12),
+        date(2026, 8, 13),
+    ]
+    assert comparison.market_reference.points[1].value_quality == "estimated"
+    assert comparison.levered_market_reference.points[1].value_quality == "estimated"
+    assert comparison.matched.quality == "estimated"
+
+
 def test_headline_difference_reads_both_series_on_their_last_common_session() -> None:
     comparison = build_performance_comparison(
         balance_history=(
@@ -202,6 +423,9 @@ def test_headline_difference_reads_both_series_on_their_last_common_session() ->
     assert comparison.matched.managed_return_percent == D("2.0100")
     assert comparison.matched.shares_return_percent == D("0.2")
     assert comparison.spine.management_edge.return_difference_percent == D("1.8100")
+    assert comparison.matched.quality == "derived"
+    assert comparison.spine.management_edge.status == "derived"
+    assert "weakest required input (derived)" in comparison.matched.method_note
     assert comparison.actual.return_percent > comparison.matched.managed_return_percent
 
 
@@ -229,6 +453,29 @@ def test_frozen_baseline_holds_an_exited_symbol_flat_rather_than_dropping_sessio
     assert series.points[-1].date == date(2026, 8, 14)
     assert series.return_percent == D("0.3")
     assert "INTC at its Aug 13 close" in series.method_note
+    assert comparison.matched.quality == "estimated"
+    assert comparison.spine.management_edge.status == "estimated"
+
+
+def test_frozen_baseline_carries_past_a_zero_close_placeholder() -> None:
+    comparison = build_performance_comparison(
+        balance_history=(
+            _balance("2026-08-11T20:00:00+00:00", "100000", "100000"),
+            _balance("2026-08-12T20:00:00+00:00", "100000", "100000"),
+            _balance("2026-08-13T20:00:00+00:00", "101000", "100000"),
+        ),
+        cash_movements=(),
+        position_history=(_lot("KTOS", "100", "2026-08-11T20:00:00+00:00"),),
+        daily_bars=(
+            *_bars("KTOS", ("2026-08-11", "100"), ("2026-08-12", "0"), ("2026-08-13", "101")),
+            *_bars("SPY", ("2026-08-11", "640"), ("2026-08-12", "640"), ("2026-08-13", "640")),
+        ),
+    )
+
+    series = comparison.shares_without_options
+    assert [point.value for point in series.points] == [D("100000"), D("100000"), D("100100")]
+    assert series.points[1].value_quality == "estimated"
+    assert series.status == "carried_forward"
 
 
 def test_frozen_baseline_reports_no_carry_when_every_symbol_prices_each_session() -> None:
@@ -412,6 +659,95 @@ def test_levered_spy_takes_the_same_deposit_as_idle_cash() -> None:
     assert series.return_percent == D("0")
 
 
+def test_after_close_owner_flow_enters_benchmarks_on_the_next_session() -> None:
+    comparison = build_performance_comparison(
+        balance_history=(
+            _balance("2026-08-11T20:00:00+00:00", "100000", "100000"),
+            _balance("2026-08-12T20:00:00+00:00", "100000", "100000"),
+            _balance("2026-08-13T20:00:00+00:00", "125000", "100000"),
+        ),
+        cash_movements=(
+            {
+                "occurred_at": datetime(2026, 8, 12, 21, tzinfo=UTC),
+                "movement_type": "transfer",
+                "amount": D("25000"),
+            },
+        ),
+        position_history=(_lot("KTOS", "500", "2026-08-11T20:00:00+00:00"),),
+        daily_bars=(
+            *_bars(
+                "KTOS",
+                ("2026-08-11", "100"),
+                ("2026-08-12", "100"),
+                ("2026-08-13", "100"),
+            ),
+            *_bars(
+                "SPY",
+                ("2026-08-11", "100"),
+                ("2026-08-12", "100"),
+                ("2026-08-13", "100"),
+            ),
+        ),
+        margin_interest_rate_percent=D("0"),
+    )
+
+    assert [point.external_flow for point in comparison.actual.points] == [
+        D("0"),
+        D("0"),
+        D("25000"),
+    ]
+    assert [point.external_flow for point in comparison.shares_without_options.points] == [
+        D("0"),
+        D("0"),
+        D("25000"),
+    ]
+    assert comparison.shares_without_options.return_percent == D("0")
+
+
+def test_share_counterfactual_fails_closed_for_multiple_accounts() -> None:
+    first = {**_lot("KTOS", "100", "2026-08-11T20:00:00+00:00"), "account_id": "a"}
+    second = {
+        **_lot("INTC", "100", "2026-08-11T20:00:00+00:00"),
+        "account_id": "b",
+        "account_mask": "...5678",
+    }
+    comparison = build_performance_comparison(
+        balance_history=(
+            _balance("2026-08-11T20:00:00+00:00", "100000", "100000"),
+            _balance("2026-08-12T20:00:00+00:00", "101000", "100000"),
+        ),
+        cash_movements=(),
+        position_history=(first, second),
+        daily_bars=(
+            *_bars("KTOS", ("2026-08-11", "100"), ("2026-08-12", "101")),
+            *_bars("INTC", ("2026-08-11", "20"), ("2026-08-12", "21")),
+            *_bars("SPY", ("2026-08-11", "640"), ("2026-08-12", "641")),
+        ),
+    )
+
+    assert comparison.shares_without_options.status == "not_available"
+    assert "multiple accounts" in comparison.shares_without_options.method_note
+    assert comparison.levered_market_reference.status == "not_available"
+
+
+def test_share_counterfactual_does_not_backfill_a_future_opening_snapshot() -> None:
+    comparison = build_performance_comparison(
+        balance_history=(
+            _balance("2026-08-11T20:00:00+00:00", "100000", "100000"),
+            _balance("2026-08-12T20:00:00+00:00", "101000", "100000"),
+        ),
+        cash_movements=(),
+        position_history=(_lot("KTOS", "100", "2026-08-12T20:00:00+00:00"),),
+        daily_bars=(
+            *_bars("KTOS", ("2026-08-11", "100"), ("2026-08-12", "101")),
+            *_bars("SPY", ("2026-08-11", "640"), ("2026-08-12", "641")),
+        ),
+    )
+
+    assert comparison.shares_without_options.status == "not_available"
+    assert "starts after" in comparison.shares_without_options.method_note
+
+
 def _lot(symbol: str, quantity: str, observed: str) -> dict[str, object]:
     return {
         "sync_run_id": "run-1",
@@ -436,4 +772,20 @@ def _balance(observed: str, liquidation: str, initial: str) -> dict[str, object]
         "observed_at": datetime.fromisoformat(observed),
         "liquidation_value": D(liquidation),
         "initial_liquidation_value": D(initial),
+    }
+
+
+def _run_balance(
+    run_id: str,
+    observed: str,
+    liquidation: str,
+    account_id: str = "account-a",
+) -> dict[str, object]:
+    return {
+        "sync_run_id": run_id,
+        "account_id": account_id,
+        "account_mask": "...1234" if account_id == "account-a" else "...5678",
+        "observed_at": datetime.fromisoformat(observed),
+        "liquidation_value": D(liquidation),
+        "initial_liquidation_value": D(liquidation),
     }

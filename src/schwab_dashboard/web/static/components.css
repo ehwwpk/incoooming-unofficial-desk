@@ -1,4 +1,8 @@
 .portfolio-console { display: grid; grid-template-columns: 1.35fr 1.25fr repeat(4, 1fr); margin-bottom: 10px; border: 1px solid var(--line-strong); background: var(--surface); }
+.option-data-warning { display: grid; gap: 5px; margin: 8px 0; padding: 9px 12px; border: 1px solid var(--gold-soft); background: #151208; color: var(--muted); font: var(--type-copy-sm)/1.45 var(--sans); }
+.option-data-warning strong { color: var(--gold); font: 750 var(--type-control)/1.2 var(--mono); letter-spacing: .05em; }
+.option-data-warning ul { display: grid; gap: 3px; margin: 2px 0 0; padding-left: 18px; }
+.option-data-warning b { color: var(--text); font-family: var(--mono); }
 .console-cell { display: grid; min-height: 82px; gap: 5px; padding: 10px 12px; border-right: 1px solid var(--line); }
 .console-cell:last-child { border-right: 0; }
 .console-cell > span { color: var(--subtle); font: .54rem var(--mono); letter-spacing: .07em; }

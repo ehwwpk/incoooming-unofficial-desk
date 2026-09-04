@@ -2,18 +2,18 @@
 {% set completed_cash_months = snapshot.monthly_performance | rejectattr('is_partial') | rejectattr('coverage_status', 'equalto', 'coverage_start') | list %}
 <section
   class="desk-pulse"
-  aria-label="Option income and live option summary"
+  aria-label="Executed option cash and live option summary"
 >
   <article class="pulse-panel income-pulse">
     <header>
-      <div><h2>Incoom &amp; Pacing</h2><small>NET OPTION CASH · DIVIDENDS · CAPITAL YIELD</small></div>
+      <div><h2>Incoom &amp; Pacing</h2><small>EXECUTED OPTION CASH · DIVIDENDS · CASH PACE</small></div>
       <a href="/workspaces/attribution">RESULTS <span aria-hidden="true">→</span></a>
     </header>
     <div class="pulse-income-grid">
       <div class="pulse-primary">
-        <span data-active-option-label>NET OPTION CASH / {{ active.label if active else 'WINDOW' }}</span>
+        <span data-active-option-label>NET EXECUTED OPTION CASH / {{ active.label if active else 'WINDOW' }}</span>
         <strong class="{{ active.option_cash | pnl_class if active else '' }}" data-active-option-cash>{{ active.option_cash | money if active else snapshot.covered_calls.net_option_cash | money }}</strong>
-        <small data-active-option-meta>{% if active %}{{ active.annualized_option_yield | percent }} annualized · after executed closing debits{% else %}No settled option cash yet{% endif %}</small>
+        <small data-active-option-meta>{% if active %}{{ active.gross_premium | money }} credits &minus; {{ active.buyback_cost | money }} buybacks &minus; {{ active.fees | money }} fees; open positions remain{% else %}No executed option cash yet{% endif %}</small>
         <small class="pulse-average" data-active-option-average hidden></small>
       </div>
       <div>
@@ -22,24 +22,24 @@
         <small>Cash dividends received</small>
       </div>
       <div>
-        <span data-active-total-label>TOTAL STRATEGY CASH / {{ active.label if active else 'WINDOW' }}</span>
+        <span data-active-total-label>TOTAL EXECUTED STRATEGY CASH / {{ active.label if active else 'WINDOW' }}</span>
         <strong class="{{ active.total_cash | pnl_class if active else '' }}" data-active-total-cash>{{ active.total_cash | money if active else snapshot.covered_calls.total_cash_income | money }}</strong>
-        <small data-active-total-meta>Option income plus dividends</small>
+        <small data-active-total-meta>Net executed option cash plus dividends; not completed profit</small>
         <small class="pulse-average" data-active-total-average hidden></small>
       </div>
       <div>
-        <span>MONTHLY CASH EQUIVALENT</span>
+        <span>MONTHLY EXECUTED-CASH PACE</span>
         <strong class="{{ active.monthly_total_run_rate | pnl_class if active else '' }}" data-active-monthly-pace>{{ active.monthly_total_run_rate | money if active else '$0.00' }}</strong>
-        <small>Selected cash normalized to one month</small>
+        <small>Selected cash scaled to 30.44 days; not completed profit</small>
       </div>
     </div>
-    <footer class="income-observed-bar" aria-label="Income observations and broker settlement status">
-      <div><span>{{ 'ROLLING 365 FULL-MONTH AVG' if completed_cash_months | length >= 12 else 'OBSERVED FULL-MONTH AVG' }}</span><b>{{ snapshot.operator_metrics.rolling_year_monthly_average | money }}</b><small>{{ completed_cash_months | length }} complete month{{ '' if completed_cash_months | length == 1 else 's' }} in normalized history</small></div>
-      <div><span>{% if completed_cash_months %}LATEST {{ [3, completed_cash_months | length] | min }} FULL MONTH{{ '' if completed_cash_months | length == 1 else 'S' }}{% else %}LATEST FULL MONTHS{% endif %}</span><b>{{ snapshot.operator_metrics.rolling_three_month_average | money }}</b><small>{% if completed_cash_months %}{{ completed_cash_months[-3].label if completed_cash_months | length >= 3 else completed_cash_months[0].label }}–{{ completed_cash_months[-1].label }} average{% else %}First full month still underway{% endif %}</small></div>
-      <div><span>MEDIAN FULL MONTH</span><b>{{ snapshot.operator_metrics.median_completed_month | money }}</b><small>{{ snapshot.operator_metrics.completed_months }} completed months</small></div>
+    <footer class="income-observed-bar" aria-label="Cash observations and broker settlement status">
+      <div><span>{{ 'ROLLING 365 NET-CASH AVG' if completed_cash_months | length >= 12 else 'OBSERVED FULL-MONTH NET-CASH AVG' }}</span><b>{{ snapshot.operator_metrics.rolling_year_monthly_average | money }}</b><small>{{ completed_cash_months | length }} complete month{{ '' if completed_cash_months | length == 1 else 's' }}; executed cash, not final P/L</small></div>
+      <div><span>{% if completed_cash_months %}LATEST {{ [3, completed_cash_months | length] | min }} FULL-MONTH NET-CASH AVG{% else %}LATEST FULL-MONTH NET-CASH AVG{% endif %}</span><b>{{ snapshot.operator_metrics.rolling_three_month_average | money }}</b><small>{% if completed_cash_months %}{{ completed_cash_months[-3].label if completed_cash_months | length >= 3 else completed_cash_months[0].label }}–{{ completed_cash_months[-1].label }} average{% else %}First full month still underway{% endif %}</small></div>
+      <div><span>MEDIAN FULL-MONTH NET CASH</span><b>{{ snapshot.operator_metrics.median_completed_month | money }}</b><small>{{ snapshot.operator_metrics.completed_months }} completed months</small></div>
       {% if desk_overview.pending_settlement_contracts %}
-      <a class="desk-settlement-strip" href="/workspaces/risk#settlement-queue" title="Trading has closed for {{ desk_overview.pending_settlement_contracts }} contract{{ '' if desk_overview.pending_settlement_contracts == 1 else 's' }}. Schwab confirmation is pending; last-mark P/L {{ desk_overview.pending_last_mark_profit_loss | money }} is provisional.">
-        <span>BROKER CONFIRMATION PENDING</span>
+      <a class="desk-settlement-strip" href="/workspaces/risk#settlement-queue" title="Trading has closed for {{ desk_overview.pending_settlement_contracts }} contract{{ '' if desk_overview.pending_settlement_contracts == 1 else 's' }}. Source confirmation is pending; last-mark P/L {{ desk_overview.pending_last_mark_profit_loss | money }} is provisional.">
+        <span>SOURCE CONFIRMATION PENDING</span>
         <b>{{ desk_overview.pending_settlement_contracts }} CONTRACT{{ '' if desk_overview.pending_settlement_contracts == 1 else 'S' }}</b>
         <small>TRADING CLOSED <i aria-hidden="true">→</i></small>
       </a>
@@ -61,13 +61,15 @@
       <div>
         <span>SHARE LOTS COMMITTED</span>
         <strong>{{ desk_overview.broker_reported_call_contracts }}/{{ desk_overview.contract_capacity }}</strong>
-        <small>Broker-reported short calls{% if desk_overview.pending_settlement_contracts %} · includes settlement{% endif %}</small>
+        <small>Source-reported short calls{% if desk_overview.pending_settlement_contracts %} · includes settlement{% endif %}</small>
       </div>
       <a class="nearest-call" {% if desk_overview.nearest_call %}href="#{{ desk_overview.nearest_call.anchor_id }}"{% else %}aria-disabled="true"{% endif %}>
         <span>CLOSEST CALL TO STRIKE</span>
         {% if desk_overview.nearest_call %}
         <strong>{{ desk_overview.nearest_call.symbol }} ${{ '%g' | format(desk_overview.nearest_call.strike) }}C</strong>
-        {% if desk_overview.nearest_call.strike_distance_per_share >= 0 %}
+        {% if desk_overview.nearest_call.strike_distance_per_share is none or desk_overview.nearest_call.strike_distance_percent is none %}
+        <small>Spot mark unavailable</small>
+        {% elif desk_overview.nearest_call.strike_distance_per_share >= 0 %}
         <small>{{ desk_overview.nearest_call.strike_distance_per_share | money }} / {{ desk_overview.nearest_call.strike_distance_percent | percent }} above spot</small>
         {% else %}
         <small class="negative">{{ (-desk_overview.nearest_call.strike_distance_per_share) | money }} / {{ (-desk_overview.nearest_call.strike_distance_percent) | percent }} past strike</small>
@@ -76,13 +78,18 @@
       </a>
       <div>
         <span>CURRENT MODEL THETA / DAY</span>
+        {% if desk_overview.daily_theta is not none %}
         <strong class="positive">+{{ desk_overview.daily_theta | money }}</strong>
         <small>Point-in-time sensitivity · not cash or a pace</small>
+        {% else %}
+        <strong class="muted">&mdash;</strong>
+        <small>Model inputs incomplete</small>
+        {% endif %}
       </div>
     </div>
     <footer class="live-book-footer">
       <div><span>NEXT EXPIRATION</span>{% if desk_overview.next_expiring_option %}<b>{{ desk_overview.next_expiring_option.expires_on | short_date }}</b><small>{{ desk_overview.next_expiring_option.symbol }} ${{ '%g' | format(desk_overview.next_expiring_option.strike) }}{{ desk_overview.next_expiring_option.option_type[0] }} · {{ desk_overview.next_expiring_option.days_to_expiration }} DTE</small>{% else %}<b>NONE</b><small>No expiry on deck</small>{% endif %}</div>
-      <div><span>OPEN MARK P/L</span><b class="{{ desk_overview.open_mark_profit_loss | pnl_class }}">{{ desk_overview.open_mark_profit_loss | money }}</b><small>Unrealized · changes with the market</small></div>
+      <div><span>OPEN MARK P/L</span><b class="{{ desk_overview.open_mark_profit_loss | pnl_class }}">{{ desk_overview.open_mark_profit_loss | money }}</b><small>{% if desk_overview.open_mark_profit_loss is not none %}Unrealized · changes with the market{% else %}Broker marks incomplete{% endif %}</small></div>
       {% if snapshot.alerts %}
       <button type="button" data-nibwick-summary aria-expanded="false" aria-controls="nibwick-note-popover"><span>NIBWICK NOTES</span><b data-nibwick-summary-count>{{ snapshot.alerts | length }} ACTIVE</b><small data-nibwick-summary-detail>{{ snapshot.alerts | length }} NEW · {{ snapshot.alerts[0].symbol }} · {{ snapshot.alerts[0].headline }}</small></button>
       {% else %}

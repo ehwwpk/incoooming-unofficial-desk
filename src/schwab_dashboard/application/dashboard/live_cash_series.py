@@ -9,6 +9,13 @@ from schwab_dashboard.application.dashboard.performance import (
     CashChartPoint,
     CashChartSeries,
 )
+from schwab_dashboard.application.dashboard.short_premium import (
+    is_closing_buy as _is_closing_buy,
+)
+from schwab_dashboard.application.dashboard.short_premium import (
+    is_opening_sale as _is_opening_sale,
+)
+from schwab_dashboard.application.market_time import ledger_market_date
 
 ZERO = Decimal("0")
 HUNDRED = Decimal("100")
@@ -152,20 +159,10 @@ def _closing_debit(row: Mapping[str, object]) -> Decimal:
     return _decimal(row.get("gross_amount")) if _is_closing_buy(row) else ZERO
 
 
-def _is_opening_sale(row: Mapping[str, object]) -> bool:
-    return str(row.get("side")) == "sell" and str(row.get("position_effect")) == "opening"
-
-
-def _is_closing_buy(row: Mapping[str, object]) -> bool:
-    return str(row.get("side")) == "buy" and str(row.get("position_effect")) == "closing"
-
-
 def _row_date(row: Mapping[str, object]) -> date:
     value = row.get("occurred_at")
-    if isinstance(value, datetime):
-        return value.date()
-    if isinstance(value, date):
-        return value
+    if isinstance(value, (date, datetime)):
+        return ledger_market_date(value)
     raise ValueError("Ledger row is missing its source date")
 
 

@@ -24,7 +24,10 @@ def test_blank_credentials_are_not_treated_as_configured() -> None:
 
 def test_demo_mode_is_explicit_and_disabled_by_default() -> None:
     assert Settings(_env_file=None).demo_mode is False
-    assert Settings(_env_file=None, demo_mode=True).demo_mode is True
+    demo = Settings(_env_file=None, demo_mode=True)
+    assert demo.demo_mode is True
+    assert demo.database_url.endswith("/demo-ledger.sqlite3")
+    assert not demo.database_url.endswith("/schwab-ledger.sqlite3")
 
 
 def test_live_server_defaults_to_bounded_automatic_sync() -> None:

@@ -34,7 +34,7 @@ class CallReviewContext:
     sale_to_current_move_percent: Decimal
     strike_distance_per_share: Decimal
     strike_distance_percent: Decimal
-    covered_share_distance: Decimal
+    covered_share_distance: Decimal | None
     mark_to_credit_ratio: Decimal
     pressure: ReviewPressure
 
@@ -60,23 +60,25 @@ def build_call_review_context(
     underlying: UnderlyingCallStats,
     *,
     five_session_move_percent: Decimal,
-) -> CallReviewContext:
+) -> CallReviewContext | None:
+    if not underlying.open_call_clocks or underlying.current_price <= ZERO:
+        return None
     call = min(
         underlying.open_call_clocks,
         key=lambda item: abs(item.strike - underlying.current_price),
     )
+    if call.underlying_at_sale is None or call.underlying_at_sale <= ZERO:
+        return None
     distance = call.strike - underlying.current_price
     distance_percent = _percent(distance, underlying.current_price)
     mark_to_credit = (
         call.mark_per_share / call.entry_credit_per_share
-        if call.entry_credit_per_share > ZERO
+        if call.mark_per_share is not None
+        and call.entry_credit_per_share is not None
+        and call.entry_credit_per_share > ZERO
         else ZERO
     )
-    sale_move = (
-        (underlying.current_price / call.underlying_at_sale - D("1")) * HUNDRED
-        if call.underlying_at_sale > ZERO
-        else ZERO
-    )
+    sale_move = (underlying.current_price / call.underlying_at_sale - D("1")) * HUNDRED
 
     proximity_points = _clamp(
         (D("15") - max(distance_percent, ZERO)) / D("15") * D("40"),
@@ -118,7 +120,9 @@ def build_call_review_context(
         sale_to_current_move_percent=sale_move,
         strike_distance_per_share=distance,
         strike_distance_percent=distance_percent,
-        covered_share_distance=abs(distance) * D(call.contracts * 100),
+        covered_share_distance=(
+            abs(distance) * call.obligated_shares if call.obligated_shares is not None else None
+        ),
         mark_to_credit_ratio=mark_to_credit,
         pressure=ReviewPressure(
             score=score,
@@ -137,7 +141,7 @@ def build_dividend_review_context(
     *,
     crossing_calls: Sequence[OpenCallClock],
     as_of: date,
-) -> DividendReviewContext:
+) -> DividendReviewContext | None:
     ex_date = underlying.next_ex_dividend_date
     if ex_date is None:
         raise ValueError("Dividend review context requires an ex-dividend date")
@@ -145,12 +149,14 @@ def build_dividend_review_context(
         raise ValueError("Dividend review context requires at least one crossing call")
 
     call = min(crossing_calls, key=lambda item: abs(item.strike - underlying.current_price))
+    if call.remaining_extrinsic_value is None or call.obligated_shares is None:
+        return None
     distance = call.strike - underlying.current_price
     gray_line = call.strike + underlying.dividend_per_share
     gray_distance = gray_line - underlying.current_price
-    contract_shares = call.contracts * 100
+    contract_shares = call.obligated_shares
     extrinsic_per_share = (
-        call.remaining_extrinsic_value / D(contract_shares) if contract_shares else ZERO
+        call.remaining_extrinsic_value / contract_shares if contract_shares else ZERO
     )
     ratio = (
         underlying.dividend_per_share / extrinsic_per_share if extrinsic_per_share > ZERO else None

@@ -155,8 +155,7 @@ def test_live_underlying_projection_restores_chart_clocks_and_theta() -> None:
     assert underlying.open_call_clocks[0].sold_on == sold_at.date()
     assert underlying.open_call_clocks[0].roll_quote_candidates[0].strike == D("70")
     assert all(
-        item.strike > D("65")
-        for item in underlying.open_call_clocks[0].roll_quote_candidates
+        item.strike > D("65") for item in underlying.open_call_clocks[0].roll_quote_candidates
     )
     assert underlying.open_call_clocks[0].position_delta_share_equivalent == D("-60")
     assert underlying.open_call_clocks[0].position_gamma_delta_change_per_dollar == D("-4")
@@ -411,6 +410,36 @@ def test_put_print_moves_name_option_cash_and_apr_without_touching_dividends() -
     assert window.option_apr > D("0")
     assert window.dividends == D("0")
     assert window.premium_capture_percent == D("100")
+
+
+def test_rich_name_cards_fail_closed_without_any_underlying_price() -> None:
+    as_of = date(2026, 8, 10)
+    put = _position(
+        symbol="KTOS  260918P00050000",
+        description="KTOS SEP 18 2026 50 Put",
+        asset_type="OPTION",
+        quantity=D("-1"),
+        average_price=D("1.25"),
+        mark=D("0.50"),
+        market_value=D("-50"),
+        underlying_symbol="KTOS",
+        option_type="PUT",
+        expiration_date=date(2026, 9, 18),
+        strike=D("50"),
+    )
+    book = build_live_position_book((put,), as_of=as_of)
+
+    result = build_live_underlying_stats(
+        live_book=book,
+        positions=(put,),
+        executions=(),
+        cash_movements=(),
+        lifecycle_events=(),
+        daily_bars=(),
+        as_of=as_of,
+    )
+
+    assert result == ()
 
 
 def _position(**overrides: object) -> PositionSummary:

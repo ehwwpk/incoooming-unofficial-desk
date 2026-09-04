@@ -10,7 +10,8 @@ turning the desk into an unreadable wall of equally weighted boxes.
 
 Four primary surfaces share a consistent shell. Two maintenance identities stay off the rail:
 
-- **Desk:** option income, dividends, observed pace, live covered-call inventory, and Nibwick exceptions.
+- **Desk:** net executed option cash, dividends, observed pace, live covered-call inventory, and
+  Nibwick exceptions.
 - **Open Options:** short-call and short-put obligations, the Nibwick Roll Board, strike pressure, marks, and time decay.
 - **Premium Radar:** book-first call or put research and roll-chain refresh. Visiting the tab does not fetch.
 - **Results:** cash reconciliation, capture, lifecycle economics, outcomes, and basis.
@@ -27,7 +28,7 @@ interface, not a parallel navigation system.
 The default Desk is optimized for a covered-call seller and dividend collector. Its first fold must
 answer four questions without opening another panel:
 
-1. What net option income and dividend cash did the selected window produce?
+1. What net executed option cash and dividend cash did the selected window produce?
 2. What is the normalized monthly pace, with no target gauge pressuring another trade?
 3. How many calls and share lots are open, and which strike or expiration is nearest?
 4. Is there a dividend overlap or Nibwick note worth reviewing?
@@ -36,7 +37,7 @@ The inventory uses one compact row per stock. Charts, event maps, individual con
 lifetime basis calculations remain available inside a single-stock disclosure, with only one stock
 open at a time. The Desk may summarize specialist calculations, but their canonical detail lives in
 Open Options, Results, Radar, or Data Health. This prevents repeated values from
-competing with the two daily jobs: monitoring live obligations and measuring realized income.
+competing with the two daily jobs: monitoring live obligations and measuring completed results.
 
 ## Layout model
 

@@ -51,6 +51,49 @@ def test_call_review_pressure_clamps_without_dividing_by_zero() -> None:
     assert context.pressure.label == "HIGH"
 
 
+def test_call_review_separates_premium_scale_from_share_delivery() -> None:
+    snapshot = DemoDashboardReader().execute()
+    cvx = next(item for item in snapshot.underlyings if item.symbol == "CVX")
+    adjusted = replace(cvx.open_call_clocks[0], contracts=2, contract_multiplier=D("150"))
+    underlying = replace(cvx, open_call_clocks=(adjusted,))
+
+    call_context = build_call_review_context(
+        underlying,
+        five_session_move_percent=D("0"),
+    )
+    dividend_context = build_dividend_review_context(
+        underlying,
+        crossing_calls=(adjusted,),
+        as_of=snapshot.as_of.date(),
+    )
+
+    assert call_context.covered_share_distance == abs(
+        adjusted.strike - underlying.current_price
+    ) * D("200")
+    assert dividend_context.extrinsic_per_share == adjusted.remaining_extrinsic_value / D("200")
+
+
+def test_dividend_review_withholds_adjusted_contract_with_unknown_delivery() -> None:
+    snapshot = DemoDashboardReader().execute()
+    cvx = next(item for item in snapshot.underlyings if item.symbol == "CVX")
+    unresolved = replace(
+        cvx.open_call_clocks[0],
+        deliverable_shares_per_contract=None,
+    )
+    underlying = replace(cvx, open_call_clocks=(unresolved,))
+
+    call_context = build_call_review_context(underlying, five_session_move_percent=D("0"))
+    dividend_context = build_dividend_review_context(
+        underlying,
+        crossing_calls=(unresolved,),
+        as_of=snapshot.as_of.date(),
+    )
+
+    assert call_context is not None
+    assert call_context.covered_share_distance is None
+    assert dividend_context is None
+
+
 def test_dividend_context_keeps_price_adjustment_and_assignment_logic_separate() -> None:
     snapshot = DemoDashboardReader().execute()
     cvx = next(item for item in snapshot.underlyings if item.symbol == "CVX")

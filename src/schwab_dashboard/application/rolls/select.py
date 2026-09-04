@@ -39,12 +39,22 @@ def select_roll_candidates(
     Puts may move out at the same strike or down and out. The default ladder is
     the next three listed expiries and the next three listed strikes in the
     protective direction, limited to about 8% of the source strike and 28 extra
-    days. It is not a slogan contest and does not fill with far-dated or
-    far-strike leftovers.
+    days. Far-dated and far-strike contracts are excluded.
     """
 
     if limit < 1:
         raise ValueError("limit must be positive")
+    if source.deliverable_shares_per_contract is None:
+        return RollSearchResult(
+            source=source,
+            candidates=(),
+            examined_quotes=len(quotes),
+            eligible_quotes=0,
+            no_clean_reason=(
+                "The source contract has an adjusted or unresolved deliverable, so comparable "
+                "roll economics are unavailable."
+            ),
+        )
     if source.close_ask_per_share <= ZERO:
         return RollSearchResult(
             source=source,
@@ -52,15 +62,12 @@ def select_roll_candidates(
             examined_quotes=len(quotes),
             eligible_quotes=0,
             no_clean_reason=(
-                "The current buy-to-close ask is unavailable, so roll cash cannot be "
-                "checked honestly."
+                "The current buy-to-close ask is unavailable, so roll cash cannot be calculated."
             ),
         )
 
     eligible = tuple(
-        _candidate(source, quote)
-        for quote in quotes
-        if _is_directionally_valid(source, quote)
+        _candidate(source, quote) for quote in quotes if _is_directionally_valid(source, quote)
     )
     if not eligible:
         return RollSearchResult(
@@ -78,8 +85,7 @@ def select_roll_candidates(
             examined_quotes=len(quotes),
             eligible_quotes=len(eligible),
             no_clean_reason=(
-                "Later contracts loaded, but none is a small strike move inside a "
-                "few extra weeks."
+                "Later contracts loaded, but none is a small strike move inside a few extra weeks."
             ),
         )
 
@@ -119,8 +125,13 @@ def _candidate(source: RollSource, quote: RollQuote) -> RollCandidate:
     net = quote.sell_bid_per_share - source.close_ask_per_share
     strike_change = quote.strike - source.strike
     direction = Decimal("1") if source.option_side is OptionSide.CALL else Decimal("-1")
-    covered_units = Decimal(source.contracts) * source.contract_multiplier
-    room_gain = strike_change * direction * covered_units
+    premium_units = Decimal(source.contracts) * source.contract_multiplier
+    deliverable_units = (
+        Decimal(source.contracts) * source.deliverable_shares_per_contract
+        if source.deliverable_shares_per_contract is not None
+        else ZERO
+    )
+    room_gain = strike_change * direction * deliverable_units
     added_days = (quote.expires_on - source.expires_on).days
     buffer = (
         (quote.strike - source.current_price) / source.current_price * HUNDRED
@@ -129,7 +140,7 @@ def _candidate(source: RollSource, quote: RollQuote) -> RollCandidate:
         if source.current_price > ZERO
         else ZERO
     )
-    cash = net * covered_units
+    cash = net * premium_units
     return RollCandidate(
         option_symbol=quote.option_symbol,
         option_side=source.option_side,

@@ -13,6 +13,7 @@ from schwab_dashboard.application.ports.repositories import (
     PositionSnapshotWrite,
 )
 from schwab_dashboard.domain.broker import BrokerAccount
+from schwab_dashboard.infrastructure.database.publication import published_account_sync_run_ids
 from schwab_dashboard.infrastructure.database.tables.account import (
     AccountBalanceSnapshotTable,
     AccountTable,
@@ -104,6 +105,8 @@ class SqlPositionSnapshotRepository:
             strike=snapshot.strike,
             long_open_profit_loss=snapshot.long_open_profit_loss,
             short_open_profit_loss=snapshot.short_open_profit_loss,
+            contract_multiplier=snapshot.contract_multiplier,
+            is_non_standard=snapshot.is_non_standard,
         )
         self._session.add(row)
         self._session.flush()
@@ -128,14 +131,19 @@ class SqlPositionSnapshotRepository:
         ).scalars()
         return sorted({symbol.strip().upper() for symbol in rows if symbol and symbol.strip()})
 
-    def list_latest(self) -> Sequence[dict[str, Any]]:
-        latest_run_id = self._session.scalar(
-            select(PositionSnapshotTable.sync_run_id)
-            .join(SyncRunTable, SyncRunTable.id == PositionSnapshotTable.sync_run_id)
-            .where(SyncRunTable.status == "completed")
-            .order_by(PositionSnapshotTable.observed_at.desc())
-            .limit(1)
+    def list_latest(self, *, include_staged: bool = False) -> Sequence[dict[str, Any]]:
+        published_run_ids = (
+            None if include_staged else published_account_sync_run_ids(self._session)
         )
+        latest_run_id = published_run_ids[-1] if published_run_ids else None
+        if published_run_ids is None:
+            latest_run_id = self._session.scalar(
+                select(PositionSnapshotTable.sync_run_id)
+                .join(SyncRunTable, SyncRunTable.id == PositionSnapshotTable.sync_run_id)
+                .where(SyncRunTable.status == "completed")
+                .order_by(PositionSnapshotTable.observed_at.desc())
+                .limit(1)
+            )
         if latest_run_id is None:
             return []
 
@@ -147,6 +155,7 @@ class SqlPositionSnapshotRepository:
         ).all()
         return [
             {
+                "account_id": account.id,
                 "account_mask": account.account_mask,
                 "symbol": position.symbol,
                 "asset_type": position.asset_type,
@@ -164,6 +173,8 @@ class SqlPositionSnapshotRepository:
                 "strike": position.strike,
                 "long_open_profit_loss": position.long_open_profit_loss,
                 "short_open_profit_loss": position.short_open_profit_loss,
+                "contract_multiplier": position.contract_multiplier,
+                "is_non_standard": position.is_non_standard,
                 "observed_at": position.observed_at,
             }
             for position, account in rows
@@ -180,14 +191,19 @@ class SqlAccountBalanceSnapshotRepository:
         self._session.flush()
         return row.id
 
-    def list_latest(self) -> Sequence[dict[str, Any]]:
-        latest_run_id = self._session.scalar(
-            select(AccountBalanceSnapshotTable.sync_run_id)
-            .join(SyncRunTable, SyncRunTable.id == AccountBalanceSnapshotTable.sync_run_id)
-            .where(SyncRunTable.status == "completed")
-            .order_by(AccountBalanceSnapshotTable.observed_at.desc())
-            .limit(1)
+    def list_latest(self, *, include_staged: bool = False) -> Sequence[dict[str, Any]]:
+        published_run_ids = (
+            None if include_staged else published_account_sync_run_ids(self._session)
         )
+        latest_run_id = published_run_ids[-1] if published_run_ids else None
+        if published_run_ids is None:
+            latest_run_id = self._session.scalar(
+                select(AccountBalanceSnapshotTable.sync_run_id)
+                .join(SyncRunTable, SyncRunTable.id == AccountBalanceSnapshotTable.sync_run_id)
+                .where(SyncRunTable.status == "completed")
+                .order_by(AccountBalanceSnapshotTable.observed_at.desc())
+                .limit(1)
+            )
         if latest_run_id is None:
             return []
         rows = self._session.execute(

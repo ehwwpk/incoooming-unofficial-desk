@@ -24,12 +24,13 @@ class PerformanceWindowSummary:
     contracts: int
     completed_trades: int
     win_rate: Decimal
-    annualized_option_yield: Decimal
-    annualized_total_yield: Decimal
+    annualized_option_yield: Decimal | None
+    annualized_total_yield: Decimal | None
     monthly_option_run_rate: Decimal
     monthly_total_run_rate: Decimal
     premium_capture_percent: Decimal
     buyback_drag_percent: Decimal
+    fees: Decimal = ZERO
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,12 +53,12 @@ class MonthlyPerformanceSummary:
     closing_debits: Decimal
     fees: Decimal
     assigned_contracts: int
-    called_away_shares: int
-    average_covered_capital: Decimal
+    called_away_shares: Decimal
+    average_covered_capital: Decimal | None
     is_partial: bool
     coverage_status: str = "observed"
     coverage_note: str = ""
-    acquired_shares: int = 0
+    acquired_shares: Decimal = ZERO
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,6 +105,7 @@ class CashActivityWindow:
     net_option_cash: Decimal
     total_strategy_cash: Decimal
     events: Sequence[CashActivityItem]
+    fees: Decimal = ZERO
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,10 +133,10 @@ class ExpirationBucket:
     days_to_expiration: int
     positions: int
     contracts: int
-    committed_shares: int
-    opening_credit: Decimal
-    estimated_close_value: Decimal
-    nearest_strike_buffer_percent: Decimal
+    committed_shares: Decimal | None
+    opening_credit: Decimal | None
+    estimated_close_value: Decimal | None
+    nearest_strike_buffer_percent: Decimal | None
     event_labels: tuple[str, ...]
     call_contracts: int = 0
     put_contracts: int = 0

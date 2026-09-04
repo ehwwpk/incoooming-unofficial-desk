@@ -3,13 +3,17 @@ from __future__ import annotations
 import hashlib
 import json
 from collections import Counter
-from datetime import UTC, datetime
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from schwab_dashboard.application.imports.csv_text import CsvText
 from schwab_dashboard.application.imports.errors import CsvImportError
-from schwab_dashboard.application.imports.option_normalizer import option_metadata
+from schwab_dashboard.application.imports.option_normalizer import (
+    contract_multiplier,
+    option_metadata,
+)
+from schwab_dashboard.application.market_time import MARKET_TIME_ZONE
 from schwab_dashboard.domain.data_source import (
     BrokerKind,
     ImportRecordKind,
@@ -143,28 +147,44 @@ def _parse_section(
         category = _get(raw, "Asset Category").upper()
         if category not in {"STOCKS", "OPTIONS", "EQUITY AND INDEX OPTIONS"}:
             return None
+        is_option = category in {"OPTIONS", "EQUITY AND INDEX OPTIONS"}
         symbol = _get(raw, "Symbol").upper()
         description = _get(raw, "Description") or symbol
-        option = option_metadata(symbol=symbol, description=description)
+        option = option_metadata(symbol=symbol, description=description) if is_option else None
+        if is_option and option is None:
+            raise CsvImportError("IBKR option trade has no recognizable contract identity")
         quantity_signed = _number(_get(raw, "Quantity"), required=True) or ZERO
         quantity = abs(quantity_signed)
         price = abs(_number(_get(raw, "T. Price", "Trade Price"), required=True) or ZERO)
         proceeds = _number(_get(raw, "Proceeds"))
-        fees = abs(_number(_get(raw, "Comm/Fee", "Commission")) or ZERO)
-        multiplier = _number(_get(raw, "Mult", "Multiplier")) or (
-            Decimal("100") if option else Decimal("1")
+        commission = _number(_get(raw, "Comm/Fee", "Commission")) or ZERO
+        fees = max(ZERO, -commission)
+        explicit_multiplier = _number(_get(raw, "Mult", "Multiplier"))
+        multiplier, multiplier_source = contract_multiplier(
+            explicit=explicit_multiplier,
+            symbol=symbol,
+            description=description,
+            is_option=is_option,
         )
-        gross = quantity * price * multiplier
+        if is_option and multiplier is None and proceeds is None:
+            raise CsvImportError("IBKR option trade has no reliable multiplier or gross proceeds")
+        gross = (
+            quantity * price * (multiplier or Decimal("1"))
+            if not is_option or multiplier is not None
+            else abs(proceeds or ZERO)
+        )
         side = "buy" if quantity_signed > 0 else "sell"
         net_cash = (
-            proceeds if proceeds is not None else (gross if side == "sell" else -gross) - fees
+            proceeds + commission
+            if proceeds is not None
+            else (gross if side == "sell" else -gross) - fees
         )
         normalized: dict[str, object] = {
             "external_key": "pending",
             "order_external_key": _get(raw, "Order ID", "OrderID") or None,
             "occurred_at": _date(_get(raw, "Date/Time", "TradeDate")).isoformat(),
             "side": side,
-            "position_effect": "unknown",
+            "position_effect": _position_effect(_get(raw, "Code", "Codes")),
             "quantity": str(quantity),
             "price": str(price),
             "gross_amount": str(gross),
@@ -173,33 +193,39 @@ def _parse_section(
             "account_mask": "...IBKR",
             "symbol": option["occ_symbol"] if option else symbol,
             "description": description,
-            "asset_type": "OPTION" if option else "EQUITY",
+            "asset_type": "OPTION" if is_option else "EQUITY",
             "underlying_symbol": option["underlying_symbol"] if option else None,
             "option_type": option["option_type"] if option else None,
             "expiration_date": option["expiration_date"] if option else None,
             "strike": option["strike"] if option else None,
-            "contract_multiplier": str(multiplier) if option else None,
-            "multiplier_source": "exported"
-            if _get(raw, "Mult", "Multiplier")
-            else "assumed_standard",
+            "contract_multiplier": _text(multiplier) if is_option else None,
+            "multiplier_source": multiplier_source if is_option else None,
         }
         return ImportRecordKind.EXECUTION, normalized, "executions"
     if section == "Open Positions":
         category = _get(raw, "Asset Category").upper()
         if category not in {"STOCKS", "OPTIONS", "EQUITY AND INDEX OPTIONS"}:
             return None
+        is_option = category in {"OPTIONS", "EQUITY AND INDEX OPTIONS"}
         symbol = _get(raw, "Symbol").upper()
         description = _get(raw, "Description") or symbol
-        option = option_metadata(symbol=symbol, description=description)
+        option = option_metadata(symbol=symbol, description=description) if is_option else None
+        if is_option and option is None:
+            raise CsvImportError("IBKR option position has no recognizable contract identity")
         quantity = _number(_get(raw, "Quantity"), required=True) or ZERO
-        position_multiplier = _number(_get(raw, "Mult", "Multiplier")) or (
-            Decimal("100") if option else None
+        position_multiplier, multiplier_source = contract_multiplier(
+            explicit=_number(_get(raw, "Mult", "Multiplier")),
+            symbol=symbol,
+            description=description,
+            is_option=is_option,
         )
+        if is_option and position_multiplier is None:
+            raise CsvImportError("IBKR option position has no reliable exported multiplier")
         normalized = {
             "account_mask": "...IBKR",
             "symbol": option["occ_symbol"] if option else symbol,
             "description": description,
-            "asset_type": "OPTION" if option else "EQUITY",
+            "asset_type": "OPTION" if is_option else "EQUITY",
             "quantity": str(quantity),
             "average_price": _text(_number(_get(raw, "Cost Price"))),
             "mark": _text(_number(_get(raw, "Close Price", "Mark Price"))),
@@ -213,9 +239,7 @@ def _parse_section(
             "strike": option["strike"] if option else None,
             "open_profit_loss": _text(_number(_get(raw, "Unrealized P/L"))),
             "contract_multiplier": _text(position_multiplier),
-            "multiplier_source": "exported"
-            if _get(raw, "Mult", "Multiplier")
-            else "assumed_standard",
+            "multiplier_source": multiplier_source if is_option else None,
         }
         return ImportRecordKind.POSITION, normalized, "positions"
     if section == "Cash Transactions":
@@ -224,6 +248,7 @@ def _parse_section(
         if kind is None:
             return None
         amount = _number(_get(raw, "Amount"), required=True) or ZERO
+        amount = _directional_cash_movement(amount, kind=kind, description=description)
         normalized = {
             "external_key": "pending",
             "occurred_at": _date(_get(raw, "Date/Time", "Date")).isoformat(),
@@ -244,24 +269,55 @@ def _parse_section(
 
 def _cash_type(value: str) -> str | None:
     upper = value.upper()
-    if "DIVIDEND" in upper:
-        return "dividend"
     if "WITHHOLD" in upper or "TAX" in upper:
         return "withholding"
+    if "FEE" in upper or "COMMISSION" in upper:
+        return "fee"
     if "INTEREST" in upper:
         return "interest"
-    if any(token in upper for token in ("DEPOSIT", "WITHDRAWAL", "TRANSFER")):
+    if "DIVIDEND" in upper:
+        return "dividend"
+    if "DEPOSIT" in upper or "WITHDRAWAL" in upper:
         return "transfer"
-    if "FEE" in upper:
-        return "fee"
-    return None
+    # IBKR reports internal and account transfers separately. A description
+    # containing only "transfer" does not prove an external owner flow.
+    return "other"
+
+
+def _directional_cash_movement(
+    amount: Decimal,
+    *,
+    kind: str,
+    description: str,
+) -> Decimal:
+    """Normalize statement rows only when their category proves direction."""
+
+    if kind in {"fee", "withholding"}:
+        return -abs(amount)
+    if kind != "transfer":
+        return amount
+    upper = description.upper()
+    if "WITHDRAW" in upper:
+        return -abs(amount)
+    if "DEPOSIT" in upper:
+        return abs(amount)
+    return amount
+
+
+def _position_effect(value: str) -> str:
+    codes = {token.upper() for token in value.replace(";", " ").replace(",", " ").split()}
+    if "O" in codes and "C" not in codes:
+        return "opening"
+    if "C" in codes and "O" not in codes:
+        return "closing"
+    return "unknown"
 
 
 def _date(value: str) -> datetime:
     cleaned = value.strip().replace(";", " ")
     for pattern in ("%Y-%m-%d, %H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%m/%d/%Y"):
         try:
-            return datetime.strptime(cleaned, pattern).replace(tzinfo=UTC)
+            return datetime.strptime(cleaned, pattern).replace(tzinfo=MARKET_TIME_ZONE)
         except ValueError:
             pass
     raise CsvImportError(f"IBKR date {value!r} is not recognized")

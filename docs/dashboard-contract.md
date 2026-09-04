@@ -11,7 +11,7 @@ This keeps the interface independent from demo fixtures and Schwab response shap
 
 - Reads reconciled account and position snapshots from repository ports.
 - Shows only values supported by stored broker observations.
-- Populates income, campaigns, marks, and Greeks from stored executions and market snapshots when
+- Populates cash activity, campaigns, marks, and Greeks from stored executions and market snapshots when
   those observations exist; missing fields stay missing.
 - Never substitutes fictional analytics for missing live data.
 
@@ -22,16 +22,23 @@ This keeps the interface independent from demo fixtures and Schwab response shap
 - Exercises a personalized but fictional quarterly option book over 700 CVX, 800 KTOS, and 500 URNM shares.
 - Uses frozen, unadjusted Yahoo Finance daily closes retrieved on August 7, 2026 for the underlying price paths. These are real market-session observations; the option executions, marks, IV, and Greeks remain clearly simulated.
 - Keeps every mock call 15–40% above the underlying at sale and 21–56 days to expiration.
-- Derives premium received, executed close/roll debits, net premium cash flow, coverage, and lifecycle totals from execution records.
+- Derives premium received, executed close/roll debits, net executed option cash, coverage, and
+  lifecycle totals from execution records.
 - Never calls Schwab, creates a sync run, or writes to SQLite.
 - Uses the same API serializer, Jinja templates, and display formatters as live mode.
 
 ## Stable view sections
 
-1. Combined portfolio: net value, selected-window net premium cash, total strategy income, coverage, calls sold, and shares called away.
-2. Underlying attribution: selected-window option income/APR/dividends/capture, an observed daily-close path with `16W`, `8W`, and `4W` date ranges, campaign markers that map to auditable execution detail, and per-contract premium-received/current-option-value/open-P&L economics. The campaign renderer and its reconciliation rules are documented in [Incoooming option campaign chart](product/option-campaign-chart-redesign.md).
-3. Income: a quarterly window with 13 weekly periods reconciled to the quarter total.
-4. Lifecycle: contracts expired, closed, rolled, and still open, plus assignments and the completed-ticket positive-cash rate.
+1. Combined portfolio: net value, selected-window net option cash, total executed strategy cash,
+   coverage, calls sold, and shares called away.
+2. Underlying attribution: selected-window executed option cash, cash APR, dividends, and capture;
+   an observed daily-close path with `16W`, `8W`, and `4W` date ranges; campaign markers that map
+   to auditable execution detail; and per-contract opening credit, current option value, and open
+   mark P/L. The campaign renderer and its reconciliation rules are documented in
+   [Incoooming option campaign chart](product/option-campaign-chart-redesign.md).
+3. Cash activity: a quarterly window with 13 weekly periods reconciled to the quarter total.
+4. Lifecycle: contracts expired, closed, rolled, and still open, plus assignments and the
+   completed-campaign positive-cash rate.
 5. Campaigns: current legs, dates, quarter option cash, open profit/loss, collateral, and return on capital.
 6. Call ledger: sale date, expiry, DTE, quantity, sale-time spot, strike, gap, premium, executed close debit, net cash, outcome, and sale signal.
 7. Positions and risk: reconciled inventory, buying-power use, delta, theta, concentration, and next expiration.
@@ -52,7 +59,7 @@ The note is a terminal worksheet rather than a consumer modal:
 - A 56px command strip carries the `NWK` function code, security, position, ledger scene, and close command in one row.
 - The security, headline, severity, and plain-English evidence use the full worksheet width.
 - Each fact cell separates its primary value from its qualifier so numbers align instead of forming display cards.
-- Methodology and limitations remain available in a collapsed disclosure rather than occupying the default decision surface.
+- Methodology and limitations remain available in a collapsed disclosure instead of filling the main view.
 - Previous, next, and security-jump commands share one footer.
 - The surface uses two interior charcoal tones, one grid-line tone, and an amber perimeter.
 
@@ -72,10 +79,16 @@ Alert severity, facts, thresholds, and method notes come from typed application 
 - Quarterly uses the current rolling 13-week detailed ledger window.
 - Calendar YTD runs from January 1 through the snapshot date.
 - Rolling 365 uses the trailing 365 calendar days and is intentionally separate from YTD.
-- When rolling 365 is active, the two F1 income cells show explicit one-month averages for net premium cash and total strategy income. Each is the 365-day total divided by 12; the values are context, not additional cash.
+- When rolling 365 is active, the two cash cells show explicit one-month averages for net executed
+  option cash and total executed strategy cash. Each is the 365-day total divided by 12; the values
+  are context, not additional cash.
 - The year control exposes both YTD and rolling-365 totals; completed-quarter bars provide trend context but do not claim to reconcile a partial current quarter to 365 days.
-- The selected window reports transaction cash: premium received minus executed close/roll debits equals net premium cash flow; net premium cash flow plus dividends equals total strategy income.
-- Calendar-month pace is a comparison metric, not additional cash. It equals net premium cash flow divided by elapsed days and scaled to `365 / 12` days. For example, a 28-day total can differ from its normalized 30.4-day pace.
+- The selected window reports transaction cash: premium received minus executed close/roll debits
+  and fees equals net executed option cash; net executed option cash plus dividends equals total
+  executed strategy cash.
+- Calendar-month pace is a comparison metric, not additional cash. It equals net executed option
+  cash divided by elapsed days and scaled to `365 / 12` days. For example, a 28-day total can differ
+  from its normalized 30.4-day pace.
 - APR equals window cash divided by current stock market value and annualized by actual window days. It is not total return and can be distorted by short windows.
 
 Daily cash and daily theta are never interchangeable. Cash appears only on execution, fee, or dividend dates. Theta is a model sensitivity for the open option book under unchanged-input assumptions.
@@ -96,16 +109,31 @@ Daily cash and daily theta are never interchangeable. Cash appears only on execu
 - `OPEN POS P/L` is a separate reconciliation diagnostic: the sum of complete broker day prints for positions still open at the latest sync. It can differ from account P/L because closed intraday positions, fees, dividends, financing, cash items, and timing are outside the open book. Missing prints make the diagnostic unavailable instead of silently contributing zero. `P/L GAP` is open-position P/L minus account P/L and is shown when materially different.
 - CSV books without account valuation history leave `ACCOUNT DAY P/L` blank and may show only `OPEN POS P/L`; an imported position tape is never relabeled as a whole-account result.
 - Schwab `currentDayCost` is removed from a position print only when the relevant previous-session long or short quantity is present and exactly equals the current quantity, evidence that the broker carried a stale cost baseline forward. New positions, changed quantities, and forced stock delivery retain Schwab's reported day P/L. The untouched payload remains in the raw-event audit trail; position normalization never controls account DAY P/L.
-- Gross premium is `premium per share × contracts × 100`.
-- Net premium cash flow is gross premium minus executed buy-to-close cash outflow. It describes cash transactions, not mark-to-market profit.
-- Total cash income is net premium cash flow plus dividends.
-- Completed-ticket option income excludes open calls; open-call credit remains visible separately.
+- Gross opening credit is `premium per share × contracts × the contract's broker-supplied premium
+  multiplier`. A 100-unit multiplier is used only when the source identifies a standard contract
+  or a conventional legacy OCC symbol supports that pricing assumption. Adjusted-contract share
+  delivery is a separate fact and stays unavailable until its terms are known.
+- Net executed option cash is opening credits minus executed close and roll debits and all recorded
+  fees. It describes cash transactions, not mark-to-market profit.
+- Total executed strategy cash is net executed option cash plus dividends.
+- Completed campaign P/L includes linked opening and closing executions only after the campaign has
+  finished. Credit from an open option remains cash received, not completed profit.
 - The open-book reconciliation shows credit already received, current open-call value, and open P/L at the current mark. A current mark is an estimate, not an executed close debit or a forecast of the expiry outcome.
 - Rolled tickets preserve the close debit on the old call and the new sale as separate execution records.
-- Active coverage is open contracts divided by share-backed contract capacity.
+- Active coverage uses only calls with a known stock deliverable. An adjusted or unresolved
+  deliverable is shown as unresolved and is never converted from the premium multiplier.
+- A broker-reported short option with an invalid quantity or missing side, multiplier, underlying,
+  strike, or expiration is listed as unmodeled. It is excluded from calculated option totals until
+  the required fields are available.
+- Covered-call capacity is calculated per brokerage account. Partial lots in separate accounts are
+  never combined into one covered lot. Radar asks for an account choice when more than one account
+  holds the same stock.
 - Short puts remain in the same per-underlying option book as short calls. Portfolio open-option counts, open mark P/L, next expiration, and model theta include both sides, while share-lot coverage remains a call-only ratio so puts never masquerade as covered shares.
-- Premium capture is net premium cash flow divided by gross premium; executed-debit drag is executed buy-to-close cash divided by gross premium.
-- The lifetime basis lens subtracts tracked option and dividend cash from original purchase cost for a private “capital earned back” view. Below 100% it shows original capital remaining. At or above 100% it shows a positive surplus beyond original cost instead of asking the user to interpret a negative adjusted basis. It never changes brokerage or tax-lot cost basis.
+- Premium capture is net executed option cash divided by gross opening credit; executed-debit drag
+  is executed buy-to-close cash divided by gross opening credit.
+- The lifetime basis lens subtracts tracked option and dividend cash from original purchase cost for
+  a private cash-offset view. Below 100% it shows original capital remaining. At or above 100% it
+  shows a positive surplus beyond original cost. It never changes brokerage or tax-lot cost basis.
 - Demo IV and delta values are explicitly marked simulated. Live values are quantity-weighted from
   stored open-option snapshots when Schwab supplied them.
 - Each open call compares premium received with current option value and derives open P/L, credit capture, intrinsic value, and remaining time value. Open P/L can be negative when the option mark rises above its sale price; Incoooming does not frame that mark as a buyback recommendation.
@@ -121,7 +149,9 @@ Daily cash and daily theta are never interchangeable. Cash appears only on execu
 
 ## Return and hurdle framing
 
-- Premium APR and total-income APR are cash-yield views, not total portfolio return. They must not be presented as a like-for-like comparison with a Treasury yield without underlying price change, capped upside, dividends, and assignment outcomes.
+- Option cash APR and total-cash APR are cash-yield views, not total portfolio return. They must not
+  be presented as a like-for-like comparison with a Treasury yield without underlying price change,
+  capped upside, dividends, and assignment outcomes.
 - A future configurable hurdle view will compare mark-adjusted covered-call total return with a selected Treasury tenor and an equity benchmark. The risk-free rate will come from dated source data rather than a hard-coded “safe 4%” assumption.
 - Incoooming will keep assignment economics and opportunity cost separate: being called away at an acceptable effective sale price can be intentional even when the stock later trades higher.
 

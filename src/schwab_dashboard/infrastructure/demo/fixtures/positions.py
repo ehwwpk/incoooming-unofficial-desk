@@ -2,6 +2,7 @@ from collections.abc import Sequence
 from decimal import Decimal
 
 from schwab_dashboard.application.dashboard.models import AllocationSlice, PositionSummary
+from schwab_dashboard.infrastructure.schwab.option_symbol import parse_occ_option_symbol
 
 D = Decimal
 
@@ -149,6 +150,7 @@ def build_allocations(
 
 
 def _position(row: tuple[str, ...]) -> PositionSummary:
+    option = parse_occ_option_symbol(row[0]) if row[2] == "OPTION" else None
     return PositionSummary(
         account_mask="...4831",
         symbol=row[0],
@@ -161,4 +163,11 @@ def _position(row: tuple[str, ...]) -> PositionSummary:
         day_profit_loss=D(row[7]),
         day_profit_loss_percent=D(row[8]),
         strategy=row[9],
+        underlying_symbol=option.underlying_symbol if option else None,
+        option_type=option.option_type if option else None,
+        expiration_date=option.expiration_date if option else None,
+        strike=option.strike if option else None,
+        contract_multiplier=D("100") if option else None,
+        multiplier_source="fictional_standard" if option else None,
+        is_non_standard=False if option else None,
     )

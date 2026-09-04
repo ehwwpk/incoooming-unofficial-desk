@@ -150,6 +150,8 @@ class SyncAccountsAndPositions:
                             strike=position.strike,
                             long_open_profit_loss=position.long_open_profit_loss,
                             short_open_profit_loss=position.short_open_profit_loss,
+                            contract_multiplier=position.contract_multiplier,
+                            is_non_standard=position.is_non_standard,
                         )
                     )
                     position_count += 1

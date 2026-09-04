@@ -7,6 +7,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from schwab_dashboard.application.errors import BrokerPayloadError
+from schwab_dashboard.application.market_time import MARKET_TIME_ZONE
 from schwab_dashboard.domain.instruments import (
     AssetType,
     DeliverableComponent,
@@ -43,7 +44,7 @@ class SchwabTransactionMapper:
     def map(self, payload: Mapping[str, Any], *, observed_at: datetime) -> MappedSchwabTransaction:
         activity_id = _required_text(payload, "activityId")
         occurred_at = _transaction_time(payload)
-        transaction_type = str(payload.get("type") or "").upper()
+        transaction_type = str(payload.get("type") or "").strip().upper()
         items = _mapping_items(payload.get("transferItems"))
         security_items = [item for item in items if _asset_type(item) != "CURRENCY"]
         instruments = tuple(_instrument(item, observed_at=observed_at) for item in security_items)
@@ -69,6 +70,7 @@ class SchwabTransactionMapper:
             movement = self._cash_movement(
                 activity_id,
                 payload,
+                security_items,
                 transaction_type=transaction_type,
                 occurred_at=occurred_at,
             )
@@ -91,15 +93,18 @@ class SchwabTransactionMapper:
     ) -> tuple[ExecutionRecord, ...]:
         if not items:
             return ()
-        signed_costs = [_decimal(item.get("cost")) for item in items]
-        total_security_cash = sum(signed_costs, ZERO)
+        indexed_items = tuple(
+            (index, item, _decimal(item.get("amount")), _decimal(item.get("cost")))
+            for index, item in enumerate(items)
+            if _decimal(item.get("amount"))
+        )
+        if not indexed_items:
+            return ()
+        total_security_cash = sum((signed_cost for _, _, _, signed_cost in indexed_items), ZERO)
         transaction_net_cash = _decimal(payload.get("netAmount"), default=total_security_cash)
         cash_adjustment = transaction_net_cash - total_security_cash
         records: list[ExecutionRecord] = []
-        for index, (item, signed_cost) in enumerate(zip(items, signed_costs, strict=True)):
-            amount = _decimal(item.get("amount"))
-            if not amount:
-                continue
+        for emitted_index, (index, item, amount, signed_cost) in enumerate(indexed_items):
             instrument = _required_mapping(item, "instrument")
             multiplier = _instrument_multiplier(instrument)
             quantity = abs(amount)
@@ -107,7 +112,7 @@ class SchwabTransactionMapper:
             price = _optional_decimal(item.get("price"))
             if price is None and quantity and multiplier:
                 price = gross_amount / quantity / multiplier
-            adjustment = cash_adjustment if index == 0 else ZERO
+            adjustment = cash_adjustment if emitted_index == 0 else ZERO
             records.append(
                 ExecutionRecord(
                     external_key=f"{activity_id}:item:{index}",
@@ -129,6 +134,7 @@ class SchwabTransactionMapper:
     def _cash_movement(
         activity_id: str,
         payload: Mapping[str, Any],
+        items: Sequence[Mapping[str, Any]],
         *,
         transaction_type: str,
         occurred_at: datetime,
@@ -137,12 +143,16 @@ class SchwabTransactionMapper:
             return None
         description = str(payload.get("description") or transaction_type or "Broker cash activity")
         movement_type = _cash_movement_type(transaction_type, description)
+        attributable = {
+            _instrument_external_key(_required_mapping(item, "instrument")) for item in items
+        }
         return CashMovementRecord(
             external_key=activity_id,
             occurred_at=occurred_at,
             movement_type=movement_type,
             amount=_decimal(payload.get("netAmount")),
             description=description,
+            instrument_external_key=(next(iter(attributable)) if len(attributable) == 1 else None),
         )
 
     @staticmethod
@@ -155,14 +165,39 @@ class SchwabTransactionMapper:
     ) -> tuple[OptionLifecycleEventRecord, ...]:
         description = str(payload.get("description") or "")
         event_type = _lifecycle_type(description)
+        stock_items = [item for item in items if _asset_type(item) == "EQUITY"]
+        option_items = [
+            item
+            for item in items
+            if _asset_type(item) == "OPTION" and abs(_decimal(item.get("amount")))
+        ]
+        stock_key = None
+        stock_quantity = None
+        unambiguous_delivery = len(stock_items) == 1 and len(option_items) == 1
+        if unambiguous_delivery:
+            stock_instrument = _required_mapping(stock_items[0], "instrument")
+            stock_key = _instrument_external_key(stock_instrument)
+            stock_quantity = abs(_decimal(stock_items[0].get("amount"))) or None
+        net_amount = _decimal(payload.get("netAmount"))
         events: list[OptionLifecycleEventRecord] = []
         for index, item in enumerate(items):
             instrument = _required_mapping(item, "instrument")
-            if str(instrument.get("assetType") or "").upper() != "OPTION":
+            if _asset_type(item) != "OPTION":
                 continue
             quantity = abs(_decimal(item.get("amount")))
             if not quantity:
                 continue
+            details: dict[str, Any] = {
+                "source_type": "RECEIVE_AND_DELIVER",
+                "position_effect": str(item.get("positionEffect") or "UNKNOWN"),
+                "description": description,
+            }
+            # Keep the historical normalized shape stable for the ordinary
+            # one-option/one-stock case. The flag is evidence of ambiguity,
+            # not a schema-version marker; absence therefore means no known
+            # ambiguity and lets old immutable ledger rows remain idempotent.
+            if not unambiguous_delivery:
+                details["delivery_ambiguous"] = True
             events.append(
                 OptionLifecycleEventRecord(
                     external_key=f"{activity_id}:item:{index}",
@@ -170,11 +205,10 @@ class SchwabTransactionMapper:
                     occurred_at=occurred_at,
                     event_type=event_type,
                     option_quantity=quantity,
-                    details={
-                        "source_type": "RECEIVE_AND_DELIVER",
-                        "position_effect": str(item.get("positionEffect") or "UNKNOWN"),
-                        "description": description,
-                    },
+                    stock_instrument_external_key=stock_key,
+                    stock_quantity=stock_quantity,
+                    cash_amount=(net_amount if net_amount and unambiguous_delivery else None),
+                    details=details,
                 )
             )
         return tuple(events)
@@ -183,14 +217,16 @@ class SchwabTransactionMapper:
 def _instrument(item: Mapping[str, Any], *, observed_at: datetime) -> InstrumentRecord:
     payload = _required_mapping(item, "instrument")
     symbol = _required_text(payload, "symbol").strip()
-    raw_type = str(payload.get("assetType") or "UNKNOWN").upper()
+    raw_type = str(payload.get("assetType") or "UNKNOWN").strip().upper()
     asset_type = _domain_asset_type(raw_type)
     parsed = parse_occ_option_symbol(symbol) if asset_type is AssetType.OPTION else None
     underlying = _optional_text(payload.get("underlyingSymbol"))
     option_side = _option_side(payload.get("putCall"), parsed.option_type if parsed else None)
     multiplier = _instrument_multiplier(payload) if asset_type is AssetType.OPTION else None
+    standardness = payload.get("nonStandard")
+    known_standard = standardness is False
     deliverable = None
-    if asset_type is AssetType.OPTION and underlying and multiplier:
+    if asset_type is AssetType.OPTION and known_standard and underlying and multiplier:
         deliverable = OptionDeliverable(
             kind=DeliverableKind.STANDARD,
             components=(
@@ -201,6 +237,10 @@ def _instrument(item: Mapping[str, Any], *, observed_at: datetime) -> Instrument
                 ),
             ),
         )
+    elif asset_type is AssetType.OPTION and standardness is True:
+        deliverable = OptionDeliverable(kind=DeliverableKind.ADJUSTED, components=())
+    elif asset_type is AssetType.OPTION:
+        deliverable = OptionDeliverable(kind=DeliverableKind.UNKNOWN, components=())
     return InstrumentRecord(
         source="schwab",
         external_key=_instrument_external_key(payload),
@@ -218,12 +258,21 @@ def _instrument(item: Mapping[str, Any], *, observed_at: datetime) -> Instrument
 
 
 def _cash_movement_type(transaction_type: str, description: str) -> CashMovementType:
+    normalized_description = description.upper()
     if transaction_type == "DIVIDEND_OR_INTEREST":
         return (
             CashMovementType.INTEREST
-            if "INTEREST" in description.upper()
+            if "INTEREST" in normalized_description
+            or normalized_description.startswith("SCHWAB1 INT ")
             else CashMovementType.DIVIDEND
         )
+    if transaction_type == "JOURNAL":
+        if normalized_description.startswith("STOCK BORROW FEE/"):
+            return CashMovementType.FEE
+        if normalized_description.startswith(("TRF FUNDS FRM TYPE ", "TRF FUNDS TO TYPE ")):
+            # Schwab emits paired cash-ledger moves between internal balance
+            # types. They are neither owner capital nor investment income.
+            return CashMovementType.TRADE_SETTLEMENT
     if transaction_type in {
         "ACH_RECEIPT",
         "ACH_DISBURSEMENT",
@@ -232,7 +281,6 @@ def _cash_movement_type(transaction_type: str, description: str) -> CashMovement
         "ELECTRONIC_FUND",
         "WIRE_OUT",
         "WIRE_IN",
-        "JOURNAL",
     }:
         return CashMovementType.TRANSFER
     return CashMovementType.OTHER
@@ -250,7 +298,7 @@ def _lifecycle_type(description: str) -> OptionLifecycleType:
 
 
 def _position_effect(value: Any) -> PositionEffect:
-    normalized = str(value or "").upper()
+    normalized = str(value or "").strip().upper()
     if normalized == "OPENING":
         return PositionEffect.OPENING
     if normalized == "CLOSING":
@@ -259,7 +307,7 @@ def _position_effect(value: Any) -> PositionEffect:
 
 
 def _option_side(value: Any, parsed: str | None) -> OptionSide | None:
-    normalized = str(value or parsed or "").upper()
+    normalized = str(value or parsed or "").strip().upper()
     if normalized == "CALL":
         return OptionSide.CALL
     if normalized == "PUT":
@@ -279,11 +327,15 @@ def _domain_asset_type(value: str) -> AssetType:
 
 def _asset_type(item: Mapping[str, Any]) -> str:
     instrument = item.get("instrument")
-    return str(instrument.get("assetType") or "") if isinstance(instrument, Mapping) else ""
+    return (
+        str(instrument.get("assetType") or "").strip().upper()
+        if isinstance(instrument, Mapping)
+        else ""
+    )
 
 
-def _instrument_multiplier(instrument: Mapping[str, Any]) -> Decimal:
-    return _decimal(instrument.get("optionPremiumMultiplier"), default=Decimal("100"))
+def _instrument_multiplier(instrument: Mapping[str, Any]) -> Decimal | None:
+    return _optional_decimal(instrument.get("optionPremiumMultiplier"))
 
 
 def _instrument_external_key(instrument: Mapping[str, Any]) -> str:
@@ -299,6 +351,12 @@ def _transaction_time(payload: Mapping[str, Any]) -> datetime:
     if raw is None:
         raise BrokerPayloadError("Schwab transaction is missing its source timestamp.")
     text = str(raw).strip().replace("Z", "+00:00")
+    if len(text) == 10:
+        try:
+            stated_day = datetime.strptime(text, "%Y-%m-%d").date()
+        except ValueError as exc:
+            raise BrokerPayloadError("Schwab transaction date is invalid.") from exc
+        return datetime.combine(stated_day, datetime.min.time(), tzinfo=MARKET_TIME_ZONE)
     try:
         value = datetime.fromisoformat(text)
     except ValueError as exc:

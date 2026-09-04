@@ -193,9 +193,7 @@ def test_latest_reader_deterministically_breaks_equal_retrieval_time_ties(
                 mark=Decimal("61.00"),
             ),
         ),
-        option_snapshots=(
-            replace(first.option_snapshots[0], mark=Decimal("3.31")),
-        ),
+        option_snapshots=(replace(first.option_snapshots[0], mark=Decimal("3.31")),),
         daily_bars=(
             replace(
                 daily_bar,

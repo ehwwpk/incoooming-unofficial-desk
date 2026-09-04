@@ -57,6 +57,8 @@ class BrokerPosition:
     strike: Decimal | None = None
     long_open_profit_loss: Decimal | None = None
     short_open_profit_loss: Decimal | None = None
+    contract_multiplier: Decimal | None = None
+    is_non_standard: bool | None = None
 
     def __post_init__(self) -> None:
         if not self.instrument_key.strip():

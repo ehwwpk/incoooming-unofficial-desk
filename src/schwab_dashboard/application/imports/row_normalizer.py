@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
 from schwab_dashboard.application.imports.csv_text import header_key
@@ -9,6 +9,7 @@ from schwab_dashboard.application.imports.option_normalizer import (
     contract_multiplier,
     option_metadata,
 )
+from schwab_dashboard.application.market_time import MARKET_TIME_ZONE
 from schwab_dashboard.domain.data_source import BrokerKind, ImportRecordKind
 
 ZERO = Decimal("0")
@@ -76,16 +77,6 @@ def normalize_position_row(
         return None
     quantity = _money(_value(row, mapped_fields, "quantity"), required=True)
     assert quantity is not None
-    market_value = _money(_value(row, mapped_fields, "market_value"))
-    mark = _money(_value(row, mapped_fields, "mark"))
-    if market_value is None and mark is not None:
-        market_value = quantity * mark
-    if mark is None and market_value is not None and quantity:
-        mark = abs(market_value / quantity)
-    average_price = _money(_value(row, mapped_fields, "average_price"))
-    cost_basis = _money(_value(row, mapped_fields, "cost_basis"))
-    if average_price is None and cost_basis is not None and quantity:
-        average_price = abs(cost_basis / quantity)
     option = option_metadata(symbol=symbol, description=description)
     explicit_multiplier = _money(_value(row, mapped_fields, "multiplier"))
     multiplier, multiplier_source = contract_multiplier(
@@ -98,10 +89,24 @@ def normalize_position_row(
         return ImportRecordKind.POSITION, {
             "_needs_review": True,
             "_review_reason": (
-                "Adjusted option position has no exported multiplier; "
+                "Option position has no reliable exported multiplier; "
                 "coverage and market value would be unsafe to infer."
             ),
         }
+    value_scale = multiplier if option else Decimal("1")
+    assert value_scale is not None
+    market_value = _money(_value(row, mapped_fields, "market_value"))
+    parsed_mark = _money(_value(row, mapped_fields, "mark"))
+    mark = abs(parsed_mark) if parsed_mark is not None else None
+    if market_value is None and mark is not None:
+        market_value = quantity * mark * value_scale
+    if mark is None and market_value is not None and quantity:
+        mark = abs(market_value / (quantity * value_scale))
+    parsed_average_price = _money(_value(row, mapped_fields, "average_price"))
+    average_price = abs(parsed_average_price) if parsed_average_price is not None else None
+    cost_basis = _money(_value(row, mapped_fields, "cost_basis"))
+    if average_price is None and cost_basis is not None and quantity:
+        average_price = abs(cost_basis / (quantity * value_scale))
     return ImportRecordKind.POSITION, {
         "account_mask": _account_mask(_value(row, mapped_fields, "account")),
         "symbol": option["occ_symbol"] if option else symbol,
@@ -146,7 +151,14 @@ def normalize_activity_row(
             "external_key": "pending",
             "occurred_at": occurred_at.isoformat(),
             "movement_type": classification,
-            "amount": str(amount),
+            "amount": str(
+                _directional_cash_movement(
+                    amount,
+                    classification=classification,
+                    action=action,
+                    description=description,
+                )
+            ),
             "description": description or action.title(),
             "account_mask": account_mask,
             "symbol": symbol or None,
@@ -178,11 +190,18 @@ def normalize_activity_row(
     if side is None:
         if amount is None:
             return None
+        # Preserve unexplained cash so return reconstruction can fail closed.
+        # Dropping the row would let an unknown deposit look like investment
+        # performance in an otherwise usable imported book.
         return ImportRecordKind.CASH_MOVEMENT, {
-            "_needs_review": True,
-            "_review_reason": (
-                f"Unknown cash action {action or description!r}; classify it before import."
-            ),
+            "external_key": "pending",
+            "occurred_at": occurred_at.isoformat(),
+            "movement_type": "other",
+            "amount": str(amount),
+            "description": description or action or "Unclassified cash activity",
+            "account_mask": account_mask,
+            "symbol": symbol or None,
+            "underlying_symbol": symbol or None,
         }
     quantity = abs(_money(_value(row, mapped_fields, "quantity"), required=True) or ZERO)
     price = abs(_money(_value(row, mapped_fields, "price"), required=True) or ZERO)
@@ -204,9 +223,13 @@ def normalize_activity_row(
     gross = (
         quantity * price * (multiplier or Decimal("1"))
         if not option or multiplier is not None
-        else max(ZERO, abs(amount or ZERO) - fees)
+        else _gross_from_net(amount or ZERO, side=side, fees=fees)
     )
-    net_cash = amount if amount is not None else (gross if side == "sell" else -gross) - fees
+    net_cash = (
+        _directional_net_cash(amount, side=side)
+        if amount is not None
+        else (gross if side == "sell" else -gross) - fees
+    )
     return ImportRecordKind.EXECUTION, {
         "external_key": "pending",
         "order_external_key": None,
@@ -241,19 +264,74 @@ def is_summary_row(row: dict[str, str]) -> bool:
 
 def _cash_type(action: str, description: str) -> str | None:
     value = f"{action} {description}".upper()
-    if any(token in value for token in ("DIVIDEND", "QUAL DIV", "NON-QUAL DIV", "CDIV")):
-        return "dividend"
-    if any(
-        token in value for token in ("ACH", "WIRE", "TRANSFER", "DEPOSIT", "WITHDRAWAL", "JOURNAL")
-    ):
-        return "transfer"
-    if "INTEREST" in value:
-        return "interest"
     if any(token in value for token in ("WITHHOLD", "FOREIGN TAX", "TAX WITHHELD")):
         return "withholding"
     if any(token in value for token in ("FEE", "COMMISSION")) and not _execution_side(action):
         return "fee"
+    if "INTEREST" in value:
+        return "interest"
+    if any(token in value for token in ("DIVIDEND", "QUAL DIV", "NON-QUAL DIV", "CDIV")):
+        return "dividend"
+    if any(
+        token in value
+        for token in (
+            "ACH",
+            "WIRE",
+            "DEPOSIT",
+            "WITHDRAWAL",
+            "CASH RECEIPT",
+            "CASH DISBURSEMENT",
+        )
+    ):
+        return "transfer"
+    if "JOURNAL" in value or "TRANSFER" in value:
+        # A bare journal/transfer can be an internal balance move, corporate
+        # action, or owner funding.  Keep it visible as unresolved cash rather
+        # than choosing a side of the performance boundary.
+        return "other"
     return None
+
+
+def _gross_from_net(amount: Decimal, *, side: str, fees: Decimal) -> Decimal:
+    """Recover pre-fee cash when an adjusted contract has no multiplier."""
+
+    if side == "sell":
+        return max(ZERO, amount + fees) if amount < ZERO else amount + fees
+    return max(ZERO, abs(amount) - fees)
+
+
+def _directional_net_cash(
+    amount: Decimal,
+    *,
+    side: str,
+) -> Decimal:
+    """Apply trade direction when an export prints unsigned cash amounts."""
+
+    magnitude = abs(amount)
+    if side == "buy":
+        return -magnitude
+    return amount if amount < ZERO else magnitude
+
+
+def _directional_cash_movement(
+    amount: Decimal,
+    *,
+    classification: str,
+    action: str,
+    description: str,
+) -> Decimal:
+    """Normalize only movements whose language establishes cash direction."""
+
+    if classification in {"fee", "withholding"}:
+        return -abs(amount)
+    if classification != "transfer":
+        return amount
+    value = f"{action} {description}".upper()
+    if any(token in value for token in ("WITHDRAW", "DISBURSE", "WIRE OUT", "OUTBOUND")):
+        return -abs(amount)
+    if any(token in value for token in ("DEPOSIT", "RECEIPT", "WIRE IN", "INBOUND")):
+        return abs(amount)
+    return amount
 
 
 def _execution_side(action: str) -> str | None:
@@ -284,7 +362,18 @@ def _lifecycle_type(action: str, description: str) -> str | None:
 
 
 def _date_value(value: str) -> datetime:
-    clean = value.strip().replace("T", " ").removesuffix("Z")
+    raw = value.strip()
+    try:
+        parsed_iso = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        pass
+    else:
+        return (
+            parsed_iso
+            if parsed_iso.tzinfo is not None
+            else parsed_iso.replace(tzinfo=MARKET_TIME_ZONE)
+        )
+    clean = raw.replace("T", " ")
     for pattern in (
         "%m/%d/%Y",
         "%m/%d/%y",
@@ -294,7 +383,10 @@ def _date_value(value: str) -> datetime:
         "%Y-%m-%d %H:%M:%S",
     ):
         try:
-            return datetime.strptime(clean, pattern).replace(tzinfo=UTC)
+            # Broker CSV timestamps without an offset are calendar facts, not
+            # UTC instants. Preserve their displayed U.S. market date so a
+            # midnight execution or dividend cannot slide to the prior day.
+            return datetime.strptime(clean, pattern).replace(tzinfo=MARKET_TIME_ZONE)
         except ValueError:
             pass
     raise CsvImportError(f"{value!r} is not a supported date")

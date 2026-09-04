@@ -25,16 +25,10 @@ def upgrade() -> None:
         sa.Column("close", sa.Numeric(precision=28, scale=10), nullable=False),
         sa.Column("volume", sa.Integer(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.ForeignKeyConstraint(
-            ["instrument_id"], ["instruments.id"], ondelete="RESTRICT"
-        ),
-        sa.ForeignKeyConstraint(
-            ["raw_event_id"], ["raw_market_events.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["instrument_id"], ["instruments.id"], ondelete="RESTRICT"),
+        sa.ForeignKeyConstraint(["raw_event_id"], ["raw_market_events.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint(
-            "raw_event_id", "instrument_id", "started_at", "interval_minutes"
-        ),
+        sa.UniqueConstraint("raw_event_id", "instrument_id", "started_at", "interval_minutes"),
     )
     op.create_index(
         "ix_underlying_intraday_bars_raw_event_id",
