@@ -71,7 +71,7 @@ def test_first_visit_chooses_a_source_and_csv_book_remains_isolated(tmp_path: Pa
         assert "Get Incoooming" in gateway.text
         assert "DATA HEALTH" in gateway.text
         assert 'href="/workspaces/records"' in gateway.text
-        assert "/static/incoooming-operators.png" not in gateway.text
+        assert gateway.text.count("/static/incoooming-operators.png") == 2
         assert "brand-nibwick-mark" not in gateway.text
         assert gateway.text.count("/static/nibwick-favicon.svg") >= 1
         assert "gateway-option-chart" in gateway.text

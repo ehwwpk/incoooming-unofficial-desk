@@ -33,7 +33,13 @@
           <p>Live Schwab through your approved Developer API. Broker CSV. Demo.</p>
         </div>
 
-        <figure class="gateway-visual" aria-label="Simulated options lifecycle chart">
+        <figure class="gateway-visual" aria-label="Two hand-drawn operators presenting an options lifecycle chart">
+          <div class="gateway-operator gateway-operator-left" aria-hidden="true">
+            <img src="{{ url_for('static', path='/incoooming-operators.png') }}" alt="">
+          </div>
+          <div class="gateway-operator gateway-operator-right" aria-hidden="true">
+            <img src="{{ url_for('static', path='/incoooming-operators.png') }}" alt="">
+          </div>
           <div class="gateway-market-slab" aria-label="Simulated NVIDIA covered-call history">
             <div class="gateway-market-plot">
             <div class="gateway-market-meta" aria-hidden="true">
