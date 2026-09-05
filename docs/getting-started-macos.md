@@ -1,14 +1,18 @@
 # Get Incoooming running on your Mac
 
 Start with the demo, then choose CSV files or connect your own Schwab account. The app runs on
-your Mac and opens in your browser. It has no order-placement workflow.
+your Mac and opens in your browser. It never places trades.
 
-**Test status:** the Mac implementation is undergoing native validation. The target is macOS 15
-on Apple Silicon and Intel with Python 3.12, 3.13, and 3.14. This page will link the passing native
-checks before the release is described as Mac-tested. Older macOS versions and iPhone/iPad aren't
-part of this support claim.
+**Tested on macOS 15, on both Apple Silicon and Intel**, with Python 3.12, 3.13, and 3.14.
+Native checks cover setup, restarts, Keychain, the Safari interface, and CSV imports in Chrome.
+See [the results and exact versions](platforms/macos-validation.md). Safari CSV imports, other
+macOS versions, and iPhone/iPad aren't part of this verified setup.
 
 ## 1. Get Python and the project
+
+Use [Google Chrome](https://www.google.com/chrome/) if you plan to import CSV files. Safari can
+display the demo and charts, but its CSV file-selection flow has not been verified. You don't
+need to change your default browser; just open Incoooming's local address in Chrome.
 
 Install Python 3.12, 3.13, or 3.14 from [python.org](https://www.python.org/downloads/macos/).
 Choose the standard macOS installer. It supports both Apple Silicon and Intel. After installation,
@@ -56,7 +60,7 @@ Stop the standalone demo with Control+C first, then run:
 sh ./scripts/run-local.sh
 ```
 
-Open the local address, choose **BOOK → Import CSV**, select your broker and files, then preview
+Open the local address in **Chrome**, choose **BOOK → Import CSV**, select your broker and files, then preview
 them. Check skipped rows and their reasons before importing. For a practice import, choose
 **Generic / template** and use both fictional files in [`examples/csv`](../examples/csv).
 
@@ -156,6 +160,10 @@ it has not been confirmed removed; resolve the Keychain permission and retry.
 
 **The app still shows fictional data:** stop `run-demo.sh` and start `run-local.sh`, then choose
 your book under BOOK.
+
+**A CSV file can't be read:** make sure the file has finished downloading to your Mac, then
+choose it again in Chrome. Preview the files before importing. Safari CSV uploads are not part
+of the verified Mac setup.
 
 Want your coding agent to help? Use the [setup prompt in the README](../README.md#want-your-coding-agent-to-help).
 Share error messages with private details removed. Keep credentials, callbacks, exports, and

@@ -16,6 +16,7 @@ For contributors and readers who want the implementation details:
 - [Schwab live contract](integrations/schwab-live-contract.md)
 - [Public beta review and checks](product/public-beta-review.md)
 - [Mac implementation plan and acceptance checks](platforms/macos-support-plan.md)
+- [Mac validation results and supported browsers](platforms/macos-validation.md)
 
 The following documents are implementation references. They describe current behavior in more
 detail than most users need:

@@ -4,6 +4,9 @@ The initial plan was completed before implementation. The aim is a supported loc
 with repeatable native test evidence, without requiring the owner to own or manually test a Mac.
 The validation adjustment below records a limitation found during those native tests.
 
+Implementation and the adjusted acceptance checks are complete. See the
+[native validation results](macos-validation.md) for the passing matrix and exact support limits.
+
 ## Scope
 
 Keep the existing Python server, local SQLite data, calculations, and browser interface. Add

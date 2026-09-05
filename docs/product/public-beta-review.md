@@ -5,6 +5,9 @@ review used the current local checkout, including its existing CSV-import change
 the older GitHub version. The follow-up sweep prepares all pending changes for a local commit;
 these checks do not publish a GitHub release or social post.
 
+The later [Mac validation report](../platforms/macos-validation.md) records the completed Windows
+and Mac CI matrix. The counts below describe this earlier review, before the Mac work.
+
 ## Changes made
 
 - Results now exercises the production performance-comparison engine with 58 fictional valued
@@ -72,9 +75,11 @@ possible secret representation has been detected.
 
 ## Remaining limits and release positioning
 
-Present this as a local Windows beta. Current Schwab authorization, developer-app approval,
-market-data entitlements, and a new live sync were not exercised during this review. The configured
-Python 3.13/3.14 CI matrix still needs its GitHub run.
+The beta now supports Windows and macOS 15 on Intel and Apple Silicon, with Chrome used for Mac
+CSV imports. Safari's interface is tested; Safari CSV selection remains unverified. The later
+[validation report](../platforms/macos-validation.md) contains the passing Python 3.12/3.13/3.14
+matrix. Current Schwab authorization, developer-app approval, market-data entitlements, and a new
+live sync were not exercised during this review.
 
 Demo stock history, option marks, Greeks, SPY path, and capital metrics are fictional. The history
 contains an initial cash buffer, a $5,000 deposit, and a $50,000 withdrawal; the two flow-bearing

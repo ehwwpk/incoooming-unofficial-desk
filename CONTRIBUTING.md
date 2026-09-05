@@ -23,7 +23,7 @@ Install Python 3.12, 3.13, or 3.14 and Node.js, then run:
 
 On a Mac, use `sh ./scripts/bootstrap.sh` instead. The [Mac setup guide](docs/getting-started-macos.md)
 walks through Python installation and starting the app. Run `sh ./scripts/verify.sh` for lint,
-formatting, type checks, and tests. The commands below use Windows paths; on a Mac, replace
+formatting, type checks, and tests. For the Python commands below, on a Mac replace
 `.\.venv\Scripts\python.exe` with `./.venv/bin/python`.
 
 Before submitting a pull request:
@@ -38,6 +38,12 @@ Get-ChildItem src/schwab_dashboard/web/static -Filter *.js -Recurse |
   ForEach-Object { node --check $_.FullName }
 ```
 
+The last command above uses PowerShell. To check JavaScript in Mac Terminal, use:
+
+```sh
+find src/schwab_dashboard/web/static -type f -name '*.js' -print0 | xargs -0 -n 1 node --check
+```
+
 Add tests for accounting, parser, and reconciliation changes. Use `Decimal` for money and
 quantities. Preserve raw source data and keep missing values distinct from zero. Browser routes
 must not call a broker directly.
@@ -50,5 +56,6 @@ build a minimal synthetic payload instead of committing a live response.
 
 Changes to setup, login storage, or browser behavior should pass both Windows and Mac CI. Mac
 checks include Intel and Apple Silicon, native Keychain storage with disposable dummy tokens,
-and Safari. Keep support claims tied to those results; automated checks do not prove a real
-broker login was completed on a Mac.
+the Safari interface, and Chrome with real CSV files. Safari CSV file selection remains
+unverified because the native automation cannot read selected files. Keep support claims tied
+to those results; automated checks do not prove a real broker login was completed on a Mac.
