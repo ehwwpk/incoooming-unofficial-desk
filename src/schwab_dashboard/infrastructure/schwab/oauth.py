@@ -8,6 +8,7 @@ import httpx
 
 from schwab_dashboard.application.errors import AuthenticationRequiredError, BrokerRequestError
 from schwab_dashboard.application.ports.tokens import OAuthTokenSet, TokenStore
+from schwab_dashboard.infrastructure.runtime.platform_commands import dashboard_command
 
 MAX_CALLBACK_URL_LENGTH = 8_192
 
@@ -167,8 +168,8 @@ class SchwabOAuthClient:
         token = self._token_store.load()
         if token is None:
             raise AuthenticationRequiredError(
-                "No Schwab OAuth token is stored. Run `schwab-dashboard auth-url`, "
-                "then `schwab-dashboard auth-complete`."
+                "No Schwab OAuth token is stored. From the project folder, run "
+                f"`{dashboard_command('auth-connect')}` to connect."
             )
         if token.expires_within(120):
             token = self.refresh(token)

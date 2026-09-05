@@ -12,7 +12,7 @@
     <main class="local-error-card">
       <p class="eyebrow">LOCAL DESK INTERRUPTION</p>
       <h1>This page could not load.</h1>
-      <p>Your saved ledger was not changed. Retry the desk first; if the error returns, run the restart shortcut and check the terminal for the exact cause.</p>
+      <p>Your saved ledger was not changed. Retry the desk first; if the error returns, restart the app using the instructions below and check the terminal for the exact cause.</p>
       <dl>
         <div><dt>REQUEST</dt><dd>{{ request_path }}</dd></div>
         <div><dt>LEDGER</dt><dd>UNCHANGED</dd></div>
@@ -21,7 +21,7 @@
         <a href="/">RETRY DESK</a>
         <a href="/api/v1/health/ready">CHECK SERVER</a>
       </nav>
-      <code>.\scripts\restart-local.cmd</code>
+      <code>{{ restart_instruction() }}</code>
     </main>
   </body>
 </html>

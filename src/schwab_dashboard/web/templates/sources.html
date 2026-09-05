@@ -148,6 +148,11 @@
         </figure>
       </section>
 
+      {% if credential_store_error and not demo_mode %}
+      <div class="source-error" role="alert" aria-live="polite">
+        <b>CHECK SAVED LOGIN</b><span>{{ credential_store_error }}</span>
+      </div>
+      {% endif %}
       {% if error %}
       <div class="source-error" role="alert" aria-live="polite">
         <b>IMPORT STOPPED</b><span>{{ error }}</span>
@@ -160,7 +165,7 @@
           <p class="eyebrow">FICTIONAL DEMO</p>
           <h2 id="demo-session-title">You're using the demo launcher.</h2>
           <p>Explore the calls, puts, and Results charts with fictional data. This session has no brokerage connection.</p>
-          <p>Ready to use your own data? Stop the demo in its terminal with <kbd>Ctrl+C</kbd>, run <code>.\scripts\run-local.cmd</code>, then open <b>BOOK</b> to import CSV files or choose Schwab. CSV imports do not need a Schwab connection.</p>
+          <p>Ready to use your own data? Stop the demo in its terminal with <kbd>Ctrl+C</kbd>, run <code>{{ local_command('run-local') }}</code>, then open <b>BOOK</b> to import CSV files or choose Schwab. CSV imports do not need a Schwab connection.</p>
         </div>
         <form action="/sources/select" method="post">
           <input type="hidden" name="source_key" value="demo">

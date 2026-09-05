@@ -2,7 +2,8 @@
 
 Start here if you want to use the app:
 
-- [Get running: demo, CSV files, and everyday startup](getting-started.md)
+- [Get running on Windows](getting-started.md)
+- [Get running on Mac](getting-started-macos.md)
 - [Ask your coding agent to help with setup](../README.md#want-your-coding-agent-to-help)
 - [Connect Schwab on Windows](getting-started-schwab.md)
 - [How the numbers work](accounting.md)
@@ -14,6 +15,7 @@ For contributors and readers who want the implementation details:
 - [Data contracts](data-contracts.md)
 - [Schwab live contract](integrations/schwab-live-contract.md)
 - [Public beta review and checks](product/public-beta-review.md)
+- [Mac implementation plan and acceptance checks](platforms/macos-support-plan.md)
 
 The following documents are implementation references. They describe current behavior in more
 detail than most users need:

@@ -1,0 +1,2 @@
+# CI only. Safari supplies its own driver; this is not an application dependency.
+selenium>=4.35,<5

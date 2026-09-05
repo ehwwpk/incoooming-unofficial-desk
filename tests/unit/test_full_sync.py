@@ -223,6 +223,69 @@ def test_auto_sync_reports_missing_authorization_without_calling_schwab() -> Non
     asyncio.run(exercise())
 
 
+def test_auto_sync_survives_an_unavailable_credential_store() -> None:
+    from schwab_dashboard.application.errors import CredentialStoreError
+
+    async def exercise() -> None:
+        calls: list[str] = []
+        coordinator = _coordinator(calls)
+
+        def unavailable() -> bool:
+            raise CredentialStoreError("Unlock macOS Keychain and retry.")
+
+        worker = AutoSyncWorker(
+            coordinator=coordinator,
+            token_available=unavailable,
+            interval_seconds=60,
+            startup_delay_seconds=0,
+        )
+        worker.start()
+        for _ in range(100):
+            if coordinator.status().next_scheduled_at is not None:
+                break
+            await asyncio.sleep(0.001)
+        assert worker._task is not None and not worker._task.done()
+        await worker.stop()
+        assert calls == []
+        assert coordinator.status().last_error == "Unlock macOS Keychain and retry."
+
+    asyncio.run(exercise())
+
+
+def test_credential_store_read_does_not_block_the_server_event_loop() -> None:
+    async def exercise() -> None:
+        entered = Event()
+        release = Event()
+        read_finished = Event()
+
+        def waiting_for_keychain() -> bool:
+            entered.set()
+            release.wait(timeout=1)
+            read_finished.set()
+            return False
+
+        worker = AutoSyncWorker(
+            coordinator=_coordinator([]),
+            token_available=waiting_for_keychain,
+            interval_seconds=60,
+            startup_delay_seconds=0,
+        )
+        worker.start()
+        try:
+            for _ in range(100):
+                if entered.is_set():
+                    break
+                await asyncio.sleep(0.001)
+            assert entered.is_set()
+            # The async task can run while the keychain read is still waiting.
+            assert not read_finished.is_set()
+        finally:
+            release.set()
+            await worker.stop()
+
+    asyncio.run(exercise())
+
+
 def test_full_sync_persists_end_to_end_freshness(
     database_runtime: tuple[object, object, UnitOfWorkFactory],
 ) -> None:

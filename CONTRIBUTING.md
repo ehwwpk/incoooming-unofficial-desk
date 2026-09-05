@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping improve Incoooming. This is a Windows-first beta, so small, testable changes are
+Thanks for helping improve Incoooming. This is a beta, so small, testable changes are
 easier to review than broad rewrites.
 
 ## Before opening an issue
@@ -20,6 +20,11 @@ Install Python 3.12, 3.13, or 3.14 and Node.js, then run:
 ```powershell
 .\scripts\bootstrap.cmd
 ```
+
+On a Mac, use `sh ./scripts/bootstrap.sh` instead. The [Mac setup guide](docs/getting-started-macos.md)
+walks through Python installation and starting the app. Run `sh ./scripts/verify.sh` for lint,
+formatting, type checks, and tests. The commands below use Windows paths; on a Mac, replace
+`.\.venv\Scripts\python.exe` with `./.venv/bin/python`.
 
 Before submitting a pull request:
 
@@ -42,3 +47,8 @@ must not call a broker directly.
 Explain the user-visible change, the evidence behind any accounting rule, and the checks you ran.
 Use fictional fixtures. If a broker payload shape is important, remove identifiers and amounts or
 build a minimal synthetic payload instead of committing a live response.
+
+Changes to setup, login storage, or browser behavior should pass both Windows and Mac CI. Mac
+checks include Intel and Apple Silicon, native Keychain storage with disposable dummy tokens,
+and Safari. Keep support claims tied to those results; automated checks do not prove a real
+broker login was completed on a Mac.

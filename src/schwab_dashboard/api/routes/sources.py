@@ -12,16 +12,13 @@ from schwab_dashboard.application.imports import CsvImportError
 from schwab_dashboard.application.imports.csv_text import MAX_CSV_BYTES
 from schwab_dashboard.container import Container
 from schwab_dashboard.domain.data_source import BrokerKind, ImportRowDisposition
+from schwab_dashboard.infrastructure.runtime.platform_commands import demo_launcher_notice
 from schwab_dashboard.web.rendering import templates
 
 router = APIRouter(tags=["sources"])
 ContainerDependency = Annotated[Container, Depends(get_container)]
 _QUOTED_SOURCE_VALUE = re.compile(r"'(?:\\.|[^'\\])*'|\"(?:\\.|[^\"\\])*\"")
 _MAX_PUBLIC_REASON_LENGTH = 240
-_DEMO_LAUNCHER_NOTICE = (
-    "This server is running the fictional demo. To use CSV files or Schwab, "
-    "stop the demo with Ctrl+C, run .\\scripts\\run-local.cmd, and open BOOK again."
-)
 
 
 @router.get("/sources", response_class=HTMLResponse)
@@ -67,7 +64,7 @@ async def import_csv_source(
     preview_fingerprint: Annotated[str, Form()],
 ) -> Response:
     if container.settings.demo_mode:
-        return _render_gateway(request, container, error=_DEMO_LAUNCHER_NOTICE, status_code=409)
+        return _render_gateway(request, container, error=demo_launcher_notice(), status_code=409)
     try:
         payloads = await _read_csv_uploads(files)
         dataset = container.import_csv_dataset().execute(
@@ -97,7 +94,7 @@ async def preview_csv_source(
     files: Annotated[list[UploadFile], File()],
 ) -> JSONResponse:
     if container.settings.demo_mode:
-        return JSONResponse({"ok": False, "error": _DEMO_LAUNCHER_NOTICE}, status_code=409)
+        return JSONResponse({"ok": False, "error": demo_launcher_notice()}, status_code=409)
     try:
         payloads = await _read_csv_uploads(files)
         preview = container.import_csv_dataset().preview(
@@ -155,7 +152,7 @@ async def preview_csv_source(
 
 def _require_regular_server(container: Container) -> None:
     if container.settings.demo_mode:
-        raise HTTPException(status_code=409, detail=_DEMO_LAUNCHER_NOTICE)
+        raise HTTPException(status_code=409, detail=demo_launcher_notice())
 
 
 async def _read_csv_uploads(files: list[UploadFile]) -> list[tuple[str, bytes]]:
@@ -227,6 +224,7 @@ def _render_gateway(
             "demo_mode": container.settings.demo_mode,
             "schwab_credentials_configured": container.settings.schwab_credentials_configured,
             "schwab_token_available": container.token_available(),
+            "credential_store_error": container.credential_store_error,
             "error": error,
         },
     )

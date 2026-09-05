@@ -16,8 +16,9 @@ codes, tokens, app credentials, and financial values with clearly fake examples.
 
 ## Local security model
 
-Incoooming is designed for one user on one Windows computer. The server accepts IPv4 loopback hosts
-only and is not hardened for LAN or internet exposure. OAuth tokens use Windows Credential Manager.
+Incoooming is designed for one user on one computer. The server accepts IPv4 loopback hosts
+only and is not hardened for LAN or internet exposure. OAuth tokens use the operating system's
+credential store: Windows Credential Manager or macOS Keychain. No plaintext token fallback is used.
 Local SQLite databases, `.env` files, broker exports, logs, and screenshots can still contain
 sensitive financial information; keep them out of commits and public reports.
 

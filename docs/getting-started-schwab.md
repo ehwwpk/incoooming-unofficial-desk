@@ -1,5 +1,7 @@
 # Connect Schwab to Incoooming on Windows
 
+For Mac commands, use [Connect Schwab on Mac](getting-started-macos.md#connect-schwab).
+
 This connects your own Schwab account so Incoooming can show your positions, activity, and market
 data. You'll sign in on Schwab's website and choose which accounts to share. Incoooming never
 asks for your Schwab password or places trades.

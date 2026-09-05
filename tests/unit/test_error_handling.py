@@ -5,6 +5,7 @@ import asyncio
 from starlette.requests import Request
 
 from schwab_dashboard.api.errors import unhandled_exception
+from schwab_dashboard.infrastructure.runtime.platform_commands import restart_instruction
 
 
 def _request(*, accept: str) -> Request:
@@ -35,7 +36,7 @@ def test_unhandled_exception_renders_recoverable_html_without_exception_details(
     body = response.body.decode("utf-8")
     assert response.status_code == 500
     assert "This page could not load" in body
-    assert "restart-local.cmd" in body
+    assert restart_instruction() in body
     assert "secret diagnostic detail" not in body
 
 

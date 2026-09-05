@@ -2,6 +2,10 @@ class AuthenticationRequiredError(RuntimeError):
     """Raised when Schwab authorization is missing or can no longer be refreshed."""
 
 
+class CredentialStoreError(AuthenticationRequiredError):
+    """A safe diagnostic for unavailable or unreadable operating-system token storage."""
+
+
 class SyncInProgressError(RuntimeError):
     """Raised when a second full sync is requested while one is already running."""
 

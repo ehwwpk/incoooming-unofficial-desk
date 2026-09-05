@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 import httpx
 from sqlalchemy import inspect
 
-from schwab_dashboard.application.errors import AuthenticationRequiredError
+from schwab_dashboard.application.errors import AuthenticationRequiredError, CredentialStoreError
 from schwab_dashboard.application.market_time import option_session_cache_partition
 from schwab_dashboard.application.performance.models import PerformanceComparison
 from schwab_dashboard.application.performance.periods import PerformancePeriod
@@ -102,14 +102,17 @@ class Container:
         self._market_http = httpx.Client(timeout=30.0, follow_redirects=False)
         self._radar_http = httpx.Client(timeout=30.0, follow_redirects=False)
         self.oauth = self._build_oauth()
+        self.credential_store_error: str | None = None
+        self._last_token_available = False
         self._runtime_cache = GenerationCache()
+        self.token_available()
         self._analytics_reader = SqlLiveAnalyticsReader(self.session_factory)
         self._live_dashboard_reader = CachedDashboardReader(
             delegate=ReadDashboard(
                 uow_factory=self.uow_factory,
                 analytics_reader=self._analytics_reader,
                 credentials_configured=self.settings.schwab_credentials_configured,
-                token_available=(self.oauth.token_available() if self.oauth is not None else False),
+                token_available=lambda: self._last_token_available,
                 margin_interest_rate_percent=self.settings.margin_interest_rate_percent,
             ),
             cache=self._runtime_cache,
@@ -285,7 +288,18 @@ class Container:
         return result
 
     def token_available(self) -> bool:
-        return self.oauth.token_available() if self.oauth is not None else False
+        self.credential_store_error = None
+        try:
+            available = self.oauth.token_available() if self.oauth is not None else False
+        except CredentialStoreError as exc:
+            self.credential_store_error = str(exc)
+            available = False
+        if available != self._last_token_available:
+            self._last_token_available = available
+            # Financial reads stay cached, but connection labels must follow an
+            # unlock, reconnect, or logout observed by the readiness probe.
+            self._runtime_cache.invalidate()
+        return available
 
     def save_workspace_preferences(self) -> SaveWorkspacePreferences:
         return SaveWorkspacePreferences(uow_factory=self.workspace_uow_factory)
@@ -301,7 +315,16 @@ class Container:
     def import_csv_dataset(self) -> ImportCsvDataset:
         return ImportCsvDataset(store=self.source_store)
 
+    def require_live_mode(self) -> None:
+        if self.settings.demo_mode:
+            raise AuthenticationRequiredError(
+                "Schwab is disabled because SCHWAB_DASHBOARD_DEMO_MODE is true. "
+                "Set it to false in your environment or local .env file, then retry. "
+                "Use the demo launcher when you want the fictional book."
+            )
+
     def require_oauth(self) -> SchwabOAuthClient:
+        self.require_live_mode()
         if self.oauth is None:
             raise AuthenticationRequiredError(
                 "Schwab app credentials are missing from the local .env file."

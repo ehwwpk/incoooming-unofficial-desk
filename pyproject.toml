@@ -15,6 +15,7 @@ keywords = ["options", "portfolio", "schwab", "covered-calls", "cash-secured-put
 classifiers = [
   "Development Status :: 4 - Beta",
   "Environment :: Win32 (MS Windows)",
+  "Operating System :: MacOS :: MacOS X",
   "Framework :: FastAPI",
   "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3",

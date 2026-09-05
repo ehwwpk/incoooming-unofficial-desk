@@ -5,7 +5,7 @@ import logging
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
-from schwab_dashboard.application.errors import SyncInProgressError
+from schwab_dashboard.application.errors import AuthenticationRequiredError, SyncInProgressError
 from schwab_dashboard.application.services.full_sync import FullSyncCoordinator
 
 LOGGER = logging.getLogger(__name__)
@@ -42,17 +42,21 @@ class AutoSyncWorker:
         if await self._wait(self._startup_delay_seconds):
             return
         while not self._stop.is_set():
-            if self._token_available():
-                try:
+            try:
+                # The OS credential store can prompt or wait for an unlock;
+                # keep that work off the server's request-handling event loop.
+                if await asyncio.to_thread(self._token_available):
                     await asyncio.to_thread(self._coordinator.execute, trigger="auto")
-                except SyncInProgressError:
-                    LOGGER.info("Automatic Schwab sync skipped because another sync is running.")
-                except Exception:
-                    LOGGER.exception("Automatic Schwab sync failed.")
-            else:
-                self._coordinator.note_unavailable(
-                    "Schwab authorization is not available. Reconnect the account to resume."
-                )
+                else:
+                    self._coordinator.note_unavailable(
+                        "Schwab authorization is not available. Reconnect the account to resume."
+                    )
+            except AuthenticationRequiredError as exc:
+                self._coordinator.note_unavailable(str(exc))
+            except SyncInProgressError:
+                LOGGER.info("Automatic Schwab sync skipped because another sync is running.")
+            except Exception:
+                LOGGER.exception("Automatic Schwab sync failed.")
 
             next_run = datetime.now(UTC) + timedelta(seconds=self._interval_seconds)
             self._coordinator.schedule_next(next_run)

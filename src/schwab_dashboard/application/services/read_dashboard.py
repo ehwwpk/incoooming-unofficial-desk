@@ -50,7 +50,7 @@ class ReadDashboard:
         uow_factory: UnitOfWorkFactory,
         analytics_reader: LiveAnalyticsReader,
         credentials_configured: bool,
-        token_available: bool,
+        token_available: bool | Callable[[], bool],
         clock: Callable[[], datetime] | None = None,
         margin_interest_rate_percent: Decimal = Decimal("11"),
     ) -> None:
@@ -241,7 +241,11 @@ class ReadDashboard:
             mode="live",
             as_of=as_of,
             credentials_configured=self._credentials_configured,
-            token_available=self._token_available,
+            token_available=(
+                self._token_available()
+                if callable(self._token_available)
+                else self._token_available
+            ),
             latest_sync=latest_sync,
             accounts=accounts,
             portfolio=portfolio,

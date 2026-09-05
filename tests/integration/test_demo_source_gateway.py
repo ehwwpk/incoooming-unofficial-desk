@@ -11,6 +11,7 @@ from schwab_dashboard.app import create_app
 from schwab_dashboard.cli import _alembic_config
 from schwab_dashboard.config import Settings
 from schwab_dashboard.container import Container
+from schwab_dashboard.infrastructure.runtime.platform_commands import local_command
 
 POSITIONS = (
     b"Account,Symbol,Description,Quantity,Last Price,Market Value,Average Price\n"
@@ -35,7 +36,7 @@ def test_dedicated_demo_explains_how_to_use_real_data(demo_container: Container)
         gateway = client.get("/sources")
         assert gateway.status_code == 200
         assert "You're using the demo launcher." in gateway.text
-        assert ".\\scripts\\run-local.cmd" in gateway.text
+        assert local_command("run-local") in gateway.text
         assert "Ctrl+C" in gateway.text
         assert 'action="/sources/csv"' not in gateway.text
         assert 'name="source_key" value="schwab"' not in gateway.text
@@ -51,7 +52,7 @@ def test_dedicated_demo_rejects_real_source_selection(
     with TestClient(create_app(demo_container), base_url="http://127.0.0.1") as client:
         response = client.post("/sources/select", data={"source_key": source_key})
         assert response.status_code == 409
-        assert "run-local.cmd" in response.json()["detail"]
+        assert local_command("run-local") in response.json()["detail"]
         assert "set-cookie" not in response.headers
 
 
@@ -66,7 +67,7 @@ def test_dedicated_demo_rejects_csv_uploads_without_storing_them(
             files={"files": ("positions.csv", POSITIONS, "text/csv")},
         )
         assert response.status_code == 409
-        assert "run-local.cmd" in response.text
+        assert "run-local" in response.text
         assert "set-cookie" not in response.headers
         assert demo_container.source_store.list_datasets() == ()
 

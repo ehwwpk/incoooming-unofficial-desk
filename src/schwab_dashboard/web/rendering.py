@@ -14,6 +14,10 @@ from schwab_dashboard.application.dashboard.calculations import (
 )
 from schwab_dashboard.application.dashboard.overview import open_contract_side_copy
 from schwab_dashboard.application.market_time import market_date
+from schwab_dashboard.infrastructure.runtime.platform_commands import (
+    local_command,
+    restart_instruction,
+)
 
 WEB_ROOT = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=WEB_ROOT / "templates")
@@ -85,3 +89,5 @@ templates.env.filters.update(
 )
 templates.env.filters["option_anchor"] = option_contract_anchor
 templates.env.globals["option_day_percent_mark_floor"] = OPTION_DAY_PERCENT_MARK_FLOOR
+templates.env.globals["local_command"] = local_command
+templates.env.globals["restart_instruction"] = restart_instruction

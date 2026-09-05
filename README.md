@@ -6,8 +6,9 @@ I built Incoooming to track premium from my own covered calls and cash-secured p
 see the cash coming in, what was still at risk, and how the whole account was doing—all in one
 place. I'm sharing it for anyone who wants that same context.
 
-Free and open source. Runs on your Windows computer. Reads data and never places trades.
+Free and open source. Runs locally on your computer. Reads data and never places trades.
 This is an early beta, so start with the demo and check your own numbers against your broker.
+Mac setup is available on this branch; native validation is in progress.
 
 ![Incoooming demo desk with fictional data](src/schwab_dashboard/web/static/incoooming-demo-desk.jpg)
 
@@ -26,17 +27,28 @@ an account, API key, or brokerage connection.
 
 ## Try it
 
-You'll need **Windows 10 or 11** and **Python 3.12, 3.13, or 3.14**.
+You'll need **Python 3.12, 3.13, or 3.14**. Windows 10/11 is supported; the Mac test target is
+**macOS 15 on Apple Silicon and Intel**. See [Mac setup and test status](docs/getting-started-macos.md).
 
-1. Get the project with GitHub's **Code → Download ZIP**, then **Extract All**. Git users can clone
-   the repository instead.
-2. Open the extracted folder containing this README and `scripts`. In File Explorer's address
-   bar, type `powershell` and press Enter.
+1. Get the project with GitHub's **Code → Download ZIP**. On Windows, choose **Extract All**;
+   on Mac, double-click the ZIP. Git users can clone the repository instead.
+2. Open the extracted folder containing this README and `scripts`. On Windows, type `powershell`
+   in File Explorer's address bar and press Enter. On Mac, open Terminal, type `cd `, drag the
+   project folder into the Terminal window, and press Enter.
 3. Run these commands, one at a time. Wait for setup to finish successfully before starting the demo:
+
+**Windows — PowerShell**
 
 ```powershell
 .\scripts\bootstrap.cmd
 .\scripts\run-demo.cmd
+```
+
+**Mac — Terminal**
+
+```sh
+sh ./scripts/bootstrap.sh
+sh ./scripts/run-demo.sh
 ```
 
 Open **[http://127.0.0.1:8182](http://127.0.0.1:8182)** in your browser. If you see the welcome
@@ -44,18 +56,19 @@ page, click **OPEN DEMO**. Start with **Results**, then explore the Desk and Opt
 terminal open; press `Ctrl+C` there to stop the demo.
 
 Need Python, a little more guidance, or help with an error? Follow the
-[step-by-step setup guide](docs/getting-started.md).
+[Windows setup guide](docs/getting-started.md) or [Mac setup guide](docs/getting-started-macos.md).
 
 ## Use your own data
 
 Stop the standalone demo with `Ctrl+C` before switching to either of these paths.
 
-**Connect Schwab:** get your own approved Schwab Individual Trader API app, add its settings
-locally, and run `.\scripts\connect-schwab.cmd`. The guided flow opens Schwab for login and then
-syncs your account. See [Connect Schwab](docs/getting-started-schwab.md). Approval is controlled by
+**Connect Schwab:** get your own approved Schwab Individual Trader API app and follow the
+[Windows connection guide](docs/getting-started-schwab.md) or
+[Mac connection guide](docs/getting-started-macos.md#connect-schwab). Approval is controlled by
 Schwab, so you can use the demo or CSV imports while you wait.
 
-**Import CSV files:** run `.\scripts\run-local.cmd`, open the local address above, and choose
+**Import CSV files:** run `.\scripts\run-local.cmd` on Windows or `sh ./scripts/run-local.sh`
+on Mac, open the local address above, and choose
 **BOOK → Import CSV**. Select your broker, preview the files, and review any skipped rows before
 importing. You don't need API credentials for this path.
 
@@ -71,7 +84,8 @@ Open this project folder in your agent and paste this:
 
 ```text
 Help me get Incoooming running on this computer. Read README.md and
-docs/getting-started.md, check Windows and the supported Python versions,
+the setup guide for my operating system (docs/getting-started.md for Windows,
+docs/getting-started-macos.md for Mac). Check the OS and supported Python version,
 then install the project dependencies and start the demo. Check that the
 page opens and the Results chart works. Fix ordinary setup problems as you go.
 

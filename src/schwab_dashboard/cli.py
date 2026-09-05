@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+import webbrowser
 from pathlib import Path
 from typing import NoReturn
 
@@ -13,11 +14,17 @@ from alembic.config import Config
 from schwab_dashboard.app import create_app
 from schwab_dashboard.application.campaigns import reconcile_option_campaigns
 from schwab_dashboard.application.campaigns.audit import audit_campaign_ledger
-from schwab_dashboard.application.errors import AuthenticationRequiredError, BrokerRequestError
+from schwab_dashboard.application.errors import (
+    AuthenticationRequiredError,
+    BrokerRequestError,
+    CredentialStoreError,
+)
 from schwab_dashboard.config import Settings
 from schwab_dashboard.container import Container
 from schwab_dashboard.infrastructure.database.analytics_reader import SqlLiveAnalyticsReader
 from schwab_dashboard.infrastructure.runtime.identity import current_build_id
+from schwab_dashboard.infrastructure.runtime.launcher import LocalServerError, local_listener
+from schwab_dashboard.infrastructure.runtime.platform_commands import dashboard_command
 
 app = typer.Typer(no_args_is_help=True, help="Incoooming local commands.")
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -76,7 +83,7 @@ def auth_complete(
         help="Read the callback URL from standard input without echoing it.",
     ),
 ) -> None:
-    """Exchange a pasted Schwab callback URL and store the token in Windows Credential Manager."""
+    """Finish Schwab login and save the connection in your system credential store."""
     if from_stdin:
         pasted_url = sys.stdin.readline().strip()
         if not pasted_url:
@@ -97,13 +104,71 @@ def auth_complete(
         container.close()
 
 
+@app.command("auth-connect")
+def auth_connect(
+    no_browser: bool = typer.Option(False, help="Print the login link instead of opening it."),
+    no_sync: bool = typer.Option(False, help="Save the connection without the first account sync."),
+) -> None:
+    """Guide you through Schwab login, save the connection, and sync your account."""
+    container = Container()
+    try:
+        try:
+            oauth = container.require_oauth()
+            # Container already checked storage. Reuse its safe diagnostic so
+            # denied Keychain access does not immediately prompt a second time.
+            if container.credential_store_error:
+                raise CredentialStoreError(container.credential_store_error)
+            _upgrade_database(container.settings, announce=False)
+            authorization_url = oauth.authorization_url()
+            typer.echo("Approve Incoooming in Schwab's browser login.")
+            opened = False
+            if not no_browser:
+                try:
+                    opened = webbrowser.open(authorization_url)
+                except (webbrowser.Error, OSError):
+                    pass
+            if not opened:
+                typer.echo("Open this link in your browser:")
+                typer.echo(authorization_url)
+            typer.echo(
+                "When Schwab returns you to the local callback address, the page may not load. "
+                "Copy its entire address and paste it below. The paste stays hidden; "
+                "do not share the address or paste it into a chat."
+            )
+            pasted_url = typer.prompt("Paste the entire callback URL", hide_input=True)
+            oauth.exchange_callback_url(pasted_url)
+            typer.echo("Schwab authorization is saved in your system credential store.")
+            if not no_sync:
+                try:
+                    full = container.sync_full(trigger="cli")
+                except (AuthenticationRequiredError, BrokerRequestError):
+                    typer.echo(
+                        "Login finished, but the first sync could not complete. "
+                        "After fixing the issue below, run "
+                        f"`{dashboard_command('sync')}` from the project folder again.",
+                        err=True,
+                    )
+                    raise
+                typer.echo(
+                    f"First sync complete: {full.accounts.account_count} account(s), "
+                    f"{full.accounts.position_count} position(s)."
+                )
+        except (AuthenticationRequiredError, BrokerRequestError) as exc:
+            _not_ready(exc)
+    finally:
+        container.close()
+
+
 @app.command("auth-clear")
 def auth_clear() -> None:
     """Remove the stored Schwab token without changing app credentials."""
     container = Container()
     try:
         try:
-            container.require_oauth().clear_token()
+            # Logging out is a local action and still works after app keys have
+            # been removed from .env or the saved token has become unreadable.
+            container.require_live_mode()
+            container.token_store.delete()
             typer.echo("Stored Schwab OAuth token removed.")
         except (AuthenticationRequiredError, BrokerRequestError) as exc:
             _not_ready(exc)
@@ -141,15 +206,16 @@ def doctor() -> None:
     """Report local configuration and connection readiness without printing secrets."""
     container = Container()
     try:
-        oauth = container.oauth
         typer.echo(f"Database ready: {container.database_ready()}")
         typer.echo(
             f"Schwab credentials configured: {container.settings.schwab_credentials_configured}"
         )
-        typer.echo(f"Schwab token available: {oauth.token_available() if oauth else False}")
+        typer.echo(f"Schwab token available: {container.token_available()}")
         typer.echo(f"Callback URL: {container.settings.schwab_callback_url}")
         typer.echo(f"Loopback server: {container.settings.host}:{container.settings.port}")
         typer.echo(f"Expected local build: {current_build_id()}")
+        if container.credential_store_error:
+            _not_ready(CredentialStoreError(container.credential_store_error))
     finally:
         container.close()
 
@@ -215,30 +281,50 @@ def campaign_audit() -> None:
 def serve() -> None:
     """Run Incoooming locally."""
     settings = Settings()
-    _upgrade_database(settings, announce=False)
-    uvicorn.run(
-        create_app(),
-        host=settings.host,
-        port=settings.port,
-        log_level=settings.log_level.lower(),
-    )
+    try:
+        with local_listener(settings.host, settings.port) as listener:
+            _upgrade_database(settings, announce=False)
+            config = uvicorn.Config(
+                create_app(),
+                host=settings.host,
+                port=settings.port,
+                log_level=settings.log_level.lower(),
+            )
+            typer.echo(
+                f"Open http://{settings.host}:{settings.port}/ in your browser. "
+                "Keep this window open; Ctrl+C stops Incoooming."
+            )
+            uvicorn.Server(config).run(sockets=[listener])
+    except LocalServerError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
 
 
 @app.command()
 def demo() -> None:
     """Run Incoooming with fictional data; the real ledger is never modified."""
     settings = Settings(demo_mode=True)
-    _upgrade_database(settings, announce=False)
-    container = Container(settings)
     try:
-        uvicorn.run(
-            create_app(container),
-            host=settings.host,
-            port=settings.port,
-            log_level=settings.log_level.lower(),
-        )
-    finally:
-        container.close()
+        with local_listener(settings.host, settings.port) as listener:
+            _upgrade_database(settings, announce=False)
+            container = Container(settings)
+            try:
+                config = uvicorn.Config(
+                    create_app(container),
+                    host=settings.host,
+                    port=settings.port,
+                    log_level=settings.log_level.lower(),
+                )
+                typer.echo(
+                    f"Open http://{settings.host}:{settings.port}/ in your browser. "
+                    "Keep this window open; Ctrl+C stops the demo."
+                )
+                uvicorn.Server(config).run(sockets=[listener])
+            finally:
+                container.close()
+    except LocalServerError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
 
 
 if __name__ == "__main__":
