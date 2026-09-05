@@ -125,7 +125,7 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "price-pressure-plain" in risk.text
         assert "IV +1" in risk.text
         assert "MODEL INPUTS" in risk.text
-        assert risk.text.count("PER SHARE / SIMULATED Aug 07, 2026") == 6
+        assert risk.text.count("PER SHARE / SIMULATED Aug 07, 2026") == 8
         assert "24.5%" in risk.text
         assert "0.310" in risk.text
         assert "0.0520" in risk.text
@@ -157,7 +157,13 @@ def test_demo_workspaces_have_independent_routes_and_honest_states(tmp_path: Pat
         assert "Benchmark comparison" not in review.text
         assert "WINDOW MATH" in review.text
         assert "EXECUTED CASH" in review.text
-        assert "Versus shares" in review.text
+        assert "<h2>Benchmark</h2>" in review.text
+        assert "FICTIONAL DEMO" in review.text
+        assert "data-performance-comparison-payload" in review.text
+        assert "STARTING SHARES" in review.text
+        assert "SPY &times; EXPOSURE" in review.text
+        assert "CURRENT-INVENTORY PROXY WHERE SUPPORTED" not in review.text
+        assert "UNAVAILABLE UNTIL DAILY INVENTORY HISTORY" not in review.text
         assert "<b>CAMPAIGNS</b>" in review.text
         assert "Call campaigns" not in review.text
         assert review.text.count("data-results-window-math") == 1

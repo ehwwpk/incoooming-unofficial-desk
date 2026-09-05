@@ -4,10 +4,16 @@ import hashlib
 import json
 from collections import Counter
 from datetime import datetime
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from pathlib import Path
 
-from schwab_dashboard.application.imports.csv_text import CsvText
+from schwab_dashboard.application.imports.csv_text import (
+    CsvText,
+    decimal_cell,
+    header_key,
+    row_dict,
+    validate_headers,
+)
 from schwab_dashboard.application.imports.errors import CsvImportError
 from schwab_dashboard.application.imports.option_normalizer import (
     contract_multiplier,
@@ -24,13 +30,19 @@ from schwab_dashboard.domain.data_source import (
 )
 
 ZERO = Decimal("0")
+_IBKR_SECTIONS = {
+    "statement": "Statement",
+    "trades": "Trades",
+    "openpositions": "Open Positions",
+    "cashtransactions": "Cash Transactions",
+}
 
 
 def is_ibkr_statement(table: CsvText) -> bool:
     return any(
         len(row) >= 2
-        and row[0].strip() in {"Statement", "Trades", "Open Positions", "Cash Transactions"}
-        and row[1].strip() in {"Header", "Data"}
+        and _section_name(row[0]) in _IBKR_SECTIONS.values()
+        and header_key(row[1]) in {"header", "data"}
         for row in table.rows[:30]
     )
 
@@ -52,21 +64,23 @@ def parse_ibkr_statement(
     for row_number, row in enumerate(table.rows, start=1):
         if not any(row):
             continue
-        section = row[0].strip() if row else ""
-        marker = row[1].strip() if len(row) > 1 else ""
-        if marker == "Header":
-            section_headers[section] = tuple(row[2:])
+        section = _section_name(row[0]) if row else ""
+        marker = header_key(row[1]) if len(row) > 1 else ""
+        if marker == "header":
+            section_header = tuple(row[2:])
+            validate_headers(section_header)
+            section_headers[section] = section_header
             outcomes.append(
                 _row(row_number, row, ImportRowDisposition.IGNORED, "IBKR section header.")
             )
             continue
-        if marker != "Data":
+        if marker != "data":
             outcomes.append(
                 _row(row_number, row, ImportRowDisposition.IGNORED, "IBKR statement metadata.")
             )
             continue
-        headers = section_headers.get(section)
-        if headers is None:
+        current_headers = section_headers.get(section)
+        if current_headers is None:
             outcomes.append(
                 _row(
                     row_number,
@@ -76,8 +90,17 @@ def parse_ibkr_statement(
                 )
             )
             continue
-        values = row[2:] + ("",) * max(0, len(headers) - len(row[2:]))
-        raw = {header: values[index] for index, header in enumerate(headers)}
+        if len(row[2:]) > len(current_headers):
+            outcomes.append(
+                _row(
+                    row_number,
+                    row,
+                    ImportRowDisposition.REJECTED,
+                    "Row has more cells than its IBKR section header; check CSV quoting.",
+                )
+            )
+            continue
+        raw = row_dict(current_headers, row[2:])
         try:
             parsed = _parse_section(section, raw)
         except CsvImportError as exc:
@@ -149,11 +172,17 @@ def _parse_section(
             return None
         is_option = category in {"OPTIONS", "EQUITY AND INDEX OPTIONS"}
         symbol = _get(raw, "Symbol").upper()
+        if not symbol:
+            raise CsvImportError("IBKR trade symbol is blank")
         description = _get(raw, "Description") or symbol
         option = option_metadata(symbol=symbol, description=description) if is_option else None
         if is_option and option is None:
             raise CsvImportError("IBKR option trade has no recognizable contract identity")
         quantity_signed = _number(_get(raw, "Quantity"), required=True) or ZERO
+        if quantity_signed == ZERO:
+            raise CsvImportError("IBKR trade quantity must be nonzero")
+        if is_option and quantity_signed != quantity_signed.to_integral_value():
+            raise CsvImportError("IBKR option trade quantity is not a whole contract count")
         quantity = abs(quantity_signed)
         price = abs(_number(_get(raw, "T. Price", "Trade Price"), required=True) or ZERO)
         proceeds = _number(_get(raw, "Proceeds"))
@@ -190,7 +219,7 @@ def _parse_section(
             "gross_amount": str(gross),
             "fees": str(fees),
             "net_cash": str(net_cash),
-            "account_mask": "...IBKR",
+            "account_mask": _account_mask(raw),
             "symbol": option["occ_symbol"] if option else symbol,
             "description": description,
             "asset_type": "OPTION" if is_option else "EQUITY",
@@ -208,11 +237,17 @@ def _parse_section(
             return None
         is_option = category in {"OPTIONS", "EQUITY AND INDEX OPTIONS"}
         symbol = _get(raw, "Symbol").upper()
+        if not symbol:
+            raise CsvImportError("IBKR position symbol is blank")
         description = _get(raw, "Description") or symbol
         option = option_metadata(symbol=symbol, description=description) if is_option else None
         if is_option and option is None:
             raise CsvImportError("IBKR option position has no recognizable contract identity")
         quantity = _number(_get(raw, "Quantity"), required=True) or ZERO
+        if quantity == ZERO:
+            raise CsvImportError("IBKR position quantity must be nonzero")
+        if is_option and quantity != quantity.to_integral_value():
+            raise CsvImportError("IBKR option position quantity is not a whole contract count")
         position_multiplier, multiplier_source = contract_multiplier(
             explicit=_number(_get(raw, "Mult", "Multiplier")),
             symbol=symbol,
@@ -222,7 +257,7 @@ def _parse_section(
         if is_option and position_multiplier is None:
             raise CsvImportError("IBKR option position has no reliable exported multiplier")
         normalized = {
-            "account_mask": "...IBKR",
+            "account_mask": _account_mask(raw),
             "symbol": option["occ_symbol"] if option else symbol,
             "description": description,
             "asset_type": "OPTION" if is_option else "EQUITY",
@@ -255,7 +290,7 @@ def _parse_section(
             "movement_type": kind,
             "amount": str(amount),
             "description": description,
-            "account_mask": "...IBKR",
+            "account_mask": _account_mask(raw),
             "symbol": _get(raw, "Symbol") or None,
             "underlying_symbol": _get(raw, "Symbol") or None,
         }
@@ -324,22 +359,26 @@ def _date(value: str) -> datetime:
 
 
 def _number(value: str, *, required: bool = False) -> Decimal | None:
-    cleaned = value.replace(",", "").replace("$", "").strip()
-    if not cleaned:
-        if required:
-            raise CsvImportError("IBKR row is missing a required number")
-        return None
-    try:
-        return Decimal(cleaned)
-    except InvalidOperation as exc:
-        raise CsvImportError(f"IBKR number {value!r} is invalid") from exc
+    return decimal_cell(value, required=required, label="IBKR number")
 
 
 def _get(raw: dict[str, str], *names: str) -> str:
+    normalized = {header_key(header): value for header, value in raw.items()}
     for name in names:
-        if name in raw:
-            return raw[name].strip()
+        if (value := normalized.get(header_key(name))) is not None:
+            return value.strip()
     return ""
+
+
+def _section_name(value: str) -> str:
+    stripped = value.strip()
+    return _IBKR_SECTIONS.get(header_key(stripped), stripped)
+
+
+def _account_mask(raw: dict[str, str]) -> str:
+    value = _get(raw, "Account ID", "Client Account ID", "Account")
+    compact = "".join(character for character in value if character.isalnum())
+    return f"...{compact[-4:]}" if any(character.isdigit() for character in compact) else "...IBKR"
 
 
 def _fingerprint(kind: ImportRecordKind, normalized: dict[str, object]) -> str:

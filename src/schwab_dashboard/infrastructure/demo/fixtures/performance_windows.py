@@ -17,6 +17,7 @@ from schwab_dashboard.application.dashboard.performance import (
 from schwab_dashboard.infrastructure.demo.fixtures.cash_events import (
     build_dividend_cash_events,
 )
+from schwab_dashboard.infrastructure.demo.fixtures.short_puts import build_put_cash_events
 
 D = Decimal
 ZERO = D("0")
@@ -32,7 +33,7 @@ def build_performance_windows(
     as_of: date,
     monthly: Sequence[MonthlyPerformanceSummary],
 ) -> tuple[PerformanceWindowSummary, ...]:
-    call_events = build_call_cash_events(records)
+    call_events = (*build_call_cash_events(records), *build_put_cash_events())
     dividend_events = build_dividend_cash_events()
     month_start = as_of - timedelta(days=27)
     quarter_start = min(record.sold_on for record in records)
@@ -128,8 +129,14 @@ def _execution_window(
         dividends=cash_total(dividend_events, start=start, end=end),
         gross_premium=gross,
         buyback_cost=-debit_cash,
-        tickets=len(opened),
-        contracts=sum(record.contracts for record in opened),
+        tickets=len(opened)
+        + sum(start <= event.occurred_on <= end for event in build_put_cash_events()),
+        contracts=sum(record.contracts for record in opened)
+        + sum(
+            event.contracts
+            for event in build_put_cash_events()
+            if start <= event.occurred_on <= end
+        ),
         completed=len(completed),
         wins=sum(1 for record in completed if record.net_cash - record.fees > ZERO),
         stock_value=stock_value,

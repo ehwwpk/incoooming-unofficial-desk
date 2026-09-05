@@ -94,7 +94,12 @@ try {
         if ($LASTEXITCODE -ne 0) {
             throw "Sync succeeded, but Incoooming did not restart cleanly."
         }
-        Write-Host "Incoooming is connected, synced, and back online at http://127.0.0.1:8182/." -ForegroundColor Green
+        $connectedConfig = (& $dashboard runtime-config | ConvertFrom-Json)
+        if ($LASTEXITCODE -ne 0) {
+            throw "The desk started, but its local address could not be read. Run .\scripts\run-local.cmd to see the address."
+        }
+        $connectedUrl = "http://$($connectedConfig.host):$($connectedConfig.port)/"
+        Write-Host "Incoooming is connected, synced, and back online at ${connectedUrl}." -ForegroundColor Green
     }
 } finally {
     if ($null -eq $originalClipboard) {

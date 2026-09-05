@@ -41,7 +41,10 @@
       const response = await fetch("/sources/csv/preview", { method: "POST", body: new FormData(form) });
       const body = await response.json();
       if (!response.ok || !body.ok) throw new Error(body.error || "Preview failed.");
-      const fileRows = body.files.map((file) => `<li><b>${escapeText(file.name)}</b><span>${escapeText(file.broker.toUpperCase())} / ${escapeText(file.profile)} / ${file.imported} IMPORTED / ${file.review} REVIEW / ${file.rejected} REJECTED</span></li>`).join("");
+      const fileRows = body.files.map((file) => {
+        const issues = file.issues.map((issue) => `<small class="csv-preview-issue">ROW ${issue.row} / ${escapeText(issue.status.toUpperCase().replace("_", " "))} / ${escapeText(issue.reason)}</small>`).join("");
+        return `<li><b>${escapeText(file.name)}</b><span>${escapeText(file.broker.toUpperCase())} / ${escapeText(file.profile)} / ${file.imported} IMPORTED / ${file.review} REVIEW / ${file.rejected} REJECTED</span>${issues}</li>`;
+      }).join("");
       const warnings = body.warnings.map((warning) => `<p>${escapeText(warning)}</p>`).join("");
       preview.innerHTML = `<header><b>IMPORT PREVIEW</b><span>${body.counts.positions} POSITIONS / ${body.counts.activity} ACTIVITY</span></header><ul>${fileRows}</ul>${warnings}`;
       preview.hidden = false;

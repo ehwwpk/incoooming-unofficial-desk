@@ -623,6 +623,12 @@
   if (rollHandoff) {
     symbolInput.value = rollHandoff.symbol;
     form.elements.mode.value = rollHandoff.mode;
+    if (rollSourcePicker) {
+      const sourceChoice = [...rollSourcePicker.options].find(
+        (option) => option.value === rollHandoff.sourceOptionSymbol,
+      );
+      if (sourceChoice) rollSourcePicker.value = sourceChoice.value;
+    }
     renderPendingRoll();
     syncPutRules();
     if (rollHandoff.error) {

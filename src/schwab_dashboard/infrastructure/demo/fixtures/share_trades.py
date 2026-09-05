@@ -1,8 +1,9 @@
-"""Sparse simulated share transactions for the demo price tape.
+"""Simulated share transactions shared by the demo tape and account replay.
 
-These events demonstrate the secondary chart layer without pretending to be a
-complete tax-lot ledger. Assigned shares remain represented by the option
-lifecycle's assignment event instead of being duplicated here.
+Supplemental KTOS and URNM round trips keep every historical call covered while
+preserving the final displayed holdings. Assigned shares remain represented by
+the option lifecycle instead of being duplicated here. This is fictional
+inventory history, not a tax-lot ledger or a trading recommendation.
 """
 
 from __future__ import annotations
@@ -29,6 +30,14 @@ SHARE_TRADES: Mapping[str, Sequence[ShareTradeFixture]] = {
         ShareTradeFixture("CVX", date(2026, 6, 24), "buy", 100, D("171.45")),
         ShareTradeFixture("CVX", date(2026, 7, 23), "sell", 100, D("194.42")),
     ),
-    "KTOS": (ShareTradeFixture("KTOS", date(2026, 6, 24), "buy", 100, D("47.95")),),
-    "URNM": (ShareTradeFixture("URNM", date(2026, 7, 17), "buy", 100, D("48.22")),),
+    "KTOS": (
+        ShareTradeFixture("KTOS", date(2026, 6, 24), "buy", 100, D("47.95")),
+        ShareTradeFixture("KTOS", date(2026, 6, 26), "buy", 100, D("47.21")),
+        ShareTradeFixture("KTOS", date(2026, 7, 10), "sell", 100, D("48.19")),
+    ),
+    "URNM": (
+        ShareTradeFixture("URNM", date(2026, 6, 5), "buy", 400, D("55.28")),
+        ShareTradeFixture("URNM", date(2026, 7, 17), "sell", 400, D("48.22")),
+        ShareTradeFixture("URNM", date(2026, 7, 17), "buy", 100, D("48.22")),
+    ),
 }

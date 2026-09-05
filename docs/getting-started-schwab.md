@@ -1,7 +1,12 @@
 # Connect Schwab to Incoooming on Windows
 
-This guide connects a local copy of Incoooming to Schwab's Individual Trader API. Schwab handles
-the login and account consent on its website. Incoooming never asks for your Schwab password.
+This connects your own Schwab account so Incoooming can show your positions, activity, and market
+data. You'll sign in on Schwab's website and choose which accounts to share. Incoooming never
+asks for your Schwab password or places trades.
+
+New here? [Get the demo running first](getting-started.md). You can also give your coding agent
+the [setup prompt](../README.md#want-your-coding-agent-to-help) and have it walk through this guide
+with you. You enter the secrets and complete the broker login yourself.
 
 Schwab controls developer access, portal labels, and approval time. Check its portal if the steps
 below differ from the current site.
@@ -14,8 +19,9 @@ below differ from the current site.
 - An extracted copy of this repository
 - A browser
 
-Keep the Python Launcher enabled when installing Python from python.org. The setup script uses the
-`py` command. If you downloaded a ZIP from GitHub, extract it before running the commands.
+Keep the Python launcher enabled if the installer offers it. Setup checks `py` first and also
+supports a compatible `python` command. Extract a GitHub ZIP before running anything. If the
+standalone demo is open, stop it with `Ctrl+C` in its terminal before continuing.
 
 ## 1. Request Individual Trader API access
 
@@ -32,7 +38,7 @@ After access is approved:
 1. Open the [Apps dashboard](https://developer.schwab.com/dashboard/apps).
 2. Create an app with the account/trading and market-data products available under the Individual
    Trader API.
-3. Set the order limit to `0`. Incoooming does not place orders.
+3. If the portal asks for an order limit, set it to `0`. Incoooming does not place orders.
 4. Register this callback URL exactly:
 
 ```text
@@ -40,17 +46,19 @@ https://127.0.0.1:8182/
 ```
 
 5. Wait until the app is ready for use.
-6. Copy the app's client ID and client secret to a private location for the next step.
+6. Keep the app's client ID and client secret handy for the next step. Enter them in your local
+   settings file, not in an agent chat.
 
 The scheme, address, port, and final slash in the callback URL must match.
 
 ## 3. Configure Incoooming
 
-Open PowerShell in the extracted project directory and run:
+Open PowerShell in the project folder. Run bootstrap if you haven't already, then create your
+settings file if it doesn't exist yet:
 
 ```powershell
 .\scripts\bootstrap.cmd
-Copy-Item .env.example .env
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 notepad .env
 ```
 
@@ -62,14 +70,14 @@ SCHWAB_APP_SECRET=paste-your-client-secret-here
 SCHWAB_CALLBACK_URL=https://127.0.0.1:8182/
 ```
 
-Do not add quotation marks. Save the file, close Notepad, and check the setup:
+Save the file, close Notepad, and check the setup:
 
 ```powershell
 .\.venv\Scripts\schwab-dashboard.exe doctor
 ```
 
-`Schwab credentials configured: True` should appear. A missing token is expected before the next
-step. The command does not print the key or secret.
+Look for `Schwab credentials configured: True`. A missing token is normal at this point: you
+haven't signed in yet. This check doesn't print your key or secret.
 
 ## 4. Authorize the app
 
@@ -86,10 +94,10 @@ access. Schwab then redirects the browser to a URL beginning with:
 https://127.0.0.1:8182/?code=...
 ```
 
-The page may show a connection or certificate error because no HTTPS server is listening there.
-Do not reload it. Press `Ctrl+L`, then `Ctrl+C` once. The connector recognizes the exact callback,
-clears the copied URL, exchanges the one-time code, syncs the ledger, and starts Incoooming in the
-background. Do not paste the URL into a public issue, screenshot, or chat.
+**The final page may show a connection or certificate error. That's expected for this login
+flow.** Don't reload it. Press `Ctrl+L`, then `Ctrl+C` once to copy the whole address. The connector
+uses its one-time code to finish login, clears the copied URL, fetches your data, and starts
+Incoooming in the background. Keep this URL out of chats, screenshots, and public issues.
 
 If clipboard capture is unavailable, press `Ctrl+C` to stop the connector and use the manual flow:
 
@@ -111,8 +119,8 @@ The guided connector has already synced and started the desk. Visit
 [http://127.0.0.1:8182](http://127.0.0.1:8182), choose **Schwab live**, and open the desk. If you
 used the manual flow, leave its server window open.
 
-A stored token only means authorization data is available. The connection is confirmed when a sync
-finishes and the desk shows a recent successful sync time.
+You're connected when a sync finishes and the desk shows a recent successful sync time. A saved
+login token by itself doesn't confirm that the account data was fetched successfully.
 
 ## Later use
 

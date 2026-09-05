@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
@@ -10,11 +11,17 @@ from schwab_dashboard.api.source_context import SOURCE_COOKIE, selected_source_k
 from schwab_dashboard.application.imports import CsvImportError
 from schwab_dashboard.application.imports.csv_text import MAX_CSV_BYTES
 from schwab_dashboard.container import Container
-from schwab_dashboard.domain.data_source import BrokerKind
+from schwab_dashboard.domain.data_source import BrokerKind, ImportRowDisposition
 from schwab_dashboard.web.rendering import templates
 
 router = APIRouter(tags=["sources"])
 ContainerDependency = Annotated[Container, Depends(get_container)]
+_QUOTED_SOURCE_VALUE = re.compile(r"'(?:\\.|[^'\\])*'|\"(?:\\.|[^\"\\])*\"")
+_MAX_PUBLIC_REASON_LENGTH = 240
+_DEMO_LAUNCHER_NOTICE = (
+    "This server is running the fictional demo. To use CSV files or Schwab, "
+    "stop the demo with Ctrl+C, run .\\scripts\\run-local.cmd, and open BOOK again."
+)
 
 
 @router.get("/sources", response_class=HTMLResponse)
@@ -27,6 +34,8 @@ def select_source(
     container: ContainerDependency,
     source_key: Annotated[str, Form()],
 ) -> RedirectResponse:
+    if source_key != "demo":
+        _require_regular_server(container)
     if source_key == "schwab":
         pass
     elif source_key == "demo":
@@ -57,6 +66,8 @@ async def import_csv_source(
     files: Annotated[list[UploadFile], File()],
     preview_fingerprint: Annotated[str, Form()],
 ) -> Response:
+    if container.settings.demo_mode:
+        return _render_gateway(request, container, error=_DEMO_LAUNCHER_NOTICE, status_code=409)
     try:
         payloads = await _read_csv_uploads(files)
         dataset = container.import_csv_dataset().execute(
@@ -85,6 +96,8 @@ async def preview_csv_source(
     broker: Annotated[BrokerKind, Form()],
     files: Annotated[list[UploadFile], File()],
 ) -> JSONResponse:
+    if container.settings.demo_mode:
+        return JSONResponse({"ok": False, "error": _DEMO_LAUNCHER_NOTICE}, status_code=409)
     try:
         payloads = await _read_csv_uploads(files)
         preview = container.import_csv_dataset().preview(
@@ -122,11 +135,27 @@ async def preview_csv_source(
                     "ignored": file.ignored_count,
                     "review": file.review_count,
                     "rejected": file.rejected_count,
+                    "issues": [
+                        {
+                            "row": row.source_row_number,
+                            "status": row.disposition.value,
+                            "reason": _public_row_reason(row.reason),
+                        }
+                        for row in file.rows
+                        if row.reason
+                        and row.disposition
+                        in {ImportRowDisposition.NEEDS_REVIEW, ImportRowDisposition.REJECTED}
+                    ][:20],
                 }
                 for file in preview.files
             ],
         }
     )
+
+
+def _require_regular_server(container: Container) -> None:
+    if container.settings.demo_mode:
+        raise HTTPException(status_code=409, detail=_DEMO_LAUNCHER_NOTICE)
 
 
 async def _read_csv_uploads(files: list[UploadFile]) -> list[tuple[str, bytes]]:
@@ -143,6 +172,14 @@ async def _read_csv_uploads(files: list[UploadFile]) -> list[tuple[str, bytes]]:
             raise CsvImportError("CSV files are limited to 10 MB each.")
         payloads.append((filename, content))
     return payloads
+
+
+def _public_row_reason(reason: str) -> str:
+    sanitized = _QUOTED_SOURCE_VALUE.sub("[source value]", reason)
+    compact = " ".join(sanitized.split())
+    if len(compact) <= _MAX_PUBLIC_REASON_LENGTH:
+        return compact
+    return f"{compact[: _MAX_PUBLIC_REASON_LENGTH - 3]}..."
 
 
 @router.get("/sources/templates/{template_kind}.csv")
@@ -181,8 +218,13 @@ def _render_gateway(
         name="sources.html",
         status_code=status_code,
         context={
-            "datasets": container.source_store.list_datasets(),
-            "selected_source": selected_source_key(request),
+            "datasets": ()
+            if container.settings.demo_mode
+            else container.source_store.list_datasets(),
+            "selected_source": "demo"
+            if container.settings.demo_mode
+            else selected_source_key(request),
+            "demo_mode": container.settings.demo_mode,
             "schwab_credentials_configured": container.settings.schwab_credentials_configured,
             "schwab_token_available": container.token_available(),
             "error": error,

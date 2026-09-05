@@ -111,6 +111,7 @@
   };
 
   const renderChart = (panel, payload) => {
+    const isDemo = panel.dataset.performanceDemo === "true";
     const charts = window.LightweightCharts;
     const frame = panel.querySelector("[data-performance-compare-chart]");
     const canvas = panel.querySelector("[data-performance-compare-canvas]");
@@ -243,7 +244,8 @@
       const flow = actualPoint?.externalFlow ?? null;
       let provenance = "NO MANAGED VALUATION";
       if (actualPoint) {
-        if (actualPoint.valuationSubtype === "endpoint_bridge") provenance = "ENDPOINT BRIDGE · ESTIMATED";
+        if (isDemo) provenance = "FICTIONAL DEMO CLOSE";
+        else if (actualPoint.valuationSubtype === "endpoint_bridge") provenance = "ENDPOINT BRIDGE · ESTIMATED";
         else if (actualPoint.valueQuality === "estimated") provenance = "RECONSTRUCTED · ESTIMATED";
         else if (actualPoint.valueQuality === "derived") provenance = "RECONSTRUCTED CLOSE";
         else if (actualPoint.valuationPhase === "intraday") provenance = "BROKER OBSERVED · INTRADAY";
@@ -251,7 +253,7 @@
         if (actualPoint.returnQuality === "multi_session") {
           provenance += ` · ${actualPoint.sessionSpan}-SESSION CHANGE`;
         } else if (actualPoint.returnQuality !== "unresolved") {
-          provenance += ` · RETURN ${actualPoint.returnQuality.toUpperCase()}`;
+          provenance += ` · RETURN ${isDemo ? "SIMULATED" : actualPoint.returnQuality.toUpperCase()}`;
         }
         if (Number.isFinite(actualPoint.priceCoverage)) {
           const digits = actualPoint.priceCoverage >= 99.995 ? 0 : 2;
@@ -344,11 +346,14 @@
             : "unresolved";
     const summary = series.map((item) => {
       const last = item.points.at(-1);
-      const quality = item.key === "actual" ? `, ${managedPathQuality} cumulative path` : "";
+      const quality = isDemo ? ", fictional demo path" : item.key === "actual" ? `, ${managedPathQuality} cumulative path` : "";
       return `${item.label} ${percent(last.value)} through ${formatDate(last.date, true)}${quality}`;
     }).join(". ");
     if (a11y) a11y.textContent = summary;
-    frame.setAttribute("aria-label", `${summary}. Solid managed segments end at observed closes; dashed segments use reconstructed, estimated, or provisional returns; dotted segments are endpoint bridges; and blank segments are unresolved. Drag or use the mouse wheel to inspect the period; use arrow keys for chart dates.`);
+    const lineDescription = isDemo
+      ? "All lines use fictional daily history and real calculations; these are not broker observations or investment results."
+      : "Solid managed segments end at observed closes; dashed segments use reconstructed, estimated, or provisional returns; dotted segments are endpoint bridges; and blank segments are unresolved.";
+    frame.setAttribute("aria-label", `${summary}. ${lineDescription} Drag or use the mouse wheel to inspect the period; use arrow keys for chart dates.`);
   };
 
   document.querySelectorAll("[data-performance-compare]").forEach((panel) => {

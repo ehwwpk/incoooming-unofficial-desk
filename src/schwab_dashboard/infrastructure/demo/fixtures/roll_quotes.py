@@ -26,7 +26,7 @@ def _weekly_grid(
     *,
     strikes: tuple[str, str, str],
     bids: tuple[tuple[str, str, str], tuple[str, str, str], tuple[str, str, str]],
-    symbols: tuple[tuple[str, str, str], tuple[str, str, str], tuple[str, str, str]] | None = None,
+    symbols: tuple[tuple[str, ...], ...] | None = None,
 ) -> tuple[RollQuoteCandidate, ...]:
     rows: list[tuple[date, str, str, str]] = []
     for week, (week_bids, week_symbols) in enumerate(
@@ -50,7 +50,7 @@ ROLL_QUOTE_CANDIDATES = {
     ("CVX", date(2026, 8, 14), D("195")): _weekly_grid(
         date(2026, 8, 21),
         strikes=("200", "205", "210"),
-        bids=(("2.55", "2.10", "1.70"), ("2.35", "1.85", "1.40"), ("2.20", "1.65", "1.20")),
+        bids=(("2.55", "1.00", "0.80"), ("2.35", "1.85", "1.15"), ("2.20", "1.65", "1.05")),
         symbols=(
             ("CVX-2026-08-21-200", "cvx-0731-205", "CVX-2026-08-21-210"),
             ("CVX-2026-08-28-200", "CVX-2026-08-28-205", "CVX-2026-08-28-210"),
@@ -81,5 +81,35 @@ ROLL_QUOTE_CANDIDATES = {
         date(2026, 9, 25),
         strikes=("70", "72.5", "75"),
         bids=(("0.92", "0.70", "0.48"), ("0.84", "0.62", "0.40"), ("0.76", "0.54", "0.32")),
+    ),
+}
+
+
+# Fictional later puts: same-strike extensions and lower purchase obligations.
+# At a fixed strike, longer terms carry more premium; lower strikes cost less.
+PUT_ROLL_QUOTE_CANDIDATES = {
+    ("KTOS", date(2026, 8, 28), D("60")): _weekly_grid(
+        date(2026, 9, 4),
+        strikes=("60", "59", "57.5"),
+        bids=(("3.40", "2.90", "2.35"), ("3.70", "3.20", "2.60"), ("4.00", "3.50", "2.85")),
+        symbols=tuple(
+            tuple(
+                f"KTOS {expiry:%y%m%d}P{int(D(strike) * 1000):08d}"
+                for strike in ("60", "59", "57.5")
+            )
+            for expiry in (date(2026, 9, 4), date(2026, 9, 11), date(2026, 9, 18))
+        ),
+    ),
+    ("URNM", date(2026, 8, 21), D("55")): _weekly_grid(
+        date(2026, 8, 28),
+        strikes=("55", "54", "52.5"),
+        bids=(("2.60", "2.05", "1.35"), ("2.85", "2.30", "1.60"), ("3.10", "2.55", "1.85")),
+        symbols=tuple(
+            tuple(
+                f"URNM {expiry:%y%m%d}P{int(D(strike) * 1000):08d}"
+                for strike in ("55", "54", "52.5")
+            )
+            for expiry in (date(2026, 8, 28), date(2026, 9, 4), date(2026, 9, 11))
+        ),
     ),
 }

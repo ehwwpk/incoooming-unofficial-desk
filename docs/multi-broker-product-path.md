@@ -12,7 +12,8 @@ The accounting domain must remain broker-neutral. Schwab, an aggregator, and fil
 
 - Keep the direct Schwab Individual adapter for the owner's account.
 - Allow bring-your-own Schwab developer credentials for advanced self-hosters.
-- Add broker statement and transaction-file imports as the universal fallback.
+- Add explicitly mapped broker CSV imports as a portable fallback. Unsupported statement, PDF,
+  spreadsheet, and custom-report formats must fail closed until they have their own adapter.
 - Store tokens in the operating-system credential vault and account data only on the user's machine.
 - Do not require a central Incoooming account.
 

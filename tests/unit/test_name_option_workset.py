@@ -171,7 +171,11 @@ def test_desk_row_puts_nearer_expiries_in_the_working_set() -> None:
     snapshot_with_puts = replace(
         snapshot,
         live_position_book=build_live_position_book(
-            (*snapshot.positions, early_put, later_put),
+            (
+                *(position for position in snapshot.positions if position.option_type != "PUT"),
+                early_put,
+                later_put,
+            ),
             as_of=snapshot.as_of.date(),
         ),
     )
@@ -247,7 +251,7 @@ def test_name_iv_and_theta_include_open_puts() -> None:
 
 
 def test_name_open_option_value_now_sums_call_and_put_clocks() -> None:
-    snapshot = DemoDashboardReader().execute()
+    snapshot = replace(DemoDashboardReader().execute(), live_position_book=None)
     row = next(
         item
         for item in build_desk_overview(snapshot).position_rows

@@ -30,9 +30,9 @@ def test_cash_windows_and_charts_share_one_execution_ledger() -> None:
         assert sum((point.dividends for point in series[key].points), D("0")) == (
             windows[key].dividends
         )
-    assert windows["month"].gross_premium == D("4240")
+    assert windows["month"].gross_premium == D("4830")
     assert windows["month"].buyback_cost == D("2435")
-    assert windows["month"].option_cash == D("1805")
+    assert windows["month"].option_cash == D("2395")
     assert len(series["month"].points) == 28
 
 
@@ -58,8 +58,8 @@ def test_cash_activity_omits_zero_days_and_preserves_window_math() -> None:
     recent = activity["month"].events
     assert [(event.symbol, event.action_label, event.amount) for event in recent] == [
         ("URNM", "CALL SOLD", D("500")),
-        ("KTOS", "CALL ROLLED", D("-825")),
         ("URNM", "CALL ROLLED", D("-80")),
+        ("KTOS", "CALL SOLD", D("465")),
     ]
 
 
@@ -67,7 +67,10 @@ def test_open_campaigns_reconcile_roll_chains_and_marks() -> None:
     snapshot = DemoDashboardReader().execute()
     campaigns = {item.campaign_id: item for item in snapshot.campaigns}
 
-    assert sum(item.status == "OPEN" for item in campaigns.values()) == 6
+    assert sum(item.status == "OPEN" for item in campaigns.values()) == 8
+    assert (
+        sum(item.status == "OPEN" and item.option_side == "put" for item in campaigns.values()) == 2
+    )
     for campaign in campaigns.values():
         assert campaign.net_cash_to_date == (
             campaign.gross_opening_credit - campaign.closing_debits - campaign.fees
@@ -87,16 +90,17 @@ def test_expiration_calendar_reconciles_every_open_obligation() -> None:
     snapshot = DemoDashboardReader().execute()
 
     assert sum(item.contracts for item in snapshot.expiration_calendar) == (
-        snapshot.covered_calls.active_contracts
+        snapshot.risk.short_contracts
     )
-    assert sum(item.committed_shares for item in snapshot.expiration_calendar) == 1800
+    assert sum(item.call_contracts for item in snapshot.expiration_calendar) == 18
+    assert sum(item.put_contracts for item in snapshot.expiration_calendar) == 2
+    assert sum(item.committed_shares for item in snapshot.expiration_calendar) == 2000
     assert sum((item.opening_credit for item in snapshot.expiration_calendar), D("0")) == (
-        snapshot.covered_calls.open_call_credit
+        snapshot.covered_calls.open_call_credit + D("590")
     )
-    assert (
-        sum((item.estimated_close_value for item in snapshot.expiration_calendar), D("0"))
-        == snapshot.covered_calls.open_call_mark_value
-    )
+    assert sum(
+        (item.estimated_close_value for item in snapshot.expiration_calendar), D("0")
+    ) == snapshot.covered_calls.open_call_mark_value + D("495")
     assert snapshot.expiration_calendar[0].days_to_expiration == 7
     assert snapshot.expiration_calendar[1].event_labels == ("CVX ex-dividend Aug 19",)
 

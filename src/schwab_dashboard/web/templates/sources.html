@@ -8,7 +8,7 @@
     <title>Get Incoooming</title>
     <link rel="icon" href="{{ url_for('static', path='/nibwick-favicon.svg') }}?v=3" type="image/svg+xml">
     <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v=71">
-    <link rel="stylesheet" href="{{ url_for('static', path='/sources.css') }}?v=16">
+    <link rel="stylesheet" href="{{ url_for('static', path='/sources.css') }}?v=17">
     <link rel="stylesheet" href="{{ url_for('static', path='/sources-art.css') }}?v=21">
     <script defer src="{{ url_for('static', path='/sources.js') }}?v=2"></script>
   </head>
@@ -154,6 +154,20 @@
       </div>
       {% endif %}
 
+      {% if demo_mode %}
+      <section class="source-demo-session" aria-labelledby="demo-session-title">
+        <div>
+          <p class="eyebrow">FICTIONAL DEMO</p>
+          <h2 id="demo-session-title">You're using the demo launcher.</h2>
+          <p>Explore the calls, puts, and Results charts with fictional data. This session has no brokerage connection.</p>
+          <p>Ready to use your own data? Stop the demo in its terminal with <kbd>Ctrl+C</kbd>, run <code>.\scripts\run-local.cmd</code>, then open <b>BOOK</b> to import CSV files or choose Schwab. CSV imports do not need a Schwab connection.</p>
+        </div>
+        <form action="/sources/select" method="post">
+          <input type="hidden" name="source_key" value="demo">
+          <button type="submit">OPEN DEMO <span>&rarr;</span></button>
+        </form>
+      </section>
+      {% else %}
       <section class="source-choice-layout" aria-label="Available data sources">
         <article class="source-live-card{{ ' is-active' if selected_source == 'schwab' else '' }}">
           <header class="source-card-heading">
@@ -197,7 +211,7 @@
           <details class="source-disclosure source-csv-card"{{ ' open' if error else '' }}>
             <summary>
               <span class="source-card-index"><b>02</b><i></i></span>
-              <span class="disclosure-copy"><small>BROKER CSV</small><strong>Bring your own ledger.</strong><em>Upload positions and activity. Files stay on this computer.</em></span>
+              <span class="disclosure-copy"><small>BROKER CSV</small><strong>Import CSV</strong><em>Upload your positions and activity. Files stay on this computer.</em></span>
               <span class="disclosure-state">LOCAL <i></i></span>
             </summary>
             <div class="source-disclosure-body">
@@ -213,7 +227,7 @@
                     <label><input type="radio" name="broker" value="ibkr"><span><b>IBKR</b><small>STATEMENT</small></span></label>
                     <label><input type="radio" name="broker" value="generic"><span><b>GENERIC</b><small>OUR TEMPLATE</small></span></label>
                   </div>
-                  <p class="source-profile-truth"><b>FORMAT CHECKED.</b> The selected adapter checks supported broker columns. Preview stops mismatches and uncertain rows before they enter your book.</p>
+                  <p class="source-profile-truth"><b>FORMAT CHECKED.</b> The selected adapter checks supported broker columns. Preview flags mismatches and keeps uncertain rows out of your book.</p>
                 </fieldset>
                 <label class="csv-file-field">CSV FILES
                   <input name="files" type="file" accept=".csv,text/csv" multiple required data-source-files>
@@ -280,6 +294,7 @@
           {% endfor %}
         </div>
       </section>
+      {% endif %}
       {% endif %}
 
       <aside class="source-boundary">

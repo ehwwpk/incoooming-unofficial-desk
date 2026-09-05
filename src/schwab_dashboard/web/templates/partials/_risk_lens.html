@@ -5,7 +5,7 @@
     <div><p class="eyebrow">RISK LENS</p><h2>Carry / IV</h2></div>
     <div class="risk-lens-headline">
       {% if risk %}
-      <span>DELTA / NEXT +$1</span>
+      <span title="Short-option value change for a simultaneous $1 rise in each underlying, including gamma. Stock holdings are excluded here; net stock exposure appears below.">DELTA / NEXT +$1</span>
       <b class="{{ price_time.up_one_dollar_effect | pnl_class if price_time and price_time.up_one_dollar_effect is not none else '' }}">{% if price_time and price_time.up_one_dollar_effect is not none %}{{ '+' if price_time.up_one_dollar_effect > 0 else '' }}{{ price_time.up_one_dollar_effect | money }}{% else %}PARTIAL{% endif %}</b>
       <span>TIME / DAY</span>
       <b class="{{ risk.theta_estimate_per_day | pnl_class }}">{% if risk.theta_estimate_per_day is not none %}{{ '+' if risk.theta_estimate_per_day > 0 else '' }}{{ risk.theta_estimate_per_day | money }}{% else %}PARTIAL{% endif %}</b>
@@ -18,15 +18,16 @@
   <div class="risk-lens-grid" role="group" aria-label="Position-adjusted option sensitivities">
     <article>
       <span>DELTA &middot; NEXT $1 STOCK MOVE</span>
-      {% if price_time and price_time.up_one_dollar_effect is not none %}<strong class="price-time-pair"><em>UP</em> <em class="{{ price_time.up_one_dollar_effect | pnl_class }}">{{ '+' if price_time.up_one_dollar_effect > 0 else '' }}{{ price_time.up_one_dollar_effect | money }}</em> <em>&middot; DOWN</em> <em class="{{ price_time.down_one_dollar_effect | pnl_class }}">{{ '+' if price_time.down_one_dollar_effect > 0 else '' }}{{ price_time.down_one_dollar_effect | money }}</em></strong><small>{% if price_time.price_effect is not none %}Last session: {{ '+' if price_time.price_effect > 0 else '' }}{{ price_time.price_effect | money }}. {{ price_time.consequence }}{% else %}The next-$1 read is live; prior-session context is unavailable.{% endif %}</small>{% else %}<strong>&mdash;</strong><small>Live position delta is missing</small>{% endif %}
+      <small>Short options only; every underlying moves $1 together. Includes gamma, with IV and time held fixed.</small>
+      {% if price_time and price_time.up_one_dollar_effect is not none %}<strong class="price-time-pair"><em>UP</em> <em class="{{ price_time.up_one_dollar_effect | pnl_class }}">{{ '+' if price_time.up_one_dollar_effect > 0 else '' }}{{ price_time.up_one_dollar_effect | money }}</em> <em>&middot; DOWN</em> <em class="{{ price_time.down_one_dollar_effect | pnl_class }}">{{ '+' if price_time.down_one_dollar_effect > 0 else '' }}{{ price_time.down_one_dollar_effect | money }}</em></strong><small>{% if price_time.price_effect is not none %}Last session: {{ '+' if price_time.price_effect > 0 else '' }}{{ price_time.price_effect | money }}. {{ price_time.consequence }}{% else %}The next-$1 model read is available; prior-session context is unavailable.{% endif %}</small>{% else %}<strong>&mdash;</strong><small>Position delta is missing</small>{% endif %}
     </article>
     <article>
       <span>MODEL TIME CARRY / DAY</span>
-      {% if risk.theta_estimate_per_day is not none %}<strong class="{{ risk.theta_estimate_per_day | pnl_class }}">{{ '+' if risk.theta_estimate_per_day > 0 else '' }}{{ risk.theta_estimate_per_day | money }}</strong><small>Current theta; not cash received or a forecast</small>{% else %}<strong>&mdash;</strong><small>Theta is missing from the live book</small>{% endif %}
+      {% if risk.theta_estimate_per_day is not none %}<strong class="{{ risk.theta_estimate_per_day | pnl_class }}">{{ '+' if risk.theta_estimate_per_day > 0 else '' }}{{ risk.theta_estimate_per_day | money }}</strong><small>Current theta; not cash received or a forecast</small>{% else %}<strong>&mdash;</strong><small>Theta is missing from the open book</small>{% endif %}
     </article>
     <article>
       <span>ONE-POINT IV POP</span>
-      {% if risk.vega_per_volatility_point is not none %}<strong class="{{ risk.vega_per_volatility_point | pnl_class }}">{{ risk.vega_per_volatility_point | money }}</strong><small>{% if risk.iv_point_in_theta_days is not none %}About {{ risk.iv_point_in_theta_days | number(1) }} days of current theta{% else %}Estimated option-value change; all else held still{% endif %}</small>{% else %}<strong>&mdash;</strong><small>Vega is missing from the live book</small>{% endif %}
+      {% if risk.vega_per_volatility_point is not none %}<strong class="{{ risk.vega_per_volatility_point | pnl_class }}">{{ risk.vega_per_volatility_point | money }}</strong><small>{% if risk.iv_point_in_theta_days is not none %}About {{ risk.iv_point_in_theta_days | number(1) }} days of current theta{% else %}Estimated option-value change; all else held still{% endif %}</small>{% else %}<strong>&mdash;</strong><small>Vega is missing from the open book</small>{% endif %}
     </article>
     <article class="risk-lens-read">
       <span>NIBWICK'S BOOK READ</span>

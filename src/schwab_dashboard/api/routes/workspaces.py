@@ -22,6 +22,10 @@ from schwab_dashboard.application.workspaces.projections import (
 from schwab_dashboard.application.workspaces.source_profiles import planned_source_profiles
 from schwab_dashboard.container import Container
 from schwab_dashboard.domain.workspace import WorkspaceKey
+from schwab_dashboard.infrastructure.demo.fixtures.benchmark_history import (
+    build_demo_performance_comparison,
+)
+from schwab_dashboard.infrastructure.demo.fixtures.short_puts import build_put_executions
 from schwab_dashboard.web.rendering import templates
 
 router = APIRouter(tags=["workspaces"])
@@ -55,6 +59,21 @@ def workspace_page(
         snapshot = container.read_dashboard(source_key).execute()
     except LookupError:
         return RedirectResponse(url="/sources", status_code=303)
+    if snapshot.is_demo:
+        source_key = "demo"
+        if workspace_key is WorkspaceKey.ATTRIBUTION and period is not PerformancePeriod.ALL:
+            assert snapshot.portfolio.cash_value is not None
+            snapshot = replace(
+                snapshot,
+                performance_comparison=build_demo_performance_comparison(
+                    positions=snapshot.positions,
+                    cash_value=snapshot.portfolio.cash_value,
+                    call_history=snapshot.call_history,
+                    as_of=snapshot.as_of.date(),
+                    put_executions=build_put_executions(),
+                    period=period,
+                ),
+            )
     if (
         workspace_key is WorkspaceKey.ATTRIBUTION
         and source_key == "schwab"
@@ -87,12 +106,13 @@ def workspace_page(
     elif workspace_key is WorkspaceKey.RECORDS:
         context["source_profiles"] = planned_source_profiles()
     elif workspace_key is WorkspaceKey.RADAR:
-        context["radar_held_symbols"] = container.premium_radar().held_symbols(snapshot)
-        context["radar_saved_symbols"] = container.premium_radar().saved_symbols()
+        radar = container.premium_radar(source_key)
+        context["radar_held_symbols"] = radar.held_symbols(snapshot)
+        context["radar_saved_symbols"] = radar.saved_symbols()
         context["radar_roll_sources"] = build_roll_source_catalog(snapshot)
         context["radar_book_pulse"] = {row.symbol: row for row in build_volatility_rows(snapshot)}
     elif workspace_key is WorkspaceKey.ATTRIBUTION and snapshot.performance_comparison:
-        if source_key == "schwab":
+        if source_key in {"schwab", "demo"}:
             context["selected_performance_period"] = period.value
             context["performance_period_options"] = tuple(
                 {"value": item.value, "label": item.label} for item in PERFORMANCE_PERIODS

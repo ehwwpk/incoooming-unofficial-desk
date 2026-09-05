@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -12,6 +13,7 @@ from schwab_dashboard.application.performance.periods import PerformancePeriod
 from schwab_dashboard.application.performance.projection import METHODOLOGY_VERSION
 from schwab_dashboard.application.ports.dashboard import DashboardReader
 from schwab_dashboard.application.ports.opportunity_market import OpportunityMarketGateway
+from schwab_dashboard.application.ports.opportunity_store import OpportunityStore
 from schwab_dashboard.application.services.cached_campaign_chart import (
     CachedCampaignChartReader,
 )
@@ -65,6 +67,7 @@ from schwab_dashboard.infrastructure.database.uow_truth import build_truth_uow_f
 from schwab_dashboard.infrastructure.database.uow_workspace import build_workspace_uow_factory
 from schwab_dashboard.infrastructure.demo.dashboard import DemoDashboardReader
 from schwab_dashboard.infrastructure.demo.opportunity import DemoOpportunityMarketGateway
+from schwab_dashboard.infrastructure.demo.opportunity_store import DemoOpportunityStore
 from schwab_dashboard.infrastructure.imports import CsvDashboardReader
 from schwab_dashboard.infrastructure.schwab.gateway import (
     SchwabBrokerGateway,
@@ -131,7 +134,10 @@ class Container:
         self.market_history_refresh = MarketHistoryRefreshPolicy(
             minimum_interval=timedelta(hours=1)
         )
-        self._radar_service = self._build_radar_service()
+        self._radar_service = self._build_radar_service(demo=self.settings.demo_mode)
+        self._demo_radar_service = (
+            self._radar_service if self.settings.demo_mode else self._build_radar_service(demo=True)
+        )
         self.sync_coordinator = FullSyncCoordinator(
             accounts_factory=self.sync_accounts,
             activity_factory=self.sync_transactions,
@@ -287,7 +293,9 @@ class Container:
     def load_workspace_preferences(self) -> LoadWorkspacePreferences:
         return LoadWorkspacePreferences(uow_factory=self.workspace_uow_factory)
 
-    def premium_radar(self) -> RunPremiumRadar:
+    def premium_radar(self, source_key: str | None = None) -> RunPremiumRadar:
+        if self.settings.demo_mode or source_key == "demo":
+            return self._demo_radar_service
         return self._radar_service
 
     def import_csv_dataset(self) -> ImportCsvDataset:
@@ -307,10 +315,19 @@ class Container:
         self._radar_http.close()
         self.engine.dispose()
 
-    def _build_radar_service(self) -> RunPremiumRadar:
+    def _build_radar_service(self, *, demo: bool) -> RunPremiumRadar:
         market: OpportunityMarketGateway
-        if self.settings.demo_mode:
-            market = DemoOpportunityMarketGateway()
+        store: OpportunityStore = self.opportunity_store
+        clock: Callable[[], datetime] | None = None
+        if demo:
+            demo_as_of = self.read_dashboard("demo").execute().as_of
+
+            def demo_clock() -> datetime:
+                return demo_as_of
+
+            clock = demo_clock
+            market = DemoOpportunityMarketGateway(clock=clock)
+            store = DemoOpportunityStore()
             source = "demo"
         elif self.oauth is None:
             market = AuthorizationRequiredOpportunityMarketGateway()
@@ -330,8 +347,8 @@ class Container:
             source = "schwab"
         return RunPremiumRadar(
             market=market,
-            store=self.opportunity_store,
-            dashboard_factory=self.read_dashboard,
+            store=store,
+            dashboard_factory=lambda: self.read_dashboard(source),
             defaults=RadarDefaults(
                 minimum_dte=self.settings.radar_minimum_dte,
                 maximum_dte=self.settings.radar_maximum_dte,
@@ -345,10 +362,11 @@ class Container:
                 maximum_five_day_move_percent=(self.settings.radar_maximum_five_day_move_percent),
             ),
             source=source,
+            clock=clock,
         )
 
     def _build_oauth(self) -> SchwabOAuthClient | None:
-        if not self.settings.schwab_credentials_configured:
+        if self.settings.demo_mode or not self.settings.schwab_credentials_configured:
             return None
         app_key, app_secret = self.settings.require_schwab_credentials()
         return SchwabOAuthClient(

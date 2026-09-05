@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from decimal import Decimal
+from statistics import median
 
 from schwab_dashboard.application.dashboard.covered_calls import (
     CallSaleRecord,
@@ -62,19 +63,24 @@ def build_operator_metrics(
         D(sum(record.days_to_expiration * record.contracts for record in records)) / total_contracts
     )
     completed_results = [item.option_cash for item in monthly if not item.is_partial]
-    ordered_results = sorted(completed_results)
     recent_results = completed_results[-3:]
     return OperatorMetricsSummary(
         rolling_four_week_option_cash=by_key["month"].option_cash,
         quarter_monthly_run_rate=by_key["quarter"].monthly_option_run_rate,
         year_to_date_monthly_run_rate=by_key["ytd"].monthly_option_run_rate,
-        rolling_year_monthly_average=by_key["r365"].monthly_option_run_rate,
+        rolling_year_monthly_average=(
+            (sum(completed_results, ZERO) / D(len(completed_results))).quantize(MONEY)
+            if completed_results
+            else ZERO
+        ),
         rolling_three_month_average=(sum(recent_results, ZERO) / D(len(recent_results))).quantize(
             MONEY
-        ),
-        median_completed_month=ordered_results[len(ordered_results) // 2],
-        best_completed_month=max(completed_results),
-        worst_completed_month=min(completed_results),
+        )
+        if recent_results
+        else ZERO,
+        median_completed_month=median(completed_results) if completed_results else ZERO,
+        best_completed_month=max(completed_results, default=ZERO),
+        worst_completed_month=min(completed_results, default=ZERO),
         completed_months=len(completed_results),
         compliant_call_tickets=compliant,
         total_call_tickets=len(records),

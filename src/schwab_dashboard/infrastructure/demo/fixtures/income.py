@@ -11,6 +11,7 @@ from schwab_dashboard.application.dashboard.models import IncomePeriod
 from schwab_dashboard.infrastructure.demo.fixtures.cash_events import (
     build_dividend_cash_events,
 )
+from schwab_dashboard.infrastructure.demo.fixtures.short_puts import build_put_cash_events
 
 D = Decimal
 
@@ -20,7 +21,7 @@ def build_income_periods(
 ) -> tuple[IncomePeriod, ...]:
     """Legacy API projection derived from the same execution events as cash charts."""
 
-    call_events = build_call_cash_events(records)
+    call_events = (*build_call_cash_events(records), *build_put_cash_events())
     dividend_events = build_dividend_cash_events()
     start = min(record.sold_on for record in records)
     end = max(event.occurred_on for event in (*call_events, *dividend_events))

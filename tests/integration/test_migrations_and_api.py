@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from decimal import Decimal
 from pathlib import Path
 
 import httpx
@@ -183,16 +184,16 @@ def test_demo_mode_renders_operator_plan_without_credentials(tmp_path: Path) -> 
         assert ready.status_code == 200
         assert sync_status.json()["state"] == "demo"
         assert payload["mode"] == "demo"
-        assert payload["portfolio"]["total_value"] == "223485.00"
-        assert payload["income"]["month"] == "1805.000"
+        assert payload["portfolio"]["total_value"] == "222990.00"
+        assert payload["income"]["month"] == "2395.000"
         assert payload["covered_calls"]["total_shares"] == "2000"
         assert payload["covered_calls"]["open_call_credit"] == "3390.000"
         assert payload["covered_calls"]["open_call_mark_value"] == "1738.00"
         assert payload["covered_calls"]["open_mark_profit_loss"] == "1652.000"
-        assert len(payload["positions"]) == 9
+        assert len(payload["positions"]) == 11
         assert len(payload["call_history"]) == 17
-        assert len(payload["campaigns"]) == 13
-        assert sum(item["status"] == "OPEN" for item in payload["campaigns"]) == 6
+        assert len(payload["campaigns"]) == 15
+        assert sum(item["status"] == "OPEN" for item in payload["campaigns"]) == 8
         assert [window["key"] for window in payload["performance_windows"]] == [
             "month",
             "quarter",
@@ -211,7 +212,7 @@ def test_demo_mode_renders_operator_plan_without_credentials(tmp_path: Path) -> 
             "ytd",
             "r365",
         ]
-        assert len(payload["cash_events"]) == 25
+        assert len(payload["cash_events"]) == 27
         assert all(event["amount"] != "0" for event in payload["cash_events"])
         assert len(payload["cash_activity_windows"][0]["events"]) == 3
         assert all(
@@ -225,11 +226,11 @@ def test_demo_mode_renders_operator_plan_without_credentials(tmp_path: Path) -> 
         assert [
             (alert["symbol"], alert["reason_code"], alert["level"]) for alert in payload["alerts"]
         ] == [("CVX", "call_expiration_proximity", "watch")]
-        assert payload["monthly_performance"][-1]["option_cash"] == "-930"
+        assert payload["monthly_performance"][-1]["option_cash"] == "485.00"
         assert payload["strategy_attribution"][0]["status"] == "CURRENT-INVENTORY PROXY"
         assert payload["strategy_attribution"][-1]["actual_result"] is None
         assert payload["operator_metrics"]["completed_months"] == 7
-        assert payload["operator_metrics"]["median_completed_month"] == "2395"
+        assert Decimal(payload["operator_metrics"]["median_completed_month"]) == Decimal("2300")
         assert "objective" not in payload
         assert "monthly_target" not in payload["income"]
         price_events = [

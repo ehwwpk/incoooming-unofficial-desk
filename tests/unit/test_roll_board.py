@@ -74,7 +74,11 @@ def test_roll_board_separates_premium_scale_from_known_share_delivery() -> None:
         ),
     )
     projection = build_roll_board(
-        replace(snapshot, underlyings=(replace(underlying, open_call_clocks=(adjusted,)),))
+        replace(
+            snapshot,
+            underlyings=(replace(underlying, open_call_clocks=(adjusted,)),),
+            live_position_book=None,
+        )
     )
     row = projection.rows[0]
 
@@ -95,7 +99,11 @@ def test_roll_board_withholds_comparison_when_share_delivery_is_unresolved() -> 
     )
 
     projection = build_roll_board(
-        replace(snapshot, underlyings=(replace(underlying, open_call_clocks=(source,)),))
+        replace(
+            snapshot,
+            underlyings=(replace(underlying, open_call_clocks=(source,)),),
+            live_position_book=None,
+        )
     )
     row = projection.rows[0]
 
@@ -173,7 +181,7 @@ def test_roll_board_uses_data_fog_when_no_roll_math_can_be_verified() -> None:
         for underlying in snapshot.underlyings
     )
 
-    projection = build_roll_board(replace(snapshot, underlyings=fogged))
+    projection = build_roll_board(replace(snapshot, underlyings=fogged, live_position_book=None))
 
     assert projection.rows
     assert projection.no_clean_count == len(projection.rows)
@@ -222,8 +230,9 @@ def test_radar_roll_catalog_includes_every_open_call_without_requiring_an_alert(
     catalog = build_roll_source_catalog(snapshot)
 
     expected_calls = sum(len(underlying.open_call_clocks) for underlying in snapshot.underlyings)
-    assert len(catalog) == expected_calls
-    assert {choice.option_side for choice in catalog} == {OptionSide.CALL}
+    assert snapshot.live_position_book is not None
+    assert len(catalog) == expected_calls + snapshot.live_position_book.open_put_positions
+    assert {choice.option_side for choice in catalog} == {OptionSide.CALL, OptionSide.PUT}
     assert {choice.symbol for choice in catalog} == {"CVX", "KTOS", "URNM"}
 
 

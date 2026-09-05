@@ -409,7 +409,7 @@ def test_campaign_template_renames_heading_and_has_empty_state() -> None:
     )
     assert "Call campaigns" not in filled
     assert "KTOS" in filled
-    assert open_count == 6
+    assert open_count == 8
     assert closed_count > 0
     assert f"{open_count} OPEN · {len(snapshot.campaigns)} TOTAL" in filled
     assert 'id="campaigns-open"' in filled

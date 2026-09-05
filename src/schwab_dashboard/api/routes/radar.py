@@ -64,7 +64,7 @@ def run_lookup(
 ) -> dict[str, Any]:
     try:
         snapshot = container.read_dashboard(selected_source_key(request)).execute()
-        projection = container.premium_radar().execute(
+        projection = container.premium_radar(selected_source_key(request)).execute(
             symbol=payload.symbol,
             mode=payload.mode,
             snapshot=snapshot,
@@ -87,8 +87,8 @@ def run_lookup(
 
 
 @router.get("/lookups/{lookup_id}")
-def read_lookup(lookup_id: str, container: ContainerDependency) -> dict[str, Any]:
-    result = container.premium_radar().load_lookup(lookup_id)
+def read_lookup(lookup_id: str, request: Request, container: ContainerDependency) -> dict[str, Any]:
+    result = container.premium_radar(selected_source_key(request)).load_lookup(lookup_id)
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Radar lookup not found")
     return _encode(result)
@@ -98,10 +98,13 @@ def read_lookup(lookup_id: str, container: ContainerDependency) -> dict[str, Any
 def read_policy(
     symbol: str,
     mode: RadarMode,
+    request: Request,
     container: ContainerDependency,
 ) -> dict[str, Any]:
     try:
-        policy = container.premium_radar().policy_for(symbol=symbol, mode=mode)
+        policy = container.premium_radar(selected_source_key(request)).policy_for(
+            symbol=symbol, mode=mode
+        )
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
@@ -113,10 +116,11 @@ def read_policy(
 def save_policy(
     symbol: str,
     payload: PolicyRequest,
+    request: Request,
     container: ContainerDependency,
 ) -> dict[str, Any]:
     try:
-        policy = container.premium_radar().save_policy(
+        policy = container.premium_radar(selected_source_key(request)).save_policy(
             RadarPolicy(symbol=normalize_symbol(symbol), **payload.model_dump())
         )
     except ValueError as exc:
@@ -128,7 +132,7 @@ def save_policy(
 
 @router.get("/symbols")
 def list_symbols(request: Request, container: ContainerDependency) -> dict[str, list[str]]:
-    radar = container.premium_radar()
+    radar = container.premium_radar(selected_source_key(request))
     snapshot = container.read_dashboard(selected_source_key(request)).execute()
     return {
         "book": list(radar.held_symbols(snapshot)),
@@ -137,9 +141,11 @@ def list_symbols(request: Request, container: ContainerDependency) -> dict[str, 
 
 
 @router.post("/saved-symbols", status_code=status.HTTP_204_NO_CONTENT)
-def save_symbol(payload: SavedSymbolRequest, container: ContainerDependency) -> None:
+def save_symbol(
+    payload: SavedSymbolRequest, request: Request, container: ContainerDependency
+) -> None:
     try:
-        container.premium_radar().save_symbol(payload.symbol)
+        container.premium_radar(selected_source_key(request)).save_symbol(payload.symbol)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
@@ -147,9 +153,9 @@ def save_symbol(payload: SavedSymbolRequest, container: ContainerDependency) -> 
 
 
 @router.delete("/saved-symbols/{symbol}", status_code=status.HTTP_204_NO_CONTENT)
-def remove_symbol(symbol: str, container: ContainerDependency) -> None:
+def remove_symbol(symbol: str, request: Request, container: ContainerDependency) -> None:
     try:
-        container.premium_radar().remove_symbol(symbol)
+        container.premium_radar(selected_source_key(request)).remove_symbol(symbol)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)

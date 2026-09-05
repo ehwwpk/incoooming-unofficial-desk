@@ -1,13 +1,20 @@
-# Documentation
+# Incoooming guides
 
-Start with these guides:
+Start here if you want to use the app:
 
+- [Get running: demo, CSV files, and everyday startup](getting-started.md)
+- [Ask your coding agent to help with setup](../README.md#want-your-coding-agent-to-help)
 - [Connect Schwab on Windows](getting-started-schwab.md)
-- [Accounting and chart methods](accounting.md)
-- [CSV import contract](systems/csv-import.md)
+- [How the numbers work](accounting.md)
+- [Supported CSV formats](systems/csv-import.md)
+- [Three-minute demo walkthrough](product/demo-video.md)
+
+For contributors and readers who want the implementation details:
+
 - [Architecture](architecture.md)
 - [Data contracts](data-contracts.md)
 - [Schwab live contract](integrations/schwab-live-contract.md)
+- [Public beta review and checks](product/public-beta-review.md)
 
 The following documents are implementation references. They describe current behavior in more
 detail than most users need:

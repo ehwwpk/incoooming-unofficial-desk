@@ -36,6 +36,7 @@ jobs:
       - name: Check Python
         run: |
           python -m ruff check .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m mypy
 
       - name: Check dependencies
@@ -52,17 +53,23 @@ jobs:
         shell: pwsh
         run: |
           Get-ChildItem src/schwab_dashboard/web/static -Filter *.js -Recurse |
-            ForEach-Object { node --check $_.FullName }
+            ForEach-Object {
+              node --check $_.FullName
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
 
       - name: Build wheel
         run: python -m build --wheel
 
-      - name: Test installed database migration
+      - name: Smoke test installed application
         shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
           $wheel = Get-ChildItem dist -Filter *.whl | Select-Object -First 1
           python -m pip uninstall --yes incoooming-unofficial-desk
           python -m pip install --no-deps $wheel.FullName
           $env:SCHWAB_DASHBOARD_DATA_DIR = Join-Path $env:RUNNER_TEMP "wheel-smoke"
           schwab-dashboard db-upgrade
           schwab-dashboard doctor
+          python scripts/smoke-installed-web.py

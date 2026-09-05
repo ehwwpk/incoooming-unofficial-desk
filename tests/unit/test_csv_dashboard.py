@@ -68,3 +68,45 @@ def test_csv_dashboard_uses_the_market_date_at_the_utc_day_boundary() -> None:
 
     assert snapshot.live_position_book is not None
     assert snapshot.live_position_book.calls[0].days_to_expiration == 1
+
+
+def test_activity_only_csv_book_keeps_its_imported_account_context() -> None:
+    created_at = datetime(2026, 8, 11, 17, tzinfo=UTC)
+    dataset = SourceDataset(
+        id="activity-dataset",
+        name="Activity import",
+        broker=BrokerKind.GENERIC,
+        state=DatasetState.PARTIAL,
+        created_at=created_at,
+        file_count=1,
+        position_count=0,
+        activity_count=1,
+        ignored_count=0,
+        review_count=0,
+        rejected_count=0,
+        capabilities=("cash_movements", "dividends"),
+        warnings=(),
+    )
+    records = (
+        {
+            "kind": "cash_movement",
+            "normalized": {
+                "external_key": "csv:dividend",
+                "occurred_at": created_at.isoformat(),
+                "movement_type": "dividend",
+                "amount": "25",
+                "description": "Dividend",
+                "account_mask": "...9876",
+                "symbol": "CVX",
+                "underlying_symbol": "CVX",
+            },
+        },
+    )
+
+    snapshot = CsvDashboardReader(
+        store=_Store(dataset, records),  # type: ignore[arg-type]
+        dataset_id=dataset.id,
+        clock=lambda: created_at,
+    ).execute()
+
+    assert [account["account_mask"] for account in snapshot.accounts] == ["...9876"]

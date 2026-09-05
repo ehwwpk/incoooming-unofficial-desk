@@ -278,6 +278,7 @@
 .csv-import-preview ul { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
 .csv-import-preview li { display: grid; gap: 2px; padding: 7px 10px; border-bottom: 1px solid var(--gateway-line); }
 .csv-import-preview li b { color: var(--gateway-text); }
+.csv-import-preview .csv-preview-issue { color: var(--gateway-secondary); line-height: 1.35; }
 .csv-import-preview p { margin: 0; padding: 7px 10px; color: var(--gateway-secondary); }
 .csv-file-field,
 .csv-import-form button { grid-column: 1 / -1; }
@@ -296,6 +297,22 @@
 .source-export-help a:focus-visible,
 .source-template-links a:hover,
 .source-template-links a:focus-visible { color: var(--gateway-accent); outline: 0; }
+
+.source-demo-session {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 24px;
+  border: 1px solid var(--gateway-line-strong);
+  background: var(--gateway-panel);
+}
+.source-demo-session > div { min-width: 0; }
+.source-demo-session h2 { margin: 5px 0 12px; font-size: 1rem; }
+.source-demo-session p { max-width: 78ch; color: var(--gateway-secondary); font-size: .76rem; line-height: 1.6; }
+.source-demo-session .eyebrow { margin: 0; color: var(--gateway-accent); font: 750 var(--type-control) var(--mono); }
+.source-demo-session code { overflow-wrap: anywhere; color: var(--gateway-text); }
+.source-demo-session form { flex-shrink: 0; margin: 0; }
+.source-demo-session button { padding: 10px 14px; font-size: var(--type-control); }
 
 .source-demo-card {
   display: grid;
@@ -369,6 +386,7 @@
 }
 
 @media (max-width: 760px) {
+  .source-demo-session { flex-direction: column; align-items: flex-start; gap: 12px; padding: 18px; }
   .sources-topbar { min-height: 52px; }
   .sources-topbar .brand { padding-inline: 12px; }
   .gateway-trust > span { display: none; }

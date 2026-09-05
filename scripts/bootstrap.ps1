@@ -43,4 +43,5 @@ if ($LASTEXITCODE -ne 0) {
     throw "Incoooming dependencies could not be installed."
 }
 
-Write-Host "Bootstrap complete. Copy .env.example to .env and add the Schwab app settings."
+Write-Host "Bootstrap complete. Try the demo with .\scripts\run-demo.cmd."
+Write-Host "For CSV files, use .\scripts\run-local.cmd. Only Schwab setup needs a .env file; see docs\getting-started-schwab.md."

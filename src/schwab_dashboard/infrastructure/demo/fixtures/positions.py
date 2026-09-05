@@ -1,7 +1,9 @@
 from collections.abc import Sequence
+from dataclasses import replace
 from decimal import Decimal
 
 from schwab_dashboard.application.dashboard.models import AllocationSlice, PositionSummary
+from schwab_dashboard.infrastructure.demo.fixtures.short_puts import PUT_FIXTURES
 from schwab_dashboard.infrastructure.schwab.option_symbol import parse_occ_option_symbol
 
 D = Decimal
@@ -118,7 +120,35 @@ def build_positions() -> tuple[PositionSummary, ...]:
             "Covered call",
         ),
     )
-    return tuple(_position(row) for row in rows)
+    puts = tuple(
+        PositionSummary(
+            account_mask="...4831",
+            symbol=item.option_symbol,
+            description=f"{item.expires_on:%b %d} {item.strike:g} put",
+            asset_type="OPTION",
+            quantity=-D(item.contracts),
+            average_price=item.entry_credit_per_share,
+            mark=item.mark_per_share,
+            market_value=-item.mark_per_share * item.contracts * 100,
+            day_profit_loss=item.day_profit_loss,
+            day_profit_loss_percent=(
+                item.day_profit_loss
+                / (item.mark_per_share * item.contracts * 100 + item.day_profit_loss)
+                * 100
+            ).quantize(D("0.01")),
+            strategy="Cash-secured put",
+            underlying_symbol=item.symbol,
+            option_type="PUT",
+            expiration_date=item.expires_on,
+            strike=item.strike,
+            open_profit_loss=(item.entry_credit - item.mark_per_share * item.contracts * 100),
+            contract_multiplier=D("100"),
+            multiplier_source="fictional_standard",
+            is_non_standard=False,
+        )
+        for item in PUT_FIXTURES
+    )
+    return (*(_position(row) for row in rows), *puts)
 
 
 def build_allocations(
@@ -140,13 +170,15 @@ def build_allocations(
         ("KTOS shares", equities["KTOS"], "emerald"),
         ("URNM shares", equities["URNM"], "olive"),
         ("Cash", cash_value, "green"),
-        ("Short calls", option_value, "red"),
+        ("Short options", option_value, "red"),
     )
     total = sum((value for _, value, _ in rows), D("0"))
-    return tuple(
+    allocations = tuple(
         AllocationSlice(label, value, (value / total * 100).quantize(D("0.01")), tone)
         for label, value, tone in rows
     )
+    remainder = D("100") - sum((item.percent for item in allocations), D("0"))
+    return (replace(allocations[0], percent=allocations[0].percent + remainder), *allocations[1:])
 
 
 def _position(row: tuple[str, ...]) -> PositionSummary:
@@ -163,6 +195,7 @@ def _position(row: tuple[str, ...]) -> PositionSummary:
         day_profit_loss=D(row[7]),
         day_profit_loss_percent=D(row[8]),
         strategy=row[9],
+        open_profit_loss=(D(row[5]) - D(row[4])) * D(row[3]) * (100 if option else 1),
         underlying_symbol=option.underlying_symbol if option else None,
         option_type=option.option_type if option else None,
         expiration_date=option.expiration_date if option else None,

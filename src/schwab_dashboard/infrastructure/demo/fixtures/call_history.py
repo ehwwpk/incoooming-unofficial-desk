@@ -182,7 +182,7 @@ CALL_FIXTURES = (
         "825",
         "Rolled",
         "Six-week range high",
-        date(2026, 8, 7),
+        date(2026, 7, 31),
     ),
     CallFixture(
         "ktos-0731-75",

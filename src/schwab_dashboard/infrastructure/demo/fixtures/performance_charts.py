@@ -18,6 +18,7 @@ from schwab_dashboard.application.dashboard.performance import (
 from schwab_dashboard.infrastructure.demo.fixtures.cash_events import (
     build_dividend_cash_events,
 )
+from schwab_dashboard.infrastructure.demo.fixtures.short_puts import build_put_cash_events
 
 D = Decimal
 
@@ -27,7 +28,7 @@ def build_cash_chart_series(
     monthly: Sequence[MonthlyPerformanceSummary],
     as_of: date,
 ) -> tuple[CashChartSeries, ...]:
-    call_events = build_call_cash_events(records)
+    call_events = (*build_call_cash_events(records), *build_put_cash_events())
     dividend_events = build_dividend_cash_events()
     return (
         _dated_cash_series(

@@ -100,7 +100,7 @@ def test_first_visit_chooses_a_source_and_csv_book_remains_isolated(tmp_path: Pa
         assert "This is not a normal Schwab customer login" in gateway.text
         assert "Connect your approved Schwab app." in gateway.text
         assert "Wake the live book." not in gateway.text
-        assert "Bring your own ledger." in gateway.text
+        assert "Import CSV" in gateway.text
         assert "Explore a fictional portfolio." in gateway.text
         assert 'type="radio" name="broker" value="robinhood"' in gateway.text
         assert gateway.text.count("/static/nibwick-favicon.svg") >= 1
@@ -124,7 +124,7 @@ def test_first_visit_chooses_a_source_and_csv_book_remains_isolated(tmp_path: Pa
         assert "data-source-route=" not in gateway.text
         assert "()___()" not in gateway.text
         assert "FORMAT CHECKED." in gateway.text
-        assert "Preview stops mismatches and uncertain rows" in gateway.text
+        assert "Preview flags mismatches and keeps uncertain rows out" in gateway.text
         assert imported.status_code == 303
         assert imported.headers["location"] == "/"
         assert "incoooming_source=csv:" in imported.headers["set-cookie"]
@@ -212,9 +212,11 @@ def test_realistic_csv_book_projects_inventory_options_income_and_dividend(
         assert "IMPORTED POS" in dashboard.text
         assert "$215,606.00" in dashboard.text
         assert "Portfolio value covers imported positions, not brokerage cash" in dashboard.text
+        assert "The date above is import time, not a broker valuation time" in dashboard.text
         assert "imported position mark" in dashboard.text
         assert "latest Schwab mark" not in dashboard.text
         assert "Account returns and benchmark comparisons need dated balances" in results.text
+        assert "The header date is import time" in results.text
         assert "Net option cash" in results.text
         assert "data-performance-comparison-payload" not in results.text
         assert "POSITION OPENING CREDIT" in risk.text
@@ -248,6 +250,82 @@ def test_csv_source_choice_runs_adapter_detection_and_preserves_safe_records(
         assert any(
             dataset.warnings for dataset in datasets if dataset.broker is not BrokerKind.GENERIC
         )
+    finally:
+        container.close()
+
+
+def test_positions_only_csv_book_renders_every_public_workspace_without_fake_history(
+    tmp_path: Path,
+) -> None:
+    settings = Settings(_env_file=None, data_dir=tmp_path)
+    command.upgrade(_alembic_config(settings), "head")
+    container = Container(settings)
+    try:
+        dataset = container.import_csv_dataset().execute(
+            name="Positions only",
+            broker=BrokerKind.GENERIC,
+            files=(("positions.csv", POSITIONS),),
+        )
+
+        responses = asyncio.run(_render_positions_only_book(container, dataset.id))
+        desk, risk, results, radar, records, api, chart, volatility = responses
+
+        assert all(
+            response.status_code == 200
+            for response in (desk, risk, results, radar, records, api, chart)
+        )
+        assert volatility.status_code == 303
+        assert volatility.headers["location"].endswith("/workspaces/radar")
+        assert "No performance ledger is available yet" in results.text
+        assert "The header date is import time" in results.text
+        payload = api.json()
+        assert payload["mode"] == "csv"
+        assert payload["performance_windows"] == []
+        assert payload["risk"]["daily_theta"] is None
+        assert chart.json()["symbol"] == "CVX"
+    finally:
+        container.close()
+
+
+def test_csv_preview_rejects_pdf_content_without_an_internal_error(tmp_path: Path) -> None:
+    settings = Settings(_env_file=None, data_dir=tmp_path)
+    command.upgrade(_alembic_config(settings), "head")
+    container = Container(settings)
+    try:
+        response = asyncio.run(_preview_pdf_upload(container))
+
+        assert response.status_code == 422
+        assert response.json()["ok"] is False
+        assert "not csv" in response.json()["error"].lower()
+    finally:
+        container.close()
+
+
+def test_csv_preview_reports_bounded_row_reasons_without_echoing_raw_values(tmp_path: Path) -> None:
+    settings = Settings(_env_file=None, data_dir=tmp_path)
+    command.upgrade(_alembic_config(settings), "head")
+    container = Container(settings)
+    try:
+        response = asyncio.run(_preview_unsafe_rows(container))
+
+        assert response.status_code == 200
+        payload = response.json()
+        issues = payload["files"][0]["issues"]
+        assert len(issues) == 20
+        assert issues[:2] == [
+            {
+                "row": 2,
+                "status": "rejected",
+                "reason": "execution symbol is blank",
+            },
+            {
+                "row": 4,
+                "status": "rejected",
+                "reason": "number [source value] is not a valid broker number",
+            },
+        ]
+        assert "private memo" not in response.text
+        assert "private-number" not in response.text
     finally:
         container.close()
 
@@ -287,6 +365,53 @@ async def _exercise_gateway(container: Container) -> tuple[httpx.Response, ...]:
     return first, gateway, imported, dashboard, live_switch
 
 
+async def _preview_pdf_upload(container: Container) -> httpx.Response:
+    transport = httpx.ASGITransport(app=create_app(container))
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://127.0.0.1:8182",
+    ) as client:
+        return await client.post(
+            "/sources/csv/preview",
+            data={"dataset_name": "Not CSV", "broker": "generic"},
+            files=[
+                (
+                    "files",
+                    (
+                        "statement.pdf",
+                        b"%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>\nendobj",
+                        "application/pdf",
+                    ),
+                )
+            ],
+        )
+
+
+async def _preview_unsafe_rows(container: Container) -> httpx.Response:
+    content = (
+        b"Account,Date,Action,Symbol,Description,Quantity,Price,Amount\n"
+        b"Brokerage 4321,08/01/2026,Sell,,private memo,1,10,10\n"
+        b"Brokerage 4321,08/02/2026,Dividend,CVX,Dividend,,,25\n"
+        + b"".join(
+            (
+                "Brokerage 4321,08/03/2026,Sell,CVX,private numeric memo,"
+                f"private-number-{index},10,10\n"
+            ).encode()
+            for index in range(21)
+        )
+    )
+    transport = httpx.ASGITransport(app=create_app(container))
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://127.0.0.1:8182",
+    ) as client:
+        return await client.post(
+            "/sources/csv/preview",
+            data={"dataset_name": "Reason preview", "broker": "generic"},
+            files=[("files", ("activity.csv", content, "text/csv"))],
+        )
+
+
 async def _render_csv_book(
     container: Container,
     dataset_id: str,
@@ -303,4 +428,27 @@ async def _render_csv_book(
             await client.get("/workspaces/attribution"),
             await client.get("/workspaces/risk"),
             await client.get("/api/v1/dashboard"),
+        )
+
+
+async def _render_positions_only_book(
+    container: Container,
+    dataset_id: str,
+) -> tuple[httpx.Response, ...]:
+    transport = httpx.ASGITransport(app=create_app(container))
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://127.0.0.1:8182",
+        follow_redirects=False,
+        cookies={"incoooming_source": f"csv:{dataset_id}"},
+    ) as client:
+        return (
+            await client.get("/"),
+            await client.get("/workspaces/risk"),
+            await client.get("/workspaces/attribution"),
+            await client.get("/workspaces/radar"),
+            await client.get("/workspaces/records"),
+            await client.get("/api/v1/dashboard"),
+            await client.get("/api/v1/charts/CVX"),
+            await client.get("/workspaces/volatility"),
         )

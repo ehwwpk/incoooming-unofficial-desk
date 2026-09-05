@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+from calendar import monthrange
+from dataclasses import replace
+from datetime import date
 from decimal import Decimal
 
+from schwab_dashboard.application.dashboard.cashflows import build_call_cash_events, cash_total
 from schwab_dashboard.application.dashboard.performance import (
     MonthlyPerformanceSummary,
     QuarterPerformanceSummary,
 )
+from schwab_dashboard.infrastructure.demo.fixtures.call_history import build_call_history
+from schwab_dashboard.infrastructure.demo.fixtures.cash_events import build_dividend_cash_events
+from schwab_dashboard.infrastructure.demo.fixtures.short_puts import build_put_cash_events
 
 D = Decimal
 
@@ -43,7 +50,34 @@ def build_monthly_performance() -> tuple[MonthlyPerformanceSummary, ...]:
         ("JUL", 2026, "3895", "770", "0", "0", 0, "0", "194000", False),
         ("AUG", 2026, "965", "1895", "0", "0", 0, "0", "206556", True),
     )
-    return tuple(_monthly_summary(row) for row in rows)
+    monthly = tuple(_monthly_summary(row) for row in rows)
+    records = build_call_history()
+    events = (*build_call_cash_events(records), *build_put_cash_events())
+    dividends = build_dividend_cash_events()
+    result: list[MonthlyPerformanceSummary] = []
+    for month, item in enumerate(monthly, start=1):
+        if month < 5:
+            result.append(item)
+            continue
+        start = date(item.year, month, 1)
+        end = date(item.year, month, monthrange(item.year, month)[1])
+        gross = cash_total(events, start=start, end=end, event_types=frozenset({"OPENING CREDIT"}))
+        debit = -cash_total(events, start=start, end=end, event_types=frozenset({"CLOSING DEBIT"}))
+        fees = -cash_total(events, start=start, end=end, event_types=frozenset({"FEES"}))
+        dividend_cash = cash_total(dividends, start=start, end=end)
+        net = gross - debit - fees
+        result.append(
+            replace(
+                item,
+                gross_premium=gross,
+                closing_debits=debit,
+                fees=fees,
+                option_cash=net,
+                dividends=dividend_cash,
+                total_cash=net + dividend_cash,
+            )
+        )
+    return tuple(result)
 
 
 def _monthly_summary(row: tuple[object, ...]) -> MonthlyPerformanceSummary:

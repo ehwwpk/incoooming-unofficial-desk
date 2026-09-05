@@ -25,7 +25,7 @@
     <div class="workspace-tape" aria-label="Shared desk context">
       <span>ACCOUNT <b data-context-account>{{ snapshot.accounts[0].account_mask if snapshot.accounts else '---' }}</b></span>
       <span>FOCUS <b data-context-symbol>ALL NAMES</b></span>
-      <span>AS OF <b>{{ snapshot.as_of | short_date }}</b></span>
+      <span>{{ 'IMPORTED' if snapshot.mode == 'csv' else 'AS OF' }} <b>{{ snapshot.as_of | short_date }}</b></span>
       <span>SOURCE <b>{% if snapshot.is_demo %}SIMULATED LEDGER{% elif snapshot.mode == 'csv' %}CSV BOOK{% else %}SCHWAB LEDGER{% endif %}</b></span>
       <span data-window-state>SAME-ORIGIN WINDOW LINK READY</span>
     </div>
@@ -52,22 +52,22 @@
           </div>
           <div class="workspace-actions">
             <a href="/" class="workspace-action">← BACK TO DESK</a>
-            <button type="button" data-open-workspace data-workspace-url="{{ workspace.route }}" data-window-name="{{ workspace.window_name }}">OPEN OWN WINDOW ↗</button>
+            <button type="button" data-open-workspace data-workspace-url="{{ workspace.route }}{% if workspace.key.value == 'attribution' and selected_performance_period is defined %}?period={{ selected_performance_period }}{% endif %}" data-window-name="{{ workspace.window_name }}">OPEN OWN WINDOW ↗</button>
           </div>
         </header>
 
         {% if snapshot.is_demo %}
         <div class="workspace-demo-note" role="status">
-          <b>SIM</b><span>Fictional positions and simulated quotes, IV, and Greeks fixed to {{ snapshot.as_of | short_date }}. Calculations are real; no brokerage connection or order path is active.</span>
+          <b>SIM</b><span>Fictional positions, daily history, quotes, IV, and Greeks through {{ snapshot.as_of | short_date }}. Calculations are real; this book uses no brokerage connection or order path.{% if workspace.key.value == 'radar' %} Demo lookups and settings reset when the server restarts.{% endif %}</span>
         </div>
         {% endif %}
         {% if snapshot.mode == 'csv' %}
         <div class="csv-source-note" role="status">
           <b>CSV BOOK</b>
           {% if workspace.key.value == 'attribution' %}
-          <span>Imported trades can show executed cash and campaigns. Account returns and benchmark comparisons need dated balances and market history, so they remain unavailable.</span>
+          <span>Imported trades can show executed cash and campaigns. Account returns and benchmark comparisons need dated balances and market history, so they remain unavailable. The header date is import time.</span>
           {% else %}
-          <span>{{ active_source_label }} shows only capabilities supported by the imported files. Missing live quotes, IV, Greeks, balances, and market history remain unavailable.</span>
+          <span>{{ active_source_label }} shows only capabilities supported by the imported files. Missing live quotes, IV, Greeks, balances, and market history remain unavailable. The header date is import time, not a broker valuation time.</span>
           {% endif %}
           <a href="/sources">SWITCH BOOK &rarr;</a>
         </div>
@@ -86,7 +86,7 @@
     <script src="{{ url_for('static', path='/workspace-channel.js') }}?v=1" defer></script>
     <script src="{{ url_for('static', path='/workspace-disclosures.js') }}?v=2" defer></script>
     {% if snapshot.mode == 'live' %}<script src="{{ url_for('static', path='/auto-sync.js') }}?v=5" defer></script>{% endif %}
-    {% if workspace.key.value == 'radar' %}<script src="{{ url_for('static', path='/premium-radar-indicators.js') }}?v=1" defer></script><script src="{{ url_for('static', path='/premium-radar-map.js') }}?v=5" defer></script><script src="{{ url_for('static', path='/premium-radar.js') }}?v=18" defer></script>{% endif %}
-    {% if workspace.key.value == 'attribution' %}<script src="{{ url_for('static', path='/vendor/lightweight-charts/lightweight-charts.standalone.production.js') }}?v=5.2.0" defer></script><script src="{{ url_for('static', path='/results-cash.js') }}?v=1" defer></script><script src="{{ url_for('static', path='/performance-compare.js') }}?v=19" defer></script>{% endif %}
+    {% if workspace.key.value == 'radar' %}<script src="{{ url_for('static', path='/premium-radar-indicators.js') }}?v=1" defer></script><script src="{{ url_for('static', path='/premium-radar-map.js') }}?v=5" defer></script><script src="{{ url_for('static', path='/premium-radar.js') }}?v=19" defer></script>{% endif %}
+    {% if workspace.key.value == 'attribution' %}<script src="{{ url_for('static', path='/vendor/lightweight-charts/lightweight-charts.standalone.production.js') }}?v=5.2.0" defer></script><script src="{{ url_for('static', path='/results-cash.js') }}?v=1" defer></script><script src="{{ url_for('static', path='/performance-compare.js') }}?v=20" defer></script>{% endif %}
   </body>
 </html>

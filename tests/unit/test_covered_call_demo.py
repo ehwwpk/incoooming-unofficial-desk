@@ -11,6 +11,7 @@ from schwab_dashboard.application.dashboard.performance import calculate_capital
 from schwab_dashboard.application.policy.evaluate import evaluate_policy_fit
 from schwab_dashboard.infrastructure.demo.dashboard import DemoDashboardReader
 from schwab_dashboard.infrastructure.demo.fixtures.open_call_metrics import OPEN_CALL_METRICS
+from schwab_dashboard.infrastructure.demo.fixtures.short_puts import build_put_cash_events
 
 D = Decimal
 
@@ -143,11 +144,14 @@ def test_every_performance_window_reconciles_cash_and_rate_math() -> None:
         assert window.buyback_drag_percent == expected_drag
         assert window.premium_capture_percent + window.buyback_drag_percent == D("100.0")
 
-    assert windows["quarter"].option_cash == snapshot.covered_calls.net_option_cash
+    assert windows["quarter"].option_cash == (
+        snapshot.covered_calls.net_option_cash
+        + sum(event.amount for event in build_put_cash_events())
+    )
     assert windows["quarter"].dividends == snapshot.covered_calls.dividends
-    assert windows["r365"].monthly_option_run_rate == D("2177.92")
-    assert windows["r365"].monthly_total_run_rate == D("2514.00")
-    assert windows["ytd"].monthly_option_run_rate == D("2269.44")
+    assert windows["r365"].monthly_option_run_rate == D("2227.08")
+    assert windows["r365"].monthly_total_run_rate == D("2563.17")
+    assert windows["ytd"].monthly_option_run_rate == D("2351.39")
 
 
 def test_monthly_performance_reconciles_to_calendar_ytd() -> None:
@@ -181,9 +185,9 @@ def test_operator_metrics_report_observed_results_without_a_cash_target() -> Non
     snapshot = DemoDashboardReader().execute()
     metrics = snapshot.operator_metrics
 
-    assert metrics.rolling_year_monthly_average == D("2177.92")
-    assert metrics.rolling_three_month_average == D("2423.33")
-    assert metrics.median_completed_month == D("2395")
+    assert metrics.rolling_year_monthly_average == D("2349.29")
+    assert metrics.rolling_three_month_average == D("2148.33")
+    assert metrics.median_completed_month == D("2300")
     assert metrics.best_completed_month == D("3300")
     assert metrics.worst_completed_month == D("1700")
     assert metrics.completed_months == 7
@@ -274,10 +278,18 @@ def test_name_windows_reconcile_to_every_portfolio_window() -> None:
 
     for item in snapshot.underlyings:
         quarter = next(window for window in item.performance_windows if window.key == "quarter")
-        assert quarter.option_cash == item.net_option_cash
+        put_cash = sum(
+            (event.amount for event in build_put_cash_events() if event.symbol == item.symbol),
+            D("0"),
+        )
+        assert quarter.option_cash == item.net_option_cash + put_cash
         assert quarter.dividends == item.quarter_dividends
-        assert quarter.option_apr == item.quarter_option_apr
-        assert quarter.total_cash_apr == item.quarter_total_cash_apr
+        assert quarter.option_apr == (
+            (item.net_option_cash + put_cash) / item.market_value * D("365") / D("85") * 100
+        ).quantize(D("0.1"))
+        assert quarter.total_cash_apr == (
+            (item.quarter_total_cash + put_cash) / item.market_value * D("365") / D("85") * 100
+        ).quantize(D("0.1"))
 
 
 def test_open_call_clocks_expose_per_contract_dte_and_reconcile_theta() -> None:
@@ -291,10 +303,14 @@ def test_open_call_clocks_expose_per_contract_dte_and_reconcile_theta() -> None:
         "KTOS": D("28.50"),
         "URNM": D("14.40"),
     }
-    assert sum(theta_by_symbol.values(), D("0")) == snapshot.risk.daily_theta
+    assert snapshot.live_position_book is not None
+    put_theta = sum(
+        -put.theta_per_share * put.position_scale for put in snapshot.live_position_book.puts
+    )
+    assert sum(theta_by_symbol.values(), D("0")) + put_theta == snapshot.risk.daily_theta
     assert sum(clock.contracts for clock in clocks) == snapshot.covered_calls.active_contracts
     assert sum((clock.short_theta_per_day for clock in clocks), D("0")) == (
-        snapshot.risk.daily_theta
+        snapshot.risk.daily_theta - put_theta
     )
     clocks_by_contract = {
         (item.symbol, clock.expires_on, clock.strike): clock
@@ -362,7 +378,7 @@ def test_open_call_clocks_expose_per_contract_dte_and_reconcile_theta() -> None:
 
     option_liability = D("0")
     for position in snapshot.positions:
-        if position.asset_type != "OPTION":
+        if position.option_type != "CALL":
             continue
         assert position.underlying_symbol is not None
         assert position.expiration_date is not None
@@ -489,9 +505,9 @@ def test_price_paths_use_daily_closes_and_reconciled_option_events() -> None:
         prices_by_date = {point.date: point.price for point in item.price_points}
         assert all(event.price == prices_by_date[event.date] for event in item.price_events)
     share_events = [event for item in snapshot.underlyings for event in item.share_trade_events]
-    assert len(share_events) == 4
-    assert sum(event.action == "buy" for event in share_events) == 3
-    assert sum(event.action == "sell" for event in share_events) == 1
+    assert len(share_events) == 8
+    assert sum(event.action == "buy" for event in share_events) == 5
+    assert sum(event.action == "sell" for event in share_events) == 3
     assert all(event.glyph in {"+", "-"} for event in share_events)
     assert all(D("0") <= event.x_percent <= D("100") for event in share_events)
     assert all(D("0") <= event.y_percent <= D("100") for event in share_events)
@@ -505,7 +521,11 @@ def test_price_paths_use_daily_closes_and_reconciled_option_events() -> None:
     assert {
         item.symbol: tuple(event.action for event in item.share_trade_events)
         for item in snapshot.underlyings
-    } == {"CVX": ("buy", "sell"), "KTOS": ("buy",), "URNM": ("buy",)}
+    } == {
+        "CVX": ("buy", "sell"),
+        "KTOS": ("buy", "buy", "sell"),
+        "URNM": ("buy", "sell", "buy"),
+    }
     lifecycle_pairs = {
         item.symbol: {
             (event.linked_sale_sequence, event.sequence)
@@ -516,7 +536,7 @@ def test_price_paths_use_daily_closes_and_reconciled_option_events() -> None:
     }
     assert lifecycle_pairs == {
         "CVX": {(1, 3), (2, 4), (5, 6)},
-        "KTOS": {(1, 2), (3, 5), (4, 10), (6, 8)},
+        "KTOS": {(1, 2), (3, 5), (4, 7), (6, 9)},
         "URNM": {(1, 4), (2, 6), (3, 8), (5, 7)},
     }
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections import Counter
 from collections.abc import Sequence
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -14,6 +15,7 @@ from schwab_dashboard.domain.data_source import (
     ImportRecordKind,
     ImportRowDisposition,
     ParsedCsvFile,
+    ParsedImportRecord,
     SourceDataset,
 )
 
@@ -45,6 +47,8 @@ class ImportCsvDataset:
         hashes = [item.sha256 for item in parsed]
         if len(hashes) != len(set(hashes)):
             raise ValueError("The same CSV file was selected more than once.")
+        _validate_single_broker(parsed)
+        _validate_position_snapshots(parsed)
         parsed = _deduplicate_overlapping_files(parsed)
         position_count = sum(
             record.kind is ImportRecordKind.POSITION for file in parsed for record in file.records
@@ -101,7 +105,7 @@ class ImportCsvDataset:
             )
         return self._store.create_dataset(
             name=preview.name,
-            broker=broker,
+            broker=_dataset_broker(preview.files, requested=broker),
             files=preview.files,
             created_at=datetime.now(UTC),
         )
@@ -110,15 +114,23 @@ class ImportCsvDataset:
 def _deduplicate_overlapping_files(
     files: tuple[ParsedCsvFile, ...],
 ) -> tuple[ParsedCsvFile, ...]:
-    seen: set[str] = set()
+    seen_counts: Counter[str] = Counter()
     result: list[ParsedCsvFile] = []
     for file in files:
-        duplicates = {record.external_key for record in file.records if record.external_key in seen}
-        if not duplicates:
+        file_counts: Counter[str] = Counter()
+        duplicate_rows: set[int] = set()
+        kept: list[ParsedImportRecord] = []
+        for record in file.records:
+            file_counts[record.fingerprint] += 1
+            if file_counts[record.fingerprint] <= seen_counts[record.fingerprint]:
+                duplicate_rows.add(record.source_row_number)
+            else:
+                kept.append(record)
+        for fingerprint, count in file_counts.items():
+            seen_counts[fingerprint] = max(seen_counts[fingerprint], count)
+        if not duplicate_rows:
             result.append(file)
-            seen.update(record.external_key for record in file.records)
             continue
-        kept = tuple(record for record in file.records if record.external_key not in duplicates)
         rows = tuple(
             replace(
                 row,
@@ -126,20 +138,68 @@ def _deduplicate_overlapping_files(
                 reason="Duplicate of a normalized row in an earlier selected file.",
                 record=None,
             )
-            if row.record is not None and row.record.external_key in duplicates
+            if row.record is not None and row.source_row_number in duplicate_rows
             else row
             for row in file.rows
         )
         result.append(
             replace(
                 file,
-                records=kept,
+                records=tuple(kept),
                 rows=rows,
                 warnings=(
                     *file.warnings,
-                    f"{len(duplicates)} overlapping normalized row(s) were ignored.",
+                    f"{len(duplicate_rows)} overlapping normalized row(s) were ignored.",
                 ),
             )
         )
-        seen.update(record.external_key for record in kept)
     return tuple(result)
+
+
+def _validate_single_broker(files: tuple[ParsedCsvFile, ...]) -> None:
+    brokers = {
+        file.detected_broker for file in files if file.detected_broker is not BrokerKind.GENERIC
+    }
+    if len(brokers) > 1:
+        labels = ", ".join(sorted(broker.value.title() for broker in brokers))
+        raise ValueError(
+            f"These files match more than one broker ({labels}). "
+            "Import each broker as a separate book."
+        )
+
+
+def _dataset_broker(files: tuple[ParsedCsvFile, ...], *, requested: BrokerKind) -> BrokerKind:
+    detected = {
+        file.detected_broker for file in files if file.detected_broker is not BrokerKind.GENERIC
+    }
+    return next(iter(detected)) if len(detected) == 1 else requested
+
+
+def _validate_position_snapshots(files: tuple[ParsedCsvFile, ...]) -> None:
+    """Reject incompatible snapshots that would otherwise add the same holding twice."""
+
+    seen: dict[tuple[str, str], Counter[str]] = {}
+    for file in files:
+        snapshot: dict[tuple[str, str], Counter[str]] = {}
+        for record in file.records:
+            if record.kind is not ImportRecordKind.POSITION:
+                continue
+            account = str(record.normalized.get("account_mask") or "...CSV")
+            symbol = str(record.normalized.get("symbol") or "").upper()
+            identity = (account, symbol)
+            snapshot.setdefault(identity, Counter())[record.fingerprint] += 1
+        for identity, fingerprints in snapshot.items():
+            if sum(fingerprints.values()) > 1:
+                account, symbol = identity
+                raise ValueError(
+                    f"{file.filename} contains more than one position row for {account} {symbol}. "
+                    "Use an aggregated position snapshot, not a lot-detail export."
+                )
+            prior = seen.get(identity)
+            if prior is not None and prior != fingerprints:
+                account, symbol = identity
+                raise ValueError(
+                    "Conflicting position snapshots were selected for "
+                    f"{account} {symbol}. Import one snapshot for that account and symbol per book."
+                )
+            seen[identity] = fingerprints

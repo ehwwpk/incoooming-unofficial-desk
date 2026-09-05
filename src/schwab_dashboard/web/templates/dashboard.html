@@ -83,7 +83,7 @@
           {% if not snapshot.is_demo and snapshot.portfolio.open_position_day_profit_loss is not none %}<span title="Broker day prints for positions still open; closed intraday positions and account cash items are outside this diagnostic.">OPEN POS P/L{% if snapshot.portfolio.day_profit_loss_reconciliation_status == 'diverged' %} &middot; UNRECONCILED{% endif %} <b class="{{ 'muted' if snapshot.portfolio.day_profit_loss_reconciliation_status == 'diverged' else snapshot.portfolio.open_position_day_profit_loss | pnl_class }}">{{ snapshot.portfolio.open_position_day_profit_loss | money }}</b></span>{% endif %}
           {% if snapshot.portfolio.day_profit_loss_reconciliation_status == 'diverged' %}<span title="Open-position broker prints minus the flow-neutral account result. A gap can come from closed positions, cash items, timing, or broker field quality.">P/L GAP <b class="muted">{{ snapshot.portfolio.day_profit_loss_reconciliation_gap | money }}</b></span>{% endif %}
           {% if snapshot.performance_windows %}<span>RANGE <b data-active-range>{{ snapshot.performance_windows[0].range_label }}</b></span>{% endif %}
-          <span>AS OF <b>{{ snapshot.as_of | short_date }}</b></span>
+          <span>{{ 'IMPORTED' if snapshot.mode == 'csv' else 'AS OF' }} <b>{{ snapshot.as_of | short_date }}</b></span>
           <span>STATUS <b class="{{ 'muted' if snapshot.is_demo else 'positive' }}">{% if snapshot.is_demo %}SIMULATION{% elif snapshot.mode == 'csv' %}CSV BOOK{% else %}LIVE LEDGER{% endif %}</b></span>
         </div>
       </section>
@@ -97,7 +97,7 @@
       {% elif snapshot.mode == 'csv' %}
       <aside class="csv-source-note" role="status">
         <b>CSV BOOK</b>
-        <span>{{ active_source_label }} uses only facts present in the imported files. Portfolio value covers imported positions, not brokerage cash; live quotes, Greeks, IV, and automatic refresh stay unavailable.</span>
+        <span>{{ active_source_label }} uses only facts present in the imported files. Portfolio value covers imported positions, not brokerage cash; live quotes, Greeks, IV, and automatic refresh stay unavailable. The date above is import time, not a broker valuation time.</span>
         <a href="/sources">SWITCH OR IMPORT &rarr;</a>
       </aside>
       {% endif %}

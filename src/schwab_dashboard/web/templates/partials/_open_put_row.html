@@ -1,6 +1,6 @@
 {% from "partials/_price_time_fact.html" import price_time_fact %}
 
-{% macro open_put_row(row) -%}
+{% macro open_put_row(row, is_demo=false) -%}
 <details class="open-option-row open-put-row {{ 'post-close' if not row.can_close_or_roll }}" data-context-symbol-row="{{ row.symbol }}" data-option-symbol="{{ row.option_symbol }}">
   <summary aria-label="{{ row.symbol }} {{ row.contracts }} contract {{ row.strike | number(2) }} short put, {{ row.days_to_expiration }} days to expiration">
     <span class="option-contract put-contract">
@@ -105,19 +105,19 @@
       <div>
         <span>LIQUIDITY</span>
         <b>{{ row.volume if row.volume is not none else '—' }} volume · {{ row.open_interest if row.open_interest is not none else '—' }} OI</b>
-        <small>{{ row.quote_status }} {{ row.quote_observed_on | short_date if row.quote_observed_on else '—' }}</small>
+        <small>{{ 'SIMULATED' if is_demo else row.quote_status }} {{ row.quote_observed_on | short_date if row.quote_observed_on else '—' }}</small>
       </div>
     </div>
 
     <details class="contract-model-disclosure">
-      <summary>MODEL INPUTS <span>PER SHARE / {{ row.quote_status }}{% if row.quote_observed_on %} {{ row.quote_observed_on | short_date }}{% endif %}</span></summary>
+      <summary>MODEL INPUTS <span>PER SHARE / {{ 'SIMULATED' if is_demo else row.quote_status }}{% if row.quote_observed_on %} {{ row.quote_observed_on | short_date }}{% endif %}</span></summary>
       <div>
         <span>IV <b>{% if row.implied_volatility_percent is not none %}{{ row.implied_volatility_percent | percent }}{% else %}&mdash;{% endif %}</b></span>
         <span>DELTA <b>{% if row.delta is not none %}{{ row.delta | number(3) }}{% else %}&mdash;{% endif %}</b></span>
         <span>GAMMA <b>{% if row.gamma is not none %}{{ row.gamma | number(4) }}{% else %}&mdash;{% endif %}</b></span>
         <span>THETA <b>{% if row.theta_per_share is not none %}{{ row.theta_per_share | number(4) }}{% else %}&mdash;{% endif %}</b></span>
         <span>VEGA <b>{% if row.vega is not none %}{{ row.vega | number(4) }}{% else %}&mdash;{% endif %}</b></span>
-        <span>QUOTE <b>{{ row.quote_status }} {{ row.quote_observed_on | short_date if row.quote_observed_on else '—' }}</b></span>
+        <span>QUOTE <b>{{ 'SIMULATED' if is_demo else row.quote_status }} {{ row.quote_observed_on | short_date if row.quote_observed_on else '—' }}</b></span>
       </div>
     </details>
 

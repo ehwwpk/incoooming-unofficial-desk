@@ -1,4 +1,4 @@
 Filled Time,Symbol,Side,Filled,Total Qty,Avg Price,Status
 08/01/2026 10:31:00,CVX,SELL,100,100,195.00,Filled
 08/02/2026 11:01:00,KTOS,BUY,25,100,62.00,Partially Filled
-08/03/2026 12:00:00,URNM,BUY,50,50,55.00,Cancelled
+08/03/2026 12:00:00,URNM,BUY,0,50,,Cancelled

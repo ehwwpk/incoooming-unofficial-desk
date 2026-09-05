@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from schwab_dashboard.application.imports.csv_text import HEADER_SCAN_ROWS, CsvText, header_key
+from schwab_dashboard.application.imports.errors import CsvImportError
+from schwab_dashboard.application.imports.row_normalizer import detect_file_kind, field_map
 from schwab_dashboard.domain.data_source import BrokerKind
 
 
@@ -29,6 +31,8 @@ PROFILES = (
         (
             frozenset(("date", "action", "symbol", "description", "quantity", "price", "amount")),
             frozenset(("symbol", "quantity", "price", "marketvalue")),
+            frozenset(("symbol", "quantity", "currentprice", "marketvalue")),
+            frozenset(("symbol", "quantity", "lastprice", "marketvalue")),
         ),
         ("positions", "executions", "cash", "dividends", "lifecycle"),
     ),
@@ -38,6 +42,7 @@ PROFILES = (
         (
             frozenset(("rundate", "action", "symbol", "description", "amount")),
             frozenset(("accountnamenumber", "symbol", "quantity", "currentvalue")),
+            frozenset(("symbol", "quantity", "mostrecentvalue")),
         ),
         ("positions", "executions", "cash", "dividends", "lifecycle"),
     ),
@@ -83,8 +88,34 @@ def select_profile(table: CsvText, requested: BrokerKind) -> ProfileMatch:
                         confidence="high" if complete else "medium",
                     )
                 )
-    if not matches:
-        raise ValueError(
-            "No supported positions or activity header was found in the first 30 rows."
+    exact = [match for match in matches if match.confidence == "high"]
+    if exact:
+        requested_exact = [match for match in exact if match.profile.broker is requested]
+        if requested_exact:
+            return max(requested_exact, key=lambda item: (item.score, -item.header_row))
+        generic_exact = [match for match in exact if match.profile.broker is BrokerKind.GENERIC]
+        if generic_exact:
+            return max(generic_exact, key=lambda item: (item.score, -item.header_row))
+        return max(exact, key=lambda item: (item.score, -item.header_row))
+
+    generic_profile = next(profile for profile in PROFILES if profile.broker is BrokerKind.GENERIC)
+    structural: list[ProfileMatch] = []
+    for index, row in enumerate(table.rows[:HEADER_SCAN_ROWS], start=1):
+        mapped_fields = field_map(tuple(row))
+        try:
+            detect_file_kind(mapped_fields)
+        except CsvImportError:
+            continue
+        structural.append(
+            ProfileMatch(
+                profile=generic_profile,
+                header_row=index,
+                score=len(mapped_fields),
+                confidence="medium",
+            )
         )
-    return max(matches, key=lambda item: (item.score, -item.header_row))
+    if structural:
+        return max(structural, key=lambda item: (item.score, -item.header_row))
+    if matches:
+        return max(matches, key=lambda item: (item.score, -item.header_row))
+    raise ValueError("No supported positions or activity header was found in the first 30 rows.")

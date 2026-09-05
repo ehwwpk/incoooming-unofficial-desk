@@ -189,6 +189,7 @@ def test_risk_projection_keeps_premium_scale_separate_from_share_delivery() -> N
     adjusted = replace(
         snapshot,
         underlyings=(replace(underlying, open_call_clocks=(clock,)),),
+        live_position_book=None,
     )
 
     summary = build_open_risk_summary(adjusted)

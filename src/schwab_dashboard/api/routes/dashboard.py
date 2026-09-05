@@ -24,6 +24,16 @@ ContainerDependency = Annotated[Container, Depends(get_container)]
 LOGGER = logging.getLogger(__name__)
 
 
+def _require_live_sync(request: Request, container: Container) -> None:
+    source_key = selected_source_key(request)
+    if (
+        container.settings.demo_mode
+        or source_key == "demo"
+        or (source_key is not None and source_key.startswith("csv:"))
+    ):
+        raise HTTPException(status_code=409, detail="Switch to the Schwab book before syncing.")
+
+
 def _utc_timestamp(value: datetime | None) -> datetime | None:
     """Restore UTC lost by SQLite before timestamps reach browser date parsing."""
     if value is None:
@@ -51,7 +61,8 @@ def dashboard_data(request: Request, container: ContainerDependency) -> dict[str
 
 
 @router.post("/api/v1/sync/accounts")
-def sync_accounts(container: ContainerDependency) -> dict[str, Any]:
+def sync_accounts(request: Request, container: ContainerDependency) -> dict[str, Any]:
+    _require_live_sync(request, container)
     try:
         return asdict(container.sync_accounts().execute())
     except AuthenticationRequiredError as exc:
@@ -59,7 +70,8 @@ def sync_accounts(container: ContainerDependency) -> dict[str, Any]:
 
 
 @router.post("/api/v1/sync/full")
-def sync_full(container: ContainerDependency) -> dict[str, Any]:
+def sync_full(request: Request, container: ContainerDependency) -> dict[str, Any]:
+    _require_live_sync(request, container)
     try:
         return asdict(container.sync_full(trigger="api"))
     except AuthenticationRequiredError as exc:
@@ -118,6 +130,8 @@ def home(request: Request, container: ContainerDependency) -> Response:
         snapshot = container.read_dashboard(source_key).execute()
     except LookupError:
         return RedirectResponse(url="/sources", status_code=status.HTTP_303_SEE_OTHER)
+    if snapshot.is_demo:
+        source_key = "demo"
     dataset = (
         container.source_store.get_dataset(source_key.removeprefix("csv:"))
         if source_key.startswith("csv:")
@@ -143,7 +157,8 @@ def home(request: Request, container: ContainerDependency) -> Response:
 
 
 @router.post("/sync", response_class=RedirectResponse)
-def sync_from_browser(container: ContainerDependency) -> RedirectResponse:
+def sync_from_browser(request: Request, container: ContainerDependency) -> RedirectResponse:
+    _require_live_sync(request, container)
     try:
         container.sync_full(trigger="browser")
     except AuthenticationRequiredError:

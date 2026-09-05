@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import csv
+import io
 from datetime import datetime
 from pathlib import Path
 
 import pytest
 
 from schwab_dashboard.application.imports import parse_csv_file
+from schwab_dashboard.application.imports.csv_text import read_csv_text
 from schwab_dashboard.application.market_time import ledger_market_date
 from schwab_dashboard.domain.data_source import BrokerKind, ImportRecordKind
 
@@ -23,7 +26,7 @@ FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "csv"
             "robinhood-account-activity",
             3,
         ),
-        (BrokerKind.WEBULL, "webull/orders.csv", "webull-order-history", 1),
+        (BrokerKind.WEBULL, "webull/orders.csv", "webull-order-history", 2),
         (BrokerKind.IBKR, "ibkr/statement.csv", "ibkr-activity-statement", 4),
     ),
 )
@@ -38,6 +41,60 @@ def test_broker_golden_files_normalize_safely(
     assert parsed.imported_count == imported
     assert parsed.confidence == "high"
     assert all(record.fingerprint and record.source_row_number for record in parsed.records)
+
+
+@pytest.mark.parametrize(
+    ("broker", "relative"),
+    (
+        (BrokerKind.SCHWAB, "schwab/activity-with-preamble.csv"),
+        (BrokerKind.FIDELITY, "fidelity/positions.csv"),
+        (BrokerKind.ROBINHOOD, "robinhood/activity.csv"),
+        (BrokerKind.WEBULL, "webull/orders.csv"),
+    ),
+)
+def test_broker_adapters_are_invariant_to_transport_and_column_variants(
+    broker: BrokerKind, relative: str
+) -> None:
+    path = FIXTURES / relative
+    original = path.read_bytes()
+    baseline = parse_csv_file(filename=path.name, content=original, broker=broker)
+    table = read_csv_text(original)
+    header_index = baseline.header_row - 1
+    header = table.rows[header_index]
+    order = tuple(reversed(range(len(header))))
+    transformed: list[list[str]] = []
+    for index, row in enumerate(table.rows):
+        if index < header_index:
+            transformed.append(list(row))
+            continue
+        padded = row + ("",) * max(0, len(header) - len(row))
+        reordered = [padded[column] for column in order]
+        if index == header_index:
+            reordered = [f" {value.upper()}! " for value in reordered]
+            reordered.append("Unmapped Variant Column")
+        else:
+            reordered.extend(row[len(header) :])
+            reordered.append("")
+        transformed.append(reordered)
+    stream = io.StringIO(newline="")
+    csv.writer(stream, delimiter="\t", lineterminator="\r\n").writerows(transformed)
+
+    variant = parse_csv_file(
+        filename=f"variant-{path.name}",
+        content=stream.getvalue().encode("utf-16"),
+        broker=broker,
+    )
+
+    assert variant.profile == baseline.profile
+    assert variant.detected_broker is baseline.detected_broker
+    assert variant.encoding == "utf-16"
+    assert variant.delimiter == "\t"
+    assert [record.fingerprint for record in variant.records] == [
+        record.fingerprint for record in baseline.records
+    ]
+    assert [record.normalized for record in variant.records] == [
+        record.normalized for record in baseline.records
+    ]
 
 
 def test_schwab_deposit_is_transfer_not_income_and_preamble_is_audited() -> None:
@@ -75,6 +132,19 @@ def test_fidelity_compact_option_symbol_is_normalized() -> None:
     assert option["expiration_date"] == "2026-08-21"
     assert option["strike"] == "75"
     assert option["contract_multiplier"] == "100"
+
+
+def test_webull_keeps_executed_partial_fills_and_ignores_unfilled_orders() -> None:
+    path = FIXTURES / "webull" / "orders.csv"
+    parsed = parse_csv_file(filename=path.name, content=path.read_bytes(), broker=BrokerKind.WEBULL)
+
+    assert [
+        (record.normalized["symbol"], record.normalized["quantity"]) for record in parsed.records
+    ] == [
+        ("CVX", "100"),
+        ("KTOS", "25"),
+    ]
+    assert parsed.ignored_count == 1
 
 
 def test_adjusted_option_uses_exported_multiplier_and_blocks_unknown_multiplier() -> None:

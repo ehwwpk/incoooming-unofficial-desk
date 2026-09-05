@@ -7,7 +7,7 @@
 {% set risk = comparison.spine.risk %}
 {% set capital = comparison.spine.capital_efficiency %}
 {% set assignment = comparison.spine.assignment_impact %}
-<section class="workspace-panel performance-compare" id="performance-comparison" data-performance-compare>
+<section class="workspace-panel performance-compare" id="performance-comparison" data-performance-compare data-performance-demo="{{ 'true' if snapshot.is_demo else 'false' }}">
   <header class="workspace-panel-heading">
     <h2>Benchmark</h2>
     <div class="performance-panel-tools">
@@ -16,7 +16,7 @@
         {% for item in performance_period_options %}<a href="/workspaces/attribution?period={{ item.value }}"{% if item.value == selected_performance_period %} aria-current="page"{% endif %}>{{ item.label }}</a>{% endfor %}
       </nav>
       {% endif %}
-      <span>{{ comparison.range_label | upper }}{% if risk.status == 'early_sample' %} &middot; EARLY SAMPLE{% endif %}{% if matched.quality != 'observed' %} &middot; {{ matched.quality | replace('_', ' ') | upper }} PATH{% endif %}</span>
+      <span>{{ comparison.range_label | upper }}{% if snapshot.is_demo %} &middot; FICTIONAL DEMO{% endif %}{% if risk.status == 'early_sample' %} &middot; EARLY SAMPLE{% endif %}{% if matched.quality != 'observed' %} &middot; {{ matched.quality | replace('_', ' ') | upper }} PATH{% endif %}</span>
     </div>
   </header>
   <div class="performance-compare-stage">
@@ -35,7 +35,7 @@
         <span class="performance-metric-item performance-actual-coverage">
           <span class="performance-series-key"><i aria-hidden="true"></i>MANAGED</span>
           <strong class="{{ matched.managed_return_percent | pnl_class }}">{{ matched.managed_return_percent | percent(2) }}</strong>
-          <small>cash flows removed{% if comparison.actual.points and comparison.actual.points[-1].daily_return_percent is not none %} &middot; latest session &middot; {{ 'observed' if comparison.actual.points[-1].return_quality == 'observed' else 'reconstructed' if comparison.actual.points[-1].return_quality == 'derived' else comparison.actual.points[-1].return_quality | replace('_', ' ') }} <b class="{{ comparison.actual.points[-1].daily_return_percent | pnl_class }}">{{ comparison.actual.points[-1].daily_return_percent | percent(2) }}</b> {{ comparison.actual.points[-1].date.strftime('%b %d') | upper }}{% elif comparison.actual.points and comparison.actual.points[-1].return_quality == 'multi_session' %} &middot; latest link spans {{ comparison.actual.points[-1].session_span }} sessions{% elif comparison.actual.return_percent is not none and comparison.actual.points and comparison.actual.points[-1].date != matched.as_of %} &middot; through {{ comparison.actual.points[-1].date.strftime('%b %d') | upper }}{% endif %}</small>
+          <small>cash flows removed{% if comparison.actual.points and comparison.actual.points[-1].daily_return_percent is not none %} &middot; latest session &middot; {{ 'simulated' if snapshot.is_demo else 'observed' if comparison.actual.points[-1].return_quality == 'observed' else 'reconstructed' if comparison.actual.points[-1].return_quality == 'derived' else comparison.actual.points[-1].return_quality | replace('_', ' ') }} <b class="{{ comparison.actual.points[-1].daily_return_percent | pnl_class }}">{{ comparison.actual.points[-1].daily_return_percent | percent(2) }}</b> {{ comparison.actual.points[-1].date.strftime('%b %d') | upper }}{% elif comparison.actual.points and comparison.actual.points[-1].return_quality == 'multi_session' %} &middot; latest link spans {{ comparison.actual.points[-1].session_span }} sessions{% elif comparison.actual.return_percent is not none and comparison.actual.points and comparison.actual.points[-1].date != matched.as_of %} &middot; through {{ comparison.actual.points[-1].date.strftime('%b %d') | upper }}{% endif %}</small>
         </span>
         <span class="performance-metric-item performance-shares-coverage">
           <span class="performance-series-key"><i aria-hidden="true"></i>STARTING SHARES</span>
@@ -50,31 +50,31 @@
         <span class="performance-metric-item performance-levered-coverage" title="{{ comparison.levered_market_reference.method_note }}">
           <span class="performance-series-key"><i aria-hidden="true"></i>SPY &times; EXPOSURE</span>
           <strong class="{{ matched.levered_market_return_percent | pnl_class }}">{{ matched.levered_market_return_percent | percent(2) }}</strong>
-          <small>{% if comparison.levered_market_reference.status == 'derived_levered' %}start-matched, financed{% else %}{{ comparison.levered_market_reference.status | replace('_', ' ') }}{% endif %}</small>
+          <small>{% if comparison.levered_market_reference.status == 'derived_levered' %}starting stock exposure{% else %}{{ comparison.levered_market_reference.status | replace('_', ' ') }}{% endif %}</small>
         </span>
       </aside>
 
       <div class="performance-management-card" title="Managed return minus the starting-shares path; this is not option-overlay alpha.">
         <span class="performance-series-key performance-edge-coverage"><i aria-hidden="true"></i>MANAGEMENT DIFFERENCE</span>
         <strong class="{{ comparison.spine.management_edge.return_difference_percent | pnl_class }}">{{ comparison.spine.management_edge.return_difference_percent | percent(2) }}</strong>
-        <small>Managed minus starting shares &middot; {{ matched.quality | replace('_', ' ') | upper }} path</small>
+        <small>Percentage-point difference &middot; managed minus starting shares &middot; {{ 'SIMULATED' if snapshot.is_demo else matched.quality | replace('_', ' ') | upper }} path</small>
       </div>
 
       <article class="performance-spine-card risk-card">
-        <header><div><p class="eyebrow">RISK</p><h3>Drawdown</h3></div><span>{% if risk.status == 'early_sample' %}EARLY SAMPLE &middot; {% endif %}{{ risk.observations }} OBSERVED RETURNS</span></header>
+        <header><div><p class="eyebrow">RISK</p><h3>Drawdown</h3></div><span>{% if risk.status == 'early_sample' %}EARLY SAMPLE &middot; {% endif %}{{ risk.observations }} {{ 'SIMULATED' if snapshot.is_demo else 'OBSERVED' }} RETURNS</span></header>
         <div class="performance-cell-grid compact">
-          <div><span>MAX DRAWDOWN</span><strong class="{{ risk.max_drawdown_percent | pnl_class }}">{{ risk.max_drawdown_percent | percent(2) }}</strong><small>Observed adjacent closes</small></div>
+          <div><span>MAX DRAWDOWN</span><strong class="{{ risk.max_drawdown_percent | pnl_class }}">{{ risk.max_drawdown_percent | percent(2) }}</strong><small>{{ 'Simulated' if snapshot.is_demo else 'Observed' }} adjacent closes</small></div>
           <div><span>ANNUALIZED VOLATILITY</span><strong>{{ risk.annualized_volatility_percent | percent(2) }}</strong><small>{% if risk.status == 'early_sample' %}EARLY ESTIMATE &middot; {{ risk.observations }} SESSIONS{% else %}252-session annualization{% endif %}</small></div>
-          <div><span>POSITIVE DAYS</span><strong>{{ risk.positive_day_percent | percent(1) }}</strong><small>Of observed daily returns</small></div>
-          <div><span>WORST DAY</span><strong class="{{ risk.worst_day_percent | pnl_class }}">{{ risk.worst_day_percent | percent(2) }}</strong><small>Observed daily TWR only</small></div>
+          <div><span>POSITIVE DAYS</span><strong>{{ risk.positive_day_percent | percent(1) }}</strong><small>Of {{ 'simulated' if snapshot.is_demo else 'observed' }} daily returns</small></div>
+          <div><span>WORST DAY</span><strong class="{{ risk.worst_day_percent | pnl_class }}">{{ risk.worst_day_percent | percent(2) }}</strong><small>{{ 'Simulated' if snapshot.is_demo else 'Observed' }} daily TWR only</small></div>
         </div>
         <footer>{{ risk.method_note }}</footer>
       </article>
 
       <article class="performance-spine-card capital-card">
-        <header><div><p class="eyebrow">CAPITAL</p><h3>Net liquidity</h3></div><span>{{ capital.status | upper }}{% if capital.average_net_liquidation is not none %} &middot; {{ capital.quality | upper }}{% endif %}</span></header>
+        <header><div><p class="eyebrow">CAPITAL</p><h3>Net liquidity</h3></div><span>{{ 'SIMULATED' if snapshot.is_demo else capital.status | upper }}{% if capital.average_net_liquidation is not none and not snapshot.is_demo %} &middot; {{ capital.quality | upper }}{% endif %}</span></header>
         <div class="performance-cell-grid compact">
-          <div><span>AVERAGE NET LIQUIDATION</span><strong>{{ capital.average_net_liquidation | money }}</strong><small>{{ capital.observed_sessions }} observed &middot; {{ capital.derived_sessions }} reconstructed &middot; {{ capital.estimated_sessions }} estimated{% if capital.unresolved_sessions %} &middot; {{ capital.unresolved_sessions }} unresolved{% endif %}</small></div>
+          <div><span>AVERAGE NET LIQUIDATION</span><strong>{{ capital.average_net_liquidation | money }}</strong><small>{{ capital.observed_sessions }} {{ 'simulated' if snapshot.is_demo else 'observed' }} &middot; {{ capital.derived_sessions }} reconstructed &middot; {{ capital.estimated_sessions }} estimated{% if capital.unresolved_sessions %} &middot; {{ capital.unresolved_sessions }} unresolved{% endif %}</small></div>
           <div><span>OPTION CASH / AVG CAPITAL</span><strong>{{ capital.option_cash_on_average_capital_percent | percent(2) }}</strong><small>Capital-use ratio, not TWR</small></div>
           <div><span>ACCOUNT MAINTENANCE</span><strong>{{ capital.maintenance_requirement | money }}</strong><small>{{ capital.maintenance_to_net_liquidation_percent | percent(1) }} of latest net liq</small></div>
           <div><span>AVAILABLE FUNDS</span><strong>{{ capital.available_funds | money }}</strong><small>{{ capital.buying_power | money }} buying power</small></div>
@@ -101,9 +101,9 @@
   </article>
   <script type="application/json" data-performance-comparison-payload>{{ performance_comparison_payload | tojson }}</script>
   <div class="performance-proof-strip">
-    <div><span>VALUATION COVERAGE</span><strong>{{ comparison.actual.points | selectattr('value_quality', 'equalto', 'observed') | list | length }} OBSERVED</strong><small>{{ comparison.reconstructed_sessions }} DERIVED &middot; {{ comparison.estimated_sessions }} ESTIMATED</small></div>
+    <div><span>VALUATION COVERAGE</span><strong>{{ comparison.actual.points | selectattr('value_quality', 'equalto', 'observed') | list | length }} {{ 'SIMULATED' if snapshot.is_demo else 'OBSERVED' }}</strong><small>{{ comparison.reconstructed_sessions }} DERIVED &middot; {{ comparison.estimated_sessions }} ESTIMATED</small></div>
     <div><span>OWNER CASH EXCLUDED FROM RETURNS</span><strong>{{ comparison.external_flows_excluded | money }}</strong><small>CALCULATED RETURN LINKS ONLY &middot; DEPOSITS + WITHDRAWALS</small></div>
-    <div><span>EXECUTED OPTION CASH</span><strong class="{{ comparison.spine.option_economics.net_executed_cash | pnl_class }}">{{ comparison.spine.option_economics.net_executed_cash | money }}</strong><small>FEE-NET BROKER CASH</small></div>
+    <div><span>EXECUTED OPTION CASH</span><strong class="{{ comparison.spine.option_economics.net_executed_cash | pnl_class }}">{{ comparison.spine.option_economics.net_executed_cash | money }}</strong><small>{{ 'FICTIONAL EXECUTED CASH' if snapshot.is_demo else 'FEE-NET BROKER CASH' }}</small></div>
     <div><span>DATA RECONCILIATION</span><strong>{{ comparison.spine.option_economics.status | replace('_', ' ') | upper }}</strong><small>{{ comparison.spine.option_economics.campaign_cash_variance | money }} CASH VARIANCE</small></div>
   </div>
 
@@ -139,20 +139,20 @@
       {% endfor %}
     </div>
   </details>
-  <footer class="performance-compare-footer"><span>{% if comparison.warnings %}{{ comparison.warnings | join(' / ') }}{% else %}BROKER-OBSERVED CLOSES ONLY{% endif %}</span><span>DAILY RISK USES ADJACENT BROKER-OBSERVED CLOSES ONLY</span></footer>
+  <footer class="performance-compare-footer"><span>{% if comparison.warnings %}{{ comparison.warnings | join(' / ') }}{% else %}{{ 'FICTIONAL DEMO CLOSES ONLY' if snapshot.is_demo else 'BROKER-OBSERVED CLOSES ONLY' }}{% endif %}</span><span>{{ 'DAILY RISK USES FICTIONAL ADJACENT CLOSES' if snapshot.is_demo else 'DAILY RISK USES ADJACENT BROKER-OBSERVED CLOSES ONLY' }}</span></footer>
 </section>
 {% endif %}
 <section class="workspace-metric-strip operator-strip" aria-label="Results summary">
   <div><span>LAST 4 WEEKS</span><strong class="{{ snapshot.performance_windows[0].option_cash | pnl_class }}">{{ snapshot.performance_windows[0].option_cash | money }}</strong><small>Net option cash</small></div>
-  <div><span>{{ 'R365 FULL-MONTH AVG' if snapshot.operator_metrics.completed_months >= 12 else 'OBSERVED FULL-MONTH AVG' }}</span><strong>{{ snapshot.operator_metrics.rolling_year_monthly_average | money }}</strong><small>{{ snapshot.operator_metrics.completed_months }} complete month{{ '' if snapshot.operator_metrics.completed_months == 1 else 's' }}</small></div>
+  <div><span>{{ 'R365 FULL-MONTH AVG' if snapshot.operator_metrics.completed_months >= 12 else 'SIMULATED FULL-MONTH AVG' if snapshot.is_demo else 'OBSERVED FULL-MONTH AVG' }}</span><strong>{{ snapshot.operator_metrics.rolling_year_monthly_average | money }}</strong><small>{{ snapshot.operator_metrics.completed_months }} complete month{{ '' if snapshot.operator_metrics.completed_months == 1 else 's' }}</small></div>
   <div><span>MEDIAN FULL MONTH</span><strong>{{ snapshot.operator_metrics.median_completed_month | money }}</strong><small>{{ snapshot.operator_metrics.completed_months }} completed months</small></div>
-  <div><span>FULL-MONTH RANGE</span><strong>{{ snapshot.operator_metrics.worst_completed_month | money }}–{{ snapshot.operator_metrics.best_completed_month | money }}</strong><small>Observed option cash</small></div>
+  <div><span>FULL-MONTH RANGE</span><strong>{{ snapshot.operator_metrics.worst_completed_month | money }}–{{ snapshot.operator_metrics.best_completed_month | money }}</strong><small>{{ 'Simulated' if snapshot.is_demo else 'Observed' }} option cash</small></div>
 </section>
 
 <div class="results-coverage-strip" role="status">
   <span>RESULTS COVERAGE</span>
-  {% if snapshot.monthly_performance %}<b>{{ snapshot.monthly_performance[0].label | upper }}–{{ snapshot.monthly_performance[-1].label | upper }} OBSERVED</b>{% else %}<b>NO NORMALIZED CASH HISTORY</b>{% endif %}
-  <small>{{ snapshot.operator_metrics.completed_months }} complete month{{ '' if snapshot.operator_metrics.completed_months == 1 else 's' }} · missing history is not counted as zero{% if not snapshot.strategy_attribution %} · shares-only comparison waits for matched lot history{% endif %}</small>
+  {% if snapshot.monthly_performance %}<b>{{ snapshot.monthly_performance[0].label | upper }}–{{ snapshot.monthly_performance[-1].label | upper }} {{ 'SIMULATED' if snapshot.is_demo else 'OBSERVED' }}</b>{% else %}<b>NO NORMALIZED CASH HISTORY</b>{% endif %}
+  <small>{{ snapshot.operator_metrics.completed_months }} complete month{{ '' if snapshot.operator_metrics.completed_months == 1 else 's' }} · missing history is not counted as zero{% if not snapshot.strategy_attribution and not comparison %} · shares-only comparison waits for matched lot history{% endif %}</small>
 </div>
 
 {% if cadence_series %}
@@ -213,7 +213,7 @@
   </div>
 </details>
 
-{% if snapshot.strategy_attribution %}<section class="workspace-panel attribution-panel">
+{% if snapshot.strategy_attribution and not comparison %}<section class="workspace-panel attribution-panel">
   <header class="workspace-panel-heading"><div><p class="eyebrow">STRATEGY COMPARISON</p><h2>Versus shares</h2></div><span>CURRENT-INVENTORY PROXY WHERE SUPPORTED</span></header>
   <div class="attribution-grid">
     {% for item in snapshot.strategy_attribution %}<article data-attribution="{{ item.key }}">
@@ -230,7 +230,7 @@
 </section>{% endif %}
 
 <details class="workspace-panel monthly-performance results-disclosure" data-monthly-performance>
-  <summary><span><b>MONTH BY MONTH</b><small>CALENDAR {{ snapshot.monthly_performance[-1].year }} · ACTUAL CASH</small></span><span><strong>{{ snapshot.monthly_performance | length }} MONTHS</strong><i aria-hidden="true"></i></span></summary>
+  <summary><span><b>MONTH BY MONTH</b><small>CALENDAR {{ snapshot.monthly_performance[-1].year }} · {{ 'SIMULATED' if snapshot.is_demo else 'ACTUAL' }} CASH</small></span><span><strong>{{ snapshot.monthly_performance | length }} MONTHS</strong><i aria-hidden="true"></i></span></summary>
   <div class="workspace-table-wrap"><table class="workspace-table monthly-performance-table">
     <thead><tr><th>Month</th><th class="numeric">Premium received</th><th class="numeric">Closing debits</th><th class="numeric">Net option cash</th><th class="numeric">Dividends</th><th class="numeric">Total strategy cash</th><th class="numeric">Called away</th><th class="numeric">Put to</th></tr></thead>
     <tbody>{% for month in snapshot.monthly_performance %}<tr class="{% if month.is_partial %}partial{% elif month.coverage_status == 'coverage_start' %}coverage-start{% endif %}">

@@ -7,7 +7,12 @@ from dataclasses import replace
 from pathlib import Path
 
 from schwab_dashboard.application.imports.csv_profiles import select_profile
-from schwab_dashboard.application.imports.csv_text import read_csv_text, row_dict
+from schwab_dashboard.application.imports.csv_text import (
+    MAX_CSV_ROWS,
+    read_csv_text,
+    row_dict,
+    validate_headers,
+)
 from schwab_dashboard.application.imports.errors import CsvImportError
 from schwab_dashboard.application.imports.ibkr_parser import is_ibkr_statement, parse_ibkr_statement
 from schwab_dashboard.application.imports.row_normalizer import (
@@ -16,6 +21,7 @@ from schwab_dashboard.application.imports.row_normalizer import (
     is_summary_row,
     normalize_activity_row,
     normalize_position_row,
+    validate_field_aliases,
 )
 from schwab_dashboard.domain.data_source import (
     BrokerKind,
@@ -44,7 +50,11 @@ def parse_csv_file(
     except ValueError as exc:
         raise CsvImportError(str(exc)) from exc
     headers = tuple(table.rows[match.header_row - 1])
-    mapped_fields = field_map(headers)
+    validate_headers(headers)
+    validate_field_aliases(headers, broker=match.profile.broker)
+    if len(table.rows) - match.header_row > MAX_CSV_ROWS:
+        raise CsvImportError(f"CSV files are limited to {MAX_CSV_ROWS:,} data rows.")
+    mapped_fields = field_map(headers, broker=match.profile.broker)
     file_kind = detect_file_kind(mapped_fields)
     records: list[ParsedImportRecord] = []
     outcomes: list[ParsedImportRow] = []
@@ -67,6 +77,17 @@ def parse_csv_file(
                 )
             )
     for index, values in enumerate(table.rows[match.header_row :], start=match.header_row + 1):
+        if len(values) > len(headers):
+            raw = row_dict(headers, values)
+            outcomes.append(
+                _outcome(
+                    index,
+                    raw,
+                    ImportRowDisposition.REJECTED,
+                    "Row has more cells than the detected header; check CSV quoting.",
+                )
+            )
+            continue
         raw = row_dict(headers, values)
         if not any(raw.values()):
             continue

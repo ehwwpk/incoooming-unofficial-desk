@@ -120,7 +120,9 @@ def test_basis_lens_renders_positive_surplus_after_full_capital_recovery() -> No
         recovery_surplus=Decimal("27500"),
         fully_recovered=True,
     )
-    recovered_snapshot = replace(snapshot, basis_lens=(recovered_basis, *names))
+    recovered_snapshot = replace(
+        snapshot, basis_lens=(recovered_basis, *names), performance_comparison=None
+    )
 
     rendered = templates.env.get_template("workspaces/_strategy_review.html").render(
         snapshot=recovered_snapshot
@@ -793,6 +795,9 @@ def test_demo_book_keeps_the_day_caption_and_invents_no_quote_clock() -> None:
 
 def test_open_contracts_are_calls_plus_puts_not_broker_lines() -> None:
     snapshot = DemoDashboardReader().execute()
+    call_only_positions = tuple(
+        position for position in snapshot.positions if position.option_type != "PUT"
+    )
     ktos = next(item for item in snapshot.underlyings if item.symbol == "KTOS")
     put = PositionSummary(
         account_mask="...1234",
@@ -814,8 +819,9 @@ def test_open_contracts_are_calls_plus_puts_not_broker_lines() -> None:
     )
     snapshot_with_put = replace(
         snapshot,
+        positions=(*call_only_positions, put),
         live_position_book=build_live_position_book(
-            (*snapshot.positions, put),
+            (*call_only_positions, put),
             as_of=snapshot.as_of.date(),
         ),
     )
@@ -890,18 +896,20 @@ def test_demo_name_row_open_contracts_match_call_lots_not_strikes() -> None:
     cvx_contracts = cvx_card.split('class="position-contracts">', 1)[1].split("</div>", 1)[0]
     cvx = next(item for item in snapshot.underlyings if item.symbol == "CVX")
 
-    assert overview.open_positions == 6
-    assert overview.open_contracts == 18
+    assert overview.open_positions == 8
+    assert overview.open_contracts == 20
+    assert overview.open_call_contracts == 18
+    assert overview.open_put_contracts == 2
     assert cvx.active_contracts == 6
-    assert "<b>18</b> TRADABLE CONTRACTS" in rendered
+    assert "<b>20</b> TRADABLE CONTRACTS" in rendered
     assert "<b>18</b> CALLS" in rendered
     assert "OPTION POSITIONS" not in rendered
     assert "<span>TRADABLE CONTRACTS</span><strong>6</strong>" in cvx_contracts
     assert "6 calls" in cvx_contracts
     assert "<strong>3</strong>" not in cvx_contracts
     assert "OPEN OPTION POSITIONS" not in pulse
-    assert "<strong>18</strong>" in pulse
-    assert "18 calls" in pulse
+    assert "<strong>20</strong>" in pulse
+    assert "18 calls · 2 puts" in pulse
 
 
 def test_header_flags_prior_session_names_outside_the_elements_the_poller_rewrites() -> None:
@@ -991,7 +999,7 @@ def test_results_spine_keeps_series_key_beside_chart_and_economics_below_it() ->
         ),
     )
     rendered = templates.env.get_template("workspaces/_strategy_review.html").render(
-        snapshot=replace(snapshot, performance_comparison=comparison),
+        snapshot=replace(snapshot, mode="live", performance_comparison=comparison),
         performance_comparison_payload=jsonable_encoder(asdict(comparison)),
     )
 
@@ -1076,7 +1084,7 @@ def test_performance_chart_keeps_bridge_provenance_through_the_right_anchor() ->
     assert "collectLinkRuns" in script
     assert "api.setData(run.map" in script
     assert "included.has(point.date)" not in script
-    assert "RETURN ${actualPoint.returnQuality.toUpperCase()}" in script
+    assert 'RETURN ${isDemo ? "SIMULATED" : actualPoint.returnQuality.toUpperCase()}' in script
     assert '["derived", "estimated", "provisional"].includes(point.returnQuality)' in script
     assert "managedPoints.slice(1)" in script
     assert "payload?.matched?.quality" not in script
@@ -1102,7 +1110,7 @@ def test_results_spine_shows_assignment_ledger_only_when_shares_moved() -> None:
         ),
     )
     rendered = templates.env.get_template("workspaces/_strategy_review.html").render(
-        snapshot=replace(snapshot, performance_comparison=assigned),
+        snapshot=replace(snapshot, mode="live", performance_comparison=assigned),
         performance_comparison_payload=jsonable_encoder(asdict(assigned)),
     )
 
@@ -1134,7 +1142,7 @@ def test_results_spine_discloses_unknown_assignment_side_and_stale_reference() -
         ),
     )
     rendered = templates.env.get_template("workspaces/_strategy_review.html").render(
-        snapshot=replace(snapshot, performance_comparison=assigned),
+        snapshot=replace(snapshot, mode="live", performance_comparison=assigned),
         performance_comparison_payload=jsonable_encoder(asdict(assigned)),
     )
 
@@ -1162,7 +1170,7 @@ def test_results_spine_discloses_capital_valuation_quality_and_counts() -> None:
         ),
     )
     rendered = templates.env.get_template("workspaces/_strategy_review.html").render(
-        snapshot=replace(snapshot, performance_comparison=qualified),
+        snapshot=replace(snapshot, mode="live", performance_comparison=qualified),
         performance_comparison_payload=jsonable_encoder(asdict(qualified)),
     )
 
@@ -1190,7 +1198,7 @@ def test_results_spine_qualifies_inferred_campaigns_and_latest_stored_marks() ->
         ),
     )
     rendered = templates.env.get_template("workspaces/_strategy_review.html").render(
-        snapshot=replace(snapshot, performance_comparison=qualified),
+        snapshot=replace(snapshot, mode="live", performance_comparison=qualified),
         performance_comparison_payload=jsonable_encoder(asdict(qualified)),
     )
 

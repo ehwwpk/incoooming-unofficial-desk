@@ -42,15 +42,22 @@ def test_open_book_projection_reconciles_to_dashboard_open_mark() -> None:
     snapshot = DemoDashboardReader().execute()
     projection = build_open_book(snapshot)
 
-    assert projection.entry_credit == snapshot.covered_calls.open_call_credit
-    assert projection.current_liability == snapshot.covered_calls.open_call_mark_value
-    assert projection.open_profit_loss == snapshot.covered_calls.open_mark_profit_loss
+    assert snapshot.live_position_book is not None
+    assert projection.entry_credit == sum(
+        option.entry_credit for option in snapshot.live_position_book.options
+    )
+    assert projection.current_liability == sum(
+        option.current_option_value for option in snapshot.live_position_book.options
+    )
+    assert projection.open_profit_loss == snapshot.live_position_book.total_open_mark_profit_loss
     assert projection.theta_estimate_per_day == snapshot.risk.daily_theta
     assert (
         projection.same_day_theta_estimate_per_day + projection.later_theta_estimate_per_day
         == projection.theta_estimate_per_day
     )
-    assert projection.obligated_shares == snapshot.covered_calls.active_contracts * 100
+    assert projection.obligated_shares == sum(
+        option.obligated_shares for option in snapshot.live_position_book.options
+    )
     assert tuple(row for group in projection.groups for row in group.rows) == projection.rows
     assert {group.symbol for group in projection.groups} == {
         item.symbol for item in snapshot.underlyings if item.open_call_clocks
@@ -73,7 +80,9 @@ def test_open_book_removes_settling_contracts_from_tradable_theta() -> None:
         for underlying in snapshot.underlyings
     )
 
-    projection = build_open_book(replace(snapshot, underlyings=changed_underlyings))
+    projection = build_open_book(
+        replace(snapshot, underlyings=changed_underlyings, live_position_book=None)
+    )
 
     assert projection.actionable_positions == 0
     assert projection.pending_settlement_positions == projection.total_positions
@@ -230,9 +239,10 @@ def test_desk_overview_prioritizes_the_nearest_live_call_without_losing_totals()
     snapshot = DemoDashboardReader().execute()
     overview = build_desk_overview(snapshot)
 
-    assert overview.open_positions == 6
-    assert overview.open_contracts == snapshot.covered_calls.active_contracts
-    assert overview.open_mark_profit_loss == snapshot.covered_calls.open_mark_profit_loss
+    assert snapshot.live_position_book is not None
+    assert overview.open_positions == 8
+    assert overview.open_contracts == snapshot.live_position_book.actionable_contracts
+    assert overview.open_mark_profit_loss == snapshot.live_position_book.total_open_mark_profit_loss
     assert overview.nearest_call is not None
     assert overview.nearest_call.symbol == "CVX"
     assert overview.nearest_call.strike == 195
@@ -242,7 +252,7 @@ def test_desk_overview_prioritizes_the_nearest_live_call_without_losing_totals()
     assert len(overview.position_rows) == len(snapshot.underlyings)
     assert sum(row.open_positions for row in overview.position_rows) == overview.open_positions
     assert sum(row.open_contracts for row in overview.position_rows) == overview.open_contracts
-    assert all(row.open_put_contracts == 0 for row in overview.position_rows)
+    assert sum(row.open_put_contracts for row in overview.position_rows) == 2
     assert all(row.risk is not None for row in overview.position_rows)
 
 
@@ -267,7 +277,7 @@ def test_desk_overview_includes_short_puts_without_corrupting_call_coverage() ->
         open_profit_loss=Decimal("-50"),
     )
     live_book = build_live_position_book(
-        (*snapshot.positions, put),
+        (*(position for position in snapshot.positions if position.option_type != "PUT"), put),
         as_of=snapshot.as_of.date(),
     )
     snapshot_with_put = replace(snapshot, live_position_book=live_book)

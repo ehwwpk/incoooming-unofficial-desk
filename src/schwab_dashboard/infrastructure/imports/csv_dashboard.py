@@ -130,7 +130,17 @@ class CsvDashboardReader:
             largest_position_percent=base_risk.largest_position_percent,
             open_campaigns=sum(item.status == "OPEN" for item in campaigns),
         )
-        account_masks = tuple(sorted({item.account_mask for item in positions})) or ("...CSV",)
+        activity_rows = (*executions, *cash_movements, *lifecycle_events)
+        account_masks = tuple(
+            sorted(
+                {item.account_mask for item in positions}
+                | {
+                    str(item.get("account_mask"))
+                    for item in activity_rows
+                    if item.get("account_mask")
+                }
+            )
+        ) or ("...CSV",)
         return DashboardSnapshot(
             mode="csv",
             as_of=as_of,

@@ -3,6 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from schwab_dashboard.application.dashboard.covered_calls import UnderlyingPerformanceWindow
+from schwab_dashboard.infrastructure.demo.fixtures.short_puts import build_put_cash_events
 
 D = Decimal
 ZERO = D("0")
@@ -42,17 +43,21 @@ NAME_WINDOW_ROWS = {
 def build_name_windows(
     symbol: str, market_value: Decimal
 ) -> tuple[UnderlyingPerformanceWindow, ...]:
-    return tuple(_window(row, market_value) for row in NAME_WINDOW_ROWS[symbol])
+    # Both fictional put openings fall inside every displayed window (Aug 3/4).
+    put_credit = sum(
+        (event.amount for event in build_put_cash_events() if event.symbol == symbol), ZERO
+    )
+    return tuple(_window(row, market_value, put_credit) for row in NAME_WINDOW_ROWS[symbol])
 
 
 def _window(
-    row: tuple[str, str, str, str, str], market_value: Decimal
+    row: tuple[str, str, str, str, str], market_value: Decimal, put_credit: Decimal
 ) -> UnderlyingPerformanceWindow:
     key, option, dividend, gross, buyback = row
     days = WINDOW_DAYS[key]
-    option_cash = D(option)
+    option_cash = D(option) + put_credit
     dividends = D(dividend)
-    gross_premium = D(gross)
+    gross_premium = D(gross) + put_credit
     buyback_cost = D(buyback)
     annual_factor = YEAR_DAYS / D(days)
     return UnderlyingPerformanceWindow(

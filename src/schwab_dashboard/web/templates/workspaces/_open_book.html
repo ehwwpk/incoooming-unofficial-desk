@@ -42,7 +42,7 @@
     <article id="{{ row.anchor_id }}" class="roll-board-row {{ 'attention' if row.urgency_rank == 0 else 'check' if row.urgency_rank == 1 else 'watch' }}" data-roll-board-contract="{{ row.source.option_symbol }}" tabindex="-1">
       <header class="roll-board-position-head">
         <b class="roll-board-contract">{{ row.symbol }} · {{ row.source.contracts }}x ${{ row.source.strike | number(2) }}{{ 'C' if row.source.option_side.value == 'call' else 'P' }}</b>
-        <span class="roll-board-clock">{{ row.days_to_expiration }} DTE · {{ row.source.expires_on | short_date }} · {{ row.source.quote_status }}</span>
+        <span class="roll-board-clock">{{ row.days_to_expiration }} DTE · {{ row.source.expires_on | short_date }} · {{ 'SIMULATED' if snapshot.is_demo else row.source.quote_status }}</span>
         <span class="roll-board-urgency">{{ row.urgency }}</span>
         <strong class="roll-board-distance {{ row.strike_distance_per_share | pnl_class }}">{{ row.strike_distance_per_share | money }} / {{ row.strike_distance_percent | percent }}</strong>
         <small class="roll-board-notional">{% if row.assignment_notional is not none %}{{ row.assignment_notional | money(0) }} AT STRIKE{% else %}DELIVERY UNRESOLVED{% endif %}</small>
@@ -119,7 +119,7 @@
   <section class="open-put-register" aria-label="Open short puts">
     <header><b>SHORT PUTS</b><span>{{ open_book.actionable_put_rows | length }} LINES · {{ open_book.actionable_put_contracts }} CONTRACTS</span></header>
     <div class="open-put-group-rows">
-      {% for row in open_book.actionable_put_rows %}{{ open_put_row(row) }}{% endfor %}
+      {% for row in open_book.actionable_put_rows %}{{ open_put_row(row, snapshot.is_demo) }}{% endfor %}
     </div>
   </section>
   {% endif %}
