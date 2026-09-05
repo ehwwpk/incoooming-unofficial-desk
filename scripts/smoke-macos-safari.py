@@ -200,13 +200,59 @@ def run_browser(port: int) -> None:
             path.write_text(contents, encoding="utf-8")
             files.append(str(path))
         driver.find_element(By.CSS_SELECTOR, "[data-source-files]").send_keys("\n".join(files))
+        # Observe the real fictional upload and response; do not alter either payload.
+        driver.execute_script("""
+            const originalFetch = window.fetch;
+            window.incooomingSmokePreview = null;
+            window.fetch = async function(input, init) {
+              const observe = input === '/sources/csv/preview';
+              if (observe) {
+                const allowed = new Set(['dataset_name', 'broker', 'files', 'preview_fingerprint']);
+                const fields = init?.body instanceof FormData
+                  ? [...init.body.entries()].filter(([name]) => allowed.has(name)).map(
+                      ([name, value]) => value instanceof File
+                        ? {name, kind: 'file', filename: value.name,
+                           media_type: value.type, size: value.size}
+                        : {name, kind: 'text', length: value.length,
+                           broker: name === 'broker' ? value : null})
+                  : [];
+                window.incooomingSmokePreview = {fields};
+              }
+              const response = await originalFetch.call(this, input, init);
+              if (observe) {
+                window.incooomingSmokePreview.status = response.status;
+                try {
+                  const body = await response.clone().json();
+                  window.incooomingSmokePreview.response = {
+                    ok: body.ok ?? null, counts: body.counts ?? null,
+                    error: typeof body.error === 'string' ? body.error : null,
+                    detail: Array.isArray(body.detail)
+                      ? body.detail.map(({type, loc, msg}) => ({type, loc, msg})) : []
+                  };
+                } catch {
+                  window.incooomingSmokePreview.response = {error: 'Non-JSON preview response'};
+                }
+              }
+              return response;
+            };
+        """)
         click("[data-import-submit]")
-        wait.until(
-            lambda current: (
-                "2 POSITIONS / 2 ACTIVITY"
-                in current.find_element(By.CSS_SELECTOR, "[data-import-preview]").text
-            )
-        )
+
+        def preview_ready(current) -> bool:
+            preview = current.find_element(By.CSS_SELECTOR, "[data-import-preview]")
+            if not preview.is_displayed():
+                return False
+            if "2 POSITIONS / 2 ACTIVITY" in preview.text:
+                return True
+            observed = current.execute_script("return window.incooomingSmokePreview;")
+            if observed and observed.get("status"):
+                raise RuntimeError(
+                    f"CSV preview did not accept both files (HTTP {observed['status']}); "
+                    "see the sanitized CSV diagnostics in safari.json."
+                )
+            return False
+
+        wait.until(preview_ready)
         capture("csv-preview")
         click("[data-import-submit]")
         visible("body[data-demo-mode='false']")
@@ -244,7 +290,8 @@ def run_browser(port: int) -> None:
               inspector_hidden: inspector?.hidden ?? null,
               inspector_date:
                 document.querySelector('[data-performance-inspector-date]')?.textContent || null,
-              input_events: window.incooomingSmokeInputs || []
+              input_events: window.incooomingSmokeInputs || [],
+              csv_preview: window.incooomingSmokePreview || null
             };
         """)
         record(
