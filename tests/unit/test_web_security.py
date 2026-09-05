@@ -73,12 +73,49 @@ def test_local_web_rejects_untrusted_hosts_and_cross_site_writes(tmp_path: Path)
     assert live.headers["cache-control"] == "no-store"
     assert live.headers["x-content-type-options"] == "nosniff"
     assert live.headers["x-frame-options"] == "DENY"
+    assert live.headers["referrer-policy"] == "same-origin"
     assert "frame-ancestors 'none'" in live.headers["content-security-policy"]
     assert bad_host.status_code == 400
     assert cross_site.status_code == 403
     assert mismatched_origin.status_code == 403
     assert same_origin.status_code == 303
     assert same_origin.headers["location"] == "/"
+    assert same_origin.headers["referrer-policy"] == "same-origin"
+
+
+@pytest.mark.parametrize(
+    "headers",
+    (
+        {"origin": "null", "sec-fetch-site": "same-origin"},
+        {"origin": "null", "referer": "http://127.0.0.1:8182/sources"},
+        {"origin": "http://127.0.0.1:8182", "sec-fetch-site": "cross-site"},
+        {"origin": "http://127.0.0.1:8183", "sec-fetch-site": "same-origin"},
+        {"origin": "https://127.0.0.1:8182", "sec-fetch-site": "same-origin"},
+        {"referer": "https://attacker.example/"},
+    ),
+)
+def test_form_referrer_fix_does_not_allow_opaque_or_cross_origin_writes(
+    tmp_path: Path, headers: dict[str, str]
+) -> None:
+    container = Container(Settings(_env_file=None, data_dir=tmp_path, demo_mode=True))
+
+    async def exercise() -> httpx.Response:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=create_app(container)),
+            base_url="http://127.0.0.1:8182",
+        ) as client:
+            return await client.post(
+                "/sources/select", data={"source_key": "demo"}, headers=headers
+            )
+
+    try:
+        response = asyncio.run(exercise())
+    finally:
+        container.close()
+
+    assert response.status_code == 403
+    assert response.text == "Cross-site request blocked."
+    assert "set-cookie" not in response.headers
 
 
 def test_csv_upload_reader_caps_count_size_and_filename() -> None:

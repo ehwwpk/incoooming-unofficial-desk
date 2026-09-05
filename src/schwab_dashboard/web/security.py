@@ -16,7 +16,10 @@ SECURITY_HEADERS = {
     "Cross-Origin-Opener-Policy": "same-origin",
     "Cross-Origin-Resource-Policy": "same-origin",
     "Permissions-Policy": "camera=(), geolocation=(), microphone=()",
-    "Referrer-Policy": "no-referrer",
+    # no-referrer turns ordinary form POST origins into "null" in Safari.
+    # Keep same-origin forms identifiable while hiding URLs from external sites.
+    # https://fetch.spec.whatwg.org/#append-a-request-origin-header
+    "Referrer-Policy": "same-origin",
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
 }
