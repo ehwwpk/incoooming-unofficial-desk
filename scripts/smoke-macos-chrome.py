@@ -58,17 +58,31 @@ def run_browser(port: int, isolated: Path) -> None:
 
     def scroll_to(element) -> None:
         # The runner's usable screen can be shorter than the requested window. ChromeDriver's
-        # automatic scroll can race the app's smooth scrolling; settle before a real click.
-        driver.execute_script(
-            "arguments[0].scrollIntoView({block:'center', inline:'center', behavior:'instant'});",
-            element,
-        )
+        # native focus/typing can queue smooth scrolling after our first reposition. Reposition
+        # each attempt and confirm stable geometry over two frames before the real click.
         wait.until(
-            lambda current: current.execute_script(
-                "const element = arguments[0], rect = element.getBoundingClientRect();"
-                "const x = (rect.left + rect.right) / 2, y = (rect.top + rect.bottom) / 2;"
-                "return x >= 0 && x < innerWidth && y >= 0 && y < innerHeight"
-                " && element.contains(document.elementFromPoint(x, y));",
+            lambda current: current.execute_async_script(
+                """
+                const element = arguments[0], done = arguments[arguments.length - 1];
+                element.scrollIntoView({block:'center', inline:'center', behavior:'instant'});
+                const first = element.getBoundingClientRect();
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                  const rect = element.getBoundingClientRect();
+                  const x = (rect.left + rect.right) / 2, y = (rect.top + rect.bottom) / 2;
+                  const hit = document.elementFromPoint(x, y);
+                  const settled = Math.abs(first.left - rect.left) < 1
+                    && Math.abs(first.top - rect.top) < 1;
+                  const unblocked = x >= 0 && x < innerWidth && y >= 0 && y < innerHeight
+                    && element.contains(hit);
+                  window.incooomingChromeScroll = {
+                    target: element.tagName, left: rect.left, top: rect.top,
+                    width: rect.width, height: rect.height,
+                    viewport_width: innerWidth, viewport_height: innerHeight,
+                    hit: hit?.tagName || null, settled, unblocked
+                  };
+                  done(settled && unblocked);
+                }));
+                """,
                 element,
             )
         )
@@ -395,6 +409,7 @@ def run_browser(port: int, isolated: Path) -> None:
         with suppress(Exception):
             diagnostics = driver.execute_script("""
                 return {url: location.href,
+                  scroll_target: window.incooomingChromeScroll || null,
                   csv_preview: window.incooomingChromePreview || null,
                   csv_preview_count: window.incooomingChromePreviewCount ?? null,
                   selected_files: [...(document.querySelector('[data-source-files]')?.files || [])]
