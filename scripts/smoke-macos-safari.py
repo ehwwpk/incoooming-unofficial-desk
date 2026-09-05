@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import os
+import stat
 import subprocess
+import tempfile
 from decimal import Decimal
 from pathlib import Path
 
@@ -43,6 +45,7 @@ def run_browser(port: int) -> None:
     checks: list[str] = []
     captures: dict[str, object] = {}
     browser_version = driver.capabilities.get("browserVersion")
+    upload_directory: tempfile.TemporaryDirectory[str] | None = None
 
     def visible(selector: str):
         return wait.until(expected.visibility_of_element_located((By.CSS_SELECTOR, selector)))
@@ -193,13 +196,29 @@ def run_browser(port: int) -> None:
             ).is_selected(),
             "The generic CSV format was not selected.",
         )
-        uploads = Path(os.environ["RUNNER_TEMP"]) / "Safari fictional CSV files"
-        uploads.mkdir(exist_ok=True)
+        # SafariDriver requires world-readable uploads; do not change runner-wide permissions.
+        # https://developer.apple.com/documentation/webkit/macos-webdriver-commands-for-safari-11-1-and-earlier
+        upload_directory = tempfile.TemporaryDirectory(
+            prefix="incoooming-safari-fictional-", dir="/private/tmp"
+        )
+        uploads = Path(upload_directory.name)
+        uploads.chmod(0o755)
         files = []
         for name, contents in (("positions.csv", POSITIONS), ("activity.csv", ACTIVITY)):
             path = uploads / name
             path.write_text(contents, encoding="utf-8")
+            path.chmod(0o644)
             files.append(str(path))
+        captures["csv_filesystem"] = {
+            "directories": [
+                {"name": path.name, "mode": oct(stat.S_IMODE(path.stat().st_mode))}
+                for path in (uploads, *uploads.parents)
+            ],
+            "files": [
+                {"name": Path(path).name, "mode": oct(stat.S_IMODE(Path(path).stat().st_mode))}
+                for path in files
+            ],
+        }
         # Observe the real fictional upload and response; do not alter either payload.
         driver.execute_script("""
             const originalFetch = window.fetch;
@@ -239,6 +258,7 @@ def run_browser(port: int) -> None:
         oversized = uploads / "oversized.csv"
         with oversized.open("wb") as handle:
             handle.truncate(10 * 1024 * 1024 + 1)
+        oversized.chmod(0o644)
         file_input = driver.find_element(By.CSS_SELECTOR, "[data-source-files]")
         file_input.send_keys(str(oversized))
         click("[data-import-submit]")
@@ -269,6 +289,8 @@ def run_browser(port: int) -> None:
                     f"CSV preview did not accept both files (HTTP {observed['status']}); "
                     "see the sanitized CSV diagnostics in safari.json."
                 )
+            if current.find_element(By.CSS_SELECTOR, "[data-import-submit]").is_enabled():
+                raise RuntimeError("CSV preview failed before upload; see Safari diagnostics.")
             return False
 
         wait.until(preview_ready)
@@ -351,6 +373,28 @@ def run_browser(port: int) -> None:
               csv_preview: window.incooomingSmokePreview || null
             };
         """)
+        diagnostics["csv_file_reads"] = driver.execute_async_script("""
+            const done = arguments[arguments.length - 1];
+            const input = document.querySelector('[data-source-files]');
+            const form = document.querySelector('.csv-import-form');
+            if (!input || !form) { done([]); return; }
+            (async () => {
+              const reads = [];
+              for (const [source, files] of [
+                ['input', [...input.files]], ['form_data', new FormData(form).getAll('files')]
+              ]) {
+                for (const file of files) {
+                  try {
+                    const bytes = await file.arrayBuffer();
+                    reads.push({source, size: file.size, bytes: bytes.byteLength});
+                  } catch (error) {
+                    reads.push({source, size: file.size, error: error.name});
+                  }
+                }
+              }
+              done(reads);
+            })().catch(() => done([{error: 'DiagnosticFailed'}]));
+        """)
         record(
             "safari",
             {
@@ -366,6 +410,8 @@ def run_browser(port: int) -> None:
         raise
     finally:
         driver.quit()
+        if upload_directory is not None:
+            upload_directory.cleanup()
 
 
 def run() -> None:
