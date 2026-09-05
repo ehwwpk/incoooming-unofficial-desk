@@ -16,6 +16,7 @@ from macos_smoke_support import (
     wait_ready,
 )
 from selenium import webdriver
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as expected
@@ -76,9 +77,46 @@ def run_browser(port: int) -> None:
         summary = visible("[data-performance-compare]").text
         for line in ("MANAGED", "STARTING SHARES", "SPY", "SPY \u00d7 EXPOSURE"):
             require(line in summary, f"The benchmark line {line} is missing.")
-        # Keyboard inspection exercises the chart code, not just static HTML/canvas creation.
+        # Observe native input/focus for useful failure evidence without dispatching fake events.
+        driver.execute_script("""
+            window.incooomingSmokeInputs = [];
+            for (const eventType of ['keydown', 'focusin', 'focusout']) {
+              document.addEventListener(eventType, (event) => {
+                window.incooomingSmokeInputs.push({
+                  type: event.type, key: event.key || null,
+                  tag: event.target.tagName,
+                  chart: event.target.hasAttribute?.('data-performance-compare-chart') || false
+                });
+                window.incooomingSmokeInputs = window.incooomingSmokeInputs.slice(-12);
+              }, true);
+            }
+        """)
+        # Click/focus and real keyboard input exercise actual interaction, beyond canvas creation.
         chart = driver.find_element(By.CSS_SELECTOR, "[data-performance-compare-chart]")
-        chart.send_keys(Keys.ARROW_LEFT)
+        ActionChains(driver).move_to_element(chart).click().perform()
+        wait.until(
+            lambda current: current.execute_script(
+                "return document.activeElement === arguments[0];", chart
+            )
+        )
+        ActionChains(driver).send_keys(Keys.HOME).perform()
+        visible("[data-performance-inspector]")
+        first_date = visible("[data-performance-inspector-date]").text
+        require(bool(first_date), "The keyboard inspector did not identify a date.")
+        ActionChains(driver).send_keys(Keys.ARROW_RIGHT).perform()
+        wait.until(
+            lambda current: (
+                current.find_element(By.CSS_SELECTOR, "[data-performance-inspector-date]").text
+                != first_date
+            )
+        )
+        ActionChains(driver).send_keys(Keys.ARROW_LEFT).perform()
+        wait.until(
+            lambda current: (
+                current.find_element(By.CSS_SELECTOR, "[data-performance-inspector-date]").text
+                == first_date
+            )
+        )
         visible("[data-performance-inspector]")
 
     try:
@@ -97,8 +135,11 @@ def run_browser(port: int) -> None:
         driver.get(f"{base}/workspaces/attribution")
         chart_ready()
         capture("results-all")
+        prior_chart = driver.find_element(By.CSS_SELECTOR, "[data-performance-compare-chart]")
         click(".performance-period-selector a[href$='period=1m']")
+        wait.until(expected.staleness_of(prior_chart))
         wait.until(expected.url_contains("period=1m"))
+        visible(".performance-period-selector a[href$='period=1m'][aria-current='page']")
         chart_ready()
         capture("results-month")
 
@@ -191,6 +232,21 @@ def run_browser(port: int) -> None:
             },
         )
     except Exception as exc:
+        diagnostics = driver.execute_script("""
+            const active = document.activeElement;
+            const inspector = document.querySelector('[data-performance-inspector]');
+            return {
+              url: location.href,
+              focused_element: active ? {
+                tag: active.tagName, id: active.id,
+                chart: active.hasAttribute('data-performance-compare-chart')
+              } : null,
+              inspector_hidden: inspector?.hidden ?? null,
+              inspector_date:
+                document.querySelector('[data-performance-inspector-date]')?.textContent || null,
+              input_events: window.incooomingSmokeInputs || []
+            };
+        """)
         record(
             "safari",
             {
@@ -199,6 +255,7 @@ def run_browser(port: int) -> None:
                 "checks": checks,
                 "captures": captures,
                 "error_type": type(exc).__name__,
+                "diagnostics": diagnostics,
             },
         )
         driver.save_screenshot(str(evidence_dir() / "safari-failure.png"))
