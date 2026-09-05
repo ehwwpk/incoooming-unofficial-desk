@@ -56,8 +56,29 @@ def run_browser(port: int, isolated: Path) -> None:
     def visible(selector: str):
         return wait.until(expected.visibility_of_element_located((By.CSS_SELECTOR, selector)))
 
+    def scroll_to(element) -> None:
+        # The runner's usable screen can be shorter than the requested window. ChromeDriver's
+        # automatic scroll can race the app's smooth scrolling; settle before a real click.
+        driver.execute_script(
+            "arguments[0].scrollIntoView({block:'center', inline:'center', behavior:'instant'});",
+            element,
+        )
+        wait.until(
+            lambda current: current.execute_script(
+                "const element = arguments[0], rect = element.getBoundingClientRect();"
+                "const x = (rect.left + rect.right) / 2, y = (rect.top + rect.bottom) / 2;"
+                "return x >= 0 && x < innerWidth && y >= 0 && y < innerHeight"
+                " && element.contains(document.elementFromPoint(x, y));",
+                element,
+            )
+        )
+
+    def click_element(element) -> None:
+        scroll_to(element)
+        element.click()
+
     def click(selector: str) -> None:
-        wait.until(expected.element_to_be_clickable((By.CSS_SELECTOR, selector))).click()
+        click_element(wait.until(expected.element_to_be_clickable((By.CSS_SELECTOR, selector))))
 
     def capture(name: str) -> None:
         dimensions = driver.execute_script(
@@ -88,6 +109,7 @@ def run_browser(port: int, isolated: Path) -> None:
         for line in ("MANAGED", "STARTING SHARES", "SPY", "SPY \u00d7 EXPOSURE"):
             require(line in summary, f"The benchmark line {line} is missing.")
         chart = driver.find_element(By.CSS_SELECTOR, "[data-performance-compare-chart]")
+        scroll_to(chart)
         ActionChains(driver).move_to_element(chart).click().perform()
         wait.until(
             lambda current: current.execute_script(
@@ -176,7 +198,7 @@ def run_browser(port: int, isolated: Path) -> None:
         driver.get(f"{base}/workspaces/risk")
         lens = driver.find_element(By.CSS_SELECTOR, "[data-open-book-section='risk-lens']")
         if lens.get_attribute("open") is None:
-            lens.find_element(By.TAG_NAME, "summary").click()
+            click_element(lens.find_element(By.TAG_NAME, "summary"))
         require("100% MODEL COVERAGE" in lens.text, "Risk Lens lost modeled coverage.")
         require("DELTA / NEXT +$1" in lens.text, "Risk Lens delta is missing.")
         capture("risk-lens")
@@ -190,7 +212,7 @@ def run_browser(port: int, isolated: Path) -> None:
             "The fixture roll economics changed; review this smoke case.",
         )
         source = row.get_attribute("data-roll-board-contract")
-        link.click()
+        click_element(link)
         visible("[data-radar-roll-handoff]")
         wait.until(
             lambda current: (
@@ -227,7 +249,7 @@ def run_browser(port: int, isolated: Path) -> None:
         driver.get(f"{base}/sources")
         disclosure = driver.find_element(By.CSS_SELECTOR, ".source-csv-card")
         if disclosure.get_attribute("open") is None:
-            disclosure.find_element(By.TAG_NAME, "summary").click()
+            click_element(disclosure.find_element(By.TAG_NAME, "summary"))
         visible("input[name='dataset_name']").send_keys("Chrome fictional CSV check")
         click("input[name='broker'][value='generic'] + span")
         require(
