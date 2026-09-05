@@ -1,7 +1,8 @@
 # macOS support: implementation and acceptance plan
 
-This plan was completed before implementation. The aim is a supported local Mac release with
-repeatable native test evidence, without requiring the owner to own or manually test a Mac.
+The initial plan was completed before implementation. The aim is a supported local Mac release
+with repeatable native test evidence, without requiring the owner to own or manually test a Mac.
+The validation adjustment below records a limitation found during those native tests.
 
 ## Scope
 
@@ -60,7 +61,9 @@ workflow evidence. It must not call the implementation tested before those runs 
 | Credentials | Real native macOS Keychain backend saves, reloads in a fresh process, updates, deletes, and reports absence for unique dummy credentials; exact created items cleaned up |
 | Storage failures | Injected denied/locked/unavailable/corrupt failures produce useful redacted errors; normal CSV startup survives; failed save/logout cannot report success |
 | OAuth | Existing validation/refresh cases plus browser fallback, hidden prompt, cancellation, failed callback, and storage failure; all broker network responses mocked |
-| Safari | Native Safari WebDriver on both Mac architectures opens the source gateway, demo Desk, four benchmark lines/period switch, Risk Lens, Roll Board → Radar, and CSV preview/import; screenshots and result metadata saved |
+| Browser interface | Native Safari and Chrome on both Mac architectures open the source gateway, demo Desk, four benchmark lines/period switch, Risk Lens, and Roll Board → Radar; screenshots and result metadata saved |
+| CSV in Chrome | Real disk files are selected, previewed, and imported in native Chrome on both architectures; oversized files, changed selections, and exact reviewed bytes are checked |
+| Safari CSV limit | File selection/import remains unverified in Safari; Mac CSV instructions use Chrome until this has independent native proof |
 | Publication claim | README states the measured platform coverage and keeps real broker authorization separate from mocked OAuth/native Keychain checks |
 
 The keyring library's current macOS backend ignores the alternate-keychain-path setting. Native
@@ -72,6 +75,24 @@ Safari means Apple's actual browser, not Playwright WebKit. Browser automation i
 application regression test running on the ephemeral Mac. All screenshots and test books use
 fictional data. Record OS, architecture, Python, Safari, commit, and gate outcomes without logging
 credential payloads.
+
+## Validation adjustment: Safari file access
+
+The original browser acceptance check included CSV import in Safari. Native tests on both Mac
+architectures reached the import screen but could not read the selected files. A fresh single-file
+selection failed before FormData or an HTTP upload was involved. The runner's system log recorded
+Safari being denied a file sandbox extension, followed by WebContent and Networking read denials.
+Readable fixture permissions and a fresh page did not resolve it.
+
+This is preserved in [the diagnostic run](https://github.com/ehwwpk/incoooming-unofficial-desk/actions/runs/33943433362).
+Selenium also [marks its Safari upload tests as expected failures](https://github.com/SeleniumHQ/selenium/commit/71bc491039bbd688e0a6c1407597aded33dc1471),
+although that does not establish an identical cause. Do not describe this as a proven failure
+of ordinary user-selected files, or claim Safari CSV import passed.
+
+The required Mac CSV browser is therefore Chrome. Its native check uses real files from disk and
+exercises the complete preview/import flow. Safari retains a required interface check. No test
+injects in-memory files to stand in for successful disk-file selection, and no browser security
+setting is disabled. The release documentation must distinguish these two coverage levels.
 
 ## Edge cases and limits
 
