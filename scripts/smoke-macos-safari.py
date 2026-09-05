@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+from decimal import Decimal
 from pathlib import Path
 
 from macos_smoke_support import (
@@ -199,7 +200,6 @@ def run_browser(port: int) -> None:
             path = uploads / name
             path.write_text(contents, encoding="utf-8")
             files.append(str(path))
-        driver.find_element(By.CSS_SELECTOR, "[data-source-files]").send_keys("\n".join(files))
         # Observe the real fictional upload and response; do not alter either payload.
         driver.execute_script("""
             const originalFetch = window.fetch;
@@ -236,6 +236,25 @@ def run_browser(port: int) -> None:
               return response;
             };
         """)
+        oversized = uploads / "oversized.csv"
+        with oversized.open("wb") as handle:
+            handle.truncate(10 * 1024 * 1024 + 1)
+        file_input = driver.find_element(By.CSS_SELECTOR, "[data-source-files]")
+        file_input.send_keys(str(oversized))
+        click("[data-import-submit]")
+        wait.until(
+            lambda current: (
+                "10 MB or smaller"
+                in current.find_element(By.CSS_SELECTOR, "[data-import-preview]").text
+            )
+        )
+        require(
+            driver.execute_script("return window.incooomingSmokePreview;") is None,
+            "An oversized upload reached the server instead of being rejected before reading.",
+        )
+        checks.append("csv-oversized-rejected-before-upload")
+        file_input.clear()
+        file_input.send_keys("\n".join(files))
         click("[data-import-submit]")
 
         def preview_ready(current) -> bool:
@@ -253,12 +272,50 @@ def run_browser(port: int) -> None:
             return False
 
         wait.until(preview_ready)
-        capture("csv-preview")
+        visible("input[name='dataset_name']").send_keys(" revised")
+        require(
+            driver.find_element(By.CSS_SELECTOR, "[data-preview-fingerprint]").get_attribute(
+                "value"
+            )
+            == "",
+            "An edited book name retained approval for the old preview.",
+        )
+        require(
+            not driver.find_element(By.CSS_SELECTOR, "[data-import-preview]").is_displayed(),
+            "The old preview remained visible after an edit.",
+        )
         click("[data-import-submit]")
+        wait.until(preview_ready)
+        checks.append("csv-edit-invalidates-reviewed-upload")
+        captures["csv_upload"] = driver.execute_script("return window.incooomingSmokePreview;")
+        capture("csv-preview")
+        # The final import must use precisely the reviewed bytes, even if a disk file changes.
+        Path(files[0]).write_text("This fictional file changed after preview.\n", encoding="utf-8")
+        prior_form = driver.find_element(By.CSS_SELECTOR, ".csv-import-form")
+        click("[data-import-submit]")
+        wait.until(expected.staleness_of(prior_form))
         visible("body[data-demo-mode='false']")
         require(
             "CSV BOOK" in driver.find_element(By.TAG_NAME, "body").text, "CSV source not selected."
         )
+        imported = driver.execute_async_script("""
+            const done = arguments[arguments.length - 1];
+            fetch('/api/v1/dashboard').then(async (response) => {
+              const body = await response.json();
+              done({status: response.status, mode: body.mode,
+                    position_count: body.positions?.length,
+                    total_value: body.portfolio?.total_value});
+            }).catch(() => done({status: 'request-failed'}));
+        """)
+        require(imported.get("status") == 200, "The imported CSV dashboard API failed.")
+        require(imported.get("mode") == "csv", "The imported source cookie was not applied.")
+        require(imported.get("position_count") == 2, "The reviewed positions were not imported.")
+        require(
+            Decimal(imported["total_value"]) == Decimal("19375"),
+            "The reviewed position values changed during final import.",
+        )
+        captures["csv_import"] = imported
+        checks.append("csv-commit-preserves-reviewed-bytes")
         capture("csv-desk")
         driver.get(f"{base}/workspaces/attribution")
         visible("body[data-workspace-key='attribution']")

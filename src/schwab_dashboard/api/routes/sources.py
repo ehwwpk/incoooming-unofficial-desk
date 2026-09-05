@@ -63,7 +63,10 @@ async def import_csv_source(
     files: Annotated[list[UploadFile], File()],
     preview_fingerprint: Annotated[str, Form()],
 ) -> Response:
+    wants_json = "application/json" in request.headers.get("accept", "").lower()
     if container.settings.demo_mode:
+        if wants_json:
+            return JSONResponse({"ok": False, "error": demo_launcher_notice()}, status_code=409)
         return _render_gateway(request, container, error=demo_launcher_notice(), status_code=409)
     try:
         payloads = await _read_csv_uploads(files)
@@ -74,8 +77,14 @@ async def import_csv_source(
             preview_fingerprint=preview_fingerprint,
         )
     except (CsvImportError, ValueError) as exc:
+        if wants_json:
+            return JSONResponse({"ok": False, "error": str(exc)}, status_code=422)
         return _render_gateway(request, container, error=str(exc), status_code=422)
-    response = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    response: Response = (
+        JSONResponse({"ok": True, "redirect": "/"})
+        if wants_json
+        else RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    )
     response.set_cookie(
         SOURCE_COOKIE,
         f"csv:{dataset.id}",
