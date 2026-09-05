@@ -7,7 +7,6 @@ Start here if you want to use the app:
 - [Connect Schwab on Windows](getting-started-schwab.md)
 - [How the numbers work](accounting.md)
 - [Supported CSV formats](systems/csv-import.md)
-- [Three-minute demo walkthrough](product/demo-video.md)
 
 For contributors and readers who want the implementation details:
 

@@ -9,7 +9,7 @@ If you'd like a coding agent to handle setup, open the project folder in your ag
 ## 1. Get Python and the project
 
 The current release is for Windows 10 or 11, with Python 3.12, 3.13, or 3.14. The supplied launchers
-and credential storage are built for Windows; macOS and Linux setup isn't covered by this beta.
+and verified setup target Windows; macOS and Linux setup isn't covered by this beta.
 
 If you need Python, install a supported version from
 [Python's Windows downloads](https://www.python.org/downloads/windows/). Keep the Python launcher

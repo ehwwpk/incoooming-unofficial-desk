@@ -1,6 +1,6 @@
 # Public beta review — September 4, 2026
 
-The local project was reviewed for a GitHub beta release and a three-minute public demo. The
+The local project was reviewed for a GitHub beta release. The
 review used the current local checkout, including its existing CSV-import changes, rather than
 the older GitHub version. The follow-up sweep prepares all pending changes for a local commit;
 these checks do not publish a GitHub release or social post.
@@ -81,10 +81,4 @@ contains an initial cash buffer, a $5,000 deposit, and a $50,000 withdrawal; the
 return links carry estimated timing and are excluded from daily risk. These fixtures demonstrate
 accounting and presentation, not a backtest or the author's investment performance. Synthetic
 Radar fallback chains, OHLC envelopes, and volume are illustrative. Connection-pending and live
-refresh states are intentionally left to a separate live walkthrough.
-
-The public video should lead with Results, then show cash versus completed profit, a put roll,
-and the associated risk context. Follow the [three-minute walkthrough](demo-video.md), keeping
-the SIM marker and frozen date visible. Avoid calling management difference options alpha or
-calling theta earned income. The SPY comparison is price-only and its exposure variant matches
-starting stock exposure, not option delta.
+refresh states were not exercised against a live account in this review.
