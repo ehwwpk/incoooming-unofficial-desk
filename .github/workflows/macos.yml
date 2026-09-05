@@ -27,7 +27,6 @@ jobs:
           - runner: macos-15-intel
             architecture: x86_64
     env:
-      SCHWAB_AUTO_SYNC_ENABLED: "false"
       INCOOOMING_EXPECTED_ARCH: ${{ matrix.architecture }}
 
     steps:
@@ -35,7 +34,6 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/macos-evidence"
           printf '%s\n' \
-            "SCHWAB_DASHBOARD_DATA_DIR=$RUNNER_TEMP/installed book" \
             "INCOOOMING_EVIDENCE_DIR=$RUNNER_TEMP/macos-evidence" >> "$GITHUB_ENV"
 
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -65,6 +63,9 @@ jobs:
         run: python -m pytest --cov=schwab_dashboard --cov-fail-under=80
 
       - name: Build and install a fresh wheel
+        env:
+          SCHWAB_AUTO_SYNC_ENABLED: "false"
+          SCHWAB_DASHBOARD_DATA_DIR: ${{ runner.temp }}/installed book
         run: |
           python -m build --wheel
           python -m venv "$RUNNER_TEMP/wheel environment"
