@@ -46,12 +46,84 @@ def run_browser(port: int) -> None:
     captures: dict[str, object] = {}
     browser_version = driver.capabilities.get("browserVersion")
     upload_directory: tempfile.TemporaryDirectory[str] | None = None
+    container_directory: tempfile.TemporaryDirectory[str] | None = None
 
     def visible(selector: str):
         return wait.until(expected.visibility_of_element_located((By.CSS_SELECTOR, selector)))
 
     def click(selector: str) -> None:
         wait.until(expected.element_to_be_clickable((By.CSS_SELECTOR, selector))).click()
+
+    def open_csv_form() -> None:
+        driver.get(f"{base}/sources")
+        disclosure = driver.find_element(By.CSS_SELECTOR, ".source-csv-card")
+        if disclosure.get_attribute("open") is None:
+            disclosure.find_element(By.TAG_NAME, "summary").click()
+
+    def file_reads():
+        return driver.execute_async_script("""
+            const done = arguments[arguments.length - 1];
+            const input = document.querySelector('[data-source-files]');
+            const form = document.querySelector('.csv-import-form');
+            if (!input || !form) { done([]); return; }
+            const readWithReader = (file) => new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve({bytes: reader.result.byteLength});
+              reader.onerror = () => resolve({error: reader.error?.name || 'ReaderError'});
+              reader.onabort = () => resolve({error: 'AbortError'});
+              reader.readAsArrayBuffer(file);
+            });
+            (async () => {
+              const reads = [];
+              for (const [source, files] of [
+                ['input', [...input.files]], ['form_data', new FormData(form).getAll('files')]
+              ]) {
+                for (const file of files) {
+                  try {
+                    const bytes = await file.arrayBuffer();
+                    reads.push({source, method: 'arrayBuffer', size: file.size,
+                                bytes: bytes.byteLength});
+                  } catch (error) {
+                    reads.push({source, method: 'arrayBuffer', size: file.size, error: error.name});
+                  }
+                  reads.push({source, method: 'FileReader', size: file.size,
+                              ...await readWithReader(file)});
+                }
+              }
+              done(reads);
+            })().catch(() => done([{error: 'DiagnosticFailed'}]));
+        """)
+
+    def sandbox_log() -> None:
+        if upload_directory is None:
+            return
+        prefix = Path(upload_directory.name).name
+        try:
+            result = subprocess.run(
+                [
+                    "/usr/bin/log",
+                    "show",
+                    "--last",
+                    "3m",
+                    "--style",
+                    "compact",
+                    "--predicate",
+                    f'eventMessage CONTAINS "{prefix}"',
+                ],
+                capture_output=True,
+                text=True,
+                errors="replace",
+                timeout=10,
+                check=False,
+            )
+            lines = [line for line in result.stdout.splitlines() if prefix in line][-100:]
+            (evidence_dir() / "safari-fixture-sandbox.log").write_text(
+                "\n".join(lines) if lines else "No matching fixture messages were available.\n",
+                encoding="utf-8",
+            )
+            captures["csv_sandbox_log"] = {"exit_code": result.returncode, "matches": len(lines)}
+        except (OSError, subprocess.TimeoutExpired) as error:
+            captures["csv_sandbox_log"] = {"error": type(error).__name__}
 
     def capture(name: str) -> None:
         dimensions = driver.execute_script(
@@ -184,18 +256,6 @@ def run_browser(port: int) -> None:
         require(source == picker.get_attribute("value"), "Radar source selection drifted.")
         capture("put-roll-radar")
 
-        driver.get(f"{base}/sources")
-        disclosure = driver.find_element(By.CSS_SELECTOR, ".source-csv-card")
-        if disclosure.get_attribute("open") is None:
-            disclosure.find_element(By.TAG_NAME, "summary").click()
-        visible("input[name='dataset_name']").send_keys("Safari fictional CSV check")
-        click("input[name='broker'][value='generic'] + span")
-        require(
-            driver.find_element(
-                By.CSS_SELECTOR, "input[name='broker'][value='generic']"
-            ).is_selected(),
-            "The generic CSV format was not selected.",
-        )
         # SafariDriver requires world-readable uploads; do not change runner-wide permissions.
         # https://developer.apple.com/documentation/webkit/macos-webdriver-commands-for-safari-11-1-and-earlier
         upload_directory = tempfile.TemporaryDirectory(
@@ -219,6 +279,49 @@ def run_browser(port: int) -> None:
                 for path in files
             ],
         }
+        read_matrix = []
+        captures["csv_native_read_matrix"] = read_matrix
+        for case, selections in (
+            ("fresh-single", files[:1]),
+            ("fresh-multiple", files),
+            ("clear-then-multiple", files),
+        ):
+            open_csv_form()
+            input_element = driver.find_element(By.CSS_SELECTOR, "[data-source-files]")
+            if case == "clear-then-multiple":
+                input_element.send_keys(files[0])
+                input_element.clear()
+            input_element.send_keys("\n".join(selections))
+            read_matrix.append({"case": case, "reads": file_reads()})
+        container_tmp = Path.home() / "Library/Containers/com.apple.Safari/Data/tmp"
+        captures["csv_safari_container_available"] = container_tmp.is_dir()
+        if container_tmp.is_dir():
+            container_directory = tempfile.TemporaryDirectory(
+                prefix="incoooming-safari-fictional-", dir=container_tmp
+            )
+            container_uploads = Path(container_directory.name)
+            container_uploads.chmod(0o755)
+            container_files = []
+            for filename in files:
+                target = container_uploads / Path(filename).name
+                target.write_bytes(Path(filename).read_bytes())
+                target.chmod(0o644)
+                container_files.append(str(target))
+            open_csv_form()
+            driver.find_element(By.CSS_SELECTOR, "[data-source-files]").send_keys(
+                "\n".join(container_files)
+            )
+            read_matrix.append({"case": "fresh-safari-container", "reads": file_reads()})
+        # Diagnostics never replace the strict public-path import below.
+        open_csv_form()
+        visible("input[name='dataset_name']").send_keys("Safari fictional CSV check")
+        click("input[name='broker'][value='generic'] + span")
+        require(
+            driver.find_element(
+                By.CSS_SELECTOR, "input[name='broker'][value='generic']"
+            ).is_selected(),
+            "The generic CSV format was not selected.",
+        )
         # Observe the real fictional upload and response; do not alter either payload.
         driver.execute_script("""
             const originalFetch = window.fetch;
@@ -346,6 +449,7 @@ def run_browser(port: int) -> None:
             "The CSV book invented a historical benchmark path.",
         )
         capture("csv-results")
+        sandbox_log()
         record(
             "safari",
             {
@@ -373,28 +477,8 @@ def run_browser(port: int) -> None:
               csv_preview: window.incooomingSmokePreview || null
             };
         """)
-        diagnostics["csv_file_reads"] = driver.execute_async_script("""
-            const done = arguments[arguments.length - 1];
-            const input = document.querySelector('[data-source-files]');
-            const form = document.querySelector('.csv-import-form');
-            if (!input || !form) { done([]); return; }
-            (async () => {
-              const reads = [];
-              for (const [source, files] of [
-                ['input', [...input.files]], ['form_data', new FormData(form).getAll('files')]
-              ]) {
-                for (const file of files) {
-                  try {
-                    const bytes = await file.arrayBuffer();
-                    reads.push({source, size: file.size, bytes: bytes.byteLength});
-                  } catch (error) {
-                    reads.push({source, size: file.size, error: error.name});
-                  }
-                }
-              }
-              done(reads);
-            })().catch(() => done([{error: 'DiagnosticFailed'}]));
-        """)
+        diagnostics["csv_file_reads"] = file_reads()
+        sandbox_log()
         record(
             "safari",
             {
@@ -412,6 +496,8 @@ def run_browser(port: int) -> None:
         driver.quit()
         if upload_directory is not None:
             upload_directory.cleanup()
+        if container_directory is not None:
+            container_directory.cleanup()
 
 
 def run() -> None:
