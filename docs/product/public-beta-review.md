@@ -8,6 +8,28 @@ these checks do not publish a GitHub release or social post.
 The later [Mac validation report](../platforms/macos-validation.md) records the completed Windows
 and Mac CI matrix. The counts below describe this earlier review, before the Mac work.
 
+## Final sharing check - September 8, 2026
+
+The application at `0175b0a268dafb20c7d15be95b0d9c789888d3a8` passed all three
+[Windows jobs](https://github.com/ehwwpk/incoooming-unofficial-desk/actions/runs/34261785917)
+and all six [Mac jobs](https://github.com/ehwwpk/incoooming-unofficial-desk/actions/runs/34261785910).
+The Mac runs include Safari and Chrome checks of the restored welcome-page artwork on Intel
+and Apple silicon, plus the existing setup, packaging, and CSV checks.
+
+- Gitleaks 8.30.1 found no leaks in the 526 tracked files or in all 109 commits reachable
+  from the fetched branches and tags. The scanner's published archive checksum was verified.
+- A separate local comparison found no matches for the configured Schwab credentials,
+  saved access and refresh tokens, or live account identifiers across all reachable Git
+  objects, including 2,332 file versions and commit metadata. Values stayed on this computer
+  and were not printed, uploaded, or passed as command-line arguments.
+- The tracked screenshots were visually checked and show fictional demo data. The local
+  settings, database, and private audit output remain ignored by Git. The only historical
+  sensitive-filename candidate was `.env.example`, which contains blank credential fields.
+
+This is a check of the repository and its reachable history, not a guarantee about every
+possible disclosure. Record with the fictional Demo selected; a video of a live account can
+reveal private information even when the repository is clean.
+
 ## Changes made
 
 - Results now exercises the production performance-comparison engine with 58 fictional valued
