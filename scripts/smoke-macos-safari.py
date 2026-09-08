@@ -7,6 +7,7 @@ import subprocess
 from pathlib import Path
 
 from macos_smoke_support import (
+    check_gateway_art,
     evidence_dir,
     free_port,
     record,
@@ -112,6 +113,7 @@ def run_browser(port: int) -> None:
         driver.set_script_timeout(15)
         driver.set_window_size(1440, 1000)
         driver.get(f"{base}/sources")
+        captures["gateway_art"] = check_gateway_art(driver)
         capture("source-gateway")
         click("button[aria-label='Open demo book']")
         visible("body[data-demo-mode='true']")

@@ -155,6 +155,8 @@
   top: 0;
   bottom: 0;
   width: 40%;
+  /* Each side shows one figure from the shared two-figure image. */
+  overflow: hidden;
   pointer-events: none;
 }
 
@@ -164,6 +166,7 @@
   width: auto;
   max-width: none;
   height: 156%;
+  filter: invert(1) grayscale(1) sepia(.035) contrast(1.06);
   opacity: .93;
 }
 

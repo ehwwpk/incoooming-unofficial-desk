@@ -11,6 +11,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Any
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
@@ -18,6 +19,42 @@ from urllib.request import Request, urlopen
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise RuntimeError(message)
+
+
+def check_gateway_art(driver: Any) -> dict[str, object]:
+    """Check rendered crops, not just two image tags (each PNG contains both figures)."""
+    result = driver.execute_script("""
+        return {
+          reduced_motion: matchMedia('(prefers-reduced-motion: reduce)').matches,
+          figures: [...document.querySelectorAll('.gateway-operator')].map(element => {
+            const image = element.querySelector('img');
+            const crop = element.getBoundingClientRect();
+            const style = image && getComputedStyle(image);
+            return {
+              loaded: Boolean(image && image.complete && image.naturalWidth > 0),
+              clipped: getComputedStyle(element).overflowX === 'hidden',
+              visible: crop.width > 0 && crop.height > 0,
+              filter: style?.filter || '',
+              animation: style?.animationName || '',
+              duration: style?.animationDuration || ''
+            };
+          })
+        };
+    """)
+    figures = result["figures"]
+    require(len(figures) == 2, "The gateway must present exactly two operator crops.")
+    for index, figure in enumerate(figures):
+        require(figure["loaded"] and figure["visible"], "A gateway figure is missing.")
+        require(figure["clipped"], "The shared operator image exposes duplicate figures.")
+        require("invert(1)" in figure["filter"], "The gateway operator dark styling is missing.")
+        if not result["reduced_motion"]:
+            side = "left" if index == 0 else "right"
+            require(
+                figure["animation"] == f"gateway-operator-{side}-arrive"
+                and figure["duration"] == "2.7s",
+                "The gateway operator entrance animation is missing or changed.",
+            )
+    return result
 
 
 def evidence_dir() -> Path:
