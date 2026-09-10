@@ -2,6 +2,8 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
+import pytest
+
 from schwab_dashboard.application.dashboard.calculations import map_positions, summarize_portfolio
 from schwab_dashboard.application.dashboard.live_positions import build_live_position_book
 from schwab_dashboard.application.dashboard.models import (
@@ -157,8 +159,9 @@ def test_live_book_aggregates_same_symbol_holdings_across_accounts() -> None:
     assert underlying.coverage_percent == D("100") / D("300") * D("100")
 
 
-def test_live_book_never_covers_a_call_with_shares_from_another_account() -> None:
-    stock = _position(account_mask="...1111", quantity=D("100"))
+@pytest.mark.parametrize("asset_type", ["EQUITY", "ETF"])
+def test_live_book_never_covers_a_call_with_shares_from_another_account(asset_type: str) -> None:
+    stock = _position(account_mask="...1111", quantity=D("100"), asset_type=asset_type)
     call = _position(
         account_mask="...2222",
         symbol="KTOS  260918C00075000",

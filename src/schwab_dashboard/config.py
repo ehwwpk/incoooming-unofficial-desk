@@ -61,8 +61,8 @@ class Settings(BaseSettings):
     market_data_base_url: str = "https://api.schwabapi.com/marketdata/v1"
     oauth_authorize_url: str = "https://api.schwabapi.com/v1/oauth/authorize"
     oauth_token_url: str = "https://api.schwabapi.com/v1/oauth/token"
-    parser_version: str = "schwab-accounts-v2"
-    transaction_parser_version: str = "schwab-transactions-v2"
+    parser_version: str = "schwab-accounts-v3"
+    transaction_parser_version: str = "schwab-transactions-v3"
     market_parser_version: str = "schwab-market-v2"
     transaction_history_days: int = Field(default=365, ge=1, le=730)
     # These are personal defaults, not product capability limits. Radar may inspect

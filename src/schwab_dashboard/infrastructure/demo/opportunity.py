@@ -5,6 +5,7 @@ from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
+from schwab_dashboard.application.errors import DemoTickerUnavailableError
 from schwab_dashboard.domain.instruments import OptionSide
 from schwab_dashboard.domain.market import InstrumentRef, QuoteQuality, UnderlyingDailyBar
 from schwab_dashboard.domain.opportunity import (
@@ -38,7 +39,11 @@ class DemoOpportunityMarketGateway:
     ) -> RadarMarketBundle:
         spot = _SPOTS.get(symbol)
         if spot is None:
-            raise LookupError("The demo Radar supports CVX, KTOS, and URNM.")
+            raise DemoTickerUnavailableError(
+                "Demo Radar has fictional chains for CVX, KTOS, and URNM only. "
+                "Choose one of those tickers, or open your live Schwab account "
+                "from BOOK to research other symbols. No live lookup was made."
+            )
         now = self._clock()
         side = mode.option_side
         expirations = _listed_fridays(from_date, to_date)

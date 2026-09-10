@@ -202,7 +202,7 @@
       setText("[data-radar-roll-net-detail]", "The earlier Nibwick quote is not being reused");
       setText(
         "[data-radar-roll-note]",
-        "The source option is still open, but Schwab did not return that exact replacement in this scan. Current alternatives remain below.",
+        "The source option is still open, but the selected data source did not return that exact replacement in this scan. Current alternatives remain below.",
       );
     } else {
       setText("[data-radar-roll-math-label]", "FRESH CHAIN CHECK");

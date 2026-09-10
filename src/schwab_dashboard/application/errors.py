@@ -14,6 +14,10 @@ class BrokerPayloadError(RuntimeError):
     """Raised when a required Schwab response shape cannot be mapped safely."""
 
 
+class DemoTickerUnavailableError(LookupError):
+    """A requested ticker has no fictional chain in the bundled demo."""
+
+
 class BrokerRequestError(RuntimeError):
     """Raised when a Schwab request fails without exposing its URL or identifiers."""
 

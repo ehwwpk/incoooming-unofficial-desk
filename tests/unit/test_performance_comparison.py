@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
+import pytest
+
 from schwab_dashboard.application.performance.projection import build_performance_comparison
 from schwab_dashboard.application.performance.returns import build_time_weighted_returns
 
@@ -300,7 +302,8 @@ def test_comparison_derives_static_starting_shares_and_executed_overlay() -> Non
     assert comparison.option_overlay.return_percent == D("0.2")
 
 
-def test_share_baseline_freezes_inventory_nearest_to_return_window() -> None:
+@pytest.mark.parametrize("asset_type", ["EQUITY", "ETF"])
+def test_share_baseline_freezes_inventory_nearest_to_return_window(asset_type: str) -> None:
     comparison = build_performance_comparison(
         balance_history=(
             _balance("2026-08-11T20:00:00+00:00", "100000", "100000"),
@@ -312,14 +315,14 @@ def test_share_baseline_freezes_inventory_nearest_to_return_window() -> None:
                 "sync_run_id": "old",
                 "observed_at": datetime(2026, 7, 1, 20, tzinfo=UTC),
                 "symbol": "KTOS",
-                "asset_type": "EQUITY",
+                "asset_type": asset_type,
                 "net_quantity": D("50"),
             },
             {
                 "sync_run_id": "aligned",
                 "observed_at": datetime(2026, 8, 11, 18, tzinfo=UTC),
                 "symbol": "KTOS",
-                "asset_type": "EQUITY",
+                "asset_type": asset_type,
                 "net_quantity": D("100"),
             },
         ),

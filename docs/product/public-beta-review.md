@@ -30,7 +30,31 @@ This is a check of the repository and its reachable history, not a guarantee abo
 possible disclosure. Record with the fictional Demo selected; a video of a live account can
 reveal private information even when the repository is clean.
 
-## Changes made
+## ETF correction - September 10, 2026
+
+The September 4 share filter exposed a missing broker classification: Schwab reports ETF
+positions and trades as `COLLECTIVE_INVESTMENT` with type `EXCHANGE_TRADED_FUND`. The app had
+kept the broad category, so an ETF could show zero shares despite the shares being present
+in the saved broker response. Its share trades could also be omitted from historical comparisons.
+
+The account and transaction parsers now recognize this explicit ETF subtype. A startup
+migration repairs existing classifications from each record's original broker evidence,
+including unambiguous ETF assignment delivery links. It does not guess from ticker names or
+descriptions, promote unidentified funds, or change raw broker responses. Updating the checkout
+and restarting with the normal launcher applies the repair; no manual database editing is needed.
+
+Demo Radar also now states that its fictional chains cover CVX, KTOS, and URNM only. An
+unsupported demo ticker explains that limit instead of incorrectly reporting a Schwab failure.
+Both calls and puts populate for all three sample tickers; other symbols require a live book.
+
+Validation: 819 tests passed, eight platform-specific tests skipped on Windows, 92.28% line
+coverage, plus lint, formatting, type, security, and JavaScript syntax checks. The migration
+was rehearsed against a private ledger copy: quantities, balances, cash, executions, and raw
+evidence were unchanged. The live browser then confirmed restored ETF coverage, while Demo
+Radar populated a put chain and displayed the correct unsupported-ticker message. The Mac
+results linked above describe the earlier revision; the new commit has its own CI run.
+
+## Changes made in the September 4 review
 
 - Results now exercises the production performance-comparison engine with 58 fictional valued
   sessions from May 15 through August 7, 2026. It shows Managed TWR, starting shares plus share

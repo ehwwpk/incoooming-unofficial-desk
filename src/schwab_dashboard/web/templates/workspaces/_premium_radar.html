@@ -1,4 +1,7 @@
 <section class="radar-console" data-radar-console>
+  {% if snapshot.is_demo %}
+  <p class="radar-warning" data-radar-demo-scope>Demo Radar has fictional chains for <strong>CVX, KTOS, and URNM</strong> only, for calls and puts. Pick a ticker below. To research other symbols, open your live Schwab account from <a href="/sources">BOOK</a>.</p>
+  {% endif %}
   <div class="radar-symbol-shelf">
     <div>
       <span>IN YOUR BOOK</span>
@@ -77,7 +80,7 @@
   </aside>
 
   <section class="radar-idle" data-radar-idle>
-    <div><p class="eyebrow">STORED BOOK</p><h2>Names you hold</h2><p>Pick a chip, check a roll, or type a ticker. Visiting Radar does not fetch a chain.</p></div>
+    <div><p class="eyebrow">STORED BOOK</p><h2>Names you hold</h2><p>{% if snapshot.is_demo %}Pick CVX, KTOS, or URNM to explore the fictional chain, or check an open option's roll.{% else %}Pick a chip, check a roll, or type a ticker.{% endif %} Visiting Radar does not fetch a chain.</p></div>
     <ol aria-label="Radar lookup sequence"><li><b>01</b><span>BOOK</span></li><li><b>02</b><span>ROLL</span></li><li><b>03</b><span>LOOKUP</span></li></ol>
   </section>
 

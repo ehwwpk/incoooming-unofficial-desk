@@ -25,6 +25,7 @@ from schwab_dashboard.domain.ledger import (
     OptionLifecycleType,
     PositionEffect,
 )
+from schwab_dashboard.infrastructure.schwab.asset_type import normalized_asset_type
 from schwab_dashboard.infrastructure.schwab.option_symbol import parse_occ_option_symbol
 
 ZERO = Decimal("0")
@@ -165,7 +166,7 @@ class SchwabTransactionMapper:
     ) -> tuple[OptionLifecycleEventRecord, ...]:
         description = str(payload.get("description") or "")
         event_type = _lifecycle_type(description)
-        stock_items = [item for item in items if _asset_type(item) == "EQUITY"]
+        stock_items = [item for item in items if _asset_type(item) in {"EQUITY", "ETF"}]
         option_items = [
             item
             for item in items
@@ -217,7 +218,7 @@ class SchwabTransactionMapper:
 def _instrument(item: Mapping[str, Any], *, observed_at: datetime) -> InstrumentRecord:
     payload = _required_mapping(item, "instrument")
     symbol = _required_text(payload, "symbol").strip()
-    raw_type = str(payload.get("assetType") or "UNKNOWN").strip().upper()
+    raw_type = normalized_asset_type(payload)
     asset_type = _domain_asset_type(raw_type)
     parsed = parse_occ_option_symbol(symbol) if asset_type is AssetType.OPTION else None
     underlying = _optional_text(payload.get("underlyingSymbol"))
@@ -318,6 +319,7 @@ def _option_side(value: Any, parsed: str | None) -> OptionSide | None:
 def _domain_asset_type(value: str) -> AssetType:
     return {
         "EQUITY": AssetType.EQUITY,
+        "ETF": AssetType.ETF,
         "OPTION": AssetType.OPTION,
         "COLLECTIVE_INVESTMENT": AssetType.MUTUAL_FUND,
         "MUTUAL_FUND": AssetType.MUTUAL_FUND,
@@ -327,11 +329,7 @@ def _domain_asset_type(value: str) -> AssetType:
 
 def _asset_type(item: Mapping[str, Any]) -> str:
     instrument = item.get("instrument")
-    return (
-        str(instrument.get("assetType") or "").strip().upper()
-        if isinstance(instrument, Mapping)
-        else ""
-    )
+    return normalized_asset_type(instrument) if isinstance(instrument, Mapping) else ""
 
 
 def _instrument_multiplier(instrument: Mapping[str, Any]) -> Decimal | None:

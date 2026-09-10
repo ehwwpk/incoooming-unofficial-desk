@@ -11,6 +11,7 @@ from schwab_dashboard.domain.broker import (
     BrokerAccountBalances,
     BrokerPosition,
 )
+from schwab_dashboard.infrastructure.schwab.asset_type import normalized_asset_type
 from schwab_dashboard.infrastructure.schwab.option_symbol import parse_occ_option_symbol
 
 
@@ -75,7 +76,7 @@ class SchwabAccountMapper:
 
         symbol = self._required_text(instrument, "symbol").strip()
         instrument_key = str(instrument.get("cusip") or symbol).strip()
-        asset_type = str(instrument.get("assetType") or "UNKNOWN").strip()
+        asset_type = normalized_asset_type(instrument)
         parsed_option = parse_occ_option_symbol(symbol) if asset_type.upper() == "OPTION" else None
         long_quantity = self._decimal(payload.get("longQuantity"), default=Decimal("0"))
         short_quantity = self._decimal(payload.get("shortQuantity"), default=Decimal("0"))

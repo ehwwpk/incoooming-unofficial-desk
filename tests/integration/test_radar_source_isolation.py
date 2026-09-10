@@ -62,6 +62,30 @@ def test_selecting_demo_isolates_every_radar_route_from_live_data(tmp_path: Path
             symbols = client.get("/api/v1/radar/symbols").json()
             assert symbols["saved"] == ["CVX"]
             assert set(symbols["book"]) == {holding.symbol for holding in HOLDINGS}
+            page = client.get("/workspaces/radar")
+            assert "data-radar-demo-scope" in page.text
+            assert "CVX, KTOS, and URNM" in page.text
+            for symbol in ("INTC", "AAPL"):
+                unsupported = client.post(
+                    "/api/v1/radar/lookups",
+                    json={"symbol": symbol, "mode": "cash_secured_put"},
+                )
+                assert unsupported.status_code == 422
+                detail = unsupported.json()["detail"]
+                assert detail["state"] == "unsupported"
+                assert "Demo Radar has fictional chains" in detail["message"]
+                assert "No live lookup was made" in detail["message"]
+                assert "Schwab did not return" not in detail["message"]
+            for symbol in ("CVX", "KTOS", "URNM"):
+                for mode in ("covered_call", "cash_secured_put"):
+                    supported = client.post(
+                        "/api/v1/radar/lookups", json={"symbol": symbol, "mode": mode}
+                    )
+                    assert supported.status_code == 200
+                    result = supported.json()
+                    assert result["source"] == "demo"
+                    assert result["underlying_price"] is not None
+                    assert result["candidates"]
             assert client.get(f"/api/v1/radar/lookups/{live_lookup_id}").status_code == 404
 
             lookup = client.post(
@@ -80,6 +104,7 @@ def test_selecting_demo_isolates_every_radar_route_from_live_data(tmp_path: Path
             assert client.get("/api/v1/radar/symbols").json()["saved"] == []
 
             client.post("/sources/select", data={"source_key": "schwab"}, follow_redirects=False)
+            assert "data-radar-demo-scope" not in client.get("/workspaces/radar").text
             assert client.get(f"/api/v1/radar/lookups/{demo_lookup_id}").status_code == 404
             original_policy = client.get(
                 "/api/v1/radar/policies/CVX", params={"mode": "covered_call"}

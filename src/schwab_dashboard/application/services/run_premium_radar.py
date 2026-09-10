@@ -11,7 +11,10 @@ from schwab_dashboard.application.dashboard.models import (
     DashboardSnapshot,
     LiveOpenOptionPosition,
 )
-from schwab_dashboard.application.errors import AuthenticationRequiredError
+from schwab_dashboard.application.errors import (
+    AuthenticationRequiredError,
+    DemoTickerUnavailableError,
+)
 from schwab_dashboard.application.market_time import market_date
 from schwab_dashboard.application.opportunities import evaluate_radar
 from schwab_dashboard.application.opportunities.symbol import normalize_symbol
@@ -639,7 +642,7 @@ def _find_source_contract(
 
 
 def _safe_error_message(error: Exception, *, state: str) -> str:
-    if isinstance(error, RadarRollRequestError):
+    if isinstance(error, (RadarRollRequestError, DemoTickerUnavailableError)):
         return str(error)
     if state == "authorization_required":
         return "The selected Schwab connection needs authorization before Radar can load a chain."
