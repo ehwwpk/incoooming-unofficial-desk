@@ -32,7 +32,7 @@ from schwab_dashboard.application.performance.risk import calculate_risk_statist
 from schwab_dashboard.application.performance.sessions import build_market_calendar
 
 ZERO = Decimal("0")
-METHODOLOGY_VERSION = "incoooming-performance-v11"
+METHODOLOGY_VERSION = "incoooming-performance-v12"
 _QUALITY_RANK = {"observed": 0, "derived": 1, "estimated": 2, "unresolved": 3}
 
 
@@ -287,6 +287,12 @@ def build_performance_comparison(
         ),
     )
     warnings: list[str] = []
+    if actual_points and actual_points[-1].valuation_phase == "off_session":
+        warnings.append(
+            f"The {actual_points[-1].date:%b %d} account snapshot was observed while the market "
+            "was closed. It is provisional, not a daily return or an observed market close. "
+            "Price comparisons stop at their last supported trading session."
+        )
     if len(calculated) < 2:
         warnings.append(
             "At least two valued market days are needed for a meaningful chained return."

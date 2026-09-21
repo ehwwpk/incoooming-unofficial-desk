@@ -18,7 +18,11 @@ def calculate_capital_efficiency(
     balance_history: Sequence[dict[str, Any]],
     net_option_cash: Decimal,
 ) -> CapitalEfficiency:
-    valued_points = tuple(point for point in actual_points if point.value > ZERO)
+    valued_points = tuple(
+        point
+        for point in actual_points
+        if point.value > ZERO and point.valuation_phase != "off_session"
+    )
     values = [point.value for point in valued_points]
     average = sum(values, ZERO) / Decimal(len(values)) if values else None
     qualities = tuple(_value_quality(point) for point in valued_points)

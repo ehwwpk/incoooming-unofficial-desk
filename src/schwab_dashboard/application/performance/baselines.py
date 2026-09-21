@@ -92,7 +92,9 @@ def _frozen_start(
     series, carried = _price_matrix(
         daily_bars,
         quantities,
-        sessions=tuple(point.date for point in actual_points),
+        sessions=tuple(
+            point.date for point in actual_points if point.valuation_phase != "off_session"
+        ),
     )
     if not series or series[0][0] != coverage_start:
         return "Daily close history does not cover every starting stock holding."
@@ -426,7 +428,9 @@ def build_market_price_reference(
 ) -> ComparisonSeries:
     if not actual_points:
         return _market_unavailable(symbol)
-    sessions = tuple(point.date for point in actual_points)
+    sessions = tuple(
+        point.date for point in actual_points if point.valuation_phase != "off_session"
+    )
     aligned = _aligned_market_closes(daily_bars, symbol=symbol, sessions=sessions)
     if aligned is None:
         return _market_unavailable(symbol)

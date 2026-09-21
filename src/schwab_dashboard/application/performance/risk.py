@@ -34,7 +34,9 @@ def calculate_risk_statistics(points: Sequence[ReturnPoint]) -> RiskStatistics:
         and point.return_quality in {"derived", "estimated"}
         for point in points
     )
-    measured_days = sum(point.session_span == 1 for point in points)
+    measured_days = sum(
+        point.session_span == 1 and point.valuation_phase != "off_session" for point in points
+    )
     if len(returns) < 2:
         return RiskStatistics(
             status="waiting",

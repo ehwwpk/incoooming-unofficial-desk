@@ -55,6 +55,6 @@ def test_calculation_window_retains_one_preceding_anchor_for_gap_reconstruction(
     )
 
     assert [row["observed_at"].date() for row in selected] == [
-        date(2026, 8, 2),
+        date(2026, 7, 30),
         date(2026, 9, 3),
     ]

@@ -248,6 +248,7 @@
         else if (actualPoint.valuationSubtype === "endpoint_bridge") provenance = "ENDPOINT BRIDGE · ESTIMATED";
         else if (actualPoint.valueQuality === "estimated") provenance = "RECONSTRUCTED · ESTIMATED";
         else if (actualPoint.valueQuality === "derived") provenance = "RECONSTRUCTED CLOSE";
+        else if (actualPoint.valuationPhase === "off_session") provenance = "BROKER SNAPSHOT · MARKET CLOSED";
         else if (actualPoint.valuationPhase === "intraday") provenance = "BROKER OBSERVED · INTRADAY";
         else provenance = "BROKER OBSERVED CLOSE";
         if (actualPoint.returnQuality === "multi_session") {
@@ -277,7 +278,12 @@
       inspectorFlow.classList.toggle("has-flow", flow != null && flow !== 0);
       inspectorSeries.innerHTML = series.map((item) => {
         const value = pointsBySeries.get(item.key)?.get(date)?.value;
-        const missing = item.key === "actual" ? "UNRESOLVED / OUTSIDE COVERAGE" : "NOT AVAILABLE";
+        const lastPoint = item.points.at(-1);
+        const missing = item.key === "actual"
+          ? "UNRESOLVED / OUTSIDE COVERAGE"
+          : actualPoint?.valuationPhase === "off_session" && lastPoint?.date < date
+            ? `MARKET CLOSED · LAST ${formatDate(lastPoint.date)}`
+            : "NOT AVAILABLE";
         return `<p class="performance-inspector-row performance-${item.key}-row"><i aria-hidden="true"></i><span>${htmlEscape(item.label)}</span><strong>${Number.isFinite(value) ? percent(value) : missing}</strong></p>`;
       }).join("");
       inspector.hidden = false;

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
+from types import SimpleNamespace
 
 import httpx
+import pytest
 from alembic import command
 from sqlalchemy import inspect
 
@@ -152,7 +155,18 @@ def test_first_visit_chooses_a_source_and_csv_book_remains_isolated(tmp_path: Pa
 
 def test_realistic_csv_book_projects_inventory_options_income_and_dividend(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # This fixture's contracts expire in September and its cash is in August.
+    # Keep the scenario on its own clock instead of letting it expire in CI.
+    fixture_time = datetime(2026, 9, 10, 18, tzinfo=UTC)
+    monkeypatch.setattr(
+        "schwab_dashboard.application.services.import_csv_dataset.datetime",
+        SimpleNamespace(now=lambda _tz: fixture_time),
+    )
+    monkeypatch.setattr(
+        "schwab_dashboard.infrastructure.imports.csv_dashboard._utc_now", lambda: fixture_time
+    )
     settings = Settings(_env_file=None, data_dir=tmp_path)
     command.upgrade(_alembic_config(settings), "head")
     container = Container(settings)

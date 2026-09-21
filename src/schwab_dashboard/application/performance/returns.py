@@ -17,7 +17,10 @@ from schwab_dashboard.application.performance.flows import (
     has_unexplained_cash_between_instants,
 )
 from schwab_dashboard.application.performance.models import ReturnPoint
-from schwab_dashboard.application.performance.sessions import MarketCalendar
+from schwab_dashboard.application.performance.sessions import (
+    MarketCalendar,
+    latest_observation_date,
+)
 
 ZERO = Decimal("0")
 HUNDRED = Decimal("100")
@@ -31,14 +34,14 @@ def build_time_weighted_returns(
 ) -> tuple[ReturnPoint, ...]:
     """Build one aggregate daily valuation and chain deposit-neutral returns.
 
-    Only trading sessions are chained. Brokers keep publishing net-liquidation
-    snapshots over weekends and holidays as marks and cash sweeps settle, and
-    chaining those drifts as return days both invents performance the market
-    never delivered and leaves the managed series with dates no price-based
-    comparison series can ever match.
+    Trading sessions form the daily path. Retain the latest observation when
+    it falls on a closed-market day as a provisional endpoint, never a daily
+    return or a closing valuation. Older closed-market observations remain
+    available for cash-flow unitization but do not become extra return days.
     """
     cohorts: dict[date, dict[str, list[dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
     legacy: dict[date, dict[str, dict[str, Any]]] = defaultdict(dict)
+    latest_day = latest_observation_date(balance_history)
     for row in balance_history:
         observed_at = row.get("observed_at")
         if observed_at is None:
@@ -52,7 +55,7 @@ def build_time_weighted_returns(
         if run_id:
             cohorts[day][run_id].append(row)
             continue
-        if calendar is not None and not calendar.is_session(day):
+        if calendar is not None and not calendar.is_session(day) and day != latest_day:
             continue
         account = str(row.get("account_id") or row.get("account_mask") or "ACCOUNT")
         existing = legacy[day].get(account)
@@ -61,7 +64,7 @@ def build_time_weighted_returns(
 
     grouped: dict[date, dict[str, dict[str, Any]]] = dict(legacy)
     for day, runs in cohorts.items():
-        if calendar is not None and not calendar.is_session(day):
+        if calendar is not None and not calendar.is_session(day) and day != latest_day:
             continue
         latest_rows = max(
             runs.values(),
@@ -126,7 +129,8 @@ def build_time_weighted_returns(
         return_quality = "unresolved"
         quality = "observed_anchor"
         value_quality = _value_quality(rows)
-        valuation_phase = _valuation_phase(rows)
+        off_session = calendar is not None and not calendar.is_session(day)
+        valuation_phase = "off_session" if off_session else _valuation_phase(rows)
         session_span = calendar.session_span(previous_day, day) if calendar and previous_day else 0
         # Chain against the previous stored valuation rather than the broker's
         # stated opening balance. The two disagree whenever overnight
@@ -163,7 +167,12 @@ def build_time_weighted_returns(
                 cumulative_factor *= Decimal("1") + interval_return / HUNDRED
                 if calendar is None:
                     session_span = 1
-                if session_span == 1:
+                if off_session:
+                    # A weekend observation is current account evidence, not a
+                    # Friday close or an additional daily return sample.
+                    return_quality = "provisional"
+                    quality = "provisional"
+                elif session_span == 1:
                     return_quality = _return_quality(
                         previous_value_quality,
                         value_quality,

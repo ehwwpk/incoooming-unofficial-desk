@@ -15,7 +15,10 @@ from schwab_dashboard.application.option_lifecycle import (
     lifecycle_event_type,
     option_side,
 )
-from schwab_dashboard.application.performance.sessions import MarketCalendar
+from schwab_dashboard.application.performance.sessions import (
+    MarketCalendar,
+    latest_observation_date,
+)
 from schwab_dashboard.application.performance.share_replay import (
     classify_forced_equity_matches,
     forced_event_shares,
@@ -256,9 +259,10 @@ def _reconstruct_account_gap(
             left_value=left_value,
             right_value=right_value,
             cash_movements=account_movements,
+            calendar=calendar,
         )
     )
-    total_steps = Decimal(len(days))
+    total_steps = Decimal(sum(calendar.is_session(day) for day in days))
     result: list[dict[str, Any]] = []
     for index, valuation in enumerate(raw[:-1], start=1):
         weight = Decimal(index) / total_steps
@@ -575,6 +579,7 @@ def _endpoint_bridge_path(
     left_value: Decimal,
     right_value: Decimal,
     cash_movements: Sequence[Mapping[str, Any]],
+    calendar: MarketCalendar,
 ) -> dict[date, Decimal]:
     """Build a flow-aware constant-return path between immutable anchors.
 
@@ -586,6 +591,9 @@ def _endpoint_bridge_path(
 
     if not days:
         return {}
+    # A terminal weekend anchor bounds the estimate but earns no invented
+    # extra day of return. Weekend owner cash still lands in its own interval.
+    growth_steps = tuple(int(calendar.is_session(day)) for day in days)
     flows: list[Decimal] = []
     previous = left_at
     for day in days:
@@ -595,8 +603,8 @@ def _endpoint_bridge_path(
 
     def terminal(rate: Decimal) -> Decimal:
         value = left_value
-        for flow in flows:
-            value = value * (ONE + rate) + flow
+        for flow, step in zip(flows, growth_steps, strict=True):
+            value = value * (ONE + rate) ** step + flow
         return value
 
     low = Decimal("-0.999999999")
@@ -612,6 +620,7 @@ def _endpoint_bridge_path(
             right_value=right_value,
             days=days,
             flows=flows,
+            growth_steps=growth_steps,
         )
     for _ in range(160):
         middle = (low + high) / Decimal("2")
@@ -622,8 +631,8 @@ def _endpoint_bridge_path(
     rate = (low + high) / Decimal("2")
     values: dict[date, Decimal] = {}
     value = left_value
-    for day, flow in zip(days, flows, strict=True):
-        value = value * (ONE + rate) + flow
+    for day, flow, step in zip(days, flows, growth_steps, strict=True):
+        value = value * (ONE + rate) ** step + flow
         values[day] = value
     values[days[-1]] = right_value
     return values
@@ -635,17 +644,20 @@ def _linear_endpoint_bridge_path(
     right_value: Decimal,
     days: Sequence[date],
     flows: Sequence[Decimal],
+    growth_steps: Sequence[int],
 ) -> dict[date, Decimal]:
     """Conservative fallback for the rare bridge with no monotonic rate solution."""
 
     total_flow = sum(flows, ZERO)
     terminal_performance = right_value - total_flow
-    span = Decimal(len(days))
+    span = Decimal(sum(growth_steps))
     carried_flow = ZERO
+    elapsed = 0
     values: dict[date, Decimal] = {}
-    for index, (day, flow) in enumerate(zip(days, flows, strict=True), start=1):
+    for day, flow, step in zip(days, flows, growth_steps, strict=True):
         carried_flow += flow
-        weight = Decimal(index) / span
+        elapsed += step
+        weight = Decimal(elapsed) / span
         values[day] = left_value + (terminal_performance - left_value) * weight + carried_flow
     values[days[-1]] = right_value
     return values
@@ -671,12 +683,13 @@ def _latest_observed_rows(
 ) -> dict[date, dict[str, dict[str, Any]]]:
     cohorts: dict[date, dict[str, list[dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
     legacy: dict[date, dict[str, dict[str, Any]]] = defaultdict(dict)
+    latest_day = latest_observation_date(rows)
     for row in rows:
         observed_at = row.get("observed_at")
         if not isinstance(observed_at, (date, datetime)):
             continue
         day = market_date(observed_at)
-        if not calendar.is_session(day) or row.get("synthetic"):
+        if (not calendar.is_session(day) and day != latest_day) or row.get("synthetic"):
             continue
         run_id = str(row.get("sync_run_id") or "")
         if run_id:

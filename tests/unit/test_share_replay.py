@@ -546,7 +546,7 @@ def test_option_premium_does_not_enter_freeze_nav() -> None:
     assert freeze.return_percent == D("0.3")
     assert freeze.points[-1].value == D("100300")
     assert comparison.option_overlay.return_percent == D("5")
-    assert comparison.methodology_version == "incoooming-performance-v11"
+    assert comparison.methodology_version == "incoooming-performance-v12"
 
 
 def test_scaled_dividend_hits_freeze_nav() -> None:

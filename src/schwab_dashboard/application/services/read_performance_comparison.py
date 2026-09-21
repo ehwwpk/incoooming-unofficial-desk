@@ -10,7 +10,7 @@ from schwab_dashboard.application.performance.projection import build_performanc
 from schwab_dashboard.application.performance.reconstruction import (
     build_reconstructed_balance_history,
 )
-from schwab_dashboard.application.performance.sessions import build_market_calendar
+from schwab_dashboard.application.performance.sessions import MarketCalendar, build_market_calendar
 from schwab_dashboard.application.ports.analytics import LiveAnalyticsReader
 
 
@@ -39,10 +39,12 @@ class ReadPerformanceComparison:
         cash_movements = tuple(self._analytics_reader.list_cash_movements())
         executions = tuple(self._analytics_reader.list_executions())
         lifecycle_events = tuple(self._analytics_reader.list_lifecycle_events())
+        calendar = build_market_calendar(daily_bars)
         calculation_balances = _balances_for_period(
             balance_history,
             period=period,
             include_preceding_anchor=True,
+            calendar=calendar,
         )
         reconstructed_balances = build_reconstructed_balance_history(
             balance_history=calculation_balances,
@@ -51,7 +53,7 @@ class ReadPerformanceComparison:
             executions=executions,
             cash_movements=cash_movements,
             lifecycle_events=lifecycle_events,
-            calendar=build_market_calendar(daily_bars),
+            calendar=calendar,
         )
         filtered_balances = _balances_for_period(reconstructed_balances, period=period)
         return build_performance_comparison(
@@ -70,6 +72,7 @@ def _balances_for_period(
     *,
     period: PerformancePeriod,
     include_preceding_anchor: bool = False,
+    calendar: MarketCalendar | None = None,
 ) -> tuple[dict[str, object], ...]:
     if not balance_history:
         return balance_history
@@ -80,7 +83,10 @@ def _balances_for_period(
     included = tuple(row for row in balance_history if _observed_market_date(row) >= starts_on)
     if not include_preceding_anchor:
         return included
-    preceding_dates = [day for day in dated if day < starts_on]
+    calendar = calendar or build_market_calendar(())
+    # An intermediate weekend is not a daily anchor. Preserve the preceding
+    # trading observation so reconstruction can still reach the period start.
+    preceding_dates = [day for day in dated if day < starts_on and calendar.is_session(day)]
     if not preceding_dates:
         return included
     preceding = max(preceding_dates)

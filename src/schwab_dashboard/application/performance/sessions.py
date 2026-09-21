@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
+
+from schwab_dashboard.application.market_time import market_date
 
 FIRST_WEEKEND_WEEKDAY = 5
 _ONE_OFF_NYSE_CLOSURES = frozenset(
@@ -89,6 +91,20 @@ def build_market_calendar(
         sessions=frozenset(days),
         first_stored_session=min(days) if days else None,
         last_stored_session=max(days) if days else None,
+    )
+
+
+def latest_observation_date(rows: Sequence[dict[str, Any]]) -> date | None:
+    """Keep a terminal weekend/holiday observation without creating daily sessions."""
+
+    return max(
+        (
+            market_date(observed)
+            for row in rows
+            if not row.get("synthetic")
+            and isinstance(observed := row.get("observed_at"), (date, datetime))
+        ),
+        default=None,
     )
 
 

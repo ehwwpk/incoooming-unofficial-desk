@@ -19,6 +19,13 @@
       <span>{{ comparison.range_label | upper }}{% if snapshot.is_demo %} &middot; FICTIONAL DEMO{% endif %}{% if risk.status == 'early_sample' %} &middot; EARLY SAMPLE{% endif %}{% if matched.quality != 'observed' %} &middot; {{ matched.quality | replace('_', ' ') | upper }} PATH{% endif %}</span>
     </div>
   </header>
+  {% if comparison.actual.points and not snapshot.is_demo %}
+  {% set latest_point = comparison.actual.points[-1] %}
+  <div class="results-coverage-strip" data-performance-freshness role="status">
+    <span>ACCOUNT SNAPSHOT</span><b>{{ latest_point.date.strftime('%b %d, %Y') | upper }}</b>
+    <small>{% if latest_point.valuation_phase == 'off_session' %}Market closed &middot; latest account value is provisional, not a daily close. {% endif %}{% if matched.as_of %}All four lines compared through {{ matched.as_of.strftime('%b %d, %Y') | upper }} &middot; {{ matched.quality | replace('_', ' ') }} path.{% else %}Waiting for matching return coverage.{% endif %}{% if comparison.estimated_sessions or comparison.reconstructed_sessions %} Missing daily account values are labeled reconstructed or estimated.{% endif %}</small>
+  </div>
+  {% endif %}
   <div class="performance-compare-stage">
     <div class="performance-compare-chart" data-performance-compare-chart tabindex="0" role="img" aria-label="Normalized cumulative performance series. Drag to inspect or use the left and right arrow keys.">
       <div class="performance-compare-canvas" data-performance-compare-canvas aria-hidden="true"></div>
@@ -35,7 +42,7 @@
         <span class="performance-metric-item performance-actual-coverage">
           <span class="performance-series-key"><i aria-hidden="true"></i>MANAGED</span>
           <strong class="{{ matched.managed_return_percent | pnl_class }}">{{ matched.managed_return_percent | percent(2) }}</strong>
-          <small>cash flows removed{% if comparison.actual.points and comparison.actual.points[-1].daily_return_percent is not none %} &middot; latest session &middot; {{ 'simulated' if snapshot.is_demo else 'observed' if comparison.actual.points[-1].return_quality == 'observed' else 'reconstructed' if comparison.actual.points[-1].return_quality == 'derived' else comparison.actual.points[-1].return_quality | replace('_', ' ') }} <b class="{{ comparison.actual.points[-1].daily_return_percent | pnl_class }}">{{ comparison.actual.points[-1].daily_return_percent | percent(2) }}</b> {{ comparison.actual.points[-1].date.strftime('%b %d') | upper }}{% elif comparison.actual.points and comparison.actual.points[-1].return_quality == 'multi_session' %} &middot; latest link spans {{ comparison.actual.points[-1].session_span }} sessions{% elif comparison.actual.return_percent is not none and comparison.actual.points and comparison.actual.points[-1].date != matched.as_of %} &middot; through {{ comparison.actual.points[-1].date.strftime('%b %d') | upper }}{% endif %}</small>
+          <small>cash flows removed{% if comparison.actual.points and comparison.actual.points[-1].daily_return_percent is not none %} &middot; latest session &middot; {{ 'simulated' if snapshot.is_demo else 'observed' if comparison.actual.points[-1].return_quality == 'observed' else 'reconstructed' if comparison.actual.points[-1].return_quality == 'derived' else comparison.actual.points[-1].return_quality | replace('_', ' ') }} <b class="{{ comparison.actual.points[-1].daily_return_percent | pnl_class }}">{{ comparison.actual.points[-1].daily_return_percent | percent(2) }}</b> {{ comparison.actual.points[-1].date.strftime('%b %d') | upper }}{% elif comparison.actual.points and comparison.actual.points[-1].return_quality == 'multi_session' %} &middot; latest link spans {{ comparison.actual.points[-1].session_span }} sessions{% elif matched.as_of and comparison.actual.points and comparison.actual.points[-1].date != matched.as_of %} &middot; compared through {{ matched.as_of.strftime('%b %d') | upper }}{% endif %}</small>
         </span>
         <span class="performance-metric-item performance-shares-coverage">
           <span class="performance-series-key"><i aria-hidden="true"></i>STARTING SHARES</span>
@@ -229,6 +236,7 @@
   </div>
 </section>{% endif %}
 
+{% if snapshot.monthly_performance %}
 <details class="workspace-panel monthly-performance results-disclosure" data-monthly-performance>
   <summary><span><b>MONTH BY MONTH</b><small>CALENDAR {{ snapshot.monthly_performance[-1].year }} · {{ 'SIMULATED' if snapshot.is_demo else 'ACTUAL' }} CASH</small></span><span><strong>{{ snapshot.monthly_performance | length }} MONTHS</strong><i aria-hidden="true"></i></span></summary>
   <div class="workspace-table-wrap"><table class="workspace-table monthly-performance-table">
@@ -241,6 +249,7 @@
     </tr>{% endfor %}</tbody>
   </table></div>
 </details>
+{% endif %}
 {% include "partials/_campaigns.html" %}
 
 <section class="workspace-panel results-secondary" aria-labelledby="recorded-outcomes-title">
