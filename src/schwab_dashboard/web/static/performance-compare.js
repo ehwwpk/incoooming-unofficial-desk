@@ -153,7 +153,8 @@
       crosshair: {
         mode: charts.CrosshairMode.Normal,
         vertLine: { color: "#8b9195", width: 1, style: charts.LineStyle.Dashed, labelBackgroundColor: "#34383b" },
-        horzLine: { color: "#666c70", width: 1, style: charts.LineStyle.Dashed, labelBackgroundColor: "#34383b" },
+        // A free cursor height is not any of the four returns for this date.
+        horzLine: { visible: false, labelVisible: false },
       },
       rightPriceScale: {
         visible: true,
@@ -235,6 +236,23 @@
     const pointsBySeries = new Map(series.map((item) => [item.key, new Map(item.points.map((point) => [point.date, point]))]));
     let locked = false;
     let cursorIndex = dates.length - 1;
+    let positioningCrosshair = false;
+
+    const positionSelectedDate = () => {
+      if (positioningCrosshair) return;
+      const date = dates[cursorIndex];
+      const actualPoint = pointsBySeries.get("actual")?.get(date);
+      const fallback = series.find((item) => item.key !== "actual" && pointsBySeries.get(item.key)?.has(date));
+      const point = actualPoint || pointsBySeries.get(fallback?.key)?.get(date);
+      const api = actualPoint ? actualApiByDate.get(date) : chartSeries.get(fallback?.key);
+      if (!point || !api) return;
+      positioningCrosshair = true;
+      try {
+        chart.setCrosshairPosition?.(point.value, date, api);
+      } finally {
+        positioningCrosshair = false;
+      }
+    };
 
     const showInspector = (date, point = null) => {
       if (!inspector || !date) return;
@@ -302,16 +320,26 @@
     };
 
     chart.subscribeCrosshairMove((parameter) => {
+      if (positioningCrosshair) return;
+      if (locked) {
+        positionSelectedDate();
+        return;
+      }
       if (!parameter?.time || parameter.point?.x < 0 || parameter.point?.y < 0 || parameter.point?.x > frame.clientWidth || parameter.point?.y > frame.clientHeight) {
         hideInspector();
         return;
       }
-      if (!locked) showInspector(timeKey(parameter.time), parameter.point);
+      showInspector(timeKey(parameter.time), parameter.point);
     });
 
     canvas.addEventListener("click", () => {
+      if (inspector?.hidden) return;
       locked = !locked;
-      if (!locked) hideInspector();
+      if (locked) positionSelectedDate();
+      else {
+        hideInspector();
+        chart.clearCrosshairPosition?.();
+      }
     });
     canvas.addEventListener("mouseleave", hideInspector);
     frame.addEventListener("keydown", (event) => {
@@ -329,13 +357,12 @@
       else cursorIndex = Math.max(0, Math.min(dates.length - 1, cursorIndex + (event.key === "ArrowRight" ? 1 : -1)));
       const date = dates[cursorIndex];
       showInspector(date);
-      const point = pointsBySeries.get("actual")?.get(date);
-      const pointApi = actualApiByDate.get(date) || actualApi;
-      if (point && pointApi && chart.setCrosshairPosition) chart.setCrosshairPosition(point.value, date, pointApi);
+      positionSelectedDate();
     });
     frame.addEventListener("blur", () => {
       locked = false;
       hideInspector();
+      chart.clearCrosshairPosition?.();
     });
 
     chart.timeScale().fitContent();

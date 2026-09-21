@@ -141,7 +141,7 @@ def test_sunday_reconnect_reaches_every_results_period_from_stored_broker_data(
                     assert "Market closed" in response.text
                     assert "SEP 20, 2026" in response.text and "SEP 18, 2026" in response.text
                     assert 'data-performance-demo="false"' in response.text
-                    assert "performance-compare.js?v=22" in response.text
+                    assert "performance-compare.js?v=23" in response.text
                     assert "&middot; compared through SEP 18" in response.text
 
         asyncio.run(request_results())
