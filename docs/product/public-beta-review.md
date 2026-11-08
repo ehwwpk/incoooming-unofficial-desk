@@ -1,6 +1,7 @@
-# Public beta review — September 4, 2026
+# Release review record — September 4, 2026
 
-The local project was reviewed for a GitHub beta release. The
+This is a historical review, not a current release-status label. The local project was reviewed for
+its initial GitHub release. The
 review used the current local checkout, including its existing CSV-import changes, rather than
 the older GitHub version. The follow-up sweep prepares all pending changes for a local commit;
 these checks do not publish a GitHub release or social post.
@@ -121,7 +122,7 @@ possible secret representation has been detected.
 
 ## Remaining limits and release positioning
 
-The beta now supports Windows and macOS 15 on Intel and Apple Silicon, with Chrome used for Mac
+The release now supports Windows and macOS 15 on Intel and Apple Silicon, with Chrome used for Mac
 CSV imports. Safari's interface is tested; Safari CSV selection remains unverified. The later
 [validation report](../platforms/macos-validation.md) contains the passing Python 3.12/3.13/3.14
 matrix. Current Schwab authorization, developer-app approval, market-data entitlements, and a new

@@ -85,7 +85,13 @@ def auth_complete(
 ) -> None:
     """Finish Schwab login and save the connection in your system credential store."""
     if from_stdin:
-        pasted_url = sys.stdin.readline().strip()
+        # PowerShell can prepend a UTF-8 BOM. Decode the pipe explicitly rather
+        # than letting Windows' console code page turn it into part of the URL.
+        try:
+            pasted_url = sys.stdin.buffer.readline().decode("utf-8-sig").strip()
+        except UnicodeDecodeError:
+            typer.echo("Not ready: the callback input must be UTF-8 text.", err=True)
+            raise typer.Exit(code=1) from None
         if not pasted_url:
             typer.echo("Not ready: no callback URL was received on standard input.", err=True)
             raise typer.Exit(code=1)

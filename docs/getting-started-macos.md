@@ -1,7 +1,8 @@
 # Get Incoooming running on your Mac
 
-Start with the demo, then choose CSV files or connect your own Schwab account. The app runs on
-your Mac and opens in your browser. It never places trades.
+Use your Schwab account, import CSV files, or explore the optional demo. The app runs on your Mac
+and opens in your browser. It never places trades. After installing below, you can go straight to
+[Connect Schwab](#connect-schwab); you don't have to run the demo first.
 
 **Tested on macOS 15, on both Apple Silicon and Intel**, with Python 3.12, 3.13, and 3.14.
 Native checks cover setup, restarts, Keychain, the Safari interface, and CSV imports in Chrome.

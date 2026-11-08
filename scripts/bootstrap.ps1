@@ -38,10 +38,10 @@ if ($LASTEXITCODE -ne 0) {
 if ($LASTEXITCODE -ne 0) {
     throw "pip could not be upgraded."
 }
-& .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+& .\.venv\Scripts\python.exe -m pip install --upgrade --upgrade-strategy eager -e ".[dev]"
 if ($LASTEXITCODE -ne 0) {
     throw "Incoooming dependencies could not be installed."
 }
 
-Write-Host "Bootstrap complete. Try the demo with .\scripts\run-demo.cmd."
-Write-Host "For CSV files, use .\scripts\run-local.cmd. Only Schwab setup needs a .env file; see docs\getting-started-schwab.md."
+Write-Host "Bootstrap complete. Connect Schwab: follow docs\getting-started-schwab.md."
+Write-Host "Already connected or using CSV? Run .\scripts\run-local.cmd. Try fictional data with .\scripts\run-demo.cmd."

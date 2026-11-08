@@ -1,14 +1,17 @@
 # Incoooming
 
-**A personal dashboard for covered calls and cash-secured puts.**
+**Track your covered calls and cash-secured puts. Connect your live Schwab account today.**
 
-I built Incoooming to track premium from my own covered calls and cash-secured puts. I wanted to
-see the cash coming in, what was still at risk, and how the whole account was doing—all in one
-place. I'm sharing it for anyone who wants that same context.
+I built Incoooming for my own Schwab account. I wanted to see the premium coming in, what was
+still at risk, and how the whole account was doing, all in one place. I use it for my own
+covered calls and cash-secured puts, and I'm sharing it for anyone who wants that same context.
 
-Free and open source. Runs locally on your computer. Reads data and never places trades.
-This is an early beta, so start with the demo and check your own numbers against your broker.
-Available for Windows and Mac. Mac CSV imports use Chrome.
+**[Watch my video walkthrough on X →](https://x.com/ehwwpk/status/2097422524359606668)**
+
+Free and open source. Runs on your computer. Reads data and never places trades.
+**Schwab live is available now**, using your own approved Schwab Individual Trader API app.
+Other brokers can use supported CSV exports; additional broker logins require a new integration.
+Windows and Mac setup guides are below. On Mac, use Chrome for CSV imports.
 
 ![Incoooming demo desk with fictional calls and puts](docs/images/demo-desk.png)
 
@@ -21,9 +24,13 @@ Available for Windows and Mac. Mac CSV imports use Chrome.
 | **Radar** | Which calls or puts fit the rules I chose? Why were other contracts filtered out? |
 | **Results** | How is the account doing compared with the same starting shares plus share trades, SPY, and SPY at my starting stock exposure? |
 
-The demo includes 18 calls, two puts, put roll-downs, model Greeks, and the full Results chart.
-Its prices and returns are fictional, with a fixed August 7, 2026 date. You can explore it without
-an account, API key, or brokerage connection.
+With Schwab connected, you get positions, activity, current quotes, option-chain research, Greeks,
+and account comparisons. The app refreshes every 15 minutes while it's running, and you can use
+**SYNC NOW** whenever you need a refresh. Quote times and data gaps stay visible.
+
+Just looking around? The demo includes calls, puts, rolls, and the full Results chart. Its data
+is fictional and fixed at August 7, 2026. It needs no account or API key; demo Radar only scans
+the included example tickers.
 
 <details>
 <summary>See the demo's Results chart</summary>
@@ -34,7 +41,16 @@ These are made-up returns to show how the comparisons work.
 
 </details>
 
-## Try it
+## Get started
+
+| I want to… | Start here |
+| --- | --- |
+| **Connect my Schwab account** | [Windows connection guide](docs/getting-started-schwab.md) · [Mac connection guide](docs/getting-started-macos.md#connect-schwab) |
+| **Look around first** | Follow the quick setup below and open the demo |
+| **Use another broker's exports** | [Import CSV files](#use-another-broker) |
+| **Have my coding agent set it up** | [Copy this setup prompt](#want-your-coding-agent-to-help) |
+
+### Quick setup
 
 You'll need **Python 3.12, 3.13, or 3.14**. Supported setups are Windows 10/11 and
 **macOS 15 on Apple Silicon and Intel**. See [what we tested on Mac](docs/platforms/macos-validation.md).
@@ -44,40 +60,49 @@ You'll need **Python 3.12, 3.13, or 3.14**. Supported setups are Windows 10/11 a
 2. Open the extracted folder containing this README and `scripts`. On Windows, type `powershell`
    in File Explorer's address bar and press Enter. On Mac, open Terminal, type `cd `, drag the
    project folder into the Terminal window, and press Enter.
-3. Run these commands, one at a time. Wait for setup to finish successfully before starting the demo:
+3. Run the setup command for your computer:
 
 **Windows — PowerShell**
 
 ```powershell
 .\scripts\bootstrap.cmd
-.\scripts\run-demo.cmd
 ```
 
 **Mac — Terminal**
 
 ```sh
 sh ./scripts/bootstrap.sh
-sh ./scripts/run-demo.sh
 ```
 
-Open **[http://127.0.0.1:8182](http://127.0.0.1:8182)** in your browser. If you see the welcome
-page, click **OPEN DEMO**. Start with **Results**, then explore the Desk and Options. Leave the
-terminal open; press `Ctrl+C` there to stop the demo.
+4. Once setup finishes, choose your data:
+
+   - **Schwab:** follow the connection guide above to save your app credentials locally and
+     authorize access on Schwab's website. You need your own approved developer app; an ordinary
+     brokerage login alone isn't enough. You can try the demo or CSV while Schwab approval is pending.
+   - **Demo:** run `.\scripts\run-demo.cmd` on Windows or `sh ./scripts/run-demo.sh` on Mac.
+   - **CSV or an already connected Schwab account:** run `.\scripts\run-local.cmd` on Windows
+     or `sh ./scripts/run-local.sh` on Mac.
+
+Open **[http://127.0.0.1:8182](http://127.0.0.1:8182)** in your browser and choose your data source.
+Leave the server terminal open. Press `Ctrl+C` there to stop it before switching between the
+standalone demo and your own data.
 
 Need Python, a little more guidance, or help with an error? Follow the
 [Windows setup guide](docs/getting-started.md) or [Mac setup guide](docs/getting-started-macos.md).
 
-## Use your own data
+### Coming back later
 
-Stop the standalone demo with `Ctrl+C` before switching to either of these paths.
+Start `run-local.cmd` on Windows or `sh ./scripts/run-local.sh` on Mac after a restart.
+If Schwab asks you to sign in again, use `connect-schwab.cmd` or `sh ./scripts/connect-schwab.sh`.
+A saved token isn't proof of a fresh sync: check the last successful sync and the dates on Results.
+The latest account snapshot and the latest market close can have different dates.
 
-**Connect Schwab:** get your own approved Schwab Individual Trader API app and follow the
-[Windows connection guide](docs/getting-started-schwab.md) or
-[Mac connection guide](docs/getting-started-macos.md#connect-schwab). Approval is controlled by
-Schwab, so you can use the demo or CSV imports while you wait.
+After updating the project, stop the server, back up your local `.env` and `var/` privately, and
+rerun bootstrap to update its packages before starting again. Keep those backups out of GitHub.
 
-**Import CSV files:** run `.\scripts\run-local.cmd` on Windows or `sh ./scripts/run-local.sh`
-on Mac, open the local address above, and choose
+## Use another broker
+
+**Import CSV files now:** start the normal app with `run-local` as above, then choose
 **BOOK → Import CSV**. Select your broker, preview the files, and review any skipped rows before
 importing. On Mac, use **Chrome** for CSV imports; Safari file selection remains unverified.
 You don't need API credentials for this path.
@@ -88,25 +113,34 @@ history alone won't give you a complete current portfolio. CSV files don't provi
 option chains, Greeks, or the daily account history needed for the full benchmark chart.
 See [supported files and examples](docs/getting-started.md#import-your-own-csv-files).
 
+**Want a live login for another broker?** You or your coding agent can build an adapter using that
+broker's approved API. Schwab is the only live broker integration included today; there isn't a
+universal broker-login button. Start with [adding a broker](CONTRIBUTING.md#adding-a-broker),
+use fictional test data, and keep your credentials private. Contributions are welcome.
+
 ## Want your coding agent to help?
 
-Open this project folder in your agent and paste this:
+Open this project folder in your agent and paste this. Change the chosen source if you'd prefer
+CSV or the demo:
 
 ```text
-Help me get Incoooming running on this computer. Read README.md and
+Help me get Incoooming running. My chosen source is my live Schwab account.
+Read README.md and
 the setup guide for my operating system (docs/getting-started.md for Windows,
 docs/getting-started-macos.md for Mac). Check the OS and supported Python version,
-then install the project dependencies and start the demo. Check that the
-page opens and the Results chart works. Fix ordinary setup problems as you go.
+then install the project dependencies and follow the guide for my chosen source.
+For Schwab, check whether I already have an approved developer app. If not, explain
+how to request it and set up a working demo or CSV book while approval is pending.
+Fix ordinary setup problems as you go.
 On Mac, use Chrome for CSV import checks; don't assume Safari uploads are verified.
 
-Once the demo works, ask whether I want to use CSV files or connect Schwab.
-Follow the relevant guide and help me get to a working book. If Schwab approval
-is still pending, leave me with a working demo or CSV setup and explain the
-remaining step. Let me enter credentials and complete broker login privately;
+Let me enter credentials and complete broker login privately;
 don't ask me to paste secrets or authorization URLs into chat. Preserve any
-existing settings and data, and keep the app on 127.0.0.1. Finish by telling me
-what worked and the exact command to start it next time.
+existing settings and data, and keep the app on 127.0.0.1. For Schwab, verify a
+successful sync, my positions, and the account and market dates on Results. For
+CSV or demo, verify the selected book and its available views. Explain any
+missing or estimated history; don't treat a saved token as proof of fresh data.
+Finish by telling me what worked and the exact command to start it next time.
 ```
 
 ## A few things worth understanding
@@ -116,11 +150,14 @@ what worked and the exact command to start it next time.
   of open trades separately.
 - **Returns describe the whole account.** Identified deposits and withdrawals are removed from
   returns. The comparison with starting shares includes share trades; the SPY line is price-only,
-  without dividends. Estimated history is marked on the chart.
+  without dividends. Historical daily account values may be incomplete, especially on first
+  connection or after time offline. Reconstructed history is marked as estimated, not as a
+  recorded broker close. Check important numbers against your broker.
 - **Missing information stays missing.** A dash means a required input is unavailable. Greeks are
   model estimates, and a roll quote is an estimate of both legs, not a guaranteed fill.
-- **Your data stays on your computer.** Broker records are stored locally. Keep `.env`, `var/`,
-  broker exports, and authorization links private. The app is intended for local use.
+- **Your records stay local.** The app contacts Schwab for authorization and data, then stores
+  your records on your computer. Keep `.env`, `var/`, broker exports, logs, and authorization links
+  private. Run it locally; don't expose the server through a public link or tunnel.
 
 For the details behind a number, open its method notes or read
 [How the numbers work](docs/accounting.md). Incoooming isn't investment or tax advice and has no

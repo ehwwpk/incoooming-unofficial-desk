@@ -25,9 +25,10 @@ fi
 require_venv
 "$INCOOOMING_VENV_PYTHON" --version
 "$INCOOOMING_VENV_PYTHON" -m pip install --upgrade pip
-"$INCOOOMING_VENV_PYTHON" -m pip install -e '.[dev]'
+"$INCOOOMING_VENV_PYTHON" -m pip install --upgrade --upgrade-strategy eager -e '.[dev]'
 
 printf '%s\n' 'Setup is complete.' \
+    'Connect Schwab: follow docs/getting-started-macos.md.' \
     'Try the demo: sh scripts/run-demo.sh' \
     'Use your CSV files: sh scripts/run-local.sh' \
     'Only a live Schwab connection needs a .env file. See docs/getting-started-macos.md.'

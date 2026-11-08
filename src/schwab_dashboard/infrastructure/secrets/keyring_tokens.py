@@ -67,12 +67,16 @@ class KeyringTokenStore:
         try:
             backend = keyring.get_keyring()
             usable = backend.priority > 0
-            # Mac support means native Keychain storage. A user-level null or
-            # third-party backend must not silently drop or write tokens to disk.
+            # Use native storage on both supported platforms. A user-level null
+            # or third-party backend must not silently drop or write tokens to disk.
             if sys.platform == "darwin":
                 from keyring.backends.macOS import Keyring
 
                 usable = usable and isinstance(backend, Keyring)
+            elif sys.platform == "win32":
+                from keyring.backends.Windows import WinVaultKeyring
+
+                usable = usable and isinstance(backend, WinVaultKeyring)
             if not usable:
                 raise keyring.errors.NoKeyringError()
             return backend

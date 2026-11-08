@@ -1,7 +1,7 @@
 # Contributing
 
-Thanks for helping improve Incoooming. This is a beta, so small, testable changes are
-easier to review than broad rewrites.
+Thanks for helping improve Incoooming. Small, testable changes are easier to review than broad
+rewrites, especially when they affect someone's live account data.
 
 ## Before opening an issue
 
@@ -59,3 +59,21 @@ checks include Intel and Apple Silicon, native Keychain storage with disposable 
 the Safari interface, and Chrome with real CSV files. Safari CSV file selection remains
 unverified because the native automation cannot read selected files. Keep support claims tied
 to those results; automated checks do not prove a real broker login was completed on a Mac.
+
+## Adding a broker
+
+Schwab is the included live connection. Other brokers currently use supported CSV exports.
+Adding a login means implementing and testing a new integration, not adding a password field.
+
+1. Check whether the broker offers an approved API or authorized data-sharing provider. Confirm
+   the access requirements and what account, activity, and market data it actually returns.
+2. Read the [adapter strategy](docs/integrations/broker-adapter-strategy.md) and the interfaces in
+   [`application/ports`](src/schwab_dashboard/application/ports). Keep authentication and payload
+   parsing in the broker's adapter; use the existing ledger and calculations.
+3. Store tokens in the native credential store. Keep passwords, app secrets, and callback URLs
+   out of source code, logs, fixtures, and agent chats. Keep order placement outside the adapter.
+4. Test with fictional fixtures: signs, stock and ETF quantities, option multipliers, fees,
+   assignments, time zones, repeated imports, expired login, and missing or delayed data. Declare
+   unsupported features explicitly; positions alone don't provide Radar or daily benchmarks.
+5. Compare a private live sync with the broker before claiming live support. Share only sanitized
+   reproduction steps and fictional data in the pull request.

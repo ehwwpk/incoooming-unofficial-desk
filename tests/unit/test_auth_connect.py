@@ -4,6 +4,7 @@ import webbrowser
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+from urllib.parse import parse_qs
 
 import httpx
 import pytest
@@ -204,3 +205,33 @@ def test_initial_sync_failure_explains_login_was_saved(container: ConnectContain
     assert "First sync complete:" not in result.output
     assert container.token_store.token is not None
     assert container.closed
+
+
+@pytest.mark.parametrize("encoding", ["utf-8", "utf-8-sig"])
+def test_piped_callback_exchanges_exact_code_without_echoing_secrets(
+    container: ConnectContainer, encoding: str
+) -> None:
+    callback = "https://127.0.0.1:8182/?code=dummy%40private%2Bcode&session=dummy-session"
+    result = CliRunner().invoke(
+        cli.app, ["auth-complete", "--from-stdin"], input=(callback + "\r\n").encode(encoding)
+    )
+    assert result.exit_code == 0, result.output
+    assert container.token_store.token is not None
+    assert len(container.requests) == 1
+    assert parse_qs(container.requests[0].content.decode())["code"] == ["dummy@private+code"]
+    assert "Authorization stored" in result.output
+    for private in (callback, "dummy", "session=", "code="):
+        assert private not in result.output
+    assert container.closed
+
+
+def test_invalid_piped_encoding_never_contacts_broker(container: ConnectContainer) -> None:
+    result = CliRunner().invoke(
+        cli.app, ["auth-complete", "--from-stdin"], input=b"\xffdummy-private-code\n"
+    )
+    assert result.exit_code == 1
+    assert "UTF-8" in result.output
+    assert "dummy" not in result.output
+    assert "Traceback" not in result.output
+    assert not container.requests
+    assert container.token_store.token is None

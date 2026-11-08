@@ -2,10 +2,12 @@
 
 Start here if you want to use the app:
 
+- [Watch the owner's walkthrough on X](https://x.com/ehwwpk/status/2097422524359606668)
+- [Connect Schwab on Windows](getting-started-schwab.md)
+- [Connect Schwab on Mac](getting-started-macos.md#connect-schwab)
 - [Get running on Windows](getting-started.md)
 - [Get running on Mac](getting-started-macos.md)
 - [Ask your coding agent to help with setup](../README.md#want-your-coding-agent-to-help)
-- [Connect Schwab on Windows](getting-started-schwab.md)
 - [How the numbers work](accounting.md)
 - [Supported CSV formats](systems/csv-import.md)
 
@@ -14,7 +16,7 @@ For contributors and readers who want the implementation details:
 - [Architecture](architecture.md)
 - [Data contracts](data-contracts.md)
 - [Schwab live contract](integrations/schwab-live-contract.md)
-- [Public beta review and checks](product/public-beta-review.md)
+- [September release review record](product/public-beta-review.md)
 - [Mac implementation plan and acceptance checks](platforms/macos-support-plan.md)
 - [Mac validation results and supported browsers](platforms/macos-validation.md)
 

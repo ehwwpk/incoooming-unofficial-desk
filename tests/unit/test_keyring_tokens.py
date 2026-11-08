@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import keyring
 import pytest
 from keyring.backend import KeyringBackend
+from keyring.backends.Windows import WinVaultKeyring
 
 from schwab_dashboard.application.errors import CredentialStoreError
 from schwab_dashboard.application.ports.tokens import OAuthTokenSet
@@ -13,7 +14,7 @@ from schwab_dashboard.infrastructure.secrets import keyring_tokens
 from schwab_dashboard.infrastructure.secrets.keyring_tokens import KeyringTokenStore
 
 
-class FakeBackend(KeyringBackend):
+class FakeBackend(WinVaultKeyring):
     priority = 1
 
     def __init__(self) -> None:
@@ -103,6 +104,31 @@ def test_mac_requires_native_keychain_backend(
     with pytest.raises(CredentialStoreError, match="macOS Keychain"):
         _store().save(OAuthTokenSet(access_token="dummy-access"))
     assert backend.serialized is None
+
+
+@pytest.mark.parametrize("operation", ["load", "save", "delete"])
+def test_windows_rejects_non_native_storage_before_access(
+    monkeypatch: pytest.MonkeyPatch, operation: str
+) -> None:
+    class UntrustedBackend(KeyringBackend):
+        priority = 1
+
+        def get_password(self, service: str, username: str) -> str | None:
+            raise AssertionError("Must not read non-native storage")
+
+        def set_password(self, service: str, username: str, password: str) -> None:
+            raise AssertionError("Must not save tokens outside Credential Manager")
+
+        def delete_password(self, service: str, username: str) -> None:
+            raise AssertionError("Must not modify non-native storage")
+
+    monkeypatch.setattr(keyring, "get_keyring", UntrustedBackend)
+    monkeypatch.setattr(keyring_tokens, "sys", SimpleNamespace(platform="win32"))
+    with pytest.raises(CredentialStoreError, match="Windows Credential Manager"):
+        if operation == "save":
+            _store().save(OAuthTokenSet(access_token="dummy-access"))
+        else:
+            getattr(_store(), operation)()
 
 
 @pytest.mark.parametrize(

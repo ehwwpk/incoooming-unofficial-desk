@@ -79,7 +79,13 @@ try {
     }
 
     Set-Clipboard -Value " "
-    $callback | & $dashboard auth-complete --from-stdin
+    $previousOutputEncoding = $OutputEncoding
+    try {
+        $OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+        $callback | & $dashboard auth-complete --from-stdin
+    } finally {
+        $OutputEncoding = $previousOutputEncoding
+    }
     if ($LASTEXITCODE -ne 0) {
         throw "Schwab rejected the freshly captured callback. The local token was not replaced."
     }

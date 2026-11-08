@@ -6,7 +6,7 @@ This connects your own Schwab account so Incoooming can show your positions, act
 data. You'll sign in on Schwab's website and choose which accounts to share. Incoooming never
 asks for your Schwab password or places trades.
 
-New here? [Get the demo running first](getting-started.md). You can also give your coding agent
+You can connect directly with this guide; trying the demo first is optional. Give your coding agent
 the [setup prompt](../README.md#want-your-coding-agent-to-help) and have it walk through this guide
 with you. You enter the secrets and complete the broker login yourself.
 
@@ -123,6 +123,9 @@ used the manual flow, leave its server window open.
 
 You're connected when a sync finishes and the desk shows a recent successful sync time. A saved
 login token by itself doesn't confirm that the account data was fetched successfully.
+Check your positions against Schwab, then open Results and check its account-snapshot and market
+dates. Weekends and closed markets can have an older market date than the account snapshot.
+History reconstructed after time offline is marked as estimated; it isn't a recorded daily close.
 
 ## Later use
 

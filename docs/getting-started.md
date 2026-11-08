@@ -2,8 +2,9 @@
 
 This guide uses Windows commands. **On a Mac, use [the Mac setup guide](getting-started-macos.md).**
 
-Start with the demo to see the app working. Then choose CSV files or a Schwab connection for your
-own data. You can do the first part without a brokerage account or any API credentials.
+Ready to use your Schwab account? Go straight to [Connect Schwab on Windows](getting-started-schwab.md).
+That guide includes setup. This page covers the optional demo, CSV imports, and everyday startup.
+The demo and CSV imports need no brokerage login or API credentials.
 
 If you'd like a coding agent to handle setup, open the project folder in your agent and use the
 [copyable setup prompt in the README](../README.md#want-your-coding-agent-to-help).
@@ -11,7 +12,7 @@ If you'd like a coding agent to handle setup, open the project folder in your ag
 ## 1. Get Python and the project
 
 These instructions are for Windows 10 or 11, with Python 3.12, 3.13, or 3.14.
-Linux setup isn't covered by this beta.
+Linux setup isn't covered by these guides.
 
 If you need Python, install a supported version from
 [Python's Windows downloads](https://www.python.org/downloads/windows/). Keep the Python launcher
@@ -118,8 +119,9 @@ Open PowerShell in the project folder and run the command for the book you want:
 | Restart the normal app after a code update | `.\scripts\restart-local.cmd` |
 | Reconnect when Schwab authorization expires | `.\scripts\connect-schwab.cmd` |
 
-You don't need to run bootstrap every time. Run it again after getting a project update so any
-new packages are installed. The launcher updates the local database when needed.
+You don't need to run bootstrap every time. After getting a project update, stop the app, back up
+`.env` and `var/` privately, and rerun bootstrap to refresh packages, including their dependencies.
+Then restart the app. The launcher updates the local database when needed.
 
 ## If something gets stuck
 
